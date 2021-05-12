@@ -1,6 +1,7 @@
 package shaping
 
 import (
+	"github.com/go-text/di"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 )
@@ -9,7 +10,7 @@ type Input interface {
 	// Text returns the characters to be shaped.
 	Text() []rune
 	// Direction returns the directionality of the text.
-	Direction() Direction
+	Direction() di.Direction
 	// Face returns the font face to render the text in.
 	Face() font.Face
 	// Size returns the size of the font, eg. 14.
