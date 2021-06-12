@@ -1,9 +1,6 @@
 package shaping
 
-import (
-	"golang.org/x/image/math/fixed"
-	"image"
-)
+import "golang.org/x/image/math/fixed"
 
 type Output interface {
 	// Advance returns the distance the Dot has advanced.
