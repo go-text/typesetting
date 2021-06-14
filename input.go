@@ -2,7 +2,7 @@ package shaping
 
 import (
 	"github.com/go-text/di"
-	"golang.org/x/image/font"
+	"github.com/go-text/font"
 	"golang.org/x/image/math/fixed"
 )
 
