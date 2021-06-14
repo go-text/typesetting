@@ -11,6 +11,6 @@ type Output interface {
 	Bounds() fixed.Rectangle26_6
 	// Length returns the number of glyphs in the output.
 	Length() int
-	// Glyph returns the glyph at the given index.
-	Glyph(int) Glyph
+	// Rune returns the rune to draw at the given index.
+	Rune(int) rune
 }
