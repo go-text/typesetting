@@ -1,6 +1,9 @@
 package shaping
 
-import "golang.org/x/image/math/fixed"
+import (
+	"golang.org/x/image/font/sfnt"
+	"golang.org/x/image/math/fixed"
+)
 
 type Output interface {
 	// Advance returns the distance the Dot has advanced.
@@ -11,6 +14,6 @@ type Output interface {
 	Bounds() fixed.Rectangle26_6
 	// Length returns the number of glyphs in the output.
 	Length() int
-	// Rune returns the rune to draw at the given index.
-	Rune(int) rune
+	// Index returns the GlyphIndex to draw at the given index.
+	Index(int) sfnt.GlyphIndex
 }
