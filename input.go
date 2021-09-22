@@ -1,6 +1,7 @@
 package shaping
 
 import (
+	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/di"
 	"github.com/go-text/font"
 	"golang.org/x/image/math/fixed"
@@ -21,4 +22,10 @@ type Input interface {
 	// Size returns the size of the font, eg. 14.
 	// TODO is this a scaled value, exact pixels, or display dependand?
 	Size() fixed.Int26_6
+
+	// Script returns an identifier for the writing system used in the text.
+	Script() language.Script
+
+	// Language returns an identifier for the language of the text.
+	Language() language.Language
 }

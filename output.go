@@ -1,9 +1,14 @@
 package shaping
 
 import (
-	"golang.org/x/image/font/sfnt"
+	"github.com/benoitkugler/textlayout/harfbuzz"
 	"golang.org/x/image/math/fixed"
 )
+
+type Glyph struct {
+	harfbuzz.GlyphInfo
+	harfbuzz.GlyphPosition
+}
 
 type Output interface {
 	// Advance returns the distance the Dot has advanced.
@@ -15,5 +20,5 @@ type Output interface {
 	// Length returns the number of glyphs in the output.
 	Length() int
 	// Index returns the GlyphIndex to draw at the given index.
-	Index(int) sfnt.GlyphIndex
+	Index(int) Glyph
 }
