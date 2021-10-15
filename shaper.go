@@ -3,6 +3,7 @@ package shaping
 import (
 	"fmt"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
 	"golang.org/x/image/font/sfnt"
@@ -65,8 +66,18 @@ func (o output) Index(i int) Glyph {
 	return o.Glyphs[i]
 }
 
+// MissingGlyphError indicates that the font used in shaping did not
+// have a glyph needed to complete the shaping.
+type MissingGlyphError struct {
+	fonts.GID
+}
+
+func (m MissingGlyphError) Error() string {
+	return fmt.Sprintf("missing glyph with id %d", m.GID)
+}
+
 // Shape turns an input into an output.
-func Shape(input Input) Output {
+func Shape(input Input) (Output, error) {
 	// Prepare to shape the text.
 	// TODO: maybe reuse these buffers for performance?
 	buf := harfbuzz.NewBuffer()
@@ -118,7 +129,7 @@ func Shape(input Input) Output {
 			if !ok {
 				// TODO: can this error happen? Will harfbuzz return a
 				// GID for a glyph that isn't in the font?
-				panic(fmt.Errorf("font missing glyphs for: %v", g.GlyphInfo.Glyph))
+				return nil, MissingGlyphError{GID: g.GlyphInfo.Glyph}
 			}
 			if h := -extents.Height; h > tallest {
 				tallest = h
@@ -137,5 +148,5 @@ func Shape(input Input) Output {
 	}
 	out.TopToBaseline = scale(fixed.Int26_6(baseline).Mul(ppem), upem)
 
-	return out
+	return out, nil
 }
