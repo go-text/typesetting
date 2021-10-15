@@ -117,10 +117,10 @@ func Shape(input Input) (Output, error) {
 		tallest  int32
 	)
 
-	for i := range out.Glyphs {
-		g := &out.Glyphs[i]
-		switch input.Direction() {
-		case di.DirectionLTR, di.DirectionRTL:
+	switch input.Direction() {
+	case di.DirectionLTR, di.DirectionRTL:
+		for i := range out.Glyphs {
+			g := &out.Glyphs[i]
 			advance += g.GlyphPosition.XAdvance
 			// Look up glyph id in font to get baseline info.
 			// TODO: this seems like it shouldn't be necessary.
