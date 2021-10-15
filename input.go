@@ -7,25 +7,24 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-type Input interface {
-	// Text returns the characters to be shaped, which is `text[start:end]`.
-	//
-	// When shaping part of a larger text (e.g. a run of text from a line),
-	// instead of passing just the substring corresponding to the run, it is preferable to pass the whole
-	// line and specify the run `start` and `end` to give the shaper the full context to be able,
-	// for example, to do cross-run Arabic shaping or properly handle combining marks at start of run.
-	Text() (text []rune, start, end int)
-	// Direction returns the directionality of the text.
-	Direction() di.Direction
-	// Face returns the font face to render the text in.
-	Face() font.Face
-	// Size returns the size of the font, eg. 14.
+type Input struct {
+	// Text is the body of text being shaped. Only the range Text[RunStart:RunEnd] is considered
+	// for shaping, with the rest provided as context for the shaper. This helps with, for example,
+	// cross-run Arabic shaping or handling combining marks at the start of a run.
+	Text []rune
+	// RunStart and RunEnd indicate the subslice of Text being shaped.
+	RunStart, RunEnd int
+	// Direction is the directionality of the text.
+	di.Direction
+	// Face is the font face to render the text in.
+	font.Face
+	// Size is the size of the font, eg. 14.
 	// TODO is this a scaled value, exact pixels, or display dependand?
-	Size() fixed.Int26_6
+	Size fixed.Int26_6
 
-	// Script returns an identifier for the writing system used in the text.
-	Script() language.Script
+	// Script is an identifier for the writing system used in the text.
+	language.Script
 
-	// Language returns an identifier for the language of the text.
-	Language() language.Language
+	// Language is an identifier for the language of the text.
+	language.Language
 }

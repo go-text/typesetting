@@ -35,37 +35,6 @@ func scalePosition(gp harfbuzz.GlyphPosition, ppem fixed.Int26_6, upem sfnt.Unit
 	return gp
 }
 
-// TODO: can we just make Input and Output into structs?
-// Interfaces encapsulate varying behavior well, but these
-// types have no behavior. They're just structured data.
-// It feels silly to wrap them in accessors like this.
-type output struct {
-	DotAdvance    fixed.Int26_6
-	TopToBaseline fixed.Int26_6
-	TextBounds    fixed.Rectangle26_6
-	Glyphs        []Glyph
-}
-
-func (o output) Advance() fixed.Int26_6 {
-	return o.DotAdvance
-}
-
-func (o output) Baseline() fixed.Int26_6 {
-	return o.TopToBaseline
-}
-
-func (o output) Bounds() fixed.Rectangle26_6 {
-	return o.TextBounds
-}
-
-func (o output) Length() int {
-	return len(o.Glyphs)
-}
-
-func (o output) Index(i int) Glyph {
-	return o.Glyphs[i]
-}
-
 // MissingGlyphError indicates that the font used in shaping did not
 // have a glyph needed to complete the shaping.
 type MissingGlyphError struct {
@@ -81,21 +50,21 @@ func Shape(input Input) (Output, error) {
 	// Prepare to shape the text.
 	// TODO: maybe reuse these buffers for performance?
 	buf := harfbuzz.NewBuffer()
-	runes, start, end := input.Text()
+	runes, start, end := input.Text, input.RunStart, input.RunEnd
 	buf.AddRunes(runes, start, end-start)
 	// TODO: handle vertical text?
-	switch input.Direction() {
+	switch input.Direction {
 	case di.DirectionLTR:
 		buf.Props.Direction = harfbuzz.LeftToRight
 	case di.DirectionRTL:
 		buf.Props.Direction = harfbuzz.RightToLeft
 	}
-	buf.Props.Language = input.Language()
-	buf.Props.Script = input.Script()
+	buf.Props.Language = input.Language
+	buf.Props.Script = input.Script
 	// TODO: figure out what (if anything) to do if this type assertion fails.
-	font := harfbuzz.NewFont(input.Face().(harfbuzz.Face))
+	font := harfbuzz.NewFont(input.Face.(harfbuzz.Face))
 	upem := sfnt.Units(font.Face().Upem())
-	ppem := input.Size()
+	ppem := input.Size
 
 	// Actually use harfbuzz to shape the text.
 	buf.Shape(font, nil)
@@ -108,7 +77,7 @@ func Shape(input Input) (Output, error) {
 			GlyphPosition: scalePosition(buf.Pos[i], ppem, upem),
 		}
 	}
-	out := output{
+	out := Output{
 		Glyphs: glyphs,
 	}
 	var (
@@ -117,7 +86,7 @@ func Shape(input Input) (Output, error) {
 		tallest  int32
 	)
 
-	switch input.Direction() {
+	switch input.Direction {
 	case di.DirectionLTR, di.DirectionRTL:
 		for i := range out.Glyphs {
 			g := &out.Glyphs[i]
@@ -129,7 +98,7 @@ func Shape(input Input) (Output, error) {
 			if !ok {
 				// TODO: can this error happen? Will harfbuzz return a
 				// GID for a glyph that isn't in the font?
-				return nil, MissingGlyphError{GID: g.GlyphInfo.Glyph}
+				return Output{}, MissingGlyphError{GID: g.GlyphInfo.Glyph}
 			}
 			if h := -extents.Height; h > tallest {
 				tallest = h
@@ -139,14 +108,14 @@ func Shape(input Input) (Output, error) {
 			}
 		}
 	}
-	out.DotAdvance = fixed.I(int(advance))
-	out.TextBounds = fixed.Rectangle26_6{
+	out.Advance = fixed.I(int(advance))
+	out.Bounds = fixed.Rectangle26_6{
 		Max: fixed.Point26_6{
-			X: out.DotAdvance,
+			X: out.Advance,
 			Y: scale(fixed.I(int(tallest)).Mul(ppem), upem),
 		},
 	}
-	out.TopToBaseline = scale(fixed.Int26_6(baseline).Mul(ppem), upem)
+	out.Baseline = scale(fixed.Int26_6(baseline).Mul(ppem), upem)
 
 	return out, nil
 }
