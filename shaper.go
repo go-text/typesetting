@@ -63,8 +63,8 @@ func Shape(input Input) (Output, error) {
 	buf.Props.Script = input.Script
 	// TODO: figure out what (if anything) to do if this type assertion fails.
 	font := harfbuzz.NewFont(input.Face.(harfbuzz.Face))
-	upem := sfnt.Units(font.Face().Upem())
-	ppem := input.Size
+	font.XScale = int32(input.Size.Ceil())
+	font.YScale = font.XScale
 
 	// Actually use harfbuzz to shape the text.
 	buf.Shape(font, nil)
@@ -74,16 +74,15 @@ func Shape(input Input) (Output, error) {
 	for i := range glyphs {
 		glyphs[i] = Glyph{
 			GlyphInfo:     buf.Info[i],
-			GlyphPosition: scalePosition(buf.Pos[i], ppem, upem),
+			GlyphPosition: buf.Pos[i],
 		}
 	}
 	out := Output{
 		Glyphs: glyphs,
 	}
 	var (
-		advance  int32
-		baseline int32
-		tallest  int32
+		advance      int32
+		bearingWidth int32
 	)
 
 	switch input.Direction {
@@ -100,22 +99,37 @@ func Shape(input Input) (Output, error) {
 				// GID for a glyph that isn't in the font?
 				return Output{}, MissingGlyphError{GID: g.GlyphInfo.Glyph}
 			}
-			if h := -extents.Height; h > tallest {
-				tallest = h
-			}
-			if extents.YBearing > baseline {
-				baseline = extents.YBearing
+			if i == 0 {
+				// If this is the first glyph, add its left bearing to the
+				// output bounds.
+				bearingWidth += extents.XBearing
+			} else if i == len(out.Glyphs)-1 {
+				// If this is the last glyph, add its right bearing to the
+				// output bounds.
+				bearingWidth += extents.Width - g.XAdvance - extents.XBearing
 			}
 		}
 	}
+	var dir harfbuzz.Direction
+	switch input.Direction {
+	case di.DirectionLTR:
+		dir = harfbuzz.LeftToRight
+	case di.DirectionRTL:
+		dir = harfbuzz.RightToLeft
+	}
+	fe := font.ExtentsForDirection(dir)
+	scaleFactor := float32(font.YScale) / float32(font.Face().Upem())
+	fe.Ascender *= scaleFactor
+	fe.Descender *= scaleFactor
+	fe.LineGap *= scaleFactor
 	out.Advance = fixed.I(int(advance))
 	out.Bounds = fixed.Rectangle26_6{
 		Max: fixed.Point26_6{
-			X: out.Advance,
-			Y: scale(fixed.I(int(tallest)).Mul(ppem), upem),
+			X: fixed.I(int(advance + bearingWidth)),
+			Y: fixed.I(int(fe.Ascender - fe.Descender)),
 		},
 	}
-	out.Baseline = scale(fixed.Int26_6(baseline).Mul(ppem), upem)
+	out.Baseline = fixed.I(int(fe.Ascender))
 
 	return out, nil
 }
