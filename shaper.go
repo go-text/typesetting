@@ -110,18 +110,7 @@ func Shape(input Input) (Output, error) {
 			}
 		}
 	}
-	var dir harfbuzz.Direction
-	switch input.Direction {
-	case di.DirectionLTR:
-		dir = harfbuzz.LeftToRight
-	case di.DirectionRTL:
-		dir = harfbuzz.RightToLeft
-	}
-	fe := font.ExtentsForDirection(dir)
-	scaleFactor := float32(font.YScale) / float32(font.Face().Upem())
-	fe.Ascender *= scaleFactor
-	fe.Descender *= scaleFactor
-	fe.LineGap *= scaleFactor
+	fe := font.ExtentsForDirection(buf.Props.Direction)
 	out.Advance = fixed.I(int(advance))
 	out.Bounds = fixed.Rectangle26_6{
 		Max: fixed.Point26_6{
