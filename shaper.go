@@ -80,45 +80,5 @@ func Shape(input Input) (Output, error) {
 	out := Output{
 		Glyphs: glyphs,
 	}
-	var (
-		advance      int32
-		bearingWidth int32
-	)
-
-	switch input.Direction {
-	case di.DirectionLTR, di.DirectionRTL:
-		for i := range out.Glyphs {
-			g := &out.Glyphs[i]
-			advance += g.GlyphPosition.XAdvance
-			// Look up glyph id in font to get baseline info.
-			// TODO: this seems like it shouldn't be necessary.
-			// Not sure where else to get this info though.
-			extents, ok := font.GlyphExtents(g.GlyphInfo.Glyph)
-			if !ok {
-				// TODO: can this error happen? Will harfbuzz return a
-				// GID for a glyph that isn't in the font?
-				return Output{}, MissingGlyphError{GID: g.GlyphInfo.Glyph}
-			}
-			if i == 0 {
-				// If this is the first glyph, add its left bearing to the
-				// output bounds.
-				bearingWidth += extents.XBearing
-			} else if i == len(out.Glyphs)-1 {
-				// If this is the last glyph, add its right bearing to the
-				// output bounds.
-				bearingWidth += extents.Width - g.XAdvance - extents.XBearing
-			}
-		}
-	}
-	fe := font.ExtentsForDirection(buf.Props.Direction)
-	out.Advance = fixed.I(int(advance))
-	out.Bounds = fixed.Rectangle26_6{
-		Max: fixed.Point26_6{
-			X: fixed.I(int(advance + bearingWidth)),
-			Y: fixed.I(int(fe.Ascender - fe.Descender)),
-		},
-	}
-	out.Baseline = fixed.I(int(fe.Ascender))
-
-	return out, nil
+	return out, out.Recalculate(input.Direction, font)
 }
