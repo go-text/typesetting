@@ -15,16 +15,16 @@ type Input struct {
 	// RunStart and RunEnd indicate the subslice of Text being shaped.
 	RunStart, RunEnd int
 	// Direction is the directionality of the text.
-	di.Direction
+	Direction di.Direction
 	// Face is the font face to render the text in.
-	font.Face
+	Face font.Face
 	// Size is the size of the font, eg. 14.
 	// TODO is this a scaled value, exact pixels, or display dependand?
 	Size fixed.Int26_6
 
 	// Script is an identifier for the writing system used in the text.
-	language.Script
+	Script language.Script
 
 	// Language is an identifier for the language of the text.
-	language.Language
+	Language language.Language
 }
