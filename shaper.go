@@ -6,33 +6,11 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
-	"golang.org/x/image/font/sfnt"
-	"golang.org/x/image/math/fixed"
 )
 
 type Shaper interface {
 	// Shape takes an Input and shapes it into the Output.
 	Shape(Input) Output
-}
-
-// scale returns x divided by unitsPerEm, rounded to the nearest fixed.Int26_6
-// value (1/64th of a pixel). Borrowed from sfnt package.
-func scale(x fixed.Int26_6, unitsPerEm sfnt.Units) fixed.Int26_6 {
-	if x >= 0 {
-		x += fixed.Int26_6(unitsPerEm) / 2
-	} else {
-		x -= fixed.Int26_6(unitsPerEm) / 2
-	}
-	return x / fixed.Int26_6(unitsPerEm)
-}
-
-// scalePosition using specific ppem and upem values.
-func scalePosition(gp harfbuzz.GlyphPosition, ppem fixed.Int26_6, upem sfnt.Units) harfbuzz.GlyphPosition {
-	gp.XAdvance = int32(scale(fixed.I(int(gp.XAdvance)).Mul(ppem), upem).Round())
-	gp.YAdvance = int32(scale(fixed.I(int(gp.YAdvance)).Mul(ppem), upem).Round())
-	gp.XOffset = int32(scale(fixed.I(int(gp.XOffset)).Mul(ppem), upem).Round())
-	gp.YOffset = int32(scale(fixed.I(int(gp.YOffset)).Mul(ppem), upem).Round())
-	return gp
 }
 
 // MissingGlyphError indicates that the font used in shaping did not
