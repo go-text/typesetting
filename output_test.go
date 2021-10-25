@@ -29,31 +29,71 @@ var _ shaping.GlyphExtenter = (*extenter)(nil)
 
 const (
 	simpleGID fonts.GID = iota
+	leftExtentGID
+	rightExtentGID
 )
 
-var simpleGlyph = shaping.Glyph{
-	GlyphInfo: harfbuzz.GlyphInfo{
-		Glyph: simpleGID,
-	},
-	GlyphPosition: harfbuzz.GlyphPosition{
-		XAdvance: 10,
-		YAdvance: 10,
-		XOffset:  0,
-		YOffset:  0,
-	},
-}
-var simpleGlyphExtents = harfbuzz.GlyphExtents{
-	Width:    10,
-	Height:   10,
-	YBearing: 10,
-}
+var (
+	simpleGlyph = shaping.Glyph{
+		GlyphInfo: harfbuzz.GlyphInfo{
+			Glyph: simpleGID,
+		},
+		GlyphPosition: harfbuzz.GlyphPosition{
+			XAdvance: 10,
+			YAdvance: 10,
+			XOffset:  0,
+			YOffset:  0,
+		},
+	}
+	simpleGlyphExtents = harfbuzz.GlyphExtents{
+		Width:    10,
+		Height:   10,
+		YBearing: 10,
+	}
+	leftExtentGlyph = shaping.Glyph{
+		GlyphInfo: harfbuzz.GlyphInfo{
+			Glyph: leftExtentGID,
+		},
+		GlyphPosition: harfbuzz.GlyphPosition{
+			XAdvance: 5,
+			YAdvance: 5,
+			XOffset:  0,
+			YOffset:  0,
+		},
+	}
+	leftExtentGlyphExtents = harfbuzz.GlyphExtents{
+		Width:    10,
+		Height:   10,
+		YBearing: 10,
+		XBearing: 5,
+	}
+	rightExtentGlyph = shaping.Glyph{
+		GlyphInfo: harfbuzz.GlyphInfo{
+			Glyph: rightExtentGID,
+		},
+		GlyphPosition: harfbuzz.GlyphPosition{
+			XAdvance: 5,
+			YAdvance: 5,
+			XOffset:  0,
+			YOffset:  0,
+		},
+	}
+	rightExtentGlyphExtents = harfbuzz.GlyphExtents{
+		Width:    10,
+		Height:   10,
+		YBearing: 10,
+		XBearing: 0,
+	}
+)
 
 // TestRecalculate ensures that the Output.Recalculate function correctly
 // computes the bounds, advance, and baseline of the output.
 func TestRecalculate(t *testing.T) {
 	extenter := &extenter{
 		extents: map[fonts.GID]harfbuzz.GlyphExtents{
-			simpleGID: simpleGlyphExtents,
+			simpleGID:      simpleGlyphExtents,
+			leftExtentGID:  leftExtentGlyphExtents,
+			rightExtentGID: rightExtentGlyphExtents,
 		},
 	}
 	type testcase struct {
@@ -78,6 +118,54 @@ func TestRecalculate(t *testing.T) {
 				Bounds: fixed.Rectangle26_6{
 					Max: fixed.Point26_6{
 						X: fixed.I(int(simpleGlyphExtents.Width)),
+						Y: fixed.I(int(simpleGlyphExtents.Height)),
+					},
+				},
+			},
+		},
+		{
+			Name:      "left extent overhanging",
+			Direction: di.DirectionLTR,
+			Input:     []shaping.Glyph{leftExtentGlyph, simpleGlyph},
+			Output: shaping.Output{
+				Glyphs:   []shaping.Glyph{leftExtentGlyph, simpleGlyph},
+				Advance:  fixed.I(int(simpleGlyph.XAdvance + leftExtentGlyph.XAdvance)),
+				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Bounds: fixed.Rectangle26_6{
+					Max: fixed.Point26_6{
+						X: fixed.I(int(simpleGlyphExtents.Width + leftExtentGlyphExtents.Width)),
+						Y: fixed.I(int(simpleGlyphExtents.Height)),
+					},
+				},
+			},
+		},
+		{
+			Name:      "left extent overlaps other glyph",
+			Direction: di.DirectionLTR,
+			Input:     []shaping.Glyph{simpleGlyph, leftExtentGlyph},
+			Output: shaping.Output{
+				Glyphs:   []shaping.Glyph{simpleGlyph, leftExtentGlyph},
+				Advance:  fixed.I(int(simpleGlyph.XAdvance + leftExtentGlyph.XAdvance)),
+				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Bounds: fixed.Rectangle26_6{
+					Max: fixed.Point26_6{
+						X: fixed.I(int(simpleGlyphExtents.Width + leftExtentGlyph.XAdvance)),
+						Y: fixed.I(int(simpleGlyphExtents.Height)),
+					},
+				},
+			},
+		},
+		{
+			Name:      "right extent overhanging",
+			Direction: di.DirectionLTR,
+			Input:     []shaping.Glyph{simpleGlyph, rightExtentGlyph},
+			Output: shaping.Output{
+				Glyphs:   []shaping.Glyph{simpleGlyph, rightExtentGlyph},
+				Advance:  fixed.I(int(simpleGlyph.XAdvance + rightExtentGlyph.XAdvance)),
+				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Bounds: fixed.Rectangle26_6{
+					Max: fixed.Point26_6{
+						X: fixed.I(int(simpleGlyphExtents.Width + rightExtentGlyphExtents.Width)),
 						Y: fixed.I(int(simpleGlyphExtents.Height)),
 					},
 				},
