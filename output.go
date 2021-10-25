@@ -1,6 +1,7 @@
 package shaping
 
 import (
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
 	"golang.org/x/image/math/fixed"
@@ -22,11 +23,16 @@ type Output struct {
 	Glyphs []Glyph
 }
 
+// GlyphExtenter provides extent information for glyphs.
+type GlyphExtenter interface {
+	GlyphExtents(fonts.GID) (harfbuzz.GlyphExtents, bool)
+}
+
 // Recalculate updates the Bounds, Advance, and Baseline fields in
 // the Output to match the current contents of the Glyphs field. This
 // operation requires querying extra information from the font as well
 // as knowing the direction of the text.
-func (o *Output) Recalculate(dir di.Direction, font *harfbuzz.Font) error {
+func (o *Output) Recalculate(dir di.Direction, font GlyphExtenter) error {
 	var (
 		advance      int32
 		bearingWidth int32
