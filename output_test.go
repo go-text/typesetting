@@ -31,6 +31,7 @@ const (
 	simpleGID fonts.GID = iota
 	leftExtentGID
 	rightExtentGID
+	deepGID
 )
 
 var (
@@ -47,7 +48,7 @@ var (
 	}
 	simpleGlyphExtents = harfbuzz.GlyphExtents{
 		Width:    10,
-		Height:   10,
+		Height:   -10,
 		YBearing: 10,
 	}
 	leftExtentGlyph = shaping.Glyph{
@@ -63,7 +64,7 @@ var (
 	}
 	leftExtentGlyphExtents = harfbuzz.GlyphExtents{
 		Width:    10,
-		Height:   10,
+		Height:   -10,
 		YBearing: 10,
 		XBearing: 5,
 	}
@@ -80,8 +81,25 @@ var (
 	}
 	rightExtentGlyphExtents = harfbuzz.GlyphExtents{
 		Width:    10,
-		Height:   10,
+		Height:   -10,
 		YBearing: 10,
+		XBearing: 0,
+	}
+	deepGlyph = shaping.Glyph{
+		GlyphInfo: harfbuzz.GlyphInfo{
+			Glyph: deepGID,
+		},
+		GlyphPosition: harfbuzz.GlyphPosition{
+			XAdvance: 10,
+			YAdvance: 10,
+			XOffset:  0,
+			YOffset:  0,
+		},
+	}
+	deepGlyphExtents = harfbuzz.GlyphExtents{
+		Width:    10,
+		Height:   -10,
+		YBearing: 0,
 		XBearing: 0,
 	}
 )
@@ -94,6 +112,7 @@ func TestRecalculate(t *testing.T) {
 			simpleGID:      simpleGlyphExtents,
 			leftExtentGID:  leftExtentGlyphExtents,
 			rightExtentGID: rightExtentGlyphExtents,
+			deepGID:        deepGlyphExtents,
 		},
 	}
 	type testcase struct {
@@ -114,11 +133,11 @@ func TestRecalculate(t *testing.T) {
 			Output: shaping.Output{
 				Glyphs:   []shaping.Glyph{simpleGlyph},
 				Advance:  fixed.I(int(simpleGlyph.XAdvance)),
-				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Baseline: fixed.I(int(-simpleGlyphExtents.Height)),
 				Bounds: fixed.Rectangle26_6{
 					Max: fixed.Point26_6{
 						X: fixed.I(int(simpleGlyphExtents.Width)),
-						Y: fixed.I(int(simpleGlyphExtents.Height)),
+						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
 			},
@@ -130,11 +149,11 @@ func TestRecalculate(t *testing.T) {
 			Output: shaping.Output{
 				Glyphs:   []shaping.Glyph{leftExtentGlyph, simpleGlyph},
 				Advance:  fixed.I(int(simpleGlyph.XAdvance + leftExtentGlyph.XAdvance)),
-				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Baseline: fixed.I(int(-simpleGlyphExtents.Height)),
 				Bounds: fixed.Rectangle26_6{
 					Max: fixed.Point26_6{
 						X: fixed.I(int(simpleGlyphExtents.Width + leftExtentGlyphExtents.Width)),
-						Y: fixed.I(int(simpleGlyphExtents.Height)),
+						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
 			},
@@ -146,11 +165,11 @@ func TestRecalculate(t *testing.T) {
 			Output: shaping.Output{
 				Glyphs:   []shaping.Glyph{simpleGlyph, leftExtentGlyph},
 				Advance:  fixed.I(int(simpleGlyph.XAdvance + leftExtentGlyph.XAdvance)),
-				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Baseline: fixed.I(int(-simpleGlyphExtents.Height)),
 				Bounds: fixed.Rectangle26_6{
 					Max: fixed.Point26_6{
 						X: fixed.I(int(simpleGlyphExtents.Width + leftExtentGlyph.XAdvance)),
-						Y: fixed.I(int(simpleGlyphExtents.Height)),
+						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
 			},
@@ -162,11 +181,27 @@ func TestRecalculate(t *testing.T) {
 			Output: shaping.Output{
 				Glyphs:   []shaping.Glyph{simpleGlyph, rightExtentGlyph},
 				Advance:  fixed.I(int(simpleGlyph.XAdvance + rightExtentGlyph.XAdvance)),
-				Baseline: fixed.I(int(simpleGlyphExtents.Height)),
+				Baseline: fixed.I(int(-simpleGlyphExtents.Height)),
 				Bounds: fixed.Rectangle26_6{
 					Max: fixed.Point26_6{
 						X: fixed.I(int(simpleGlyphExtents.Width + rightExtentGlyphExtents.Width)),
-						Y: fixed.I(int(simpleGlyphExtents.Height)),
+						Y: fixed.I(int(-simpleGlyphExtents.Height)),
+					},
+				},
+			},
+		},
+		{
+			Name:      "glyph below baseline",
+			Direction: di.DirectionLTR,
+			Input:     []shaping.Glyph{simpleGlyph, deepGlyph},
+			Output: shaping.Output{
+				Glyphs:   []shaping.Glyph{simpleGlyph, deepGlyph},
+				Advance:  fixed.I(int(simpleGlyph.XAdvance + deepGlyph.XAdvance)),
+				Baseline: fixed.I(int(-simpleGlyphExtents.Height)),
+				Bounds: fixed.Rectangle26_6{
+					Max: fixed.Point26_6{
+						X: fixed.I(int(simpleGlyphExtents.Width + deepGlyphExtents.Width)),
+						Y: fixed.I(-int(simpleGlyphExtents.Height + deepGlyphExtents.Height)),
 					},
 				},
 			},
