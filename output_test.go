@@ -32,6 +32,8 @@ const (
 	leftExtentGID
 	rightExtentGID
 	deepGID
+	offsetGID
+	missingGID
 )
 
 var (
@@ -102,6 +104,28 @@ var (
 		YBearing: 0,
 		XBearing: 0,
 	}
+	offsetGlyph = shaping.Glyph{
+		GlyphInfo: harfbuzz.GlyphInfo{
+			Glyph: offsetGID,
+		},
+		GlyphPosition: harfbuzz.GlyphPosition{
+			XAdvance: 10,
+			YAdvance: 10,
+			XOffset:  2,
+			YOffset:  2,
+		},
+	}
+	offsetGlyphExtents = harfbuzz.GlyphExtents{
+		Width:    10,
+		Height:   -10,
+		YBearing: 10,
+		XBearing: 0,
+	}
+	missingGlyph = shaping.Glyph{
+		GlyphInfo: harfbuzz.GlyphInfo{
+			Glyph: missingGID,
+		},
+	}
 )
 
 // TestRecalculate ensures that the Output.Recalculate function correctly
@@ -113,6 +137,7 @@ func TestRecalculate(t *testing.T) {
 			leftExtentGID:  leftExtentGlyphExtents,
 			rightExtentGID: rightExtentGlyphExtents,
 			deepGID:        deepGlyphExtents,
+			offsetGID:      offsetGlyphExtents,
 		},
 	}
 	type testcase struct {
@@ -125,6 +150,12 @@ func TestRecalculate(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			Name: "empty",
+		},
+		{
+			Name:      "missing glyph should error",
+			Direction: di.DirectionLTR,
+			Input:     []shaping.Glyph{missingGlyph},
+			Error:     shaping.MissingGlyphError{GID: missingGID},
 		},
 		{
 			Name:      "single simple glyph",
@@ -206,14 +237,29 @@ func TestRecalculate(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:      "single complex glyph",
+			Direction: di.DirectionLTR,
+			Input:     []shaping.Glyph{offsetGlyph},
+			Output: shaping.Output{
+				Glyphs:   []shaping.Glyph{offsetGlyph},
+				Advance:  fixed.I(int(offsetGlyph.XAdvance)),
+				Baseline: fixed.I(int(-offsetGlyphExtents.Height + offsetGlyph.YOffset)),
+				Bounds: fixed.Rectangle26_6{
+					Max: fixed.Point26_6{
+						X: fixed.I(int(offsetGlyphExtents.Width)),
+						Y: fixed.I(int(-offsetGlyphExtents.Height + offsetGlyph.YOffset)),
+					},
+				},
+			},
+		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			output := shaping.Output{Glyphs: tc.Input}
 			err := output.Recalculate(tc.Direction, extenter)
 			if tc.Error != nil && !errors.As(err, &tc.Error) {
 				t.Errorf("expected error of type %T, got %T", tc.Error, err)
-			}
-			if !reflect.DeepEqual(output, tc.Output) {
+			} else if tc.Error == nil && !reflect.DeepEqual(output, tc.Output) {
 				t.Errorf("recalculation incorrect: expected %v, got %v", tc.Output, output)
 			}
 		})
