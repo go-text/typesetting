@@ -23,12 +23,26 @@ func (m MissingGlyphError) Error() string {
 	return fmt.Sprintf("missing glyph with id %d", m.GID)
 }
 
+// InvalidRunError represents an invalid run of text, either because
+// the end is before the start or because start or end is greater
+// than the length.
+type InvalidRunError struct {
+	RunStart, RunEnd, TextLength int
+}
+
+func (i InvalidRunError) Error() string {
+	return fmt.Sprintf("run from %d to %d is not valid for text len %d", i.RunStart, i.RunEnd, i.TextLength)
+}
+
 // Shape turns an input into an output.
 func Shape(input Input) (Output, error) {
 	// Prepare to shape the text.
 	// TODO: maybe reuse these buffers for performance?
 	buf := harfbuzz.NewBuffer()
 	runes, start, end := input.Text, input.RunStart, input.RunEnd
+	if end < start {
+		return Output{}, InvalidRunError{RunStart: start, RunEnd: end, TextLength: len(input.Text)}
+	}
 	buf.AddRunes(runes, start, end-start)
 	// TODO: handle vertical text?
 	switch input.Direction {
@@ -36,6 +50,10 @@ func Shape(input Input) (Output, error) {
 		buf.Props.Direction = harfbuzz.LeftToRight
 	case di.DirectionRTL:
 		buf.Props.Direction = harfbuzz.RightToLeft
+	default:
+		return Output{}, UnimplementedDirectionError{
+			Direction: input.Direction,
+		}
 	}
 	buf.Props.Language = input.Language
 	buf.Props.Script = input.Script
