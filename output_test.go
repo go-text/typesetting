@@ -253,6 +253,11 @@ func TestRecalculate(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:      "vertical text not supported",
+			Direction: di.Direction(harfbuzz.BottomToTop),
+			Error:     shaping.UnimplementedDirectionError{},
+		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			output := shaping.Output{Glyphs: tc.Input}

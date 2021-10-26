@@ -1,6 +1,8 @@
 package shaping
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
@@ -28,10 +30,25 @@ type GlyphExtenter interface {
 	GlyphExtents(fonts.GID) (harfbuzz.GlyphExtents, bool)
 }
 
+// UnimplementedDirectionError is returned when a function does not support the
+// provided layout direction yet.
+type UnimplementedDirectionError struct {
+	Direction di.Direction
+}
+
+// Error formats the error into a string message.
+func (u UnimplementedDirectionError) Error() string {
+	return fmt.Sprintf("support for text direction %v is not implemented yet", u.Direction)
+}
+
 // Recalculate updates the Bounds, Advance, and Baseline fields in
 // the Output to match the current contents of the Glyphs field. This
 // operation requires querying extra information from the font as well
 // as knowing the direction of the text.
+//
+// This method will fail with UnimplementedDirectionError if the provided
+// direction is unimplemented, and with MissingGlyphError if the provided
+// Extenter cannot resolve a required glyph.
 func (o *Output) Recalculate(dir di.Direction, font GlyphExtenter) error {
 	var (
 		advance      int32
@@ -41,6 +58,8 @@ func (o *Output) Recalculate(dir di.Direction, font GlyphExtenter) error {
 	)
 
 	switch dir {
+	default:
+		return UnimplementedDirectionError{Direction: dir}
 	case di.DirectionLTR, di.DirectionRTL:
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
