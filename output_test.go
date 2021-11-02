@@ -26,8 +26,18 @@ func (e *extenter) GlyphExtents(gid fonts.GID) (harfbuzz.GlyphExtents, bool) {
 	return extents, ok
 }
 
+// ExtentsForDirection is a stub. This feature is totally font-dependent with no
+// actual processing logic in this package.
+func (e *extenter) ExtentsForDirection(_ harfbuzz.Direction) fonts.FontExtents {
+	return fonts.FontExtents{
+		LineGap:   0,
+		Ascender:  15,
+		Descender: -15,
+	}
+}
+
 // Ensure that *extenter is a shaping.GlyphExtenter
-var _ shaping.GlyphExtenter = (*extenter)(nil)
+var _ shaping.Extenter = (*extenter)(nil)
 
 const (
 	simpleGID fonts.GID = iota
@@ -39,6 +49,11 @@ const (
 )
 
 var (
+	expectedFontExtents = shaping.LineBounds{
+		MaxAscent:  fixed.I(int(15)),
+		MaxDescent: fixed.I(int(-15)),
+		LineGap:    fixed.I(int(0)),
+	}
 	simpleGlyph = shaping.Glyph{
 		GlyphInfo: harfbuzz.GlyphInfo{
 			Glyph: simpleGID,
@@ -152,6 +167,9 @@ func TestRecalculate(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			Name: "empty",
+			Output: shaping.Output{
+				LineBounds: expectedFontExtents,
+			},
 		},
 		{
 			Name:      "missing glyph should error",
@@ -173,6 +191,7 @@ func TestRecalculate(t *testing.T) {
 						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
+				LineBounds: expectedFontExtents,
 			},
 		},
 		{
@@ -189,6 +208,7 @@ func TestRecalculate(t *testing.T) {
 						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
+				LineBounds: expectedFontExtents,
 			},
 		},
 		{
@@ -205,6 +225,7 @@ func TestRecalculate(t *testing.T) {
 						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
+				LineBounds: expectedFontExtents,
 			},
 		},
 		{
@@ -221,6 +242,7 @@ func TestRecalculate(t *testing.T) {
 						Y: fixed.I(int(-simpleGlyphExtents.Height)),
 					},
 				},
+				LineBounds: expectedFontExtents,
 			},
 		},
 		{
@@ -237,6 +259,7 @@ func TestRecalculate(t *testing.T) {
 						Y: fixed.I(-int(simpleGlyphExtents.Height + deepGlyphExtents.Height)),
 					},
 				},
+				LineBounds: expectedFontExtents,
 			},
 		},
 		{
@@ -253,6 +276,7 @@ func TestRecalculate(t *testing.T) {
 						Y: fixed.I(int(-offsetGlyphExtents.Height + offsetGlyph.YOffset)),
 					},
 				},
+				LineBounds: expectedFontExtents,
 			},
 		},
 		{

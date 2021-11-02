@@ -25,11 +25,29 @@ type Output struct {
 	Bounds fixed.Rectangle26_6
 	// Glyphs are the shaped output text.
 	Glyphs []Glyph
+	// LineBounds describes the font's suggested line bounding dimensions.
+	LineBounds LineBounds
 }
 
-// GlyphExtenter provides extent information for glyphs.
-type GlyphExtenter interface {
+// LineBounds provides a font's self-described line dimensions.
+type LineBounds struct {
+	// MaxAscent is the highest ascent that layout should account for in the
+	// given font. This value is typically positive in coordiate systems that
+	// grow up.
+	MaxAscent fixed.Int26_6
+	// MaxDescent is the lowest descent below the baseline that layout should
+	// account for in the given font. This value is typically negative in
+	// coordinate systems that grow up.
+	MaxDescent fixed.Int26_6
+	// LineGap is the suggested gap of empty space between lines in the font.
+	LineGap fixed.Int26_6
+}
+
+// Extenter provides extent information for glyphs and lines of text
+// in a given font.
+type Extenter interface {
 	GlyphExtents(fonts.GID) (harfbuzz.GlyphExtents, bool)
+	ExtentsForDirection(harfbuzz.Direction) fonts.FontExtents
 }
 
 // UnimplementedDirectionError is returned when a function does not support the
@@ -51,18 +69,23 @@ func (u UnimplementedDirectionError) Error() string {
 // This method will fail with UnimplementedDirectionError if the provided
 // direction is unimplemented, and with MissingGlyphError if the provided
 // Extenter cannot resolve a required glyph.
-func (o *Output) Recalculate(dir di.Direction, font GlyphExtenter) error {
+func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
 	var (
 		advance      int32
 		bearingWidth int32
 		tallest      int32
 		lowest       int32
+		hbDir        harfbuzz.Direction
 	)
 
 	switch dir {
 	default:
 		return UnimplementedDirectionError{Direction: dir}
 	case di.DirectionLTR, di.DirectionRTL:
+		hbDir = harfbuzz.LeftToRight
+		if dir == di.DirectionRTL {
+			hbDir = harfbuzz.RightToLeft
+		}
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
 			advance += g.GlyphPosition.XAdvance
@@ -102,6 +125,13 @@ func (o *Output) Recalculate(dir di.Direction, font GlyphExtenter) error {
 		},
 	}
 	o.Baseline = fixed.I(int(tallest))
+
+	fontExtents := font.ExtentsForDirection(hbDir)
+	o.LineBounds = LineBounds{
+		MaxAscent:  fixed.I(int(fontExtents.Ascender)),
+		MaxDescent: fixed.I(int(fontExtents.Descender)),
+		LineGap:    fixed.I(int(fontExtents.LineGap)),
+	}
 
 	return nil
 }
