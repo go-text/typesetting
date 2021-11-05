@@ -8,6 +8,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
+	"golang.org/x/image/math/fixed"
 )
 
 type Shaper interface {
@@ -74,9 +75,23 @@ func Shape(input Input) (Output, error) {
 			GlyphInfo:     buf.Info[i],
 			GlyphPosition: buf.Pos[i],
 		}
+		g := glyphs[i].Glyph
+		extents, ok := font.GlyphExtents(g)
+		if !ok {
+			// TODO: can this error happen? Will harfbuzz return a
+			// GID for a glyph that isn't in the font?
+			return Output{}, MissingGlyphError{GID: g}
+		}
+		glyphs[i].GlyphExtents = extents
 	}
 	out := Output{
 		Glyphs: glyphs,
 	}
-	return out, out.Recalculate(input.Direction, font)
+	fontExtents := font.ExtentsForDirection(buf.Props.Direction)
+	out.LineBounds = Bounds{
+		Ascent:  fixed.I(int(fontExtents.Ascender)),
+		Descent: fixed.I(int(fontExtents.Descender)),
+		Gap:     fixed.I(int(fontExtents.LineGap)),
+	}
+	return out, out.RecalculateAll(input.Direction)
 }

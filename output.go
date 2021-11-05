@@ -5,7 +5,6 @@ package shaping
 import (
 	"fmt"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
 	"golang.org/x/image/math/fixed"
@@ -83,13 +82,6 @@ type Output struct {
 	GlyphBounds Bounds
 }
 
-// Extenter provides extent information for glyphs and lines of text
-// in a given font.
-type Extenter interface {
-	GlyphExtents(fonts.GID) (harfbuzz.GlyphExtents, bool)
-	ExtentsForDirection(harfbuzz.Direction) fonts.FontExtents
-}
-
 // UnimplementedDirectionError is returned when a function does not support the
 // provided layout direction yet.
 type UnimplementedDirectionError struct {
@@ -101,48 +93,47 @@ func (u UnimplementedDirectionError) Error() string {
 	return fmt.Sprintf("support for text direction %v is not implemented yet", u.Direction)
 }
 
-// Recalculate updates the Bounds, Advance, and Baseline fields in
-// the Output to match the current contents of the Glyphs field. This
-// operation requires querying extra information from the font as well
-// as knowing the direction of the text.
-//
+// RecomputeAdvance updates only the Advance field based on the current
+// contents of the Glyphs field. It is faster than RecalculateAll(),
+// and can be used to speed up line wrapping logic.
+func (o *Output) RecomputeAdvance(dir di.Direction) {
+	advance := int32(0)
+	switch dir {
+	case di.DirectionLTR, di.DirectionRTL:
+		for _, g := range o.Glyphs {
+			advance += g.GlyphPosition.XAdvance
+		}
+	default: // vertical
+		for _, g := range o.Glyphs {
+			advance += g.GlyphPosition.YAdvance
+		}
+	}
+	o.Advance = fixed.I(int(advance))
+}
+
+// RecalculateAll updates the all other fields of the Output
+// to match the current contents of the Glyphs field.
 // This method will fail with UnimplementedDirectionError if the provided
-// direction is unimplemented, and with MissingGlyphError if the provided
-// Extenter cannot resolve a required glyph.
-func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
+// direction is unimplemented.
+func (o *Output) RecalculateAll(dir di.Direction) error {
 	var (
 		advance int32
 		tallest int32
 		lowest  int32
-		hbDir   harfbuzz.Direction
 	)
 
 	switch dir {
 	default:
 		return UnimplementedDirectionError{Direction: dir}
 	case di.DirectionLTR, di.DirectionRTL:
-		hbDir = harfbuzz.LeftToRight
-		if dir == di.DirectionRTL {
-			hbDir = harfbuzz.RightToLeft
-		}
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
 			advance += g.GlyphPosition.XAdvance
-			// Look up glyph id in font to get baseline info.
-			// TODO: this seems like it shouldn't be necessary.
-			// Not sure where else to get this info though.
-			extents, ok := font.GlyphExtents(g.GlyphInfo.Glyph)
-			if !ok {
-				// TODO: can this error happen? Will harfbuzz return a
-				// GID for a glyph that isn't in the font?
-				return MissingGlyphError{GID: g.GlyphInfo.Glyph}
-			}
-			g.GlyphExtents = extents
-			height := extents.YBearing + g.YOffset
+			height := g.GlyphExtents.YBearing + g.YOffset
 			if height > tallest {
 				tallest = height
 			}
-			depth := height + extents.Height
+			depth := height + g.GlyphExtents.Height
 			if depth < lowest {
 				lowest = depth
 			}
@@ -152,13 +143,6 @@ func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
 	o.GlyphBounds = Bounds{
 		Ascent:  fixed.I(int(tallest)),
 		Descent: fixed.I(int(lowest)),
-	}
-
-	fontExtents := font.ExtentsForDirection(hbDir)
-	o.LineBounds = Bounds{
-		Ascent:  fixed.I(int(fontExtents.Ascender)),
-		Descent: fixed.I(int(fontExtents.Descender)),
-		Gap:     fixed.I(int(fontExtents.LineGap)),
 	}
 
 	return nil

@@ -14,38 +14,12 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// extenter fulfills the shaping.GlyphExtenter interface
-// by providing extents from its configured map.
-type extenter struct {
-	extents map[fonts.GID]harfbuzz.GlyphExtents
-}
-
-// GlyphExtents returns the extents for the provided gid, if they are set.
-func (e *extenter) GlyphExtents(gid fonts.GID) (harfbuzz.GlyphExtents, bool) {
-	extents, ok := e.extents[gid]
-	return extents, ok
-}
-
-// ExtentsForDirection is a stub. This feature is totally font-dependent with no
-// actual processing logic in this package.
-func (e *extenter) ExtentsForDirection(_ harfbuzz.Direction) fonts.FontExtents {
-	return fonts.FontExtents{
-		LineGap:   0,
-		Ascender:  15,
-		Descender: -15,
-	}
-}
-
-// Ensure that *extenter is a shaping.GlyphExtenter
-var _ shaping.Extenter = (*extenter)(nil)
-
 const (
 	simpleGID fonts.GID = iota
 	leftExtentGID
 	rightExtentGID
 	deepGID
 	offsetGID
-	missingGID
 )
 
 var (
@@ -138,25 +112,11 @@ var (
 			XBearing: 0,
 		},
 	}
-	missingGlyph = shaping.Glyph{
-		GlyphInfo: harfbuzz.GlyphInfo{
-			Glyph: missingGID,
-		},
-	}
 )
 
 // TestRecalculate ensures that the Output.Recalculate function correctly
 // computes the bounds, advance, and baseline of the output.
 func TestRecalculate(t *testing.T) {
-	extenter := &extenter{
-		extents: map[fonts.GID]harfbuzz.GlyphExtents{
-			simpleGID:      simpleGlyph.GlyphExtents,
-			leftExtentGID:  leftExtentGlyph.GlyphExtents,
-			rightExtentGID: rightExtentGlyph.GlyphExtents,
-			deepGID:        deepGlyph.GlyphExtents,
-			offsetGID:      offsetGlyph.GlyphExtents,
-		},
-	}
 	type testcase struct {
 		Name      string
 		Direction di.Direction
@@ -170,12 +130,6 @@ func TestRecalculate(t *testing.T) {
 			Output: shaping.Output{
 				LineBounds: expectedFontExtents,
 			},
-		},
-		{
-			Name:      "missing glyph should error",
-			Direction: di.DirectionLTR,
-			Input:     []shaping.Glyph{missingGlyph},
-			Error:     shaping.MissingGlyphError{GID: missingGID},
 		},
 		{
 			Name:      "single simple glyph",
@@ -226,8 +180,11 @@ func TestRecalculate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
-			output := shaping.Output{Glyphs: tc.Input}
-			err := output.Recalculate(tc.Direction, extenter)
+			output := shaping.Output{
+				Glyphs:     tc.Input,
+				LineBounds: expectedFontExtents,
+			}
+			err := output.RecalculateAll(tc.Direction)
 			if tc.Error != nil && !errors.As(err, &tc.Error) {
 				t.Errorf("expected error of type %T, got %T", tc.Error, err)
 			} else if tc.Error == nil && !reflect.DeepEqual(output, tc.Output) {
