@@ -4,7 +4,6 @@ package shaping
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
@@ -100,7 +99,6 @@ func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
 				// GID for a glyph that isn't in the font?
 				return MissingGlyphError{GID: g.GlyphInfo.Glyph}
 			}
-			log.Printf("glyph %d, advance %d, offset %d, width %d, extent %d", g.Glyph, g.XAdvance, g.XOffset, extents.Width, extents.XBearing)
 			if i == 0 {
 				// If this is the first glyph, add its left bearing to the
 				// output bounds.
