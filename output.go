@@ -11,37 +11,76 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// Glyph describes the attributes of a single glyph from a single
+// font face in a shaped output.
 type Glyph struct {
 	harfbuzz.GlyphInfo
 	harfbuzz.GlyphPosition
 	harfbuzz.GlyphExtents
 }
 
+// LeftSideBearing returns the distance from the glyph's X origin to
+// its leftmost edge. This value can be negative if the glyph extends
+// across the origin.
+func (g Glyph) LeftSideBearing() int32 {
+	return g.GlyphExtents.XBearing
+}
+
+// RightSideBearing returns the distance from the glyph's right edge to
+// the edge of the glyph's advance. This value can be negative if the glyph's
+// right edge is before the end of its advance.
+func (g Glyph) RightSideBearing() int32 {
+	return g.GlyphPosition.XAdvance - g.GlyphExtents.Width - g.GlyphExtents.XBearing
+}
+
+// Bounds describes the minor-axis bounds of a line of text. In a LTR or RTL
+// layout, it describes the vertical axis. In a BTT or TTB layout, it describes
+// the horizontal.
+//
+// For horizontal text:
+//
+//     - Ascent      GLYPH
+//     |             GLYPH
+//     |             GLYPH
+//     |             GLYPH
+//     |             GLYPH
+//     - Baseline    GLYPH
+//     |             GLYPH
+//     |             GLYPH
+//     |             GLYPH
+//     - Descent     GLYPH
+//     |
+//     - Gap
+type Bounds struct {
+	// Ascent is the maximum ascent away from the baseline. This value is typically
+	// positive in coordiate systems that grow up.
+	Ascent fixed.Int26_6
+	// Descent is the maximum descent away from the baseline. This value is typically
+	// negative in coordinate systems that grow up.
+	Descent fixed.Int26_6
+	// Gap is the height of empty pixels between lines. This value is typically positive
+	// in coordinate systems that grow up.
+	Gap fixed.Int26_6
+}
+
+// LineHeight returns the height of a horizontal line of text described by b.
+func (b Bounds) LineHeight() fixed.Int26_6 {
+	return b.Ascent - b.Descent + b.Gap
+}
+
+// Output describes the dimensions and content of shaped text.
 type Output struct {
 	// Advance is the distance the Dot has advanced.
 	Advance fixed.Int26_6
-	// Baseline is the distance the baseline is from the top.
-	Baseline fixed.Int26_6
-	// Bounds is the smallest rectangle capable of containing the shaped text.
-	Bounds fixed.Rectangle26_6
 	// Glyphs are the shaped output text.
 	Glyphs []Glyph
-	// LineBounds describes the font's suggested line bounding dimensions.
-	LineBounds LineBounds
-}
-
-// LineBounds provides a font's self-described line dimensions.
-type LineBounds struct {
-	// MaxAscent is the highest ascent that layout should account for in the
-	// given font. This value is typically positive in coordiate systems that
-	// grow up.
-	MaxAscent fixed.Int26_6
-	// MaxDescent is the lowest descent below the baseline that layout should
-	// account for in the given font. This value is typically negative in
-	// coordinate systems that grow up.
-	MaxDescent fixed.Int26_6
-	// LineGap is the suggested gap of empty space between lines in the font.
-	LineGap fixed.Int26_6
+	// LineBounds describes the font's suggested line bounding dimensions. The
+	// dimensions described should contain any glyphs from the given font.
+	LineBounds Bounds
+	// GlyphBounds describes a tight bounding box on the specific glyphs contained
+	// within this output. The dimensions may not be sufficient to contain all
+	// glyphs within the chosen font.
+	GlyphBounds Bounds
 }
 
 // Extenter provides extent information for glyphs and lines of text
@@ -72,11 +111,10 @@ func (u UnimplementedDirectionError) Error() string {
 // Extenter cannot resolve a required glyph.
 func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
 	var (
-		advance      int32
-		bearingWidth int32
-		tallest      int32
-		lowest       int32
-		hbDir        harfbuzz.Direction
+		advance int32
+		tallest int32
+		lowest  int32
+		hbDir   harfbuzz.Direction
 	)
 
 	switch dir {
@@ -99,15 +137,6 @@ func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
 				// GID for a glyph that isn't in the font?
 				return MissingGlyphError{GID: g.GlyphInfo.Glyph}
 			}
-			if i == 0 {
-				// If this is the first glyph, add its left bearing to the
-				// output bounds.
-				bearingWidth += extents.XBearing
-			} else if i == len(o.Glyphs)-1 {
-				// If this is the last glyph, add its right bearing to the
-				// output bounds.
-				bearingWidth += extents.Width - g.XAdvance - extents.XBearing
-			}
 			g.GlyphExtents = extents
 			height := extents.YBearing + g.YOffset
 			if height > tallest {
@@ -120,19 +149,16 @@ func (o *Output) Recalculate(dir di.Direction, font Extenter) error {
 		}
 	}
 	o.Advance = fixed.I(int(advance))
-	o.Bounds = fixed.Rectangle26_6{
-		Max: fixed.Point26_6{
-			X: fixed.I(int(advance + bearingWidth)),
-			Y: fixed.I(int(tallest - lowest)),
-		},
+	o.GlyphBounds = Bounds{
+		Ascent:  fixed.I(int(tallest)),
+		Descent: fixed.I(int(lowest)),
 	}
-	o.Baseline = fixed.I(int(tallest))
 
 	fontExtents := font.ExtentsForDirection(hbDir)
-	o.LineBounds = LineBounds{
-		MaxAscent:  fixed.I(int(fontExtents.Ascender)),
-		MaxDescent: fixed.I(int(fontExtents.Descender)),
-		LineGap:    fixed.I(int(fontExtents.LineGap)),
+	o.LineBounds = Bounds{
+		Ascent:  fixed.I(int(fontExtents.Ascender)),
+		Descent: fixed.I(int(fontExtents.Descender)),
+		Gap:     fixed.I(int(fontExtents.LineGap)),
 	}
 
 	return nil
