@@ -29,88 +29,58 @@ var (
 		Gap:     fixed.I(int(0)),
 	}
 	simpleGlyph = shaping.Glyph{
-		GlyphInfo: harfbuzz.GlyphInfo{
-			Glyph: simpleGID,
-		},
-		GlyphPosition: harfbuzz.GlyphPosition{
-			XAdvance: 10,
-			YAdvance: 10,
-			XOffset:  0,
-			YOffset:  0,
-		},
-		GlyphExtents: harfbuzz.GlyphExtents{
-			Width:    10,
-			Height:   -10,
-			YBearing: 10,
-		},
+		Glyph:    simpleGID,
+		XAdvance: fixed.I(int(10)),
+		YAdvance: fixed.I(int(10)),
+		XOffset:  fixed.I(int(0)),
+		YOffset:  fixed.I(int(0)),
+		Width:    fixed.I(int(10)),
+		Height:   -fixed.I(int(10)),
+		YBearing: fixed.I(int(10)),
 	}
 	leftExtentGlyph = shaping.Glyph{
-		GlyphInfo: harfbuzz.GlyphInfo{
-			Glyph: leftExtentGID,
-		},
-		GlyphPosition: harfbuzz.GlyphPosition{
-			XAdvance: 5,
-			YAdvance: 5,
-			XOffset:  0,
-			YOffset:  0,
-		},
-		GlyphExtents: harfbuzz.GlyphExtents{
-			Width:    10,
-			Height:   -10,
-			YBearing: 10,
-			XBearing: 5,
-		},
+		Glyph:    leftExtentGID,
+		XAdvance: fixed.I(int(5)),
+		YAdvance: fixed.I(int(5)),
+		XOffset:  fixed.I(int(0)),
+		YOffset:  fixed.I(int(0)),
+		Width:    fixed.I(int(10)),
+		Height:   -fixed.I(int(10)),
+		YBearing: fixed.I(int(10)),
+		XBearing: fixed.I(int(5)),
 	}
 	rightExtentGlyph = shaping.Glyph{
-		GlyphInfo: harfbuzz.GlyphInfo{
-			Glyph: rightExtentGID,
-		},
-		GlyphPosition: harfbuzz.GlyphPosition{
-			XAdvance: 5,
-			YAdvance: 5,
-			XOffset:  0,
-			YOffset:  0,
-		},
-		GlyphExtents: harfbuzz.GlyphExtents{
-			Width:    10,
-			Height:   -10,
-			YBearing: 10,
-			XBearing: 0,
-		},
+		Glyph:    rightExtentGID,
+		XAdvance: fixed.I(int(5)),
+		YAdvance: fixed.I(int(5)),
+		XOffset:  fixed.I(int(0)),
+		YOffset:  fixed.I(int(0)),
+		Width:    fixed.I(int(10)),
+		Height:   -fixed.I(int(10)),
+		YBearing: fixed.I(int(10)),
+		XBearing: fixed.I(int(0)),
 	}
 	deepGlyph = shaping.Glyph{
-		GlyphInfo: harfbuzz.GlyphInfo{
-			Glyph: deepGID,
-		},
-		GlyphPosition: harfbuzz.GlyphPosition{
-			XAdvance: 10,
-			YAdvance: 10,
-			XOffset:  0,
-			YOffset:  0,
-		},
-		GlyphExtents: harfbuzz.GlyphExtents{
-			Width:    10,
-			Height:   -10,
-			YBearing: 0,
-			XBearing: 0,
-		},
+		Glyph:    deepGID,
+		XAdvance: fixed.I(int(10)),
+		YAdvance: fixed.I(int(10)),
+		XOffset:  fixed.I(int(0)),
+		YOffset:  fixed.I(int(0)),
+		Width:    fixed.I(int(10)),
+		Height:   -fixed.I(int(10)),
+		YBearing: fixed.I(int(0)),
+		XBearing: fixed.I(int(0)),
 	}
 	offsetGlyph = shaping.Glyph{
-		GlyphInfo: harfbuzz.GlyphInfo{
-			Glyph: offsetGID,
-		},
-		GlyphPosition: harfbuzz.GlyphPosition{
-			XAdvance: 10,
-			YAdvance: 10,
-			XOffset:  2,
-			YOffset:  2,
-		},
-		GlyphExtents: harfbuzz.GlyphExtents{
-			Width:    10,
-			Height:   -10,
-			YBearing: 10,
-			XBearing: 0,
-		},
+		Glyph:    offsetGID,
+		XAdvance: fixed.I(int(10)),
+		YAdvance: fixed.I(int(10)),
+		XOffset:  fixed.I(int(2)),
+		YOffset:  fixed.I(int(2)),
+		Width:    fixed.I(int(10)),
+		Height:   -fixed.I(int(10)),
+		YBearing: fixed.I(int(10)),
+		XBearing: fixed.I(int(0)),
 	}
 )
 
@@ -137,9 +107,9 @@ func TestRecalculate(t *testing.T) {
 			Input:     []shaping.Glyph{simpleGlyph},
 			Output: shaping.Output{
 				Glyphs:  []shaping.Glyph{simpleGlyph},
-				Advance: fixed.I(int(simpleGlyph.XAdvance)),
+				Advance: simpleGlyph.XAdvance,
 				GlyphBounds: shaping.Bounds{
-					Ascent:  fixed.I(int(simpleGlyph.GlyphExtents.YBearing)),
+					Ascent:  simpleGlyph.YBearing,
 					Descent: fixed.I(0),
 				},
 				LineBounds: expectedFontExtents,
@@ -151,10 +121,10 @@ func TestRecalculate(t *testing.T) {
 			Input:     []shaping.Glyph{simpleGlyph, deepGlyph},
 			Output: shaping.Output{
 				Glyphs:  []shaping.Glyph{simpleGlyph, deepGlyph},
-				Advance: fixed.I(int(simpleGlyph.XAdvance + deepGlyph.XAdvance)),
+				Advance: simpleGlyph.XAdvance + deepGlyph.XAdvance,
 				GlyphBounds: shaping.Bounds{
-					Ascent:  fixed.I(int(simpleGlyph.GlyphExtents.YBearing)),
-					Descent: fixed.I(int(deepGlyph.GlyphExtents.YBearing + deepGlyph.GlyphExtents.Height)),
+					Ascent:  simpleGlyph.YBearing,
+					Descent: deepGlyph.YBearing + deepGlyph.Height,
 				},
 				LineBounds: expectedFontExtents,
 			},
@@ -165,9 +135,9 @@ func TestRecalculate(t *testing.T) {
 			Input:     []shaping.Glyph{offsetGlyph},
 			Output: shaping.Output{
 				Glyphs:  []shaping.Glyph{offsetGlyph},
-				Advance: fixed.I(int(offsetGlyph.XAdvance)),
+				Advance: offsetGlyph.XAdvance,
 				GlyphBounds: shaping.Bounds{
-					Ascent:  fixed.I(int(offsetGlyph.GlyphExtents.YBearing + offsetGlyph.YOffset)),
+					Ascent:  offsetGlyph.YBearing + offsetGlyph.YOffset,
 					Descent: fixed.I(0),
 				},
 				LineBounds: expectedFontExtents,

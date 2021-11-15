@@ -37,6 +37,15 @@ func (i InvalidRunError) Error() string {
 	return fmt.Sprintf("run from %d to %d is not valid for text len %d", i.RunStart, i.RunEnd, i.TextLength)
 }
 
+const (
+	// scaleShift is the power of 2 with which to automatically scale
+	// up the input coordinate space of the shaper. This factor will
+	// be removed prior to returning dimensions. This ensures that the
+	// returned glyph dimensions take advantage of all of the precision
+	// that a fixed.Int26_6 can provide.
+	scaleShift = 6
+)
+
 // Shape turns an input into an output.
 func Shape(input Input) (Output, error) {
 	// Prepare to shape the text.
@@ -62,7 +71,7 @@ func Shape(input Input) (Output, error) {
 	buf.Props.Script = input.Script
 	// TODO: figure out what (if anything) to do if this type assertion fails.
 	font := harfbuzz.NewFont(input.Face.(harfbuzz.Face))
-	font.XScale = int32(input.Size.Ceil())
+	font.XScale = int32(input.Size.Ceil()) << scaleShift
 	font.YScale = font.XScale
 
 	// Actually use harfbuzz to shape the text.
@@ -71,27 +80,35 @@ func Shape(input Input) (Output, error) {
 	// Convert the shaped text into an Output.
 	glyphs := make([]Glyph, len(buf.Info))
 	for i := range glyphs {
-		glyphs[i] = Glyph{
-			GlyphInfo:     buf.Info[i],
-			GlyphPosition: buf.Pos[i],
-		}
-		g := glyphs[i].Glyph
+		g := buf.Info[i].Glyph
 		extents, ok := font.GlyphExtents(g)
 		if !ok {
 			// TODO: can this error happen? Will harfbuzz return a
 			// GID for a glyph that isn't in the font?
 			return Output{}, MissingGlyphError{GID: g}
 		}
-		glyphs[i].GlyphExtents = extents
+		glyphs[i] = Glyph{
+			Width:    fixed.I(int(extents.Width)) >> scaleShift,
+			Height:   fixed.I(int(extents.Height)) >> scaleShift,
+			XBearing: fixed.I(int(extents.XBearing)) >> scaleShift,
+			YBearing: fixed.I(int(extents.YBearing)) >> scaleShift,
+			XAdvance: fixed.I(int(buf.Pos[i].XAdvance)) >> scaleShift,
+			YAdvance: fixed.I(int(buf.Pos[i].YAdvance)) >> scaleShift,
+			XOffset:  fixed.I(int(buf.Pos[i].XOffset)) >> scaleShift,
+			YOffset:  fixed.I(int(buf.Pos[i].YOffset)) >> scaleShift,
+			Cluster:  buf.Info[i].Cluster,
+			Glyph:    g,
+			Mask:     buf.Info[i].Mask,
+		}
 	}
 	out := Output{
 		Glyphs: glyphs,
 	}
 	fontExtents := font.ExtentsForDirection(buf.Props.Direction)
 	out.LineBounds = Bounds{
-		Ascent:  fixed.I(int(fontExtents.Ascender)),
-		Descent: fixed.I(int(fontExtents.Descender)),
-		Gap:     fixed.I(int(fontExtents.LineGap)),
+		Ascent:  fixed.I(int(fontExtents.Ascender)) >> scaleShift,
+		Descent: fixed.I(int(fontExtents.Descender)) >> scaleShift,
+		Gap:     fixed.I(int(fontExtents.LineGap)) >> scaleShift,
 	}
 	return out, out.RecalculateAll(input.Direction)
 }

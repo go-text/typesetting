@@ -5,6 +5,7 @@ package shaping
 import (
 	"fmt"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/di"
 	"golang.org/x/image/math/fixed"
@@ -13,23 +14,31 @@ import (
 // Glyph describes the attributes of a single glyph from a single
 // font face in a shaped output.
 type Glyph struct {
-	harfbuzz.GlyphInfo
-	harfbuzz.GlyphPosition
-	harfbuzz.GlyphExtents
+	Width    fixed.Int26_6
+	Height   fixed.Int26_6
+	XBearing fixed.Int26_6
+	YBearing fixed.Int26_6
+	XAdvance fixed.Int26_6
+	YAdvance fixed.Int26_6
+	XOffset  fixed.Int26_6
+	YOffset  fixed.Int26_6
+	Cluster  int
+	Glyph    fonts.GID
+	Mask     harfbuzz.GlyphMask
 }
 
 // LeftSideBearing returns the distance from the glyph's X origin to
 // its leftmost edge. This value can be negative if the glyph extends
 // across the origin.
-func (g Glyph) LeftSideBearing() int32 {
-	return g.GlyphExtents.XBearing
+func (g Glyph) LeftSideBearing() fixed.Int26_6 {
+	return g.XBearing
 }
 
 // RightSideBearing returns the distance from the glyph's right edge to
 // the edge of the glyph's advance. This value can be negative if the glyph's
 // right edge is before the end of its advance.
-func (g Glyph) RightSideBearing() int32 {
-	return g.GlyphPosition.XAdvance - g.GlyphExtents.Width - g.GlyphExtents.XBearing
+func (g Glyph) RightSideBearing() fixed.Int26_6 {
+	return g.XAdvance - g.Width - g.XBearing
 }
 
 // Bounds describes the minor-axis bounds of a line of text. In a LTR or RTL
@@ -97,18 +106,18 @@ func (u UnimplementedDirectionError) Error() string {
 // contents of the Glyphs field. It is faster than RecalculateAll(),
 // and can be used to speed up line wrapping logic.
 func (o *Output) RecomputeAdvance(dir di.Direction) {
-	advance := int32(0)
+	advance := fixed.Int26_6(0)
 	switch dir {
 	case di.DirectionLTR, di.DirectionRTL:
 		for _, g := range o.Glyphs {
-			advance += g.GlyphPosition.XAdvance
+			advance += g.XAdvance
 		}
 	default: // vertical
 		for _, g := range o.Glyphs {
-			advance += g.GlyphPosition.YAdvance
+			advance += g.YAdvance
 		}
 	}
-	o.Advance = fixed.I(int(advance))
+	o.Advance = advance
 }
 
 // RecalculateAll updates the all other fields of the Output
@@ -117,9 +126,9 @@ func (o *Output) RecomputeAdvance(dir di.Direction) {
 // direction is unimplemented.
 func (o *Output) RecalculateAll(dir di.Direction) error {
 	var (
-		advance int32
-		tallest int32
-		lowest  int32
+		advance fixed.Int26_6
+		tallest fixed.Int26_6
+		lowest  fixed.Int26_6
 	)
 
 	switch dir {
@@ -128,21 +137,21 @@ func (o *Output) RecalculateAll(dir di.Direction) error {
 	case di.DirectionLTR, di.DirectionRTL:
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
-			advance += g.GlyphPosition.XAdvance
-			height := g.GlyphExtents.YBearing + g.YOffset
+			advance += g.XAdvance
+			height := g.YBearing + g.YOffset
 			if height > tallest {
 				tallest = height
 			}
-			depth := height + g.GlyphExtents.Height
+			depth := height + g.Height
 			if depth < lowest {
 				lowest = depth
 			}
 		}
 	}
-	o.Advance = fixed.I(int(advance))
+	o.Advance = advance
 	o.GlyphBounds = Bounds{
-		Ascent:  fixed.I(int(tallest)),
-		Descent: fixed.I(int(lowest)),
+		Ascent:  tallest,
+		Descent: lowest,
 	}
 
 	return nil
