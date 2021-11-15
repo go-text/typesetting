@@ -20,8 +20,11 @@ type Input struct {
 	Direction di.Direction
 	// Face is the font face to render the text in.
 	Face font.Face
-	// Size is the size of the font, eg. 14.
-	// TODO is this a scaled value, exact pixels, or display dependand?
+
+	// Size is the requested size of the font.
+	// More generally, it is a scale factor applied to the resulting metrics.
+	// For instance, given a device resolution (in dpi) and a point size (like 14), the `Size` to
+	// get result in pixels is given by : pointSize * dpi / 72
 	Size fixed.Int26_6
 
 	// Script is an identifier for the writing system used in the text.
