@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Unlicense OR MIT
+// SPDX-License-Identifier: Unlicense OR BSD-3-Clause
 
 package shaping_test
 
