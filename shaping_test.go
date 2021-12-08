@@ -50,34 +50,34 @@ func TestCountClusters(t *testing.T) {
 			},
 			expected: []Glyph{
 				{
-					Cluster:   0,
-					NumRunes:  1,
-					NumGlyphs: 1,
+					Cluster:    0,
+					RuneCount:  1,
+					GlyphCount: 1,
 				},
 				{
-					Cluster:   1,
-					NumRunes:  2,
-					NumGlyphs: 1,
+					Cluster:    1,
+					RuneCount:  2,
+					GlyphCount: 1,
 				},
 				{
-					Cluster:   3,
-					NumRunes:  1,
-					NumGlyphs: 2,
+					Cluster:    3,
+					RuneCount:  1,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   3,
-					NumRunes:  1,
-					NumGlyphs: 2,
+					Cluster:    3,
+					RuneCount:  1,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   4,
-					NumRunes:  4,
-					NumGlyphs: 2,
+					Cluster:    4,
+					RuneCount:  4,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   4,
-					NumRunes:  4,
-					NumGlyphs: 2,
+					Cluster:    4,
+					RuneCount:  4,
+					GlyphCount: 2,
 				},
 			},
 		},
@@ -113,34 +113,34 @@ func TestCountClusters(t *testing.T) {
 			},
 			expected: []Glyph{
 				{
-					Cluster:   4,
-					NumRunes:  4,
-					NumGlyphs: 2,
+					Cluster:    4,
+					RuneCount:  4,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   4,
-					NumRunes:  4,
-					NumGlyphs: 2,
+					Cluster:    4,
+					RuneCount:  4,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   3,
-					NumRunes:  1,
-					NumGlyphs: 2,
+					Cluster:    3,
+					RuneCount:  1,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   3,
-					NumRunes:  1,
-					NumGlyphs: 2,
+					Cluster:    3,
+					RuneCount:  1,
+					GlyphCount: 2,
 				},
 				{
-					Cluster:   1,
-					NumRunes:  2,
-					NumGlyphs: 1,
+					Cluster:    1,
+					RuneCount:  2,
+					GlyphCount: 1,
 				},
 				{
-					Cluster:   0,
-					NumRunes:  1,
-					NumGlyphs: 1,
+					Cluster:    0,
+					RuneCount:  1,
+					GlyphCount: 1,
 				},
 			},
 		},
@@ -150,8 +150,8 @@ func TestCountClusters(t *testing.T) {
 			for i := range tc.glyphs {
 				g := tc.glyphs[i]
 				e := tc.expected[i]
-				if !(g.Cluster == e.Cluster && g.NumRunes == e.NumRunes && g.NumGlyphs == e.NumGlyphs) {
-					t.Errorf("mismatch on glyph %d: expected cluster %d numRunes %d numGlyphs %d, got cluster %d numRunes %d numGlyphs %d", i, e.Cluster, e.NumRunes, e.NumGlyphs, g.Cluster, g.NumRunes, g.NumGlyphs)
+				if !(g.Cluster == e.Cluster && g.RuneCount == e.RuneCount && g.GlyphCount == e.GlyphCount) {
+					t.Errorf("mismatch on glyph %d: expected cluster %d RuneCount %d GlyphCount %d, got cluster %d RuneCount %d GlyphCount %d", i, e.Cluster, e.RuneCount, e.GlyphCount, g.Cluster, g.RuneCount, g.GlyphCount)
 				}
 			}
 		})

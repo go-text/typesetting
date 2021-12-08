@@ -150,7 +150,7 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Direction) {
 			}
 			previousCluster = g
 		}
-		glyphs[i].NumGlyphs = glyphsInCluster
-		glyphs[i].NumRunes = runesInCluster
+		glyphs[i].GlyphCount = glyphsInCluster
+		glyphs[i].RuneCount = runesInCluster
 	}
 }
