@@ -101,6 +101,7 @@ func Shape(input Input) (Output, error) {
 			Mask:     buf.Info[i].Mask,
 		}
 	}
+	countClusters(glyphs, input.RunEnd-input.RunStart, input.Direction)
 	out := Output{
 		Glyphs: glyphs,
 	}
@@ -111,4 +112,45 @@ func Shape(input Input) (Output, error) {
 		Gap:     fixed.I(int(fontExtents.LineGap)) >> scaleShift,
 	}
 	return out, out.RecalculateAll(input.Direction)
+}
+
+// countClusters tallies the number of runes and glyphs in each cluster
+// and updates the relevant fields on the provided glyph slice.
+func countClusters(glyphs []Glyph, textLen int, dir di.Direction) {
+	currentCluster := -1
+	runesInCluster := 0
+	glyphsInCluster := 0
+	previousCluster := textLen
+	for i := range glyphs {
+		g := glyphs[i].Cluster
+		if g != currentCluster {
+			// If we're processing a new cluster, count the runes and glyphs
+			// that compose it.
+			runesInCluster = 0
+			glyphsInCluster = 1
+			currentCluster = g
+			nextCluster := -1
+		glyphCountLoop:
+			for k := i + 1; k < len(glyphs); k++ {
+				if glyphs[k].Cluster == g {
+					glyphsInCluster++
+				} else {
+					nextCluster = glyphs[k].Cluster
+					break glyphCountLoop
+				}
+			}
+			if nextCluster == -1 {
+				nextCluster = textLen
+			}
+			switch dir {
+			case di.DirectionLTR:
+				runesInCluster = nextCluster - currentCluster
+			case di.DirectionRTL:
+				runesInCluster = previousCluster - currentCluster
+			}
+			previousCluster = g
+		}
+		glyphs[i].NumGlyphs = glyphsInCluster
+		glyphs[i].NumRunes = runesInCluster
+	}
 }

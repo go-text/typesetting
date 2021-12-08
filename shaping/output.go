@@ -22,9 +22,18 @@ type Glyph struct {
 	YAdvance fixed.Int26_6
 	XOffset  fixed.Int26_6
 	YOffset  fixed.Int26_6
-	Cluster  int
-	Glyph    fonts.GID
-	Mask     harfbuzz.GlyphMask
+	// Cluster is the lowest rune index of all runes shaped into
+	// this glyph cluster. All glyphs sharing the same cluster value
+	// are part of the same cluster and will have identical NumRunes
+	// and NumGlyphs fields.
+	Cluster int
+	// NumRunes is the number of input runes shaped into this output
+	// glyph cluster.
+	NumRunes int
+	// NumGlyphs is the number of glyphs in this output glyph cluster.
+	NumGlyphs int
+	Glyph     fonts.GID
+	Mask      harfbuzz.GlyphMask
 }
 
 // LeftSideBearing returns the distance from the glyph's X origin to
