@@ -30,52 +30,52 @@ func TestCountClusters(t *testing.T) {
 			// A[4],A[5],A[6],A[7] => G[4],G[5] (reorder, ligature, etc...)
 			glyphs: []Glyph{
 				{
-					Cluster: 0,
+					ClusterIndex: 0,
 				},
 				{
-					Cluster: 1,
+					ClusterIndex: 1,
 				},
 				{
-					Cluster: 3,
+					ClusterIndex: 3,
 				},
 				{
-					Cluster: 3,
+					ClusterIndex: 3,
 				},
 				{
-					Cluster: 4,
+					ClusterIndex: 4,
 				},
 				{
-					Cluster: 4,
+					ClusterIndex: 4,
 				},
 			},
 			expected: []Glyph{
 				{
-					Cluster:    0,
+					ClusterIndex:    0,
 					RuneCount:  1,
 					GlyphCount: 1,
 				},
 				{
-					Cluster:    1,
+					ClusterIndex:    1,
 					RuneCount:  2,
 					GlyphCount: 1,
 				},
 				{
-					Cluster:    3,
+					ClusterIndex:    3,
 					RuneCount:  1,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    3,
+					ClusterIndex:    3,
 					RuneCount:  1,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    4,
+					ClusterIndex:    4,
 					RuneCount:  4,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    4,
+					ClusterIndex:    4,
 					RuneCount:  4,
 					GlyphCount: 2,
 				},
@@ -93,52 +93,52 @@ func TestCountClusters(t *testing.T) {
 			// A[4],A[5],A[6],A[7] => G[0],G[1] (reorder, ligature, etc...)
 			glyphs: []Glyph{
 				{
-					Cluster: 4,
+					ClusterIndex: 4,
 				},
 				{
-					Cluster: 4,
+					ClusterIndex: 4,
 				},
 				{
-					Cluster: 3,
+					ClusterIndex: 3,
 				},
 				{
-					Cluster: 3,
+					ClusterIndex: 3,
 				},
 				{
-					Cluster: 1,
+					ClusterIndex: 1,
 				},
 				{
-					Cluster: 0,
+					ClusterIndex: 0,
 				},
 			},
 			expected: []Glyph{
 				{
-					Cluster:    4,
+					ClusterIndex:    4,
 					RuneCount:  4,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    4,
+					ClusterIndex:    4,
 					RuneCount:  4,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    3,
+					ClusterIndex:    3,
 					RuneCount:  1,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    3,
+					ClusterIndex:    3,
 					RuneCount:  1,
 					GlyphCount: 2,
 				},
 				{
-					Cluster:    1,
+					ClusterIndex:    1,
 					RuneCount:  2,
 					GlyphCount: 1,
 				},
 				{
-					Cluster:    0,
+					ClusterIndex:    0,
 					RuneCount:  1,
 					GlyphCount: 1,
 				},
@@ -150,8 +150,8 @@ func TestCountClusters(t *testing.T) {
 			for i := range tc.glyphs {
 				g := tc.glyphs[i]
 				e := tc.expected[i]
-				if !(g.Cluster == e.Cluster && g.RuneCount == e.RuneCount && g.GlyphCount == e.GlyphCount) {
-					t.Errorf("mismatch on glyph %d: expected cluster %d RuneCount %d GlyphCount %d, got cluster %d RuneCount %d GlyphCount %d", i, e.Cluster, e.RuneCount, e.GlyphCount, g.Cluster, g.RuneCount, g.GlyphCount)
+				if !(g.ClusterIndex == e.ClusterIndex && g.RuneCount == e.RuneCount && g.GlyphCount == e.GlyphCount) {
+					t.Errorf("mismatch on glyph %d: expected cluster %d RuneCount %d GlyphCount %d, got cluster %d RuneCount %d GlyphCount %d", i, e.ClusterIndex, e.RuneCount, e.GlyphCount, g.ClusterIndex, g.RuneCount, g.GlyphCount)
 				}
 			}
 		})

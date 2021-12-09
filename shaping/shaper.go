@@ -88,17 +88,17 @@ func Shape(input Input) (Output, error) {
 			return Output{}, MissingGlyphError{GID: g}
 		}
 		glyphs[i] = Glyph{
-			Width:    fixed.I(int(extents.Width)) >> scaleShift,
-			Height:   fixed.I(int(extents.Height)) >> scaleShift,
-			XBearing: fixed.I(int(extents.XBearing)) >> scaleShift,
-			YBearing: fixed.I(int(extents.YBearing)) >> scaleShift,
-			XAdvance: fixed.I(int(buf.Pos[i].XAdvance)) >> scaleShift,
-			YAdvance: fixed.I(int(buf.Pos[i].YAdvance)) >> scaleShift,
-			XOffset:  fixed.I(int(buf.Pos[i].XOffset)) >> scaleShift,
-			YOffset:  fixed.I(int(buf.Pos[i].YOffset)) >> scaleShift,
-			Cluster:  buf.Info[i].Cluster,
-			Glyph:    g,
-			Mask:     buf.Info[i].Mask,
+			Width:        fixed.I(int(extents.Width)) >> scaleShift,
+			Height:       fixed.I(int(extents.Height)) >> scaleShift,
+			XBearing:     fixed.I(int(extents.XBearing)) >> scaleShift,
+			YBearing:     fixed.I(int(extents.YBearing)) >> scaleShift,
+			XAdvance:     fixed.I(int(buf.Pos[i].XAdvance)) >> scaleShift,
+			YAdvance:     fixed.I(int(buf.Pos[i].YAdvance)) >> scaleShift,
+			XOffset:      fixed.I(int(buf.Pos[i].XOffset)) >> scaleShift,
+			YOffset:      fixed.I(int(buf.Pos[i].YOffset)) >> scaleShift,
+			ClusterIndex: buf.Info[i].Cluster,
+			GlyphID:      g,
+			Mask:         buf.Info[i].Mask,
 		}
 	}
 	countClusters(glyphs, input.RunEnd-input.RunStart, input.Direction)
@@ -122,7 +122,7 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Direction) {
 	glyphsInCluster := 0
 	previousCluster := textLen
 	for i := range glyphs {
-		g := glyphs[i].Cluster
+		g := glyphs[i].ClusterIndex
 		if g != currentCluster {
 			// If we're processing a new cluster, count the runes and glyphs
 			// that compose it.
@@ -132,10 +132,10 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Direction) {
 			nextCluster := -1
 		glyphCountLoop:
 			for k := i + 1; k < len(glyphs); k++ {
-				if glyphs[k].Cluster == g {
+				if glyphs[k].ClusterIndex == g {
 					glyphsInCluster++
 				} else {
-					nextCluster = glyphs[k].Cluster
+					nextCluster = glyphs[k].ClusterIndex
 					break glyphCountLoop
 				}
 			}

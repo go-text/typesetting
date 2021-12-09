@@ -29,7 +29,7 @@ var (
 		Gap:     fixed.I(int(0)),
 	}
 	simpleGlyph = shaping.Glyph{
-		Glyph:    simpleGID,
+		GlyphID:    simpleGID,
 		XAdvance: fixed.I(int(10)),
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(0)),
@@ -39,7 +39,7 @@ var (
 		YBearing: fixed.I(int(10)),
 	}
 	leftExtentGlyph = shaping.Glyph{
-		Glyph:    leftExtentGID,
+		GlyphID:    leftExtentGID,
 		XAdvance: fixed.I(int(5)),
 		YAdvance: fixed.I(int(5)),
 		XOffset:  fixed.I(int(0)),
@@ -50,7 +50,7 @@ var (
 		XBearing: fixed.I(int(5)),
 	}
 	rightExtentGlyph = shaping.Glyph{
-		Glyph:    rightExtentGID,
+		GlyphID:    rightExtentGID,
 		XAdvance: fixed.I(int(5)),
 		YAdvance: fixed.I(int(5)),
 		XOffset:  fixed.I(int(0)),
@@ -61,7 +61,7 @@ var (
 		XBearing: fixed.I(int(0)),
 	}
 	deepGlyph = shaping.Glyph{
-		Glyph:    deepGID,
+		GlyphID:    deepGID,
 		XAdvance: fixed.I(int(10)),
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(0)),
@@ -72,7 +72,7 @@ var (
 		XBearing: fixed.I(int(0)),
 	}
 	offsetGlyph = shaping.Glyph{
-		Glyph:    offsetGID,
+		GlyphID:    offsetGID,
 		XAdvance: fixed.I(int(10)),
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(2)),
