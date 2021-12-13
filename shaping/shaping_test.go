@@ -3,7 +3,7 @@ package shaping
 import (
 	"testing"
 
-	"github.com/go-text/di"
+	"github.com/go-text/typesetting/di"
 )
 
 func TestCountClusters(t *testing.T) {
@@ -50,34 +50,34 @@ func TestCountClusters(t *testing.T) {
 			},
 			expected: []Glyph{
 				{
-					ClusterIndex:    0,
-					RuneCount:  1,
-					GlyphCount: 1,
+					ClusterIndex: 0,
+					RuneCount:    1,
+					GlyphCount:   1,
 				},
 				{
-					ClusterIndex:    1,
-					RuneCount:  2,
-					GlyphCount: 1,
+					ClusterIndex: 1,
+					RuneCount:    2,
+					GlyphCount:   1,
 				},
 				{
-					ClusterIndex:    3,
-					RuneCount:  1,
-					GlyphCount: 2,
+					ClusterIndex: 3,
+					RuneCount:    1,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    3,
-					RuneCount:  1,
-					GlyphCount: 2,
+					ClusterIndex: 3,
+					RuneCount:    1,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    4,
-					RuneCount:  4,
-					GlyphCount: 2,
+					ClusterIndex: 4,
+					RuneCount:    4,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    4,
-					RuneCount:  4,
-					GlyphCount: 2,
+					ClusterIndex: 4,
+					RuneCount:    4,
+					GlyphCount:   2,
 				},
 			},
 		},
@@ -113,34 +113,34 @@ func TestCountClusters(t *testing.T) {
 			},
 			expected: []Glyph{
 				{
-					ClusterIndex:    4,
-					RuneCount:  4,
-					GlyphCount: 2,
+					ClusterIndex: 4,
+					RuneCount:    4,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    4,
-					RuneCount:  4,
-					GlyphCount: 2,
+					ClusterIndex: 4,
+					RuneCount:    4,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    3,
-					RuneCount:  1,
-					GlyphCount: 2,
+					ClusterIndex: 3,
+					RuneCount:    1,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    3,
-					RuneCount:  1,
-					GlyphCount: 2,
+					ClusterIndex: 3,
+					RuneCount:    1,
+					GlyphCount:   2,
 				},
 				{
-					ClusterIndex:    1,
-					RuneCount:  2,
-					GlyphCount: 1,
+					ClusterIndex: 1,
+					RuneCount:    2,
+					GlyphCount:   1,
 				},
 				{
-					ClusterIndex:    0,
-					RuneCount:  1,
-					GlyphCount: 1,
+					ClusterIndex: 0,
+					RuneCount:    1,
+					GlyphCount:   1,
 				},
 			},
 		},

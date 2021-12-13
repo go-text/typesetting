@@ -9,8 +9,8 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
-	"github.com/go-text/di"
-	"github.com/go-text/shaping"
+	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/shaping"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -29,7 +29,7 @@ var (
 		Gap:     fixed.I(int(0)),
 	}
 	simpleGlyph = shaping.Glyph{
-		GlyphID:    simpleGID,
+		GlyphID:  simpleGID,
 		XAdvance: fixed.I(int(10)),
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(0)),
@@ -39,7 +39,7 @@ var (
 		YBearing: fixed.I(int(10)),
 	}
 	leftExtentGlyph = shaping.Glyph{
-		GlyphID:    leftExtentGID,
+		GlyphID:  leftExtentGID,
 		XAdvance: fixed.I(int(5)),
 		YAdvance: fixed.I(int(5)),
 		XOffset:  fixed.I(int(0)),
@@ -50,7 +50,7 @@ var (
 		XBearing: fixed.I(int(5)),
 	}
 	rightExtentGlyph = shaping.Glyph{
-		GlyphID:    rightExtentGID,
+		GlyphID:  rightExtentGID,
 		XAdvance: fixed.I(int(5)),
 		YAdvance: fixed.I(int(5)),
 		XOffset:  fixed.I(int(0)),
@@ -61,7 +61,7 @@ var (
 		XBearing: fixed.I(int(0)),
 	}
 	deepGlyph = shaping.Glyph{
-		GlyphID:    deepGID,
+		GlyphID:  deepGID,
 		XAdvance: fixed.I(int(10)),
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(0)),
@@ -72,7 +72,7 @@ var (
 		XBearing: fixed.I(int(0)),
 	}
 	offsetGlyph = shaping.Glyph{
-		GlyphID:    offsetGID,
+		GlyphID:  offsetGID,
 		XAdvance: fixed.I(int(10)),
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(2)),

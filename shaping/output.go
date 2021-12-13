@@ -7,7 +7,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
-	"github.com/go-text/di"
+	"github.com/go-text/typesetting/di"
 	"golang.org/x/image/math/fixed"
 )
 

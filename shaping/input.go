@@ -4,8 +4,8 @@ package shaping
 
 import (
 	"github.com/benoitkugler/textlayout/language"
-	"github.com/go-text/di"
-	"github.com/go-text/font"
+	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
 )
 
