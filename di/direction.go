@@ -14,21 +14,15 @@ const (
 	DirectionBTT
 )
 
-// IsVertical returns the layout axis for d. The return value can be
-// used as a value of type axis or as a boolean representing
-// whether the text is vertical.
-//
-//     if d.IsVertical() {
-//     } else {
-//         // Must be Horizontal.
-//     }
-//
-//     switch d.IsVertical() {
-//         case Vertical:
-//         case Horzontal:
-//     }
-//
-func (d Direction) IsVertical() Axis {
+// IsVertical returns whether d is laid out on a vertical
+// axis. If the return value is false, d is on the horizontal
+// axis.
+func (d Direction) IsVertical() bool {
+	return d == DirectionBTT || d == DirectionTTB
+}
+
+// Axis returns the layout axis for d.
+func (d Direction) Axis() Axis {
 	switch d {
 	case DirectionBTT, DirectionTTB:
 		return Vertical
