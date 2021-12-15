@@ -45,7 +45,7 @@ type Input struct {
 // The 'Face' field of 'input' is ignored: only 'availableFaces' are consulted.
 // Rune coverage is obtained by calling the NominalGlyph() method of each font.
 func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
-	var splittedInputs []Input
+	var splitInputs []Input
 	currentInput := input
 	for i := input.RunStart; i < input.RunEnd; i++ {
 		r := input.Text[i]
