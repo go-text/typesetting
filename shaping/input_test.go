@@ -1,10 +1,12 @@
 package shaping
 
 import (
+	"os"
 	"reflect"
 	"testing"
 	"unicode"
 
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/go-text/typesetting/font"
 )
 
@@ -46,11 +48,28 @@ func (lowerFont) NominalGlyph(r rune) (font.GID, bool) {
 	return 0, unicode.IsLower(r)
 }
 
+func loadOpentypeFont(t *testing.T, filename string) font.Face {
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("opening font file: %s", err)
+	}
+	face, err := truetype.Parse(file, true)
+	if err != nil {
+		t.Fatalf("parsing font file %s: %s", filename, err)
+	}
+	return face
+}
+
 func TestSplitByFontGlyphs(t *testing.T) {
 	type args struct {
 		input          Input
 		availableFaces []font.Face
 	}
+
+	latinFont := loadOpentypeFont(t, "../font/testdata/Roboto-Regular.ttf")
+	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")
+	englishArabic := []rune("Hello " + "تثذرزسشص" + "world" + "لمنهويء")
+
 	tests := []struct {
 		name string
 		args args
@@ -148,6 +167,38 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: 2,
 					Face: upperFont{},
+				},
+			},
+		},
+		{
+			"mixed english arabic",
+			args{
+				input: Input{
+					Text:     englishArabic,
+					RunStart: 0, RunEnd: len(englishArabic),
+				},
+				availableFaces: []font.Face{latinFont, arabicFont},
+			},
+			[]Input{
+				{
+					Text:     englishArabic,
+					RunStart: 0, RunEnd: 6,
+					Face: latinFont,
+				},
+				{
+					Text:     englishArabic,
+					RunStart: 6, RunEnd: 14,
+					Face: arabicFont,
+				},
+				{
+					Text:     englishArabic,
+					RunStart: 14, RunEnd: 19,
+					Face: latinFont,
+				},
+				{
+					Text:     englishArabic,
+					RunStart: 19, RunEnd: 26,
+					Face: arabicFont,
 				},
 			},
 		},

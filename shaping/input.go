@@ -74,7 +74,7 @@ func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
 			// close the current input ...
 			currentInput.RunEnd = i
 			// ... add it to the output ...
-			splittedInputs = append(splittedInputs, currentInput)
+			splitInputs = append(splitInputs, currentInput)
 		}
 
 		// ... and create a new one
@@ -85,8 +85,8 @@ func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
 
 	// close and add the last input
 	currentInput.RunEnd = input.RunEnd
-	splittedInputs = append(splittedInputs, currentInput)
-	return splittedInputs
+	splitInputs = append(splitInputs, currentInput)
+	return splitInputs
 }
 
 // ignoreFaceChange returns `true` is the given rune should not trigger
