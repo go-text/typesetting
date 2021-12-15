@@ -5,7 +5,6 @@ package shaping
 import (
 	"unicode"
 
-	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
@@ -30,10 +29,10 @@ type Input struct {
 	Size fixed.Int26_6
 
 	// Script is an identifier for the writing system used in the text.
-	Script language.Script
+	Script font.Script
 
 	// Language is an identifier for the language of the text.
-	Language language.Language
+	Language font.Language
 }
 
 // SplitByFontGlyphs split the runes from 'input' to several items, sharing the same

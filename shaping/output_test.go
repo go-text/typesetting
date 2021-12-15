@@ -7,15 +7,15 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/shaping"
 	"golang.org/x/image/math/fixed"
 )
 
 const (
-	simpleGID fonts.GID = iota
+	simpleGID font.GID = iota
 	leftExtentGID
 	rightExtentGID
 	deepGID

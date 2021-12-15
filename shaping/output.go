@@ -5,9 +5,8 @@ package shaping
 import (
 	"fmt"
 
-	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -32,8 +31,8 @@ type Glyph struct {
 	RuneCount int
 	// GlyphCount is the number of glyphs in this output glyph cluster.
 	GlyphCount int
-	GlyphID    fonts.GID
-	Mask       harfbuzz.GlyphMask
+	GlyphID    font.GID
+	Mask       font.GlyphMask
 }
 
 // LeftSideBearing returns the distance from the glyph's X origin to
