@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/shaping"
@@ -145,7 +144,7 @@ func TestRecalculate(t *testing.T) {
 		},
 		{
 			Name:      "vertical text not supported",
-			Direction: di.Direction(harfbuzz.BottomToTop),
+			Direction: di.DirectionBTT,
 			Error:     shaping.UnimplementedDirectionError{},
 		},
 	} {
