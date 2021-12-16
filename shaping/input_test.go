@@ -60,7 +60,7 @@ func loadOpentypeFont(t *testing.T, filename string) font.Face {
 	if err != nil {
 		t.Fatalf("opening font file: %s", err)
 	}
-	face, err := font.ParseTTF(file, true)
+	face, err := font.ParseTTF(file)
 	if err != nil {
 		t.Fatalf("parsing font file %s: %s", filename, err)
 	}
