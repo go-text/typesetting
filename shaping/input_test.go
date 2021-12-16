@@ -23,6 +23,7 @@ func Test_ignoreFaceChange(t *testing.T) {
 		{'\ufe01', true},
 		{'\ufe02', true},
 		{'\U000E0100', true},
+		{'\u06DD', false},
 	}
 	for _, tt := range tests {
 		if got := ignoreFaceChange(tt.args); got != tt.want {

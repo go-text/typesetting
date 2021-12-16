@@ -5,6 +5,7 @@ package shaping
 import (
 	"unicode"
 
+	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
@@ -98,9 +99,10 @@ func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
 // characters if they don't, HarfBuzz will compatibility-decompose them
 // to ASCII space...
 //
-// We don't want to change fonts just for variation selectors.
+// We don't want to change fonts for line or paragraph separators.
 //
-// Finally, don't change fonts for line or paragraph separators.
+// Finaly, we also don't change fonts for what Harfbuzz consider
+// as ignorable (however, some Control Format runes like 06DD are not ignored).
 //
 // The rationale is taken from pango : see bugs
 // https://bugzilla.gnome.org/show_bug.cgi?id=355987
@@ -109,11 +111,9 @@ func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
 // for more details.
 func ignoreFaceChange(r rune) bool {
 	return unicode.Is(unicode.Cc, r) || // control
-		unicode.Is(unicode.Cf, r) || // format
 		unicode.Is(unicode.Cs, r) || // surrogate
 		unicode.Is(unicode.Zl, r) || // line separator
 		unicode.Is(unicode.Zp, r) || // paragraph separator
 		(unicode.Is(unicode.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
-		('\U000e0100' <= r && r <= '\U000e01ef') ||
-		('\ufe00' <= r && r <= '\ufe0f') // variation selectors
+		harfbuzz.IsDefaultIgnorable(r)
 }
