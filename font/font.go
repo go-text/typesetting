@@ -5,9 +5,8 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-type Font = *truetype.Font
 type Resource = fonts.Resource
 
-func ParseTTF(file Resource, loadAllTables bool) (Font, error){
+func ParseTTF(file Resource, loadAllTables bool) (Face, error){
 	return truetype.Parse(file, loadAllTables)
 }
