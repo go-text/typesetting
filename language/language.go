@@ -1,4 +1,4 @@
-package font
+package language
 
 import "github.com/benoitkugler/textlayout/language"
 

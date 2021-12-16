@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -29,10 +30,10 @@ type Input struct {
 	Size fixed.Int26_6
 
 	// Script is an identifier for the writing system used in the text.
-	Script font.Script
+	Script language.Script
 
 	// Language is an identifier for the language of the text.
-	Language font.Language
+	Language language.Language
 }
 
 // SplitByFontGlyphs split the runes from 'input' to several items, sharing the same
