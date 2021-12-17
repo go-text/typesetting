@@ -117,9 +117,9 @@ func (u UnimplementedDirectionError) Error() string {
 // RecomputeAdvance updates only the Advance field based on the current
 // contents of the Glyphs field. It is faster than RecalculateAll(),
 // and can be used to speed up line wrapping logic.
-func (o *Output) RecomputeAdvance(dir di.Direction) {
+func (o *Output) RecomputeAdvance() {
 	advance := fixed.Int26_6(0)
-	switch dir {
+	switch o.Direction {
 	case di.DirectionLTR, di.DirectionRTL:
 		for _, g := range o.Glyphs {
 			advance += g.XAdvance
@@ -134,18 +134,18 @@ func (o *Output) RecomputeAdvance(dir di.Direction) {
 
 // RecalculateAll updates the all other fields of the Output
 // to match the current contents of the Glyphs field.
-// This method will fail with UnimplementedDirectionError if the provided
+// This method will fail with UnimplementedDirectionError if the Output
 // direction is unimplemented.
-func (o *Output) RecalculateAll(dir di.Direction) error {
+func (o *Output) RecalculateAll() error {
 	var (
 		advance fixed.Int26_6
 		tallest fixed.Int26_6
 		lowest  fixed.Int26_6
 	)
 
-	switch dir {
+	switch o.Direction {
 	default:
-		return UnimplementedDirectionError{Direction: dir}
+		return UnimplementedDirectionError{Direction: o.Direction}
 	case di.DirectionLTR, di.DirectionRTL:
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]

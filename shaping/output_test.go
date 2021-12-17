@@ -152,8 +152,9 @@ func TestRecalculate(t *testing.T) {
 			output := shaping.Output{
 				Glyphs:     tc.Input,
 				LineBounds: expectedFontExtents,
+				Direction:  tc.Direction,
 			}
-			err := output.RecalculateAll(tc.Direction)
+			err := output.RecalculateAll()
 			if tc.Error != nil && !errors.As(err, &tc.Error) {
 				t.Errorf("expected error of type %T, got %T", tc.Error, err)
 			} else if tc.Error == nil && !reflect.DeepEqual(output, tc.Output) {
