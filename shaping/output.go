@@ -97,6 +97,10 @@ type Output struct {
 	// within this output. The dimensions may not be sufficient to contain all
 	// glyphs within the chosen font.
 	GlyphBounds Bounds
+
+	// Direction is the direction used to shape the text,
+	// as provided in the Input.
+	Direction di.Direction
 }
 
 // UnimplementedDirectionError is returned when a function does not support the

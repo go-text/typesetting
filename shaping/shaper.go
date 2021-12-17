@@ -103,7 +103,8 @@ func Shape(input Input) (Output, error) {
 	}
 	countClusters(glyphs, input.RunEnd-input.RunStart, input.Direction)
 	out := Output{
-		Glyphs: glyphs,
+		Glyphs:    glyphs,
+		Direction: input.Direction,
 	}
 	fontExtents := font.ExtentsForDirection(buf.Props.Direction)
 	out.LineBounds = Bounds{
