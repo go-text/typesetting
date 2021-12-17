@@ -119,14 +119,13 @@ func (u UnimplementedDirectionError) Error() string {
 // and can be used to speed up line wrapping logic.
 func (o *Output) RecomputeAdvance() {
 	advance := fixed.Int26_6(0)
-	switch o.Direction {
-	case di.DirectionLTR, di.DirectionRTL:
-		for _, g := range o.Glyphs {
-			advance += g.XAdvance
-		}
-	default: // vertical
+	if o.Direction.IsVertical() {
 		for _, g := range o.Glyphs {
 			advance += g.YAdvance
+		}
+	} else { // horizontal
+		for _, g := range o.Glyphs {
+			advance += g.XAdvance
 		}
 	}
 	o.Advance = advance
@@ -143,10 +142,9 @@ func (o *Output) RecalculateAll() error {
 		lowest  fixed.Int26_6
 	)
 
-	switch o.Direction {
-	default:
+	if o.Direction.IsVertical() {
 		return UnimplementedDirectionError{Direction: o.Direction}
-	case di.DirectionLTR, di.DirectionRTL:
+	} else { // horizontal
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
 			advance += g.XAdvance
