@@ -112,7 +112,7 @@ func Shape(input Input) (Output, error) {
 		Descent: fixed.I(int(fontExtents.Descender)) >> scaleShift,
 		Gap:     fixed.I(int(fontExtents.LineGap)) >> scaleShift,
 	}
-	return out, out.RecalculateAll(input.Direction)
+	return out, out.RecalculateAll()
 }
 
 // countClusters tallies the number of runes and glyphs in each cluster
