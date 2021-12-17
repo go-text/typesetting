@@ -1,14 +1,10 @@
 package font
 
-import "github.com/benoitkugler/textlayout/fonts"
+import (
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/harfbuzz"
+)
 
-// make sure that we can use textlayout/fonts.Face as Face
-var _ Face = (fonts.Face)(nil)
-
+type Face = fonts.Face
 type GID = fonts.GID
-
-type Face interface {
-	// NominalGlyph returns the glyph identifier used to represent the given rune,
-	// or false the rune is not supported by the font.
-	NominalGlyph(r rune) (GID, bool)
-}
+type GlyphMask = harfbuzz.GlyphMask

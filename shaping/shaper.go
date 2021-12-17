@@ -5,9 +5,9 @@ package shaping
 import (
 	"fmt"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -19,7 +19,7 @@ type Shaper interface {
 // MissingGlyphError indicates that the font used in shaping did not
 // have a glyph needed to complete the shaping.
 type MissingGlyphError struct {
-	fonts.GID
+	font.GID
 }
 
 func (m MissingGlyphError) Error() string {

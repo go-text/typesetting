@@ -6,9 +6,9 @@ import (
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/harfbuzz"
-	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 	"golang.org/x/image/math/fixed"
 )
 

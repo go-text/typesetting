@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/go-text/typesetting/font"
 )
 
@@ -33,17 +33,23 @@ func Test_ignoreFaceChange(t *testing.T) {
 }
 
 // support any rune
-type universalFont struct{}
+type universalFont struct{
+	fonts.Face
+}
 
 func (universalFont) NominalGlyph(rune) (font.GID, bool) { return 0, true }
 
-type upperFont struct{}
+type upperFont struct{
+	fonts.Face
+}
 
 func (upperFont) NominalGlyph(r rune) (font.GID, bool) {
 	return 0, unicode.IsUpper(r)
 }
 
-type lowerFont struct{}
+type lowerFont struct{
+	fonts.Face
+}
 
 func (lowerFont) NominalGlyph(r rune) (font.GID, bool) {
 	return 0, unicode.IsLower(r)
@@ -54,7 +60,7 @@ func loadOpentypeFont(t *testing.T, filename string) font.Face {
 	if err != nil {
 		t.Fatalf("opening font file: %s", err)
 	}
-	face, err := truetype.Parse(file, true)
+	face, err := font.ParseTTF(file)
 	if err != nil {
 		t.Fatalf("parsing font file %s: %s", filename, err)
 	}
