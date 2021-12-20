@@ -31,10 +31,37 @@ func (d Direction) Axis() Axis {
 	}
 }
 
+// Progression returns the text layout progression for d.
+func (d Direction) Progression() Progression {
+	switch d {
+	case DirectionTTB, DirectionLTR:
+		return FromOrigin
+	default:
+		return TowardOrigin
+	}
+}
+
 // Axis indicates the axis of layout for a piece of text.
 type Axis bool
 
 const (
 	Horizontal Axis = false
 	Vertical   Axis = true
+)
+
+// Progression indicates how text is read within its Axis relative
+// to the origin (where the origin is the upper-left corner of the
+// text).
+type Progression bool
+
+const (
+	// FromOrigin indicates text in which a reader starts reading
+	// at the origin and moves away from it. DirectionLTR and
+	// DirectionTTB are examples of FromOrigin Progression.
+	FromOrigin Progression = false
+	// TowardOrigin indicates text in which a reader stars reading
+	// at the opposite end of the text's Axis from the origin and
+	// moves towards it. DirectionRTL and DirectionBTT are examples
+	// of TowardOrigin progression.
+	TowardOrigin Progression = true
 )
