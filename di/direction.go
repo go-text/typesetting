@@ -35,9 +35,9 @@ func (d Direction) Axis() Axis {
 func (d Direction) Progression() Progression {
 	switch d {
 	case DirectionTTB, DirectionLTR:
-		return FromUpperLeft
+		return FromTopLeft
 	default:
-		return TowardUpperLeft
+		return TowardTopLeft
 	}
 }
 
@@ -50,19 +50,18 @@ const (
 )
 
 // Progression indicates how text is read within its Axis relative
-// to the origin (where the origin is the upper-left corner of the
-// text).
+// to the top left corner.
 type Progression bool
 
 const (
-	// FromUpperLeft indicates text in which a reader starts reading
-	// at the upper-left corner of the text and moves away from it.
-	// DirectionLTR and DirectionTTB are examples of FromUpperLeft
+	// FromTopLeft indicates text in which a reader starts reading
+	// at the top left corner of the text and moves away from it.
+	// DirectionLTR and DirectionTTB are examples of FromTopLeft
 	// Progression.
-	FromUpperLeft Progression = false
-	// TowardUpperLeft indicates text in which a reader starts reading
-	// at the opposite end of the text's Axis from the upper left corner
+	FromTopLeft Progression = false
+	// TowardTopLeft indicates text in which a reader starts reading
+	// at the opposite end of the text's Axis from the top left corner
 	// and moves towards it. DirectionRTL and DirectionBTT are examples
-	// of TowardUpperLeft progression.
-	TowardUpperLeft Progression = true
+	// of TowardTopLeft progression.
+	TowardTopLeft Progression = true
 )
