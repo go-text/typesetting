@@ -7,6 +7,6 @@ import (
 
 type Resource = fonts.Resource
 
-func ParseTTF(file Resource) (Face, error){
-	return truetype.Parse(file, true)
+func ParseTTF(file Resource) (Face, error) {
+	return truetype.Parse(file)
 }
