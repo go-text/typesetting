@@ -33,13 +33,13 @@ func Test_ignoreFaceChange(t *testing.T) {
 }
 
 // support any rune
-type universalFont struct{
+type universalFont struct {
 	fonts.Face
 }
 
 func (universalFont) NominalGlyph(rune) (font.GID, bool) { return 0, true }
 
-type upperFont struct{
+type upperFont struct {
 	fonts.Face
 }
 
@@ -47,7 +47,7 @@ func (upperFont) NominalGlyph(r rune) (font.GID, bool) {
 	return 0, unicode.IsUpper(r)
 }
 
-type lowerFont struct{
+type lowerFont struct {
 	fonts.Face
 }
 
