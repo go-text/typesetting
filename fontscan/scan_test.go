@@ -39,10 +39,10 @@ func TestScanFonts(t *testing.T) {
 	}
 
 	// Show some basic stats
-	repartition := map[Format]int{}
+	distribution := map[Format]int{}
 	for _, font := range fontset {
-		repartition[font.Format]++
+		distribution[font.Format]++
 	}
 
-	fmt.Printf("Found %d fonts in %s (repartition: %v)\n", len(fontset), time.Since(ti), repartition)
+	fmt.Printf("Found %d fonts in %s (distribution: %v)\n", len(fontset), time.Since(ti), distribution)
 }
