@@ -3,13 +3,17 @@ package fontscan
 import "github.com/benoitkugler/textlayout/fonts"
 
 type Footprint struct {
-	Family string
-
+	// Location stores the adress of the font file.
 	Location fonts.FaceID
 
-	Runes RuneSet // supported runes
-	Langs LangSet // supported languages
+	// Family is the general nature of the font, like
+	// "Arial"
+	Family string
 
-	// TODO:
+	// Runes is the set of runes supported by the font.
+	Runes RuneSet
 
+	// Aspect precises the visual characteristics
+	// of the font among a family, like "Bold Italic"
+	Aspect
 }
