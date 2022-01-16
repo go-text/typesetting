@@ -115,8 +115,13 @@ func ignoreFontFile(name string) bool {
 	return false
 }
 
-// descriptions are appended to `dst`, which is returned
-func scanFamilyNamesFromDir(dir string, seen map[string]bool, dst []string) ([]string, error) {
+type descriptorAccumulator interface {
+	consume([]fonts.FontDescriptor)
+}
+
+// recursively walk through the given directory, scanning font files and calling dst.consume
+// for each valid file found.
+func scanDirectory(dir string, seen map[string]bool, dst descriptorAccumulator) error {
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("invalid font location: %s", err)
@@ -150,15 +155,27 @@ func scanFamilyNamesFromDir(dir string, seen map[string]bool, dst []string) ([]s
 
 		file.Close()
 
-		for _, fd := range fds {
-			dst = append(dst, fd.Family())
-		}
+		dst.consume(fds)
+
 		return nil
 	}
 
 	err := filepath.Walk(dir, walkFn)
 
-	return dst, err
+	return err
+}
+
+type familyAccumulator []string
+
+func (fa *familyAccumulator) consume(fds []fonts.FontDescriptor) {
+	for _, fd := range fds {
+		*fa = append(*fa, fd.Family())
+	}
+}
+
+// descriptions are appended to `dst`, which is returned
+func scanFamilyNamesFromDir(dir string, seen map[string]bool, dst *familyAccumulator) error {
+	return scanDirectory(dir, seen, dst)
 }
 
 // ScanFamilies walk through the given directories
@@ -169,14 +186,14 @@ func scanFamilyNamesFromDir(dir string, seen map[string]bool, dst []string) ([]s
 func ScanFamilies(dirs ...string) ([]string, error) {
 	seen := make(map[string]bool) // keep track of visited dirs to avoid double inclusions
 	var (
-		out []string
-		err error
+		accu familyAccumulator
+		err  error
 	)
 	for _, dir := range dirs {
-		out, err = scanFamilyNamesFromDir(dir, seen, out)
+		err = scanFamilyNamesFromDir(dir, seen, &accu)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return out, nil
+	return accu, nil
 }

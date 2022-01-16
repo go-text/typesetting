@@ -1,6 +1,7 @@
 package fontscan
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -137,4 +138,27 @@ func stringContainsConst(str string, constants []string) int {
 		}
 	}
 	return -1
+}
+
+const aspectSize = 1 + 4 + 4
+
+// serializeTo serialize the Aspect in binary format
+func (as Aspect) serialize() []byte {
+	var buffer [aspectSize]byte
+	buffer[0] = byte(as.Style)
+	serializeFloat(float32(as.Weight), buffer[1:])
+	serializeFloat(float32(as.Stretch), buffer[5:])
+	return buffer[:]
+}
+
+// deserializeFrom reads the binary format produced by serializeTo
+// it returns the number of bytes read from `data`
+func (as *Aspect) deserializeFrom(data []byte) (int, error) {
+	if len(data) < aspectSize {
+		return 0, errors.New("invalid Aspect (EOF)")
+	}
+	as.Style = Style(data[0])
+	as.Weight = Weight(deserializeFloat(data[1:]))
+	as.Stretch = Stretch(deserializeFloat(data[5:]))
+	return aspectSize, nil
 }
