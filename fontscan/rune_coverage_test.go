@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func randomRunes() []rune {
@@ -134,6 +136,20 @@ func TestCoverage_isSubset(t *testing.T) {
 	for _, tt := range tests {
 		if got := tt.a.isSubset(tt.b); got != tt.want {
 			t.Errorf("Coverage.isSubset() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
+func TestNewRuneSetFromCmap(t *testing.T) {
+	tests := []struct {
+		args fonts.Cmap
+		want RuneSet
+	}{
+		{fonts.CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, NewRuneSet(0, 1, 2, 0xfff)},
+	}
+	for _, tt := range tests {
+		if got := NewRuneSetFromCmap(tt.args); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("NewRuneSetFromCmap() = %v, want %v", got, tt.want)
 		}
 	}
 }

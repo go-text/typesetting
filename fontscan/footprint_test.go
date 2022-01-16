@@ -1,7 +1,6 @@
 package fontscan
 
 import (
-	"bytes"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
@@ -20,18 +19,14 @@ func TestSerializeDeserialize(t *testing.T) {
 			Runes: RuneSet{},
 		},
 	} {
-		var b bytes.Buffer
-		err := fp.serializeTo(&b)
-		if err != nil {
-			t.Fatal(err)
-		}
+		b := fp.serializeTo(nil)
 
 		var got Footprint
-		n, err := got.deserializeFrom(b.Bytes())
+		n, err := got.deserializeFrom(b)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n != b.Len() {
+		if n != len(b) {
 			t.Fatalf("unexpected number of bytes read: %d", n)
 		}
 
@@ -50,13 +45,13 @@ func randomBytes() []byte {
 func TestDeserializeInvalid(t *testing.T) {
 	for range [50]int{} {
 		src := randomBytes()
-		if rand.Intn(2) == 0 {
-			binary.BigEndian.PutUint32(src, 10)
+		if rand.Intn(2) == 0 { // indicate a small string
+			binary.BigEndian.PutUint16(src, 10)
 		}
-		if rand.Intn(2) == 0 {
-			binary.BigEndian.PutUint32(src, 0)
-			binary.BigEndian.PutUint16(src[4:], 0)
-			src = src[:8]
+		if rand.Intn(2) == 0 { // indicate no string and no rune set
+			binary.BigEndian.PutUint16(src, 0)
+			binary.BigEndian.PutUint32(src[2:], 0)
+			src = src[:8] // truncate to simulate a broken input
 		}
 		var fp Footprint
 		_, err := fp.deserializeFrom(src)
@@ -78,5 +73,8 @@ func TestFormat_Loader(t *testing.T) {
 
 	if Format(0).Loader() != nil {
 		t.Fatal("unexpected loader")
+	}
+	if Format(0).String() != "<format 0>" {
+		t.Fatal("unexpected representation")
 	}
 }

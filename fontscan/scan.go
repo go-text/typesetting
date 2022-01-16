@@ -116,7 +116,7 @@ func ignoreFontFile(name string) bool {
 }
 
 type descriptorAccumulator interface {
-	consume([]fonts.FontDescriptor)
+	consume([]fonts.FontDescriptor, Format, string)
 }
 
 // recursively walk through the given directory, scanning font files and calling dst.consume
@@ -151,11 +151,13 @@ func scanDirectory(dir string, seen map[string]bool, dst descriptorAccumulator) 
 			return err
 		}
 
-		fds, _ := getFontDescriptors(file)
+		fds, format := getFontDescriptors(file)
+
+		// note that consume may read from the file,
+		// so that we should not close it before calling it.
+		dst.consume(fds, format, path)
 
 		file.Close()
-
-		dst.consume(fds)
 
 		return nil
 	}
@@ -167,15 +169,10 @@ func scanDirectory(dir string, seen map[string]bool, dst descriptorAccumulator) 
 
 type familyAccumulator []string
 
-func (fa *familyAccumulator) consume(fds []fonts.FontDescriptor) {
+func (fa *familyAccumulator) consume(fds []fonts.FontDescriptor, _ Format, _ string) {
 	for _, fd := range fds {
 		*fa = append(*fa, fd.Family())
 	}
-}
-
-// descriptions are appended to `dst`, which is returned
-func scanFamilyNamesFromDir(dir string, seen map[string]bool, dst *familyAccumulator) error {
-	return scanDirectory(dir, seen, dst)
 }
 
 // ScanFamilies walk through the given directories
@@ -190,7 +187,44 @@ func ScanFamilies(dirs ...string) ([]string, error) {
 		err  error
 	)
 	for _, dir := range dirs {
-		err = scanFamilyNamesFromDir(dir, seen, &accu)
+		err = scanDirectory(dir, seen, &accu)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return accu, nil
+}
+
+type footprintAccumulator []Footprint
+
+func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Format, path string) {
+	for i, fd := range fds {
+		footprint, err := newFootprintFromDescriptor(fd, format)
+		// the font won't be usable, just warn and ignore it
+		if err != nil {
+			log.Println("unsupported font file", path, ":", err)
+			continue
+		}
+
+		footprint.Location.Index = uint16(i)
+
+		*fa = append(*fa, footprint)
+	}
+}
+
+// ScanFonts walk through the given directories
+// and scan each font file to extract its footprint.
+// An error is returned if the directory traversal fails, not for invalid font files,
+// which are simply ignored.
+// TODO: handle Location and tree structure
+func ScanFonts(dirs ...string) ([]Footprint, error) {
+	seen := make(map[string]bool) // keep track of visited dirs to avoid double inclusions
+	var (
+		accu footprintAccumulator
+		err  error
+	)
+	for _, dir := range dirs {
+		err = scanDirectory(dir, seen, &accu)
 		if err != nil {
 			return nil, err
 		}
