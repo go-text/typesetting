@@ -3,7 +3,6 @@ package fontscan
 import (
 	"encoding/binary"
 	"errors"
-	"io"
 	"math/bits"
 )
 
@@ -189,7 +188,7 @@ func (a RuneSet) Len() int {
 const runePageSize = 2 + 8*4 // uint16 + 8 * uint32
 
 // serializeTo serialize the Coverage in binary format
-func (rs RuneSet) serializeTo(w io.Writer) error {
+func (rs RuneSet) serialize() []byte {
 	buffer := make([]byte, 2+runePageSize*len(rs))
 	binary.BigEndian.PutUint16(buffer, uint16(len(rs)))
 	for i, page := range rs {
@@ -199,8 +198,7 @@ func (rs RuneSet) serializeTo(w io.Writer) error {
 			binary.BigEndian.PutUint32(slice[4*j:], k)
 		}
 	}
-	_, err := w.Write(buffer)
-	return err
+	return buffer
 }
 
 // deserializeFrom reads the binary format produced by serializeTo
