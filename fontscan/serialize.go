@@ -1,6 +1,8 @@
 package fontscan
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -50,33 +52,70 @@ func serializeFootprints(footprints []Footprint, w io.Writer) error {
 	binary.BigEndian.PutUint32(buffer[:], uint32(len(footprints)))
 
 	for _, fp := range footprints {
+		// add buffer to store the length of the encoded footprint,
+		// needed when decoding from a stream
+		n := len(buffer)
+		buffer = append(buffer, make([]byte, 4)...)
+
 		buffer = fp.serializeTo(buffer)
+
+		size := len(buffer) - n - 4
+		binary.BigEndian.PutUint32(buffer[n:], uint32(size))
 	}
 
-	_, err := w.Write(buffer)
+	wr := gzip.NewWriter(w)
+	_, err := wr.Write(buffer)
 	if err != nil {
 		return fmt.Errorf("serializing font footprints: %s", err)
+	}
+	err = wr.Close()
+	if err != nil {
+		return fmt.Errorf("compressing serialized font footprints: %s", err)
 	}
 	return nil
 }
 
-func deserializeFootprints(data []byte) ([]Footprint, error) {
-	// read the expected length
-	if len(data) < 4 {
-		return nil, fmt.Errorf("invalid font set (EOF)")
+func deserializeFootprints(src io.Reader) ([]Footprint, error) {
+	r, err := gzip.NewReader(src)
+	if err != nil {
+		return nil, fmt.Errorf("invalid compressed font footprint file: %s", err)
 	}
-	L := binary.BigEndian.Uint32(data)
-	n := 4
-	var out []Footprint
+	defer r.Close()
+
+	var (
+		buf    [4]byte
+		out    []Footprint
+		buffer bytes.Buffer
+	)
+
+	// read the expected length
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
+		return nil, fmt.Errorf("invalid font footprint format: %s", err)
+	}
+	L := binary.BigEndian.Uint32(buf[:])
+
 	for i := uint32(0); i < L; i++ {
+		// size of the encoded footprint
+		if _, err := io.ReadFull(r, buf[:]); err != nil {
+			return nil, fmt.Errorf("invalid fontset: %s", err)
+		}
+		size := binary.BigEndian.Uint32(buf[:])
+
+		// buffer the footprint segment
+		buffer.Reset()
+		_, err := io.CopyN(&buffer, r, int64(size))
+		if err != nil {
+			return nil, fmt.Errorf("invalid fontset: %s", err)
+		}
+
 		var fp Footprint
-		read, err := fp.deserializeFrom(data[n:])
+		_, err = fp.deserializeFrom(buffer.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("invalid font set: %s", err)
 		}
-		n += read
 
 		out = append(out, fp)
 	}
+
 	return out, nil
 }
