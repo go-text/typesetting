@@ -7,3 +7,5 @@ require (
 	github.com/benoitkugler/textlayout v0.0.6
 	golang.org/x/image v0.3.0
 )
+
+replace github.com/benoitkugler/textlayout => ../../benoitkugler/textlayout
