@@ -2,7 +2,6 @@ package fontscan
 
 import (
 	"fmt"
-	"log"
 	"testing"
 	"time"
 )
@@ -12,7 +11,7 @@ func TestScanFamilies(t *testing.T) {
 
 	directories, err := DefaultFontDirs()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	// simulate a duplicate directory entry
@@ -20,7 +19,7 @@ func TestScanFamilies(t *testing.T) {
 
 	got, err := ScanFamilies(directories...)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	fmt.Printf("Found %d fonts in %s\n", len(got), time.Since(ti))
@@ -31,12 +30,12 @@ func TestScanFonts(t *testing.T) {
 
 	directories, err := DefaultFontDirs()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	fontset, err := ScanFonts(directories...)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	// Show some basic stats
