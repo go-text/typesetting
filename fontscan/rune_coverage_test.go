@@ -1,7 +1,6 @@
 package fontscan
 
 import (
-	"bytes"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -90,19 +89,15 @@ func TestRuneSet(t *testing.T) {
 func TestBinaryFormat(t *testing.T) {
 	for range [50]int{} {
 		cov := NewRuneSet(randomRunes()...)
-		var b bytes.Buffer
-		err := cov.serializeTo(&b)
-		if err != nil {
-			t.Fatalf("Coverage.serializeTo: %s", err)
-		}
+		b := cov.serialize()
 
 		var got RuneSet
-		n, err := got.deserializeFrom(b.Bytes())
+		n, err := got.deserializeFrom(b)
 		if err != nil {
 			t.Fatalf("Coverage.deserializeFrom: %s", err)
 		}
 
-		if n != b.Len() {
+		if n != len(b) {
 			t.Fatalf("unexpected number of bytes read: %d", n)
 		}
 
