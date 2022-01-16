@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/bits"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // Rune rserage implementation, inspired by the fontconfig FcCharset type.
@@ -33,12 +35,24 @@ type runePage struct {
 type RuneSet []runePage
 
 // NewRuneSet builds a set containing the given runes.
-func NewRuneSet(rs ...rune) RuneSet {
-	var c RuneSet
-	for _, r := range rs {
-		c.Add(r)
+func NewRuneSet(runes ...rune) RuneSet {
+	var rs RuneSet
+	for _, r := range runes {
+		rs.Add(r)
 	}
-	return c
+	return rs
+}
+
+// NewRuneSetFromCmap iterates through the given `cmap`
+// to build the corresponding rune set.
+func NewRuneSetFromCmap(cmap fonts.Cmap) RuneSet {
+	var rs RuneSet
+	iter := cmap.Iter()
+	for iter.Next() {
+		r, _ := iter.Char()
+		rs.Add(r)
+	}
+	return rs
 }
 
 // Runes returns a copy of the runes in the set.

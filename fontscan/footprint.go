@@ -2,7 +2,7 @@ package fontscan
 
 import (
 	"errors"
-	"io"
+	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
@@ -33,16 +33,39 @@ type Footprint struct {
 	Format Format
 }
 
-// serializeTo serialize the Footprint in binary format
-// TODO: handle the Location field
-func (as Footprint) serializeTo(w io.Writer) error {
-	buffer := serializeString(as.Family)
-	buffer = append(buffer, as.Runes.serialize()...)
-	buffer = append(buffer, as.Aspect.serialize()...)
-	buffer = append(buffer, byte(as.Format))
+func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Footprint, err error) {
+	cmap, err := fd.LoadCmap() // load the cmap...
+	if err != nil {
+		return Footprint{}, err
+	}
+	out.Runes = NewRuneSetFromCmap(cmap) // ... and build the corresponding rune set
 
-	_, err := w.Write(buffer[:])
-	return err
+	out.Family = fd.Family() // load the family
+
+	sty, wei, str := fd.Aspect() // load the aspect properties ...
+	out.Aspect.Style = sty
+	out.Aspect.Weight = wei
+	out.Aspect.Stretch = str
+
+	// and try to fill the missing one with the "style"
+	style := fd.AdditionalStyle()
+	out.Aspect.inferFromStyle(style)
+
+	// register the correct format
+	out.Format = format
+
+	return out, nil
+}
+
+// serializeTo serialize the Footprint in binary format,
+// by appending to `dst` and returning the slice
+// TODO: handle the Location field
+func (as Footprint) serializeTo(dst []byte) []byte {
+	dst = append(dst, serializeString(as.Family)...)
+	dst = append(dst, as.Runes.serialize()...)
+	dst = append(dst, as.Aspect.serialize()...)
+	dst = append(dst, byte(as.Format))
+	return dst
 }
 
 // deserializeFrom reads the binary format produced by serializeTo
@@ -80,6 +103,19 @@ const (
 	PCF                    // Bitmap fonts (.pcf)
 	Type1                  // Adobe Type1 fonts (.pfb)
 )
+
+func (ff Format) String() string {
+	switch ff {
+	case OpenType:
+		return "OpenType"
+	case PCF:
+		return "PCF"
+	case Type1:
+		return "Type1"
+	default:
+		return fmt.Sprintf("<format %d>", ff)
+	}
+}
 
 // Loader returns the loader to use to open a font resource with
 // this format.
