@@ -36,6 +36,19 @@ func Test_serializeFootprints(t *testing.T) {
 	}
 }
 
+func assertFontsetEquals(expected, got []Footprint) error {
+	if len(expected) != len(got) {
+		return fmt.Errorf("invalid length: expected %d, got %d", len(expected), len(got))
+	}
+	for i := range got {
+		expectedFootprint, gotFootprint := expected[i], got[i]
+		if !reflect.DeepEqual(expectedFootprint, gotFootprint) {
+			return fmt.Errorf("expected Footprint \n %v \n got \n %v", expectedFootprint, gotFootprint)
+		}
+	}
+	return nil
+}
+
 func TestSerializeSystemFonts(t *testing.T) {
 	Warning.SetOutput(io.Discard)
 
@@ -61,13 +74,7 @@ func TestSerializeSystemFonts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fontset2) != len(fontset) {
-		t.Fatalf("inconsistent serialization %d != %d", len(fontset), len(fontset2))
-	}
-	for i := range fontset {
-		exp, got := fontset[i], fontset2[i]
-		if !reflect.DeepEqual(exp, got) {
-			t.Fatalf("inconsistent serialization: expected %v, got %v", exp, got)
-		}
+	if err = assertFontsetEquals(fontset, fontset2); err != nil {
+		t.Fatalf("inconsistent serialization %s", err)
 	}
 }
