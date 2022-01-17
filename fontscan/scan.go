@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -120,76 +121,88 @@ func ignoreFontFile(name string) bool {
 }
 
 type descriptorAccumulator interface {
-	consume([]fonts.FontDescriptor, Format, string, fileMod)
+	// it true, the font file at `path` wont be scanned
+	skipFile(path string, modTime timeStamp) bool
+
+	consume([]fonts.FontDescriptor, Format, string, timeStamp)
 }
 
 // recursively walk through the given directory, scanning font files and calling dst.consume
 // for each valid file found.
-func scanDirectory(dir string, seen map[string]bool, modTimes map[string]fileMod, dst descriptorAccumulator) error {
-	walkFn := func(path string, info os.FileInfo, err error) error {
+func scanDirectory(dir string, visited map[string]bool, dst descriptorAccumulator) error {
+	walkFn := func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return fmt.Errorf("invalid font location: %s", err)
+			return fmt.Errorf("error walking font directories: %s", err)
 		}
 
-		if seen[path] {
-			if info.IsDir() { // optimize by entirely skipping the directory
-				return filepath.SkipDir
-			}
+		if d.IsDir() { // keep going
+			return nil
 		}
-		seen[path] = true
 
-		// evaluate symlinks
-		if info.Mode()&os.ModeSymlink != 0 {
+		// evaluate symlinks before consulting seen,
+		// since a symlink may point towards a directory already
+		// included in the search directories
+		if d.Type()&os.ModeSymlink != 0 {
 			path, err = filepath.EvalSymlinks(path)
 			if err != nil {
 				return err
 			}
 		}
-		info, err = os.Stat(path)
+
+		info, err := os.Stat(path)
 		if err != nil {
 			return err
 		}
 
-		if info.IsDir() { // keep going
-			return nil
+		if visited[path] {
+			if info.IsDir() { // optimize by entirely skipping the directory
+				return filepath.SkipDir
+			}
+			return nil // just skip the file
 		}
+		visited[path] = true
 
-		modTime := newFileHash(info)
+		modTime := newTimeStamp(info)
 
-		if modTimes[path] == modTime {
-			// we already have an up to date scan of the file:
-			// keep going
-			return nil
-		}
-
+		// always ignore files which should never be font files
 		if ignoreFontFile(info.Name()) {
 			return nil
 		}
+
+		// try to avoid scanning the file
+		if dst.skipFile(path, modTime) {
+			// keep going without scanning the file
+			return nil
+		}
+
+		// do the actual scan
 
 		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 
-		fds, format := getFontDescriptors(file)
+		fontDescriptors, format := getFontDescriptors(file)
+
+		dst.consume(fontDescriptors, format, path, modTime)
 
 		// note that consume may read from the file,
-		// so that we should not close it before calling it.
-		dst.consume(fds, format, path, modTime)
-
+		// so that we should not close it earlier.
 		file.Close()
 
 		return nil
 	}
 
-	err := filepath.Walk(dir, walkFn)
+	err := filepath.WalkDir(dir, walkFn)
 
 	return err
 }
 
 type familyAccumulator []string
 
-func (fa *familyAccumulator) consume(fds []fonts.FontDescriptor, _ Format, _ string, _ fileMod) {
+func (fa *familyAccumulator) skipFile(path string, modTime timeStamp) bool { return false }
+
+func (fa *familyAccumulator) consume(fds []fonts.FontDescriptor, _ Format, _ string, _ timeStamp) {
 	for _, fd := range fds {
 		*fa = append(*fa, fd.Family())
 	}
@@ -207,7 +220,7 @@ func ScanFamilies(dirs ...string) ([]string, error) {
 		err  error
 	)
 	for _, dir := range dirs {
-		err = scanDirectory(dir, seen, nil, &accu)
+		err = scanDirectory(dir, seen, &accu)
 		if err != nil {
 			return nil, err
 		}
@@ -215,9 +228,43 @@ func ScanFamilies(dirs ...string) ([]string, error) {
 	return accu, nil
 }
 
-type footprintAccumulator []Footprint
+// groups the footprints by origin file
+type fileFootprints struct {
+	footprints []Footprint
+	modTime    timeStamp
+}
 
-func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Format, path string, mod fileMod) {
+type footprintAccumulator struct {
+	previousIndex map[string]fileFootprints
+
+	dst []Footprint // accumulated footprints
+}
+
+func newFootprintAccumulator(currentIndex []Footprint) footprintAccumulator {
+	// map font files to their modification time and footprints
+	out := footprintAccumulator{previousIndex: make(map[string]fileFootprints)}
+	for _, fp := range currentIndex {
+		file := out.previousIndex[fp.Location.File]
+		file.modTime = fp.modTime
+		file.footprints = append(file.footprints, fp)
+		out.previousIndex[fp.Location.File] = file
+	}
+	return out
+}
+
+func (fa *footprintAccumulator) skipFile(path string, modTime timeStamp) bool {
+	if indexedFile, has := fa.previousIndex[path]; has && indexedFile.modTime == modTime {
+		// we already have an up to date scan of the file:
+		// skip the scan and add the current footprints
+		fa.dst = append(fa.dst, indexedFile.footprints...)
+		return true
+	}
+
+	// trigger the scan
+	return false
+}
+
+func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Format, path string, mod timeStamp) {
 	for i, fd := range fds {
 		footprint, err := newFootprintFromDescriptor(fd, format)
 		// the font won't be usable, just warn and ignore it
@@ -230,9 +277,9 @@ func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Forma
 		footprint.Location.Index = uint16(i)
 		// TODO: for now, we do not handle variable fonts
 
-		footprint.fileHash = mod
+		footprint.modTime = mod
 
-		*fa = append(*fa, footprint)
+		fa.dst = append(fa.dst, footprint)
 	}
 }
 
@@ -240,48 +287,37 @@ func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Forma
 // and scan each font file to extract its footprint.
 // An error is returned if the directory traversal fails, not for invalid font files,
 // which are simply ignored.
-// If `currentIndex` is not empty, `ScanFonts` only scans font files that are
-// not present in `currentIndex` or have been modified.
-// TODO: handle Location and tree structure
+// `currentIndex` may be passed to avoid scanning font files that are
+// already present in `currentIndex` and up to date, and directly duplicating
+// the footprint in `currentIndex`
 func ScanFonts(currentIndex []Footprint, dirs ...string) ([]Footprint, error) {
-	seen := make(map[string]bool) // keep track of visited dirs to avoid double inclusions
-	var (
-		accu footprintAccumulator
-		err  error
-	)
-	modTimes := buildFootprintMods(currentIndex)
+	// keep track of visited dirs to avoid double inclusions,
+	// for instance with symbolic links
+	visited := make(map[string]bool)
+
+	accu := newFootprintAccumulator(currentIndex)
 	for _, dir := range dirs {
-		err = scanDirectory(dir, seen, modTimes, &accu)
+		err := scanDirectory(dir, visited, &accu)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return accu, nil
+	return accu.dst, nil
 }
 
+// timeStamp is the unix modification time of a font file,
 // used to trigger or not the scan of a font file
-type fileMod int64 // unix modification time
+type timeStamp int64
 
-func newFileHash(file os.FileInfo) fileMod {
-	return fileMod(file.ModTime().Unix())
-}
+func newTimeStamp(file os.FileInfo) timeStamp { return timeStamp(file.ModTime().UnixNano()) }
 
-func (fh fileMod) serialize() []byte {
+func (fh timeStamp) serialize() []byte {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], uint64(fh))
 	return buf[:]
 }
 
 // assume len(src) >= 8
-func (fh *fileMod) deserialize(src []byte) {
-	*fh = fileMod(binary.BigEndian.Uint64(src))
-}
-
-// map font files to their modification, as saved in the index
-func buildFootprintMods(index []Footprint) map[string]fileMod {
-	out := make(map[string]fileMod)
-	for _, fp := range index {
-		out[fp.Location.File] = fp.fileHash
-	}
-	return out
+func (fh *timeStamp) deserialize(src []byte) {
+	*fh = timeStamp(binary.BigEndian.Uint64(src))
 }
