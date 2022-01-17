@@ -3,6 +3,7 @@ package fontscan
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 	"time"
@@ -36,12 +37,14 @@ func Test_serializeFootprints(t *testing.T) {
 }
 
 func TestSerializeSystemFonts(t *testing.T) {
+	Warning.SetOutput(io.Discard)
+
 	directories, err := DefaultFontDirs()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fontset, err := ScanFonts(directories...)
+	fontset, err := ScanFonts(nil, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,4 +56,18 @@ func TestSerializeSystemFonts(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("%d fonts serialized (into memory) in %s; size: %dKB\n", len(fontset), time.Since(ti), b.Len()/1000)
+
+	fontset2, err := deserializeFootprints(&b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fontset2) != len(fontset) {
+		t.Fatalf("inconsistent serialization %d != %d", len(fontset), len(fontset2))
+	}
+	for i := range fontset {
+		exp, got := fontset[i], fontset2[i]
+		if !reflect.DeepEqual(exp, got) {
+			t.Fatalf("inconsistent serialization: expected %v, got %v", exp, got)
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package fontscan
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -31,6 +32,11 @@ type Footprint struct {
 	// Format provides the format to be used
 	// to load and create the associated font.Face.
 	Format Format
+
+	// only valid for system fonts
+	// by construction, it is the same for footprints comming
+	// from the same file
+	fileHash fileMod
 }
 
 func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Footprint, err error) {
@@ -61,10 +67,18 @@ func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Foo
 // by appending to `dst` and returning the slice
 // TODO: handle the Location field
 func (as Footprint) serializeTo(dst []byte) []byte {
+	dst = append(dst, serializeString(as.Location.File)...)
+
+	var buffer [4]byte
+	binary.BigEndian.PutUint16(buffer[:], as.Location.Index)
+	binary.BigEndian.PutUint16(buffer[2:], as.Location.Instance)
+	dst = append(dst, buffer[:]...)
+
 	dst = append(dst, serializeString(as.Family)...)
 	dst = append(dst, as.Runes.serialize()...)
 	dst = append(dst, as.Aspect.serialize()...)
 	dst = append(dst, byte(as.Format))
+	dst = append(dst, as.fileHash.serialize()...)
 	return dst
 }
 
@@ -72,11 +86,23 @@ func (as Footprint) serializeTo(dst []byte) []byte {
 // it returns the number of bytes read from `data`
 // TODO: handle the Location field
 func (as *Footprint) deserializeFrom(data []byte) (int, error) {
-	n, err := deserializeString(&as.Family, data)
+	n, err := deserializeString(&as.Location.File, data)
 	if err != nil {
 		return 0, err
 	}
-	read, err := as.Runes.deserializeFrom(data[n:])
+	if len(data) < n+4 {
+		return 0, errors.New("invalid Location (EOF)")
+	}
+	as.Location.Index = binary.BigEndian.Uint16(data[n:])
+	as.Location.Instance = binary.BigEndian.Uint16(data[n+2:])
+	n += 4
+
+	read, err := deserializeString(&as.Family, data[n:])
+	if err != nil {
+		return 0, err
+	}
+	n += read
+	read, err = as.Runes.deserializeFrom(data[n:])
 	if err != nil {
 		return 0, err
 	}
@@ -86,12 +112,13 @@ func (as *Footprint) deserializeFrom(data []byte) (int, error) {
 		return 0, err
 	}
 	n += read
-	if len(data[n:]) < 1 {
+	if len(data[n:]) < 1+8 {
 		return 0, errors.New("invalid Format (EOF)")
 	}
 	as.Format = Format(data[n])
+	as.fileHash.deserialize(data[n+1:])
 
-	return n + 1, nil
+	return n + 1 + 8, nil
 }
 
 // Format identifies the format of a font file.
@@ -130,4 +157,19 @@ func (ff Format) Loader() fonts.FontLoader {
 	default:
 		return nil
 	}
+}
+
+// We use a tree representation to facilitate
+// the consistency check of a saved fontset against the
+// file system.
+
+// SystemFontset stores the font footprints scanned
+// from the disk, from one or several source directories
+type SystemFontset []fontsetNode
+
+// fontsetNode represents one directory
+type fontsetNode struct {
+	directory  string
+	children   []fontsetNode // sorted by `directory`
+	footprints []Footprint   // the fonts contained in this directory, sorted by `Location.Filename`
 }
