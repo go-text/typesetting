@@ -46,6 +46,7 @@ func deserializeString(s *string, data []byte) (int, error) {
 	return 2 + L, nil
 }
 
+// serialize into binary format, compressed with gzop
 func serializeFootprints(footprints []Footprint, w io.Writer) error {
 	// len as uint32 + minimum size for a footprint
 	buffer := make([]byte, 4, 4+len(footprints)*(aspectSize+1+2))
@@ -75,6 +76,7 @@ func serializeFootprints(footprints []Footprint, w io.Writer) error {
 	return nil
 }
 
+// parses the format written by `serializeFootprints`
 func deserializeFootprints(src io.Reader) ([]Footprint, error) {
 	r, err := gzip.NewReader(src)
 	if err != nil {
