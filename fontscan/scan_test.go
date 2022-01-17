@@ -2,6 +2,7 @@ package fontscan
 
 import (
 	"fmt"
+	"io"
 	"testing"
 	"time"
 )
@@ -26,6 +27,7 @@ func TestScanFamilies(t *testing.T) {
 }
 
 func TestScanFonts(t *testing.T) {
+	Warning.SetOutput(io.Discard)
 	ti := time.Now()
 
 	directories, err := DefaultFontDirs()
@@ -33,7 +35,7 @@ func TestScanFonts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fontset, err := ScanFonts(directories...)
+	fontset, err := ScanFonts(nil, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,5 +46,38 @@ func TestScanFonts(t *testing.T) {
 		distribution[font.Format]++
 	}
 
-	fmt.Printf("Found %d fonts in %s (distribution: %v)\n", len(fontset), time.Since(ti), distribution)
+	fmt.Printf("Found %d fonts in %s ( distribution: %v)\n", len(fontset), time.Since(ti), distribution)
+
+	ti = time.Now()
+	buildFootprintMods(fontset)
+	fmt.Printf("tree build in %s\n", time.Since(ti))
+}
+
+func TestScanIncremental(t *testing.T) {
+	Warning.SetOutput(io.Discard)
+
+	ti := time.Now()
+
+	directories, err := DefaultFontDirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// first scan
+	fontset, err := ScanFonts(nil, directories...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Initial scan time: %s\n", time.Since(ti))
+
+	ti = time.Now()
+	incremental, err := ScanFonts(fontset, directories...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Second scan time: %s\n", time.Since(ti))
+
+	if len(incremental) != 0 {
+		t.Fatalf("expected empty result from incremental scan, got %v", incremental)
+	}
 }
