@@ -36,7 +36,7 @@ type Footprint struct {
 	// only valid for system fonts
 	// by construction, it is the same for footprints comming
 	// from the same file
-	fileHash fileMod
+	modTime timeStamp
 }
 
 func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Footprint, err error) {
@@ -65,7 +65,6 @@ func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Foo
 
 // serializeTo serialize the Footprint in binary format,
 // by appending to `dst` and returning the slice
-// TODO: handle the Location field
 func (as Footprint) serializeTo(dst []byte) []byte {
 	dst = append(dst, serializeString(as.Location.File)...)
 
@@ -78,13 +77,12 @@ func (as Footprint) serializeTo(dst []byte) []byte {
 	dst = append(dst, as.Runes.serialize()...)
 	dst = append(dst, as.Aspect.serialize()...)
 	dst = append(dst, byte(as.Format))
-	dst = append(dst, as.fileHash.serialize()...)
+	dst = append(dst, as.modTime.serialize()...)
 	return dst
 }
 
 // deserializeFrom reads the binary format produced by serializeTo
 // it returns the number of bytes read from `data`
-// TODO: handle the Location field
 func (as *Footprint) deserializeFrom(data []byte) (int, error) {
 	n, err := deserializeString(&as.Location.File, data)
 	if err != nil {
@@ -116,7 +114,7 @@ func (as *Footprint) deserializeFrom(data []byte) (int, error) {
 		return 0, errors.New("invalid Format (EOF)")
 	}
 	as.Format = Format(data[n])
-	as.fileHash.deserialize(data[n+1:])
+	as.modTime.deserialize(data[n+1:])
 
 	return n + 1 + 8, nil
 }
