@@ -3,7 +3,6 @@ package fontscan
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"reflect"
 	"testing"
 	"time"
@@ -50,8 +49,6 @@ func assertFontsetEquals(expected, got []Footprint) error {
 }
 
 func TestSerializeSystemFonts(t *testing.T) {
-	Warning.SetOutput(io.Discard)
-
 	directories, err := DefaultFontDirs()
 	if err != nil {
 		t.Fatal(err)
