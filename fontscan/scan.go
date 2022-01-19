@@ -17,9 +17,6 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/type1"
 )
 
-// Warning is the warning logger used when encountering invalid font files.
-var Warning = log.New(os.Stdout, "fontscan", log.LstdFlags)
-
 // DefaultFontDirs return the OS-dependent usual directories for
 // fonts, or an error if no one exists.
 func DefaultFontDirs() ([]string, error) {
@@ -198,36 +195,6 @@ func scanDirectory(dir string, visited map[string]bool, dst descriptorAccumulato
 	return err
 }
 
-type familyAccumulator []string
-
-func (fa *familyAccumulator) skipFile(path string, modTime timeStamp) bool { return false }
-
-func (fa *familyAccumulator) consume(fds []fonts.FontDescriptor, _ Format, _ string, _ timeStamp) {
-	for _, fd := range fds {
-		*fa = append(*fa, fd.Family())
-	}
-}
-
-// ScanFamilies walk through the given directories
-// and scan each font file to extract the font family.
-// An error is returned if the directory traversal fails, not for invalid font files,
-// which are simply ignored.
-// TODO: return only one matching a given criterion
-func ScanFamilies(dirs ...string) ([]string, error) {
-	seen := make(map[string]bool) // keep track of visited dirs to avoid double inclusions
-	var (
-		accu familyAccumulator
-		err  error
-	)
-	for _, dir := range dirs {
-		err = scanDirectory(dir, seen, &accu)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return accu, nil
-}
-
 // groups the footprints by origin file
 type fileFootprints struct {
 	footprints []Footprint
@@ -267,9 +234,8 @@ func (fa *footprintAccumulator) skipFile(path string, modTime timeStamp) bool {
 func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Format, path string, mod timeStamp) {
 	for i, fd := range fds {
 		footprint, err := newFootprintFromDescriptor(fd, format)
-		// the font won't be usable, just warn and ignore it
+		// the font won't be usable, just ignore it
 		if err != nil {
-			Warning.Println("unsupported font file", path, ":", err)
 			continue
 		}
 
