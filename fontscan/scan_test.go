@@ -9,27 +9,7 @@ import (
 	"time"
 )
 
-func TestScanFamilies(t *testing.T) {
-	ti := time.Now()
-
-	directories, err := DefaultFontDirs()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// simulate a duplicate directory entry
-	directories = append(directories, directories...)
-
-	got, err := ScanFamilies(directories...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("Found %d fonts in %s\n", len(got), time.Since(ti))
-}
-
 func TestScanFonts(t *testing.T) {
-	Warning.SetOutput(io.Discard)
 	ti := time.Now()
 
 	directories, err := DefaultFontDirs()
@@ -45,15 +25,16 @@ func TestScanFonts(t *testing.T) {
 	// Show some basic stats
 	distribution := map[Format]int{}
 	for _, font := range fontset {
+		if font.Runes.Len() == 0 {
+			t.Fatalf("unexpected empty rune coverage for %s", font.Location.File)
+		}
 		distribution[font.Format]++
 	}
 
-	fmt.Printf("Found %d fonts in %s ( distribution: %v)\n", len(fontset), time.Since(ti), distribution)
+	fmt.Printf("Found %d fonts in %s (distribution: %v)\n", len(fontset), time.Since(ti), distribution)
 }
 
 func TestScanIncrementalNoOp(t *testing.T) {
-	Warning.SetOutput(io.Discard)
-
 	ti := time.Now()
 
 	directories, err := DefaultFontDirs()
@@ -108,8 +89,6 @@ func copyFile(t *testing.T, srcName, dstName string) {
 }
 
 func TestScanIncrementalUpdate(t *testing.T) {
-	Warning.SetOutput(io.Discard)
-
 	dir := t.TempDir()
 	copyFile(t, filepath.Join("..", "font", "testdata", "Amiri-Regular.ttf"), filepath.Join(dir, "font1.ttf"))
 
