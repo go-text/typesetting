@@ -55,7 +55,7 @@ func Test_familyList_insertAfter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
-		mark := l.contains(tt.element)
+		mark := l.elementEquals(tt.element)
 		if mark == nil {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
@@ -78,7 +78,7 @@ func Test_familyList_insertBefore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
-		mark := l.contains(tt.element)
+		mark := l.elementEquals(tt.element)
 		if mark == nil {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
@@ -101,7 +101,7 @@ func Test_familyList_replace(t *testing.T) {
 	}
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
-		mark := l.contains(tt.element)
+		mark := l.elementEquals(tt.element)
 		if mark == nil {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
@@ -118,13 +118,13 @@ func Test_familyList_execute(t *testing.T) {
 		args  substitution
 		want  familyCrible
 	}{
-		{nil, substitution{"f2", []string{"aa", "bb"}, opReplace}, familyCrible{}},                                  // no match
-		{[]string{"f1", "f2"}, substitution{"f4", []string{"aa", "bb"}, opReplace}, familyCrible{"f1": 0, "f2": 1}}, // no match
-		{[]string{"f1", "f2"}, substitution{"f2", []string{"aa", "bb"}, opReplace}, familyCrible{"f1": 0, "aa": 1, "bb": 2}},
-		{[]string{"f1", "f2"}, substitution{"f2", []string{"aa", "bb"}, opAppend}, familyCrible{"f1": 0, "f2": 1, "aa": 2, "bb": 3}},
-		{[]string{"f1", "f2"}, substitution{"f2", []string{"aa", "bb"}, opAppendLast}, familyCrible{"f1": 0, "f2": 1, "aa": 2, "bb": 3}},
-		{[]string{"f1", "f2"}, substitution{"f2", []string{"aa", "bb"}, opPrepend}, familyCrible{"f1": 0, "aa": 1, "bb": 2, "f2": 3}},
-		{[]string{"f1", "f2"}, substitution{"f2", []string{"aa", "bb"}, opPrependFirst}, familyCrible{"aa": 0, "bb": 1, "f1": 2, "f2": 3}},
+		{nil, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace}, familyCrible{}},                                  // no match
+		{[]string{"f1", "f2"}, substitution{familyEquals("f4"), []string{"aa", "bb"}, opReplace}, familyCrible{"f1": 0, "f2": 1}}, // no match
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace}, familyCrible{"f1": 0, "aa": 1, "bb": 2}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend}, familyCrible{"f1": 0, "f2": 1, "aa": 2, "bb": 3}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppendLast}, familyCrible{"f1": 0, "f2": 1, "aa": 2, "bb": 3}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend}, familyCrible{"f1": 0, "aa": 1, "bb": 2, "f2": 3}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst}, familyCrible{"aa": 0, "bb": 1, "f1": 2, "f2": 3}},
 	}
 	for _, tt := range tests {
 		fl := newFamilyList(tt.start)
