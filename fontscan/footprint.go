@@ -32,11 +32,6 @@ type Footprint struct {
 	// Format provides the format to be used
 	// to load and create the associated font.Face.
 	Format Format
-
-	// only valid for system fonts
-	// by construction, it is the same for footprints comming
-	// from the same file
-	modTime timeStamp
 }
 
 func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Footprint, err error) {
@@ -77,7 +72,6 @@ func (as Footprint) serializeTo(dst []byte) []byte {
 	dst = append(dst, as.Runes.serialize()...)
 	dst = append(dst, as.Aspect.serialize()...)
 	dst = append(dst, byte(as.Format))
-	dst = append(dst, as.modTime.serialize()...)
 	return dst
 }
 
@@ -110,13 +104,12 @@ func (as *Footprint) deserializeFrom(data []byte) (int, error) {
 		return 0, err
 	}
 	n += read
-	if len(data[n:]) < 1+8 {
+	if len(data[n:]) < 1 {
 		return 0, errors.New("invalid Format (EOF)")
 	}
 	as.Format = Format(data[n])
-	as.modTime.deserialize(data[n+1:])
 
-	return n + 1 + 8, nil
+	return n + 1, nil
 }
 
 // Format identifies the format of a font file.

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -46,6 +47,18 @@ func DefaultFontDirs() ([]string, error) {
 			"/usr/share/fonts",
 			"/usr/share/texmf/fonts/opentype/public",
 		}
+
+		if dataPath := os.Getenv("XDG_DATA_HOME"); dataPath != "" {
+			dirs = append(dirs, "~/.fonts/", filepath.Join(dataPath, "fonts"))
+		} else {
+			dirs = append(dirs, "~/.fonts/", "~/.local/share/fonts/")
+		}
+
+		if dataPaths := os.Getenv("XDG_DATA_DIRS"); dataPaths != "" {
+			for _, dataPath := range filepath.SplitList(dataPaths) {
+				dirs = append(dirs, filepath.Join(dataPath, "fonts"))
+			}
+		}
 	case "android":
 		dirs = []string{
 			"/system/fonts",
@@ -63,9 +76,10 @@ func DefaultFontDirs() ([]string, error) {
 
 	var validDirs []string
 	for _, dir := range dirs {
+		dir = expandUser(dir)
+
 		info, err := os.Stat(dir)
-		if err != nil {
-			log.Println("invalid font dir", dir, err)
+		if err != nil { // ignore the non existent directory
 			continue
 		}
 		if !info.IsDir() {
@@ -81,22 +95,13 @@ func DefaultFontDirs() ([]string, error) {
 	return validDirs, nil
 }
 
-// try the different supported loader and returns the list of the fonts
-// contained in `file`, with their format.
-func getFontDescriptors(file fonts.Resource) ([]fonts.FontDescriptor, Format) {
-	out, err := truetype.ScanFont(file)
-	if err == nil {
-		return out, OpenType
+func expandUser(path string) (expandedPath string) {
+	if strings.HasPrefix(path, "~") {
+		if u, err := user.Current(); err == nil {
+			return strings.Replace(path, "~", u.HomeDir, -1)
+		}
 	}
-	out, err = type1.ScanFont(file)
-	if err == nil {
-		return out, Type1
-	}
-	out, err = bitmap.ScanFont(file)
-	if err == nil {
-		return out, PCF
-	}
-	return nil, 0
+	return path
 }
 
 // rejects several extensions which are for sure not supported font files
@@ -117,16 +122,13 @@ func ignoreFontFile(name string) bool {
 	return false
 }
 
-type descriptorAccumulator interface {
-	// it true, the font file at `path` wont be scanned
-	skipFile(path string, modTime timeStamp) bool
-
-	consume([]fonts.FontDescriptor, Format, string, timeStamp)
+type fontFileHandler interface {
+	consume(path string, info fs.FileInfo) error
 }
 
 // recursively walk through the given directory, scanning font files and calling dst.consume
 // for each valid file found.
-func scanDirectory(dir string, visited map[string]bool, dst descriptorAccumulator) error {
+func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) error {
 	walkFn := func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("error walking font directories: %s", err)
@@ -136,58 +138,25 @@ func scanDirectory(dir string, visited map[string]bool, dst descriptorAccumulato
 			return nil
 		}
 
-		// evaluate symlinks before consulting seen,
-		// since a symlink may point towards a directory already
-		// included in the search directories
-		if d.Type()&os.ModeSymlink != 0 {
-			path, err = filepath.EvalSymlinks(path)
-			if err != nil {
-				return err
-			}
+		if visited[path] {
+			return nil // skip the path
 		}
+		visited[path] = true
 
+		// load the information, following potential symoblic links
 		info, err := os.Stat(path)
 		if err != nil {
 			return err
 		}
-
-		if visited[path] {
-			if info.IsDir() { // optimize by entirely skipping the directory
-				return filepath.SkipDir
-			}
-			return nil // just skip the file
-		}
-		visited[path] = true
-
-		modTime := newTimeStamp(info)
 
 		// always ignore files which should never be font files
 		if ignoreFontFile(info.Name()) {
 			return nil
 		}
 
-		// try to avoid scanning the file
-		if dst.skipFile(path, modTime) {
-			// keep going without scanning the file
-			return nil
-		}
+		err = dst.consume(path, info)
 
-		// do the actual scan
-
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-
-		fontDescriptors, format := getFontDescriptors(file)
-
-		dst.consume(fontDescriptors, format, path, modTime)
-
-		// note that consume may read from the file,
-		// so that we should not close it earlier.
-		file.Close()
-
-		return nil
+		return err
 	}
 
 	err := filepath.WalkDir(dir, walkFn)
@@ -195,80 +164,24 @@ func scanDirectory(dir string, visited map[string]bool, dst descriptorAccumulato
 	return err
 }
 
-// groups the footprints by origin file
-type fileFootprints struct {
-	footprints []Footprint
-	modTime    timeStamp
-}
+// --------------------- footprint mode -----------------------
 
-type footprintAccumulator struct {
-	previousIndex map[string]fileFootprints
-
-	dst []Footprint // accumulated footprints
-}
-
-func newFootprintAccumulator(currentIndex []Footprint) footprintAccumulator {
-	// map font files to their modification time and footprints
-	out := footprintAccumulator{previousIndex: make(map[string]fileFootprints)}
-	for _, fp := range currentIndex {
-		file := out.previousIndex[fp.Location.File]
-		file.modTime = fp.modTime
-		file.footprints = append(file.footprints, fp)
-		out.previousIndex[fp.Location.File] = file
+// try the different supported loader and returns the list of the fonts
+// contained in `file`, with their format.
+func getFontDescriptors(file fonts.Resource) ([]fonts.FontDescriptor, Format) {
+	out, err := truetype.ScanFont(file)
+	if err == nil {
+		return out, OpenType
 	}
-	return out
-}
-
-func (fa *footprintAccumulator) skipFile(path string, modTime timeStamp) bool {
-	if indexedFile, has := fa.previousIndex[path]; has && indexedFile.modTime == modTime {
-		// we already have an up to date scan of the file:
-		// skip the scan and add the current footprints
-		fa.dst = append(fa.dst, indexedFile.footprints...)
-		return true
+	out, err = type1.ScanFont(file)
+	if err == nil {
+		return out, Type1
 	}
-
-	// trigger the scan
-	return false
-}
-
-func (fa *footprintAccumulator) consume(fds []fonts.FontDescriptor, format Format, path string, mod timeStamp) {
-	for i, fd := range fds {
-		footprint, err := newFootprintFromDescriptor(fd, format)
-		// the font won't be usable, just ignore it
-		if err != nil {
-			continue
-		}
-
-		footprint.Location.File = path
-		footprint.Location.Index = uint16(i)
-		// TODO: for now, we do not handle variable fonts
-
-		footprint.modTime = mod
-
-		fa.dst = append(fa.dst, footprint)
+	out, err = bitmap.ScanFont(file)
+	if err == nil {
+		return out, PCF
 	}
-}
-
-// ScanFonts walk through the given directories
-// and scan each font file to extract its footprint.
-// An error is returned if the directory traversal fails, not for invalid font files,
-// which are simply ignored.
-// `currentIndex` may be passed to avoid scanning font files that are
-// already present in `currentIndex` and up to date, and directly duplicating
-// the footprint in `currentIndex`
-func ScanFonts(currentIndex []Footprint, dirs ...string) ([]Footprint, error) {
-	// keep track of visited dirs to avoid double inclusions,
-	// for instance with symbolic links
-	visited := make(map[string]bool)
-
-	accu := newFootprintAccumulator(currentIndex)
-	for _, dir := range dirs {
-		err := scanDirectory(dir, visited, &accu)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return accu.dst, nil
+	return nil, 0
 }
 
 // timeStamp is the unix modification time of a font file,
@@ -286,4 +199,157 @@ func (fh timeStamp) serialize() []byte {
 // assume len(src) >= 8
 func (fh *timeStamp) deserialize(src []byte) {
 	*fh = timeStamp(binary.BigEndian.Uint64(src))
+}
+
+// systemFontsIndex stores the footprint comming from the file system
+type systemFontsIndex []fileFootprints
+
+func (sfi systemFontsIndex) flatten() []Footprint {
+	var out []Footprint
+	for _, file := range sfi {
+		out = append(out, file.footprints...)
+	}
+	return out
+}
+
+// groups the footprints by origin file
+type fileFootprints struct {
+	path string // file path
+
+	footprints []Footprint // font content for the path
+
+	// modification time for the file
+	modTime timeStamp
+}
+
+type footprintScanner struct {
+	previousIndex map[string]fileFootprints // reference index, to be updated
+
+	dst systemFontsIndex // accumulated footprints
+}
+
+func newFootprintAccumulator(currentIndex systemFontsIndex) footprintScanner {
+	// map font files to their footprints
+	out := footprintScanner{previousIndex: make(map[string]fileFootprints, len(currentIndex))}
+	for _, fp := range currentIndex {
+		out.previousIndex[fp.path] = fp
+	}
+	return out
+}
+
+func (fa *footprintScanner) consume(path string, info fs.FileInfo) error {
+	modTime := newTimeStamp(info)
+
+	// try to avoid scanning the file
+	if indexedFile, has := fa.previousIndex[path]; has && indexedFile.modTime == modTime {
+		// we already have an up to date scan of the file:
+		// skip the scan and add the current footprints
+		fa.dst = append(fa.dst, indexedFile)
+		return nil
+	}
+
+	// do the actual scan
+
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	fontDescriptors, format := getFontDescriptors(file)
+	ff := fileFootprints{
+		path:    path,
+		modTime: modTime,
+	}
+
+	for i, fd := range fontDescriptors {
+		footprint, err := newFootprintFromDescriptor(fd, format)
+		// the font won't be usable, just ignore it
+		if err != nil {
+			continue
+		}
+
+		footprint.Location.File = path
+		footprint.Location.Index = uint16(i)
+		// TODO: for now, we do not handle variable fonts
+
+		ff.footprints = append(ff.footprints, footprint)
+	}
+
+	// note that newFootprintFromDescriptor may read from the file,
+	// so that we should not close it earlier.
+	file.Close()
+
+	fa.dst = append(fa.dst, ff)
+
+	return nil
+}
+
+// scanFontFootprints walk through the given directories
+// and scan each font file to extract its footprint.
+// An error is returned if the directory traversal fails, not for invalid font files,
+// which are simply ignored.
+// `currentIndex` may be passed to avoid scanning font files that are
+// already present in `currentIndex` and up to date, and directly duplicating
+// the footprint in `currentIndex`
+func scanFontFootprints(currentIndex systemFontsIndex, dirs ...string) (systemFontsIndex, error) {
+	// keep track of visited dirs to avoid double inclusions,
+	// for instance with symbolic links
+	visited := make(map[string]bool)
+
+	accu := newFootprintAccumulator(currentIndex)
+	for _, dir := range dirs {
+		err := scanDirectory(dir, visited, &accu)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return accu.dst, nil
+}
+
+// --------------------- File name mode ------------------------------
+
+type fileNameScanner []string // list of paths
+
+// return the lower filename and ext
+func splitAtDot(filePath string) (name, ext string) {
+	filePath = filepath.Base(strings.ToLower(filePath))
+	if i := strings.IndexByte(filePath, '.'); i != -1 {
+		return filePath[:i], filePath[i:]
+	}
+	return name, ""
+}
+
+func isFontFile(fileName string) bool {
+	_, ext := splitAtDot(fileName)
+	switch ext {
+	case ".ttf", ".ttc", ".otf", ".otc", ".woff", // Opentype
+		".t1", ".pfb", // Type1
+		".pcf.gz", ".pcf": // Bitmap
+		return true
+	default:
+		return false
+	}
+}
+
+func (fns *fileNameScanner) consume(path string, _ fs.FileInfo) error {
+	if isFontFile(path) {
+		*fns = append(*fns, path)
+	}
+	return nil
+}
+
+// returns a list of file path looking like font files
+// no font loading is performed by this function
+func scanFontFiles(dirs ...string) ([]string, error) {
+	visited := make(map[string]bool)
+
+	var dst fileNameScanner
+	for _, dir := range dirs {
+		err := scanDirectory(dir, visited, &dst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return dst, nil
 }

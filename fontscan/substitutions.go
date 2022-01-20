@@ -2,6 +2,9 @@ package fontscan
 
 import (
 	"container/list"
+	"strings"
+
+	"github.com/go-text/typesetting/language"
 )
 
 // this file implements the family substitution feature,
@@ -10,6 +13,21 @@ import (
 // to a user provided family
 // each of them may happen one (or more) alternative family to
 // look for
+
+// familySubstitution maps family name to possible alias
+// it is generated from fontconfig substitution rules
+// the order matters, since the rules apply sequentially to the current
+// state of the family list
+func init() {
+	// replace families keys by their no case no blank version
+	for i, v := range familySubstitution {
+		for i, s := range v.additionalFamilies {
+			v.additionalFamilies[i] = ignoreBlanksAndCase(s)
+		}
+
+		familySubstitution[i].test = v.test.normalize()
+	}
+}
 
 // we want to easily insert at the start,
 // the end and "around" an element
@@ -26,10 +44,20 @@ func newFamilyList(families []string) familyList {
 	return familyList{List: &out}
 }
 
-// returns the node for `family` or nil, if not found
-func (fl familyList) contains(family string) *list.Element {
+// returns the node equal to `family` or nil, if not found
+func (fl familyList) elementEquals(family string) *list.Element {
 	for l := fl.List.Front(); l != nil; l = l.Next() {
 		if l.Value.(string) == family {
+			return l
+		}
+	}
+	return nil
+}
+
+// returns the first node containing `family` or nil, if not found
+func (fl familyList) elementContains(family string) *list.Element {
+	for l := fl.List.Front(); l != nil; l = l.Next() {
+		if strings.Contains(l.Value.(string), family) {
 			return l
 		}
 	}
@@ -41,7 +69,10 @@ func (fl familyList) compile() familyCrible {
 	out := make(familyCrible)
 	i := 0
 	for l := fl.List.Front(); l != nil; l, i = l.Next(), i+1 {
-		out[l.Value.(string)] = i
+		family := l.Value.(string)
+		if _, has := out[family]; !has { // for duplicated entries, keep the first (best) score
+			out[family] = i
+		}
 	}
 	return out
 }
@@ -81,6 +112,8 @@ func (fl familyList) replace(element *list.Element, families []string) {
 
 // ----- substitutions ------
 
+// where to insert the families with respect to
+// the current list
 type substitutionOp uint8
 
 const (
@@ -91,14 +124,116 @@ const (
 	opReplace
 )
 
+type substitutionTest interface {
+	// returns a non nil element if the substitution should
+	// be applied
+	// for opAppendLast and opPrependFirst an arbitrary non nil element
+	// could be returned
+	test(list familyList) *list.Element
+
+	// return a copy where families have been normalize
+	// to their no blank no case version
+	normalize() substitutionTest
+}
+
+// a family in the list must equal 'mf'
+type familyEquals string
+
+func (mf familyEquals) test(list familyList) *list.Element {
+	return list.elementEquals(string(mf))
+}
+
+func (mf familyEquals) normalize() substitutionTest {
+	return familyEquals(ignoreBlanksAndCase(string(mf)))
+}
+
+// a family in the list must contain 'mf'
+type familyContains string
+
+func (mf familyContains) test(list familyList) *list.Element {
+	return list.elementContains(string(mf))
+}
+
+func (mf familyContains) normalize() substitutionTest {
+	return familyContains(ignoreBlanksAndCase(string(mf)))
+}
+
+// the family list has no "serif", "sans-serif" or "monospace" generic fallback
+type noGenericFamily struct{}
+
+func (noGenericFamily) test(list familyList) *list.Element {
+	for l := list.List.Front(); l != nil; l = l.Next() {
+		switch l.Value.(string) {
+		case "serif", "sans-serif", "monospace":
+			return nil
+		}
+	}
+	return list.List.Front()
+}
+
+func (noGenericFamily) normalize() substitutionTest {
+	return noGenericFamily{}
+}
+
+// one family must equals `family`, and the queried language
+// must equals `lang`
+type langAndFamilyEqual struct {
+	lang   language.Language
+	family string
+}
+
+// TODO: for now, these tests are ignored
+func (langAndFamilyEqual) test(list familyList) *list.Element {
+	return nil
+}
+
+func (t langAndFamilyEqual) normalize() substitutionTest {
+	t.family = ignoreBlanksAndCase(t.family)
+	return t
+}
+
+// one family must equals `family`, and the queried language
+// must contains `lang`
+type langContainsAndFamilyEquals struct {
+	lang   language.Language
+	family string
+}
+
+// TODO: for now, these tests are ignored
+func (langContainsAndFamilyEquals) test(list familyList) *list.Element {
+	return nil
+}
+
+func (t langContainsAndFamilyEquals) normalize() substitutionTest {
+	t.family = ignoreBlanksAndCase(t.family)
+	return t
+}
+
+// no family must equals `family`, and the queried language
+// must equals `lang`
+type langEqualsAndNoFamily struct {
+	lang   language.Language
+	family string
+}
+
+// TODO: for now, these tests are ignored
+func (langEqualsAndNoFamily) test(list familyList) *list.Element {
+	return nil
+}
+
+func (t langEqualsAndNoFamily) normalize() substitutionTest {
+	t.family = ignoreBlanksAndCase(t.family)
+	return t
+}
+
 type substitution struct {
-	targetFamily       string         // the family concerned
-	additionalFamilies []string       // the families to add
-	op                 substitutionOp // how to insert the families
+	test               substitutionTest // the condition to apply
+	additionalFamilies []string         // the families to add
+	op                 substitutionOp   // how to insert the families
 }
 
 func (fl familyList) execute(subs substitution) {
-	element := fl.contains(subs.targetFamily)
+	element := subs.test.test(fl)
 	if element == nil {
 		return
 	}
