@@ -46,24 +46,73 @@ func deserializeString(s *string, data []byte) (int, error) {
 	return 2 + L, nil
 }
 
-// serialize into binary format, compressed with gzop
-func serializeFootprints(footprints []Footprint, w io.Writer) error {
-	// len as uint32 + minimum size for a footprint
-	buffer := make([]byte, 4, 4+len(footprints)*(aspectSize+1+2))
-	binary.BigEndian.PutUint32(buffer[:], uint32(len(footprints)))
-
+// serialize into binary format, appending to `dst` and returning
+// the updated slice
+func serializeFootprintsTo(footprints []Footprint, dst []byte) []byte {
 	for _, fp := range footprints {
-		// add buffer to store the length of the encoded footprint,
+		dst = fp.serializeTo(dst)
+	}
+	return dst
+}
+
+// parses the format written by `serializeFootprints`
+func deserializeFootprints(src []byte) (out []Footprint, err error) {
+	for totalRead := 0; totalRead < len(src); {
+		var fp Footprint
+		read, err := fp.deserializeFrom(src[totalRead:])
+		if err != nil {
+			return nil, fmt.Errorf("invalid footprints: %s", err)
+		}
+		totalRead += read
+
+		out = append(out, fp)
+	}
+
+	return out, nil
+}
+
+func (ff fileFootprints) serializeTo(dst []byte) []byte {
+	dst = append(dst, serializeString(ff.path)...)
+	dst = append(dst, ff.modTime.serialize()...)
+	// end by the variable length footprint list
+	dst = serializeFootprintsTo(ff.footprints, dst)
+	return dst
+}
+
+func (ff *fileFootprints) deserializeFrom(src []byte) error {
+	n, err := deserializeString(&ff.path, src)
+	if err != nil {
+		return err
+	}
+	if len(src) < n+8 {
+		return errors.New("invalid fileFootprints (EOF)")
+	}
+	ff.modTime.deserialize(src[n:])
+	n += 8
+	ff.footprints, err = deserializeFootprints(src[n:])
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// serialize into binary format, compressed with gzop
+func (index systemFontsIndex) serializeTo(w io.Writer) error {
+	// len as uint32 + somewhat the minimum size for a footprint
+	buffer := make([]byte, 4, 4+len(index)*(aspectSize+1+2))
+	binary.BigEndian.PutUint32(buffer[:], uint32(len(index)))
+
+	for _, ff := range index {
+		// add buffer to store the length of the encoded fileFootprints,
 		// needed when decoding from a stream
 		n := len(buffer)
 		buffer = append(buffer, make([]byte, 4)...)
 
-		buffer = fp.serializeTo(buffer)
+		buffer = ff.serializeTo(buffer)
 
 		size := len(buffer) - n - 4
 		binary.BigEndian.PutUint32(buffer[n:], uint32(size))
 	}
-
 	wr := gzip.NewWriter(w)
 	_, err := wr.Write(buffer)
 	if err != nil {
@@ -76,44 +125,42 @@ func serializeFootprints(footprints []Footprint, w io.Writer) error {
 	return nil
 }
 
-// parses the format written by `serializeFootprints`
-func deserializeFootprints(src io.Reader) ([]Footprint, error) {
+// parses the format written by `fontIndex.serializeTo`
+func deserializeIndex(src io.Reader) (systemFontsIndex, error) {
 	r, err := gzip.NewReader(src)
 	if err != nil {
-		return nil, fmt.Errorf("invalid compressed font footprint file: %s", err)
+		return nil, fmt.Errorf("invalid compressed index file: %s", err)
 	}
 	defer r.Close()
 
 	var (
 		buf    [4]byte
-		out    []Footprint
+		out    systemFontsIndex
 		buffer bytes.Buffer
 	)
 
 	// read the expected length
 	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		return nil, fmt.Errorf("invalid font footprint format: %s", err)
+		return nil, fmt.Errorf("invalid index format: %s", err)
 	}
 	L := binary.BigEndian.Uint32(buf[:])
-
 	for i := uint32(0); i < L; i++ {
 		// size of the encoded footprint
 		if _, err := io.ReadFull(r, buf[:]); err != nil {
-			return nil, fmt.Errorf("invalid fontset: %s", err)
+			return nil, fmt.Errorf("invalid index: %s", err)
 		}
 		size := binary.BigEndian.Uint32(buf[:])
-
-		// buffer the footprint segment
+		// buffer the fileFootprints segment
 		buffer.Reset()
 		_, err := io.CopyN(&buffer, r, int64(size))
 		if err != nil {
-			return nil, fmt.Errorf("invalid fontset: %s", err)
+			return nil, fmt.Errorf("invalid index: %s", err)
 		}
 
-		var fp Footprint
-		_, err = fp.deserializeFrom(buffer.Bytes())
+		var fp fileFootprints
+		err = fp.deserializeFrom(buffer.Bytes())
 		if err != nil {
-			return nil, fmt.Errorf("invalid font set: %s", err)
+			return nil, fmt.Errorf("invalid index: %s", err)
 		}
 
 		out = append(out, fp)

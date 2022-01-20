@@ -9,7 +9,15 @@ import (
 	"time"
 )
 
-func TestScanFonts(t *testing.T) {
+func TestDefaultDirs(t *testing.T) {
+	dirs, err := DefaultFontDirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Valid font directories:\n%v\n", dirs)
+}
+
+func TestScanFontFiles(t *testing.T) {
 	ti := time.Now()
 
 	directories, err := DefaultFontDirs()
@@ -17,14 +25,30 @@ func TestScanFonts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fontset, err := ScanFonts(nil, directories...)
+	fontpaths, err := scanFontFiles(directories...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Printf("Found %d fonts in %s\n", len(fontpaths), time.Since(ti))
+}
+
+func TestScanFontFootprints(t *testing.T) {
+	ti := time.Now()
+
+	directories, err := DefaultFontDirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fontset, err := scanFontFootprints(nil, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Show some basic stats
 	distribution := map[Format]int{}
-	for _, font := range fontset {
+	for _, font := range fontset.flatten() {
 		if font.Runes.Len() == 0 {
 			t.Fatalf("unexpected empty rune coverage for %s", font.Location.File)
 		}
@@ -43,20 +67,20 @@ func TestScanIncrementalNoOp(t *testing.T) {
 	}
 
 	// first scan
-	fontset, err := ScanFonts(nil, directories...)
+	fontset, err := scanFontFootprints(nil, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Printf("Initial scan time: %s\n", time.Since(ti))
 
 	ti = time.Now()
-	incremental, err := ScanFonts(fontset, directories...)
+	incremental, err := scanFontFootprints(fontset, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Printf("Second scan time: %s\n", time.Since(ti))
 
-	if err = assertFontsetEquals(fontset, incremental); err != nil {
+	if err = assertFontsetEquals(fontset.flatten(), incremental.flatten()); err != nil {
 		t.Fatalf("incremental scan not consistent with initial scan: %s", err)
 	}
 }
@@ -93,7 +117,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	copyFile(t, filepath.Join("..", "font", "testdata", "Amiri-Regular.ttf"), filepath.Join(dir, "font1.ttf"))
 
 	// first scan
-	fontset, err := ScanFonts(nil, dir)
+	fontset, err := scanFontFootprints(nil, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +128,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	// test adding a new file
 	copyFile(t, filepath.Join("..", "font", "testdata", "Roboto-Regular.ttf"), filepath.Join(dir, "font2.ttf"))
 
-	fontset2, err := ScanFonts(fontset, dir)
+	fontset2, err := scanFontFootprints(fontset, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,22 +139,22 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	// test updating an existing file
 	copyFile(t, filepath.Join("..", "font", "testdata", "Roboto-Regular.ttf"), filepath.Join(dir, "font1.ttf"))
 
-	fontset3, err := ScanFonts(nil, dir)
+	fontset3, err := scanFontFootprints(nil, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(fontset3) != 2 {
 		t.Fatalf("unexpected font set: %v", fontset)
 	}
-	if family := fontset3[0].Family; family != "Roboto" {
+	if family := fontset3.flatten()[0].Family; family != "Roboto" {
 		t.Fatalf("unexpected family %s", family)
 	}
 
-	incremental, err := ScanFonts(fontset2, dir)
+	incremental, err := scanFontFootprints(fontset2, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = assertFontsetEquals(fontset3, incremental); err != nil {
+	if err = assertFontsetEquals(fontset3.flatten(), incremental.flatten()); err != nil {
 		t.Fatalf("incremental scan not consistent with initial scan: %s", err)
 	}
 
@@ -138,7 +162,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	if err = os.Remove(filepath.Join(dir, "font1.ttf")); err != nil {
 		t.Fatal(err)
 	}
-	fontset4, err := ScanFonts(fontset3, dir)
+	fontset4, err := scanFontFootprints(fontset3, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,3 +170,27 @@ func TestScanIncrementalUpdate(t *testing.T) {
 		t.Fatalf("unexpected font set: %v", fontset)
 	}
 }
+
+// func TestDump(t *testing.T) { // TODO: cleanup
+// 	directories, err := DefaultFontDirs()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	// first scan
+// 	fontset, err := scanFontFootprints(nil, directories...)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	f, err := os.Create("tmp.fontscan")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if err = fontset.serializeTo(f); err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if err = f.Close(); err != nil {
+// 		t.Fatal(err)
+// 	}
+// }
