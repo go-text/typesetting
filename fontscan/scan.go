@@ -37,6 +37,7 @@ func DefaultFontDirs() ([]string, error) {
 		dirs = []string{
 			"/System/Library/Fonts",
 			"/Library/Fonts",
+			"~/Library/Fonts",
 			"/Network/Library/Fonts",
 			"/System/Library/Assets/com_apple_MobileAsset_Font3",
 			"/System/Library/Assets/com_apple_MobileAsset_Font4",
