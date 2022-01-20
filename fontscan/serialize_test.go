@@ -20,12 +20,9 @@ func Test_serializeFootprints(t *testing.T) {
 			Runes: RuneSet{},
 		},
 	}
-	w := &bytes.Buffer{}
-	if err := serializeFootprints(input, w); err != nil {
-		t.Fatal(err)
-	}
+	dump := serializeFootprintsTo(input, nil)
 
-	got, err := deserializeFootprints(w)
+	got, err := deserializeFootprints(dump)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,24 +51,24 @@ func TestSerializeSystemFonts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fontset, err := ScanFonts(nil, directories...)
+	fontset, err := scanFontFootprints(nil, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ti := time.Now()
 	var b bytes.Buffer
-	err = serializeFootprints(fontset, &b)
+	err = fontset.serializeTo(&b)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Printf("%d fonts serialized (into memory) in %s; size: %dKB\n", len(fontset), time.Since(ti), b.Len()/1000)
 
-	fontset2, err := deserializeFootprints(&b)
+	fontset2, err := deserializeIndex(&b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = assertFontsetEquals(fontset, fontset2); err != nil {
+	if err = assertFontsetEquals(fontset.flatten(), fontset2.flatten()); err != nil {
 		t.Fatalf("inconsistent serialization %s", err)
 	}
 }
