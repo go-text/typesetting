@@ -32,7 +32,11 @@ func DefaultFontDirs() ([]string, error) {
 			sysRoot = "C:"
 		}
 		dir := filepath.Join(filepath.VolumeName(sysRoot), `\Windows`, "Fonts")
-		dirs = []string{dir}
+		dirs = []string{
+			dir,
+			filepath.Join(os.Getenv("windir"), "Fonts"),
+			filepath.Join(os.Getenv("localappdata"), "Microsoft", "Windows", "Fonts"),
+		}
 	case "darwin":
 		dirs = []string{
 			"/System/Library/Fonts",
