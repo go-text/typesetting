@@ -83,16 +83,13 @@ func BenchmarkNewFamilyCrible(b *testing.B) {
 	}
 }
 
-func Test_selectFileByFamily(t *testing.T) {
-	directories, err := DefaultFontDirs()
-	if err != nil {
-		t.Fatal(err)
+func Test_FindFont(t *testing.T) {
+	for _, family := range [...]string{
+		"arial", "times", "deja vu",
+	} {
+		_, err := FindFont(family)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
-
-	paths, err := scanFontFiles(directories...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	selectFileByFamily("arial", paths)
 }
