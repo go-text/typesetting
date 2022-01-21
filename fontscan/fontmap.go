@@ -1,10 +1,13 @@
 package fontscan
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/go-text/typesetting/font"
 )
 
@@ -102,8 +105,7 @@ func (sf scoredPaths) Swap(i int, j int) {
 
 // expand `family` with the standard substitutions,
 // then loop through the given file names looking for the best match
-// finaly, load the first valid font file.
-func selectFileByFamily(inFamily string, paths []string) []font.Face {
+func selectFileByFamily(inFamily string, paths []string) []string {
 	crible := applySubstitutions(inFamily)
 
 	var matches scoredPaths
@@ -111,6 +113,7 @@ func selectFileByFamily(inFamily string, paths []string) []font.Face {
 		filename, _ := splitAtDot(filePath)
 		filename = ignoreBlanksAndCase(filename)
 		for family, score := range crible {
+			// approximate search
 			if strings.Contains(filename, family) {
 				matches.paths = append(matches.paths, filePath)
 				matches.scores = append(matches.scores, score)
@@ -119,6 +122,69 @@ func selectFileByFamily(inFamily string, paths []string) []font.Face {
 	}
 
 	sort.Stable(matches)
-	fmt.Println(matches.paths)
-	return nil
+
+	return matches.paths
+}
+
+var ErrFontNotFound = errors.New("font not found")
+
+// loop through `paths` and select the first face with
+// a regular style, or `ErrFontNotFound` if not found
+func selectRegular(paths []string) (font.Face, error) {
+	for _, path := range paths {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, fmt.Errorf("opening font file %s: %s", path, err)
+		}
+
+		descriptors, format := getFontDescriptors(file)
+
+		for index, descriptor := range descriptors {
+			aspect := newAspectFromDescriptor(descriptor)
+			if aspect.Style == fonts.StyleNormal {
+				// found it: load the the face
+				faces, err := format.Loader()(file)
+				if err != nil {
+					// if an error occur (for instance for unsupported cmaps)
+					// try the next file path
+					break
+				}
+
+				file.Close()
+
+				return faces[index], nil
+			}
+		}
+
+		file.Close()
+	}
+
+	return nil, ErrFontNotFound
+}
+
+// FindFont look for a font matching `family` in the
+// standard font folders.
+// If `family` is not found, suitable substitutions are tried
+// to find a close font.
+// In the (rather unlikely) case where no font is found,
+// ErrFontNotFound is returned.
+func FindFont(family string) (font.Face, error) {
+	directories, err := DefaultFontDirs()
+	if err != nil {
+		return nil, err
+	}
+
+	paths, err := scanFontFiles(directories...)
+	if err != nil {
+		return nil, err
+	}
+
+	paths = selectFileByFamily(family, paths)
+
+	face, err := selectRegular(paths)
+	if err != nil {
+		return nil, err
+	}
+
+	return face, nil
 }
