@@ -43,14 +43,7 @@ func newFootprintFromDescriptor(fd fonts.FontDescriptor, format Format) (out Foo
 
 	out.Family = fd.Family() // load the family
 
-	sty, wei, str := fd.Aspect() // load the aspect properties ...
-	out.Aspect.Style = sty
-	out.Aspect.Weight = wei
-	out.Aspect.Stretch = str
-
-	// and try to fill the missing one with the "style"
-	style := fd.AdditionalStyle()
-	out.Aspect.inferFromStyle(style)
+	out.Aspect = newAspectFromDescriptor(fd)
 
 	// register the correct format
 	out.Format = format

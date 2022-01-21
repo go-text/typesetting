@@ -93,6 +93,22 @@ type (
 	Stretch = fonts.Stretch
 )
 
+// use Aspect and AdditionalStyle to infer the aspect
+func newAspectFromDescriptor(fd fonts.FontDescriptor) Aspect {
+	var out Aspect
+
+	sty, wei, str := fd.Aspect() // load the aspect properties ...
+	out.Style = sty
+	out.Weight = wei
+	out.Stretch = str
+
+	// and try to fill the missing one with the "style"
+	style := fd.AdditionalStyle()
+	out.inferFromStyle(style)
+
+	return out
+}
+
 // some fonts includes aspect information in a string description,
 // usually called "style"
 // inferFromStyle scans such a string and fills the missing fields,
