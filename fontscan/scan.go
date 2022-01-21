@@ -87,10 +87,12 @@ func DefaultFontDirs() ([]string, error) {
 		if err != nil { // ignore the non existent directory
 			continue
 		}
+
 		if !info.IsDir() {
 			log.Println("font dir is not a directory", dir)
 			continue
 		}
+
 		validDirs = append(validDirs, dir)
 	}
 	if len(validDirs) == 0 {
@@ -209,8 +211,8 @@ func (fh *timeStamp) deserialize(src []byte) {
 // systemFontsIndex stores the footprint comming from the file system
 type systemFontsIndex []fileFootprints
 
-func (sfi systemFontsIndex) flatten() []Footprint {
-	var out []Footprint
+func (sfi systemFontsIndex) flatten() FontSet {
+	var out FontSet
 	for _, file := range sfi {
 		out = append(out, file.footprints...)
 	}

@@ -119,25 +119,36 @@ func (as *Aspect) inferFromStyle(additionalStyle string) {
 	if as.Style == 0 {
 		if index := stringContainsConst(additionalStyle, styleStrings[:]); index != -1 {
 			as.Style = styleConsts[index].value
-		} else {
-			as.Style = fonts.StyleNormal
 		}
 	}
 
 	if as.Weight == 0 {
 		if index := stringContainsConst(additionalStyle, weightStrings[:]); index != -1 {
 			as.Weight = weightConsts[index].value
-		} else {
-			as.Weight = fonts.WeightNormal
 		}
 	}
 
 	if as.Stretch == 0 {
 		if index := stringContainsConst(additionalStyle, stretchStrings[:]); index != -1 {
 			as.Stretch = stretchConsts[index].value
-		} else {
-			as.Stretch = fonts.StretchNormal
 		}
+	}
+
+	as.setDefaults()
+}
+
+// replace unspecified values by the default values: StyleNormal, WeightNormal, StretchNormal
+func (as *Aspect) setDefaults() {
+	if as.Style == 0 || as.Style > fonts.StyleOblique {
+		as.Style = fonts.StyleNormal
+	}
+
+	if as.Stretch == 0 {
+		as.Stretch = fonts.StretchNormal
+	}
+
+	if as.Weight == 0 {
+		as.Weight = fonts.WeightNormal
 	}
 }
 
