@@ -180,7 +180,7 @@ type langAndFamilyEqual struct {
 	family string
 }
 
-// TODO: for now, these tests are ignored
+// TODO: for now, these tests language base tests are ignored
 func (langAndFamilyEqual) test(list familyList) *list.Element {
 	return nil
 }
@@ -197,7 +197,7 @@ type langContainsAndFamilyEquals struct {
 	family string
 }
 
-// TODO: for now, these tests are ignored
+// TODO: for now, these tests language base tests are ignored
 func (langContainsAndFamilyEquals) test(list familyList) *list.Element {
 	return nil
 }
@@ -214,7 +214,7 @@ type langEqualsAndNoFamily struct {
 	family string
 }
 
-// TODO: for now, these tests are ignored
+// TODO: for now, these tests language base tests are ignored
 func (langEqualsAndNoFamily) test(list familyList) *list.Element {
 	return nil
 }
