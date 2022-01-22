@@ -55,13 +55,20 @@ type FontMap struct {
 
 	query Query // current query
 
+	// cached value of the last footprint index
+	// selected by ResolveFace
+	lastFootprintIndex int
 }
 
 // NewFontMap return a new font map,
 // which should be filled with the `UseSystemFonts`
 // or `AddFont` methods.
 func NewFontMap() *FontMap {
-	return &FontMap{faces: make(map[Location]font.Face), cribleBuffer: make(familyCrible)}
+	return &FontMap{
+		faces:              make(map[Location]font.Face),
+		cribleBuffer:       make(familyCrible),
+		lastFootprintIndex: -1,
+	}
 }
 
 // UseSystemFonts loads the system fonts and adds them to the font map.
@@ -234,6 +241,7 @@ func (cd *candidates) ensureSize(L int) {
 }
 
 func (fm *FontMap) buildCandidates() {
+	fm.lastFootprintIndex = -1
 	fm.candidates.ensureSize(len(fm.query.Families))
 
 	selectFootprints := func(systemFallback bool) {
@@ -279,6 +287,10 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 				log.Println(err)
 				continue
 			}
+
+			// register the face used
+			fm.lastFootprintIndex = footprintIndex
+
 			return face
 		}
 	}
@@ -290,17 +302,34 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 // and supporting the given rune, applying CSS font selection rules.
 // The function will return nil if the underlying font database is empty,
 // or if the file system is broken; otherwise the returned font.Face is always valid.
-func (fm *FontMap) ResolveFace(char rune) font.Face {
+func (fm *FontMap) ResolveFace(r rune) font.Face {
+	// in many case, the same font will support a lot of runes
+	// thus, as an optimisation, we register the last used footprint and start
+	// to check if it supports `r`
+	if fm.lastFootprintIndex != -1 {
+		// check the coverage
+		if fp := fm.database[fm.lastFootprintIndex]; fp.Runes.Contains(r) {
+			// try to use the font
+			face, err := fm.loadFace(fp)
+			if err == nil {
+				return face
+			}
+
+			// very unlikely; warn and keep going
+			log.Println(err)
+		}
+	}
+
 	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range fm.candidates.withoutFallback {
-		if face := fm.resolveForRune([]int{footprintIndex}, char); face != nil {
+		if face := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
 			return face
 		}
 	}
 
 	// if no family has matched so far, try again with system fallback
 	for _, footprintIndexList := range fm.candidates.withFallback {
-		if face := fm.resolveForRune(footprintIndexList, char); face != nil {
+		if face := fm.resolveForRune(footprintIndexList, r); face != nil {
 			return face
 		}
 	}
