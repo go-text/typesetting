@@ -46,7 +46,7 @@ func assertFontsetEquals(expected, got []Footprint) error {
 }
 
 func TestSerializeSystemFonts(t *testing.T) {
-	directories, err := DefaultFontDirs()
+	directories, err := DefaultFontDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
