@@ -79,6 +79,9 @@ var stretchConsts = [...]struct {
 	{"extended", fonts.StretchExpanded},
 }
 
+// Location identifies where a font.Face is stored.
+type Location = fonts.FaceID
+
 // Aspect stores the properties that specify which font in a family to use:
 // style, weight, and stretchiness.
 type Aspect struct {

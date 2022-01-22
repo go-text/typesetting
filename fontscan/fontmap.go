@@ -1,12 +1,13 @@
 package fontscan
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
-	"sort"
+	"path/filepath"
+	"sync"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/go-text/typesetting/font"
 )
 
@@ -16,9 +17,13 @@ import (
 // FontMap provides a mechanism to select a font.Face from a font description.
 // It supports system and user-provided fonts, and implements the CSS font substitutions
 // rules.
+//
+// A typical usage would be as following :
+//	TODO:
+//
 // It is designed to work with an index built by scanning the system fonts,
 // which is a costly operation (see XXX for more details).
-// A lightweight alternative is provided by the FindFont function, which only use
+// A lightweight alternative is provided by the FindFont function, which only uses
 // file paths to select a font.
 type FontMap struct {
 	// the database to query, either loaded from an index
@@ -30,6 +35,161 @@ type FontMap struct {
 
 	// the current query, which influences ResolveFace output
 	query FontQuery
+
+	// cache of already loaded faces
+	faces map[Location]font.Face
+}
+
+// TODO:
+// NewFontMap return a new font map,
+// which should be filled with the XXX methods.
+func NewFontMap() *FontMap {
+	return &FontMap{faces: make(map[Location]font.Face)}
+}
+
+// UseSystemFonts loads the system fonts and adds them to the font map.
+// This method is safe for concurrent use, but should only be called once
+// per font map.
+// The first call of this method trigger a rather long scan.
+// A per-application on-disk cache is used to speed up subsequent initialisations.
+func (fm *FontMap) UseSystemFonts() error {
+	// safe for concurrent use; subsequent calls are no-ops
+	err := initSystemFonts()
+	if err != nil {
+		return err
+	}
+
+	// systemFonts is read-only, so may be used concurrently
+	fm.database = append(fm.database, systemFonts.flatten()...)
+
+	// TODO: reset caching
+
+	return nil
+}
+
+// systemFonts is a global index of the system fonts.
+// initSystemFontsOnce protects the initial assignment,
+// and `systemFonts` use is then read-only
+var (
+	systemFonts         systemFontsIndex
+	initSystemFontsOnce sync.Once
+)
+
+// initSystemFonts scan the system fonts and update `SystemFonts`.
+// If the returned error is nil, `SystemFonts` is guaranteed to contain
+// at least one valid font.Face.
+// It is protected by sync.Once, and is then safe to use by multiple goroutines.
+func initSystemFonts() error {
+	var err error
+
+	initSystemFontsOnce.Do(func() {
+		const cacheFile = "font_index.cache"
+
+		// load an existing index
+		var execPath string
+		execPath, err = os.Executable()
+		if err != nil {
+			err = fmt.Errorf("resolving index cache path: %s", err)
+			return
+		}
+
+		cachePath := filepath.Join(filepath.Dir(execPath), cacheFile)
+
+		systemFonts, err = refreshSystemFontsIndex(cachePath)
+	})
+
+	return err
+}
+
+func refreshSystemFontsIndex(cachePath string) (systemFontsIndex, error) {
+	fontDirectories, err := DefaultFontDirectories()
+	if err != nil {
+		return nil, fmt.Errorf("searching font directories: %s", err)
+	}
+
+	currentIndex, _ := deserializeIndexFile(cachePath)
+	// if an error occured (the cache file does not exists or is invalid), we start from scratch
+
+	updatedIndex, err := scanFontFootprints(currentIndex, fontDirectories...)
+	if err != nil {
+		return nil, fmt.Errorf("scanning system fonts: %s", err)
+	}
+
+	// since ResolveFace must always return a valid face, we make sure
+	// at least one font exists and is valid.
+	// Otherwise, the font map is useless; this is an extreme case anyway.
+	err = updatedIndex.assertValid()
+	if err != nil {
+		return nil, fmt.Errorf("loading system fonts: %s", err)
+	}
+
+	// write back the index in the cache file
+	err = updatedIndex.serializeToFile(cachePath)
+	if err != nil {
+		return nil, fmt.Errorf("updating cache: %s", err)
+	}
+
+	return updatedIndex, nil
+}
+
+// AddFont loads the faces contained in `fontFile` and add them to
+// the font map.
+// `fileID` is used as the Location.File entry returned by `FaceLocation`.
+// An error is returned if the font resource is not supported.
+func (fm *FontMap) AddFont(fontFile font.Resource, fileID string) error {
+	fontDescriptors, format := getFontDescriptors(fontFile)
+	if format == 0 || len(fontDescriptors) == 0 {
+		return errors.New("unsupported font resource")
+	}
+
+	// eagerly load the faces
+	faces, err := format.Loader()(fontFile)
+	if err != nil {
+		return fmt.Errorf("unsupported font resource: %s", err)
+	}
+
+	// by construction of fonts.Loader and fonts.FontDescriptor,
+	// fontDescriptors and face have the same length
+	if len(faces) != len(fontDescriptors) {
+		panic("internal error: inconsistent font descriptors and loader")
+	}
+
+	var addedFonts []Footprint
+	for i, fd := range fontDescriptors {
+		footprint, err := newFootprintFromDescriptor(fd, format)
+		// the font won't be usable, just ignore it
+		if err != nil {
+			continue
+		}
+
+		footprint.Location.File = fileID
+		footprint.Location.Index = uint16(i)
+		// TODO: for now, we do not handle variable fonts
+
+		addedFonts = append(addedFonts, footprint)
+		fm.faces[footprint.Location] = faces[i]
+	}
+
+	if len(addedFonts) == 0 {
+		return fmt.Errorf("empty font resource %s", fileID)
+	}
+
+	fm.database = append(fm.database, addedFonts...)
+	// TODO: reset caching
+	return nil
+}
+
+// FaceLocation look for the `given` among the loaded font map faces
+// to find its origin.
+// FaceLocation should only be called for faces returned by `ResolveFace`,
+// otherwise the returned Location will be empty.
+func (fm *FontMap) FaceLocation(face font.Face) Location {
+	for location, cachedFace := range fm.faces {
+		if cachedFace == face {
+			return location
+		}
+	}
+	return Location{}
 }
 
 // SetQuery set the families and aspect required, influencing subsequent
@@ -46,26 +206,33 @@ func (fm *FontMap) SetQuery(query FontQuery) {
 // or if the file system is broken; otherwise the returned font.Face is always valid.
 func (fm *FontMap) ResolveFace(r rune) font.Face {
 	// TODO: caching layer
-	selectFace := func(substitute bool) font.Face {
+	selectFace := func(systemFallback bool) font.Face {
 		for _, family := range fm.query.Families {
-			candidates := fm.database.selectByFamily(family, substitute)
+			candidates := fm.database.selectByFamily(family, systemFallback)
 			if len(candidates) == 0 {
 				continue
 			}
 
-			// select the correct aspect
-			fp := candidates.selectBestMatch(fm.query.Aspect)
+			// select the correct aspects
+			candidates.retainsBestMatches(fm.query.Aspect)
 
-			// check the coverage
-			if fp.Runes.Contains(r) {
-				// try to use the font
-				face, err := fm.loadFace(fp)
-				if err != nil { // very unlikely; try an other family
-					log.Println(err)
-					continue
+			// when no systemFallback is required, the CSS spec says
+			// that only one font among the candidates must be tried
+			if !systemFallback {
+				candidates = candidates[:1]
+			}
+
+			for _, fp := range candidates {
+				// check the coverage
+				if fp.Runes.Contains(r) {
+					// try to use the font
+					face, err := fm.loadFace(fp)
+					if err != nil { // very unlikely; try an other family
+						log.Println(err)
+						continue
+					}
+					return face
 				}
-				log.Println("found", fp.Location.File)
-				return face
 			}
 		}
 		return nil
@@ -83,11 +250,14 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 		return face
 	}
 
-	// FIXME:
-	fmt.Println("BAD")
-
 	// this is very very unlikely, since the substitution
 	// always add a default generic family
+	log.Printf("No font matched for %v -> returning arbitrary face", fm.query.Families)
+
+	// return an arbitrary face
+	for _, face := range fm.faces {
+		return face
+	}
 	for _, fp := range fm.database {
 		face, err := fm.loadFace(fp)
 		if err != nil { // very unlikely
@@ -96,23 +266,28 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 		return face
 	}
 
-	// arg, we have a very very serious issue here
+	// refreshSystemFontsIndex makes sure at least one face is valid
+	// and AddFont also check for valid font files, meaning that
+	// a valid FontMap should always contain a valid face,
 	return nil
 }
 
 func (fm *FontMap) loadFace(fp Footprint) (font.Face, error) {
-	// TODO: handle user font and caching
-	file, err := os.Open(fp.Location.File)
+	if face, hasCached := fm.faces[fp.Location]; hasCached {
+		return face, nil
+	}
+
+	// since user provided fonts are added to `faces`
+	// we may now assume the font is stored on the file system
+	face, err := fp.loadFromDisk()
 	if err != nil {
 		return nil, err
 	}
 
-	faces, err := fp.Format.Loader()(file)
-	if err != nil {
-		return nil, err
-	}
+	// add the face to the cache
+	fm.faces[fp.Location] = face
 
-	return faces[fp.Location.Index], nil
+	return face, nil
 }
 
 // func (fm *FontMap) resetBuffer() {
@@ -122,289 +297,3 @@ func (fm *FontMap) loadFace(fp Footprint) (font.Face, error) {
 // 	fm.candidates = fm.candidates[0:len(fm.database)]
 // 	copy(fm.candidates, fm.database)
 // }
-
-// FontQuery exposes the intention of an author about the
-// font to use to shape and render text.
-type FontQuery struct {
-	// Families is a list of required families,
-	// the first having the highest priority.
-	// Each of them is tried until a suitable match is found.
-	Families []string
-
-	// Aspect selects which particular face to use among
-	// the font matching the family criteria.
-	Aspect Aspect
-}
-
-// FontSet stores the list of fonts available for text shaping.
-// It is usually build from a system font index or by manually appending
-// fonts.
-type FontSet []Footprint
-
-// stores the possible matches with their score:
-// lower is better
-type familyCrible map[string]int
-
-func newFamilyCrible(family string, substitute bool) familyCrible {
-	family = ignoreBlanksAndCase(family)
-
-	// always substitute generic families
-	if substitute || isGenericFamily(family) {
-		return applySubstitutions(family)
-	}
-
-	return familyCrible{family: 0}
-}
-
-// applySubstitutions starts from `family` (ignoring blank and case)
-// and applies all the substitutions coded in the package
-// to add substitutes values
-func applySubstitutions(family string) familyCrible {
-	fl := newFamilyList([]string{family})
-	for _, subs := range familySubstitution {
-		fl.execute(subs)
-	}
-
-	return fl.compile()
-}
-
-// returns -1 if no match
-func (fc familyCrible) matches(family string) int {
-	if score, has := fc[ignoreBlanksAndCase(family)]; has {
-		return score
-	}
-	return -1
-}
-
-type scoredFootprints struct {
-	footprints []Footprint
-	scores     []int
-}
-
-// Len is the number of elements in the collection.
-func (sf scoredFootprints) Len() int { return len(sf.footprints) }
-
-func (sf scoredFootprints) Less(i int, j int) bool { return sf.scores[i] < sf.scores[j] }
-
-// Swap swaps the elements with indexes i and j.
-func (sf scoredFootprints) Swap(i int, j int) {
-	sf.footprints[i], sf.footprints[j] = sf.footprints[j], sf.footprints[i]
-	sf.scores[i], sf.scores[j] = sf.scores[j], sf.scores[i]
-}
-
-func isGenericFamily(family string) bool {
-	switch family {
-	case "serif", "sans-serif", "monospace", "cursive", "fantasy":
-		return true
-	default:
-		return false
-	}
-}
-
-// selectByFamily returns all the fonts in the fontmap matching
-// the given `family`, with the best matches coming first.
-// `substitute` controls whether or not system substitutions are applied.
-// The following generic family : "serif", "sans-serif", "monospace", "cursive", "fantasy"
-// are always expanded to concrete families.
-// The returned slice may be empty if no font matches the given `family`.
-func (fm FontSet) selectByFamily(family string, substitute bool) FontSet {
-	// build the crible, handling substitutions
-	crible := newFamilyCrible(family, substitute)
-
-	var matches scoredFootprints
-
-	// select the matching fonts:
-	// loop through `footprints` and stores the matching fonts into `dst`
-	for _, footprint := range fm {
-		if score := crible.matches(footprint.Family); score != -1 {
-			matches.footprints = append(matches.footprints, footprint)
-			matches.scores = append(matches.scores, score)
-		}
-	}
-
-	// sort the matched font by score (lower is better)
-	sort.Stable(matches)
-
-	return matches.footprints
-}
-
-// matchStretch look for the given stretch in the font set,
-// or, if not found, the closest stretch
-// if always return a valid value (contained in `fs`) if `fs` is not empty
-func (fs FontSet) matchStretch(query Stretch) Stretch {
-	// narrower and wider than the query
-	var narrower, wider Stretch
-
-	for _, fp := range fs {
-		stretch := fp.Aspect.Stretch
-		if stretch > query { // wider candidate
-			if wider == 0 || stretch-query < wider-query { // closer
-				wider = stretch
-			}
-		} else if stretch < query { // narrower candidate
-			// if narrower == 0, it is always more distant to queryStretch than stretch
-			if query-stretch < query-narrower { // closer
-				narrower = stretch
-			}
-		} else {
-			// found an exact match, just return it
-			return query
-		}
-	}
-
-	// default to closest
-	if query <= fonts.StretchNormal { // narrow first
-		if narrower != 0 {
-			return narrower
-		}
-		return wider
-	} else { // wide first
-		if wider != 0 {
-			return wider
-		}
-		return narrower
-	}
-}
-
-// matchStyle look for the given style in the font set,
-// or, if not found, the closest style
-// if always return a valid value (contained in `fs`) if `fs` is not empty
-func (fs FontSet) matchStyle(query Style) Style {
-	var crible [fonts.StyleOblique + 1]bool
-
-	for _, fp := range fs {
-		crible[fp.Aspect.Style] = true
-	}
-
-	switch query {
-	case fonts.StyleNormal: // StyleNormal, StyleOblique, StyleItalic
-		if crible[fonts.StyleNormal] {
-			return fonts.StyleNormal
-		} else if crible[fonts.StyleOblique] {
-			return fonts.StyleOblique
-		} else {
-			return fonts.StyleItalic
-		}
-	case fonts.StyleItalic: // StyleItalic, StyleOblique, StyleNormal
-		if crible[fonts.StyleItalic] {
-			return fonts.StyleItalic
-		} else if crible[fonts.StyleOblique] {
-			return fonts.StyleOblique
-		} else {
-			return fonts.StyleNormal
-		}
-	case fonts.StyleOblique: // StyleOblique, StyleItalic, StyleNormal
-		if crible[fonts.StyleOblique] {
-			return fonts.StyleOblique
-		} else if crible[fonts.StyleItalic] {
-			return fonts.StyleItalic
-		} else {
-			return fonts.StyleNormal
-		}
-	}
-
-	panic("should not happen") // query.Style is sanitized by setDefaults
-}
-
-// matchWeight look for the given weight in the font set,
-// or, if not found, the closest weight
-// if always return a valid value (contained in `fs`) if `fs` is not empty
-// we follow https://drafts.csswg.org/css-fonts/#font-style-matching
-func (fs FontSet) matchWeight(query Weight) Weight {
-	var fatter, thinner Weight // approximate match
-	for _, fp := range fs {
-		weight := fp.Aspect.Weight
-		if weight > query { // fatter candidate
-			if fatter == 0 || weight-query < fatter-query { // weight is closer to query
-				fatter = weight
-			}
-		} else if weight < query {
-			if query-weight < query-thinner { // weight is closer to query
-				thinner = weight
-			}
-		} else {
-			// found an exact match, just return it
-			return query
-		}
-	}
-
-	// approximate match
-	if 400 <= query && query <= 500 { // fatter until 500, then thinner then fatter
-		if fatter != 0 && fatter <= 500 {
-			return fatter
-		} else if thinner != 0 {
-			return thinner
-		}
-		return fatter
-	} else if query < 400 { // thinner then fatter
-		if thinner != 0 {
-			return thinner
-		}
-		return fatter
-	} else { // fatter then thinner
-		if fatter != 0 {
-			return fatter
-		}
-		return thinner
-	}
-}
-
-// filter in place
-func (fs *FontSet) filterByStretch(stretch Stretch) {
-	n := 0
-	for _, fp := range *fs {
-		if fp.Aspect.Stretch == stretch {
-			(*fs)[n] = fp
-			n++
-		}
-	}
-	*fs = (*fs)[:n]
-}
-
-// filter in place
-func (fs *FontSet) filterByStyle(style Style) {
-	n := 0
-	for _, fp := range *fs {
-		if fp.Aspect.Style == style {
-			(*fs)[n] = fp
-			n++
-		}
-	}
-	*fs = (*fs)[:n]
-}
-
-// filter in place
-func (fs *FontSet) filterByWeight(weight Weight) {
-	n := 0
-	for _, fp := range *fs {
-		if fp.Aspect.Weight == weight {
-			(*fs)[n] = fp
-			n++
-		}
-	}
-	*fs = (*fs)[:n]
-}
-
-// selectBestMatch returns the closest footprint to `query`, according to the CSS font rules
-// note that this method mutate `fs`
-// the function will panic if `fs` is empty
-func (fs FontSet) selectBestMatch(query Aspect) Footprint {
-	// this follows CSS Fonts Level 3 § 5.2 [1].
-	// https://drafts.csswg.org/css-fonts-3/#font-style-matching
-
-	query.setDefaults()
-
-	// First step: font-stretch
-	matchingStretch := fs.matchStretch(query.Stretch)
-	fs.filterByStretch(matchingStretch) // only retain matching stretch
-
-	// Second step : font-style
-	matchingStyle := fs.matchStyle(query.Style)
-	fs.filterByStyle(matchingStyle)
-
-	// Third step : font-weight
-	matchingWeight := fs.matchWeight(query.Weight)
-	fs.filterByWeight(matchingWeight)
-
-	return fs[0]
-}

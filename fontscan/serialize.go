@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 )
 
 // defines the routines to serialize a font set to
@@ -96,11 +97,14 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 	return nil
 }
 
+const cacheFormatVersion = 1
+
 // serialize into binary format, compressed with gzop
 func (index systemFontsIndex) serializeTo(w io.Writer) error {
-	// len as uint32 + somewhat the minimum size for a footprint
-	buffer := make([]byte, 4, 4+len(index)*(aspectSize+1+2))
-	binary.BigEndian.PutUint32(buffer[:], uint32(len(index)))
+	// version as uint16 + len as uint32 + somewhat the minimum size for a footprint
+	buffer := make([]byte, 6, 4+len(index)*(aspectSize+1+2))
+	binary.BigEndian.PutUint16(buffer[:], cacheFormatVersion)
+	binary.BigEndian.PutUint32(buffer[2:], uint32(len(index)))
 
 	for _, ff := range index {
 		// add buffer to store the length of the encoded fileFootprints,
@@ -134,7 +138,7 @@ func deserializeIndex(src io.Reader) (systemFontsIndex, error) {
 	defer r.Close()
 
 	var (
-		buf    [4]byte
+		buf    [6]byte
 		out    systemFontsIndex
 		buffer bytes.Buffer
 	)
@@ -143,13 +147,17 @@ func deserializeIndex(src io.Reader) (systemFontsIndex, error) {
 	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return nil, fmt.Errorf("invalid index format: %s", err)
 	}
-	L := binary.BigEndian.Uint32(buf[:])
+	version := binary.BigEndian.Uint16(buf[:])
+	if version != cacheFormatVersion {
+		return nil, fmt.Errorf("different index version format: found %d", version)
+	}
+	L := binary.BigEndian.Uint32(buf[2:])
 	for i := uint32(0); i < L; i++ {
 		// size of the encoded footprint
-		if _, err := io.ReadFull(r, buf[:]); err != nil {
+		if _, err := io.ReadFull(r, buf[:4]); err != nil {
 			return nil, fmt.Errorf("invalid index: %s", err)
 		}
-		size := binary.BigEndian.Uint32(buf[:])
+		size := binary.BigEndian.Uint32(buf[:4])
 		// buffer the fileFootprints segment
 		buffer.Reset()
 		_, err := io.CopyN(&buffer, r, int64(size))
@@ -167,4 +175,30 @@ func deserializeIndex(src io.Reader) (systemFontsIndex, error) {
 	}
 
 	return out, nil
+}
+
+func deserializeIndexFile(cachePath string) (systemFontsIndex, error) {
+	f, err := os.Open(cachePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	out, err := deserializeIndex(f)
+	return out, err
+}
+
+func (index systemFontsIndex) serializeToFile(cachePath string) error {
+	f, err := os.Create(cachePath)
+	if err != nil {
+		return err
+	}
+
+	err = index.serializeTo(f)
+	if err != nil {
+		return err
+	}
+
+	err = f.Close()
+	return err
 }

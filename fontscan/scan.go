@@ -16,11 +16,13 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/fonts/type1"
+	"github.com/go-text/typesetting/font"
 )
 
-// DefaultFontDirs return the OS-dependent usual directories for
+// DefaultFontDirectories return the OS-dependent usual directories for
 // fonts, or an error if no one exists.
-func DefaultFontDirs() ([]string, error) {
+// These are the directories used by `FindFont` and `FontMap.LoadSystemFonts` to locate fonts.
+func DefaultFontDirectories() ([]string, error) {
 	var dirs []string
 	switch runtime.GOOS {
 	case "windows":
@@ -175,7 +177,7 @@ func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) err
 
 // try the different supported loader and returns the list of the fonts
 // contained in `file`, with their format.
-func getFontDescriptors(file fonts.Resource) ([]fonts.FontDescriptor, Format) {
+func getFontDescriptors(file font.Resource) ([]fonts.FontDescriptor, Format) {
 	out, err := truetype.ScanFont(file)
 	if err == nil {
 		return out, OpenType
@@ -217,6 +219,20 @@ func (sfi systemFontsIndex) flatten() FontSet {
 		out = append(out, file.footprints...)
 	}
 	return out
+}
+
+// assertValid makes sur at least one face is valid
+func (sfi systemFontsIndex) assertValid() error {
+	for _, file := range sfi {
+		for _, fp := range file.footprints {
+			_, err := fp.loadFromDisk()
+			if err == nil {
+				return nil
+			}
+		}
+	}
+
+	return errors.New("no valid font")
 }
 
 // groups the footprints by origin file
@@ -262,11 +278,12 @@ func (fa *footprintScanner) consume(path string, info fs.FileInfo) error {
 		return err
 	}
 
-	fontDescriptors, format := getFontDescriptors(file)
 	ff := fileFootprints{
 		path:    path,
 		modTime: modTime,
 	}
+
+	fontDescriptors, format := getFontDescriptors(file)
 
 	for i, fd := range fontDescriptors {
 		footprint, err := newFootprintFromDescriptor(fd, format)
@@ -282,10 +299,12 @@ func (fa *footprintScanner) consume(path string, info fs.FileInfo) error {
 		ff.footprints = append(ff.footprints, footprint)
 	}
 
-	// note that newFootprintFromDescriptor may read from the file,
-	// so that we should not close it earlier.
+	// newFootprintFromDescriptor still uses file, do not close earlier
 	file.Close()
 
+	// if the file is invalid,
+	// we store an empty list of footprints but still adds the entry to the index
+	// so that subsequent calls won't try to open it again
 	fa.dst = append(fa.dst, ff)
 
 	return nil
