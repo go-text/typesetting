@@ -19,30 +19,46 @@ import (
 // rules.
 //
 // A typical usage would be as following :
-//	TODO:
+// 		fontMap := NewFontMap()
 //
-// It is designed to work with an index built by scanning the system fonts,
-// which is a costly operation (see XXX for more details).
+// 		// at least one of the following calls
+//		fontMap.UseSystemFonts() // error handling omitted
+//		fontMap.AddFont(font1, "font1") // error handling omitted
+//		fontMap.AddFont(font2, "font2") // error handling omitted
+//
+//		// set the font description
+//		fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+//
+//		// `fontMap` is now ready for text shaping
+//
+// Note that FontMap is NOT safe for concurrent use, but several font maps may coexist
+// in an application.
+//
+// `FontMap` is designed to work with an index built by scanning the system fonts,
+// which is a costly operation (see UseSystemFonts for more details).
 // A lightweight alternative is provided by the FindFont function, which only uses
 // file paths to select a font.
 type FontMap struct {
-	// the database to query, either loaded from an index
-	// or populated with the XXX method
-	database FontSet
-
-	// TODO: // an internal buffer used when matching fonts
-	// candidates FontSet
-
-	// the current query, which influences ResolveFace output
-	query FontQuery
-
 	// cache of already loaded faces
 	faces map[Location]font.Face
+
+	// the database to query, either loaded from an index
+	// or populated with the UseSystemFonts and AddFont method
+	database fontSet
+
+	// the candidates for the current query, which influences ResolveFace output
+	candidates candidates
+
+	// internal buffer used in SetQuery
+	buffer scoredFootprints
+
+	query Query // current query
+
 }
 
-// TODO:
 // NewFontMap return a new font map,
-// which should be filled with the XXX methods.
+// which should be filled with the `UseSystemFonts`
+// or `AddFont` methods.
 func NewFontMap() *FontMap {
 	return &FontMap{faces: make(map[Location]font.Face)}
 }
@@ -62,7 +78,7 @@ func (fm *FontMap) UseSystemFonts() error {
 	// systemFonts is read-only, so may be used concurrently
 	fm.database = append(fm.database, systemFonts.flatten()...)
 
-	// TODO: reset caching
+	fm.buildCandidates()
 
 	return nil
 }
@@ -154,20 +170,20 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID string) error {
 		panic("internal error: inconsistent font descriptors and loader")
 	}
 
-	var addedFonts []Footprint
-	for i, fd := range fontDescriptors {
-		footprint, err := newFootprintFromDescriptor(fd, format)
+	var addedFonts []footprint
+	for i, fontDesc := range fontDescriptors {
+		fp, err := newFootprintFromDescriptor(fontDesc, format)
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue
 		}
 
-		footprint.Location.File = fileID
-		footprint.Location.Index = uint16(i)
+		fp.Location.File = fileID
+		fp.Location.Index = uint16(i)
 		// TODO: for now, we do not handle variable fonts
 
-		addedFonts = append(addedFonts, footprint)
-		fm.faces[footprint.Location] = faces[i]
+		addedFonts = append(addedFonts, fp)
+		fm.faces[fp.Location] = faces[i]
 	}
 
 	if len(addedFonts) == 0 {
@@ -175,11 +191,13 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID string) error {
 	}
 
 	fm.database = append(fm.database, addedFonts...)
-	// TODO: reset caching
+
+	fm.buildCandidates()
+
 	return nil
 }
 
-// FaceLocation look for the `given` among the loaded font map faces
+// FaceLocation look for the given `face` among the loaded font map faces
 // to find its origin.
 // FaceLocation should only be called for faces returned by `ResolveFace`,
 // otherwise the returned Location will be empty.
@@ -194,60 +212,94 @@ func (fm *FontMap) FaceLocation(face font.Face) Location {
 
 // SetQuery set the families and aspect required, influencing subsequent
 // `ResolveFace` calls.
-func (fm *FontMap) SetQuery(query FontQuery) {
-	// TODO: caching layer, since many runes will be looked for
-	// the same query
+func (fm *FontMap) SetQuery(query Query) {
 	fm.query = query
+
+	// since many runes will be looked for the same query,
+	// we eagerly revolve the candidates for the given query
+	fm.buildCandidates()
 }
 
-// ResolveFace select a face based on the current query (see SetQuery),
-// applying CSS font selection rules.
-// The function will return nil if the underlying font database is empty,
-// or if the file system is broken; otherwise the returned font.Face is always valid.
-func (fm *FontMap) ResolveFace(r rune) font.Face {
-	// TODO: caching layer
-	selectFace := func(systemFallback bool) font.Face {
-		for _, family := range fm.query.Families {
-			candidates := fm.database.selectByFamily(family, systemFallback)
+func (cd *candidates) ensureSize(L int) {
+	if cap(cd.withFallback) < L { // reallocate
+		cd.withFallback = make([][]int, L)
+		cd.withoutFallback = make([]int, L)
+	}
+	// only reslice
+	cd.withFallback = cd.withFallback[0:L]
+	cd.withoutFallback = cd.withoutFallback[0:L]
+}
+
+func (fm *FontMap) buildCandidates() {
+	fm.candidates.ensureSize(len(fm.query.Families))
+
+	selectFootprints := func(systemFallback bool) {
+		for familyIndex, family := range fm.query.Families {
+			candidates := fm.database.selectByFamily(family, systemFallback, &fm.buffer)
 			if len(candidates) == 0 {
 				continue
 			}
 
 			// select the correct aspects
-			candidates.retainsBestMatches(fm.query.Aspect)
+			candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
 
-			// when no systemFallback is required, the CSS spec says
-			// that only one font among the candidates must be tried
-			if !systemFallback {
-				candidates = candidates[:1]
-			}
-
-			for _, fp := range candidates {
-				// check the coverage
-				if fp.Runes.Contains(r) {
-					// try to use the font
-					face, err := fm.loadFace(fp)
-					if err != nil { // very unlikely; try an other family
-						log.Println(err)
-						continue
-					}
-					return face
-				}
+			if systemFallback {
+				fm.candidates.withFallback[familyIndex] = candidates
+			} else {
+				// when no systemFallback is required, the CSS spec says
+				// that only one font among the candidates must be tried
+				fm.candidates.withoutFallback[familyIndex] = candidates[0]
 			}
 		}
-		return nil
 	}
 
+	selectFootprints(true)
+	selectFootprints(false)
+}
+
+// candidates is a cache storing the indices into FontMap.database of footprints matching a Query
+// the two slices has the same length: the number of family in the query
+type candidates struct {
+	withFallback    [][]int // for each queried family
+	withoutFallback []int   // for each queried family, only one footprint is selected
+}
+
+// returns nil if not candidates supports the rune `r`
+func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 	// we first look up for an exact family match, without substitutions
-	face := selectFace(false)
-	if face != nil {
-		return face
+	for _, footprintIndex := range candidates {
+		// check the coverage
+		if fp := fm.database[footprintIndex]; fp.Runes.Contains(r) {
+			// try to use the font
+			face, err := fm.loadFace(fp)
+			if err != nil { // very unlikely; try an other family
+				log.Println(err)
+				continue
+			}
+			return face
+		}
+	}
+
+	return nil
+}
+
+// ResolveFace select a face based on the current query (see `SetQuery`),
+// and supporting the given rune, applying CSS font selection rules.
+// The function will return nil if the underlying font database is empty,
+// or if the file system is broken; otherwise the returned font.Face is always valid.
+func (fm *FontMap) ResolveFace(char rune) font.Face {
+	// we first look up for an exact family match, without substitutions
+	for _, footprintIndex := range fm.candidates.withoutFallback {
+		if face := fm.resolveForRune([]int{footprintIndex}, char); face != nil {
+			return face
+		}
 	}
 
 	// if no family has matched so far, try again with system fallback
-	face = selectFace(true)
-	if face != nil {
-		return face
+	for _, footprintIndexList := range fm.candidates.withFallback {
+		if face := fm.resolveForRune(footprintIndexList, char); face != nil {
+			return face
+		}
 	}
 
 	// this is very very unlikely, since the substitution
@@ -269,10 +321,11 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 	// refreshSystemFontsIndex makes sure at least one face is valid
 	// and AddFont also check for valid font files, meaning that
 	// a valid FontMap should always contain a valid face,
+	// and this should never happen in pratice
 	return nil
 }
 
-func (fm *FontMap) loadFace(fp Footprint) (font.Face, error) {
+func (fm *FontMap) loadFace(fp footprint) (font.Face, error) {
 	if face, hasCached := fm.faces[fp.Location]; hasCached {
 		return face, nil
 	}
@@ -289,11 +342,3 @@ func (fm *FontMap) loadFace(fp Footprint) (font.Face, error) {
 
 	return face, nil
 }
-
-// func (fm *FontMap) resetBuffer() {
-// 	if cap(fm.candidates) < len(fm.database) { // grow the buffer
-// 		fm.candidates = make(FontSet, 0, len(fm.database))
-// 	}
-// 	fm.candidates = fm.candidates[0:len(fm.database)]
-// 	copy(fm.candidates, fm.database)
-// }

@@ -29,24 +29,24 @@ type runePage struct {
 	set pageSet
 }
 
-// RuneSet is an efficient implementation of a rune set (that is a map[rune]bool),
+// runeSet is an efficient implementation of a rune set (that is a map[rune]bool),
 // used to store the Unicode points supported by a font, and optimized to deal with consecutive
 // runes.
-type RuneSet []runePage
+type runeSet []runePage
 
-// NewRuneSet builds a set containing the given runes.
-func NewRuneSet(runes ...rune) RuneSet {
-	var rs RuneSet
+// newRuneSet builds a set containing the given runes.
+func newRuneSet(runes ...rune) runeSet {
+	var rs runeSet
 	for _, r := range runes {
 		rs.Add(r)
 	}
 	return rs
 }
 
-// NewRuneSetFromCmap iterates through the given `cmap`
+// newRuneSetFromCmap iterates through the given `cmap`
 // to build the corresponding rune set.
-func NewRuneSetFromCmap(cmap fonts.Cmap) RuneSet {
-	var rs RuneSet
+func newRuneSetFromCmap(cmap fonts.Cmap) runeSet {
+	var rs runeSet
 	iter := cmap.Iter()
 	for iter.Next() {
 		r, _ := iter.Char()
@@ -55,8 +55,8 @@ func NewRuneSetFromCmap(cmap fonts.Cmap) RuneSet {
 	return rs
 }
 
-// Runes returns a copy of the runes in the set.
-func (rs RuneSet) Runes() (out []rune) {
+// runes returns a copy of the runes in the set.
+func (rs runeSet) runes() (out []rune) {
 	for _, page := range rs {
 		pageLow := rune(page.ref) << 8
 		for j, set := range page.set {
@@ -72,7 +72,7 @@ func (rs RuneSet) Runes() (out []rune) {
 
 // findPageFrom is the same as findPagePos, but
 // start the binary search with the given `low` index
-func (rs RuneSet) findPageFrom(low int, ref pageRef) int {
+func (rs runeSet) findPageFrom(low int, ref pageRef) int {
 	high := len(rs) - 1
 	for low <= high {
 		mid := (low + high) >> 1
@@ -95,10 +95,10 @@ func (rs RuneSet) findPageFrom(low int, ref pageRef) int {
 // findPagePos searches for the leaf containing the specified number.
 // It returns its index if it exists, otherwise it returns the negative of
 // the (`position` + 1) where `position` is the index where it should be inserted
-func (rs RuneSet) findPagePos(page pageRef) int { return rs.findPageFrom(0, page) }
+func (rs runeSet) findPagePos(page pageRef) int { return rs.findPageFrom(0, page) }
 
 // return true if and only if `a` is a subset of `b`
-func (a RuneSet) isSubset(b RuneSet) bool {
+func (a runeSet) isSubset(b runeSet) bool {
 	ai, bi := 0, 0
 	for ai < len(a) && bi < len(b) {
 		an := a[ai].ref
@@ -133,7 +133,7 @@ func (a RuneSet) isSubset(b RuneSet) bool {
 
 // findPage returns the page containing the specified char, or nil
 // if it doesn't exists
-func (rs RuneSet) findPage(ref pageRef) *pageSet {
+func (rs runeSet) findPage(ref pageRef) *pageSet {
 	pos := rs.findPagePos(ref)
 	if pos >= 0 {
 		return &rs[pos].set
@@ -143,7 +143,7 @@ func (rs RuneSet) findPage(ref pageRef) *pageSet {
 
 // findOrCreatePage locates the page containing the specified char, creating it if needed,
 // and returns a pointer to it
-func (rs *RuneSet) findOrCreatePage(ref pageRef) *pageSet {
+func (rs *runeSet) findOrCreatePage(ref pageRef) *pageSet {
 	pos := rs.findPagePos(ref)
 	if pos < 0 { // the page doest not exists, create it
 		pos = -pos - 1
@@ -154,7 +154,7 @@ func (rs *RuneSet) findOrCreatePage(ref pageRef) *pageSet {
 }
 
 // insertPage inserts the given `page` at `pos`, meaning the resulting page can be accessed via &rs[pos]
-func (rs *RuneSet) insertPage(page runePage, pos int) {
+func (rs *runeSet) insertPage(page runePage, pos int) {
 	// insert in slice
 	*rs = append(*rs, runePage{})
 	copy((*rs)[pos+1:], (*rs)[pos:])
@@ -162,14 +162,14 @@ func (rs *RuneSet) insertPage(page runePage, pos int) {
 }
 
 // Add adds `r` to the rune set.
-func (rs *RuneSet) Add(r rune) {
+func (rs *runeSet) Add(r rune) {
 	leaf := rs.findOrCreatePage(uint16(r >> 8))
 	b := &leaf[(r&0xff)>>5] // (r&0xff)>>5 is the index in the page
 	*b |= (1 << (r & 0x1f)) // r & 0x1f is the bit in the uint32
 }
 
 // Delete removes the rune from the rune set.
-func (rs RuneSet) Delete(r rune) {
+func (rs runeSet) Delete(r rune) {
 	leaf := rs.findPage(uint16(r >> 8))
 	if leaf == nil {
 		return
@@ -180,7 +180,7 @@ func (rs RuneSet) Delete(r rune) {
 }
 
 // Contains returns `true` if `r` is in the set.
-func (rs *RuneSet) Contains(r rune) bool {
+func (rs *runeSet) Contains(r rune) bool {
 	leaf := rs.findPage(uint16(r >> 8))
 	if leaf == nil {
 		return false
@@ -189,7 +189,7 @@ func (rs *RuneSet) Contains(r rune) bool {
 }
 
 // Len returns the number of runes in the set.
-func (a RuneSet) Len() int {
+func (a runeSet) Len() int {
 	count := 0
 	for _, page := range a {
 		for _, am := range page.set {
@@ -202,7 +202,7 @@ func (a RuneSet) Len() int {
 const runePageSize = 2 + 8*4 // uint16 + 8 * uint32
 
 // serializeTo serialize the Coverage in binary format
-func (rs RuneSet) serialize() []byte {
+func (rs runeSet) serialize() []byte {
 	buffer := make([]byte, 2+runePageSize*len(rs))
 	binary.BigEndian.PutUint16(buffer, uint16(len(rs)))
 	for i, page := range rs {
@@ -217,7 +217,7 @@ func (rs RuneSet) serialize() []byte {
 
 // deserializeFrom reads the binary format produced by serializeTo
 // it returns the number of bytes read from `data`
-func (rs *RuneSet) deserializeFrom(data []byte) (int, error) {
+func (rs *runeSet) deserializeFrom(data []byte) (int, error) {
 	if len(data) < 2 {
 		return 0, errors.New("invalid Coverage (EOF)")
 	}
@@ -225,7 +225,7 @@ func (rs *RuneSet) deserializeFrom(data []byte) (int, error) {
 	if len(data) < 2+runePageSize*L {
 		return 0, errors.New("invalid Coverage size (EOF)")
 	}
-	v := make(RuneSet, L)
+	v := make(runeSet, L)
 	for i := range v {
 		v[i].ref = binary.BigEndian.Uint16(data[2+runePageSize*i:])
 		slice := data[2+runePageSize*i+2:]
