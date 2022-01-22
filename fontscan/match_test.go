@@ -30,7 +30,8 @@ func Test_newFamilyCrible(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := applySubstitutions(ignoreBlanksAndCase(tt.family)); !reflect.DeepEqual(got.families(), tt.want) {
+		got := make(familyCrible)
+		if got.fillWithSubstitutions(normalizeFamily(tt.family)); !reflect.DeepEqual(got.families(), tt.want) {
 			t.Errorf("newFamilyCrible() = %v, want %v", got.families(), tt.want)
 		}
 	}
@@ -38,7 +39,7 @@ func Test_newFamilyCrible(t *testing.T) {
 
 func fontsFromFamilies(families ...string) (out fontSet) {
 	for _, family := range families {
-		out = append(out, footprint{Family: family})
+		out = append(out, footprint{Family: normalizeFamily(family)})
 	}
 	return out
 }
@@ -77,15 +78,16 @@ func TestFontMap_selectByFamily(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamily(tt.family, tt.substitute, &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
+		if got := tt.fontset.selectByFamily(tt.family, tt.substitute, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FontMap.selectByFamily() = \n%v, want \n%v", got, tt.want)
 		}
 	}
 }
 
 func BenchmarkNewFamilyCrible(b *testing.B) {
+	c := make(familyCrible)
 	for i := 0; i < b.N; i++ {
-		_ = applySubstitutions("Arial")
+		c.fillWithSubstitutions("Arial")
 	}
 }
 

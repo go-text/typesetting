@@ -81,8 +81,6 @@ func BenchmarkSetQuery(b *testing.B) {
 	}
 }
 
-// BenchmarkSetQuery-4   	     495	   2396004 ns/op	  483261 B/op	   24289 allocs/op
-
 func Test_refreshSystemFontsIndex(t *testing.T) {
 	dir := t.TempDir()
 	cachePath := filepath.Join(dir, "fonts.cache")

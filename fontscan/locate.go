@@ -35,13 +35,14 @@ func (sf scoredPaths) Swap(i int, j int) {
 // expand `family` with the standard substitutions,
 // then loop through the given file names looking for the best match
 func selectFileByFamily(inFamily string, paths []string) []string {
-	inFamily = ignoreBlanksAndCase(inFamily)
-	crible := applySubstitutions(inFamily)
+	inFamily = normalizeFamily(inFamily)
+	crible := make(familyCrible)
+	crible.fillWithSubstitutions(inFamily)
 
 	var matches scoredPaths
 	for _, filePath := range paths {
 		filename, _ := splitAtDot(filePath)
-		filename = ignoreBlanksAndCase(filename)
+		filename = normalizeFamily(filename)
 		for family, score := range crible {
 			// approximate search
 			if strings.Contains(filename, family) {

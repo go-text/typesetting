@@ -49,8 +49,9 @@ type FontMap struct {
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
 
-	// internal buffer used in SetQuery
-	buffer scoredFootprints
+	// internal buffers used in SetQuery
+	footprintsBuffer scoredFootprints
+	cribleBuffer     familyCrible
 
 	query Query // current query
 
@@ -60,7 +61,7 @@ type FontMap struct {
 // which should be filled with the `UseSystemFonts`
 // or `AddFont` methods.
 func NewFontMap() *FontMap {
-	return &FontMap{faces: make(map[Location]font.Face)}
+	return &FontMap{faces: make(map[Location]font.Face), cribleBuffer: make(familyCrible)}
 }
 
 // UseSystemFonts loads the system fonts and adds them to the font map.
@@ -182,6 +183,8 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID string) error {
 		fp.Location.Index = uint16(i)
 		// TODO: for now, we do not handle variable fonts
 
+		fp.Family = normalizeFamily(fp.Family)
+
 		addedFonts = append(addedFonts, fp)
 		fm.faces[fp.Location] = faces[i]
 	}
@@ -235,7 +238,7 @@ func (fm *FontMap) buildCandidates() {
 
 	selectFootprints := func(systemFallback bool) {
 		for familyIndex, family := range fm.query.Families {
-			candidates := fm.database.selectByFamily(family, systemFallback, &fm.buffer)
+			candidates := fm.database.selectByFamily(family, systemFallback, &fm.footprintsBuffer, fm.cribleBuffer)
 			if len(candidates) == 0 {
 				continue
 			}
