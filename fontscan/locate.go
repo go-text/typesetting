@@ -92,7 +92,7 @@ func selectRegular(paths []string) (font.Face, error) {
 	return nil, ErrFontNotFound
 }
 
-// FindFont look for a font matching `family` in the
+// FindFont look for a regular font matching `family` in the
 // standard font folders.
 // If `family` is not found, suitable substitutions are tried
 // to find a close font.

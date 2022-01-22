@@ -47,7 +47,7 @@ func TestScanFontFootprints(t *testing.T) {
 	}
 
 	// Show some basic stats
-	distribution := map[Format]int{}
+	distribution := map[fontFormat]int{}
 	for _, font := range fontset.flatten() {
 		if font.Runes.Len() == 0 {
 			t.Fatalf("unexpected empty rune coverage for %s", font.Location.File)

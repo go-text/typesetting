@@ -36,47 +36,48 @@ func Test_newFamilyCrible(t *testing.T) {
 	}
 }
 
-func fontsFromFamilies(families ...string) (out FontSet) {
+func fontsFromFamilies(families ...string) (out fontSet) {
 	for _, family := range families {
-		out = append(out, Footprint{Family: family})
+		out = append(out, footprint{Family: family})
 	}
 	return out
 }
 
 func TestFontMap_selectByFamily(t *testing.T) {
 	tests := []struct {
-		fontset    FontSet
+		fontset    fontSet
 		family     string
 		substitute bool
-		want       FontSet
+		want       []int
 	}{
 		{nil, "", false, nil}, // no match on empty fontset
 		// simple match
-		{fontsFromFamilies("arial"), "Arial", false, fontsFromFamilies("arial")},
+		{fontsFromFamilies("arial"), "Arial", false, []int{0}},
 		// blank and case
-		{fontsFromFamilies("ar Ial"), "Arial", false, fontsFromFamilies("ar Ial")},
+		{fontsFromFamilies("ar Ial"), "Arial", false, []int{0}},
 		// two fonts
-		{fontsFromFamilies("ar Ial", "emoji"), "Arial", false, fontsFromFamilies("ar Ial")},
+		{fontsFromFamilies("ar Ial", "emoji"), "Arial", false, []int{0}},
 		// substitution
 		{fontsFromFamilies("arial"), "Helvetica", false, nil},
-		{fontsFromFamilies("arial"), "Helvetica", true, fontsFromFamilies("arial")},
-		{fontsFromFamilies("caladea", "XXX"), "cambria", true, fontsFromFamilies("caladea")},
+		{fontsFromFamilies("arial"), "Helvetica", true, []int{0}},
+		{fontsFromFamilies("caladea", "XXX"), "cambria", true, []int{0}},
 		// substitution, with order
-		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", true, fontsFromFamilies("Helvetica", "arial")},
+		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", true, []int{1, 0}},
 		// substitution, with order, and no matching fonts
-		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", true, fontsFromFamilies("Helvetica", "arial")},
+		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", true, []int{1, 0}},
 		// generic families
-		{fontsFromFamilies("norasi", "XXX"), "serif", false, fontsFromFamilies("norasi")},
+		{fontsFromFamilies("norasi", "XXX"), "serif", false, []int{0}},
 		// default to generic families
-		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", true, fontsFromFamilies("DEjaVuSerif")},
+		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", true, []int{0}},
 		// substitutions
 		{
 			fontsFromFamilies("Nimbus Roman", "Tinos", "Liberation Serif", "DejaVu Serif", "arial"),
-			"Times", true, fontsFromFamilies("Nimbus Roman", "Tinos", "Liberation Serif", "DejaVu Serif"),
+			"Times", true,
+			[]int{0, 1, 2, 3},
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamily(tt.family, tt.substitute); !reflect.DeepEqual(got, tt.want) {
+		if got := tt.fontset.selectByFamily(tt.family, tt.substitute, &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FontMap.selectByFamily() = \n%v, want \n%v", got, tt.want)
 		}
 	}
@@ -88,23 +89,31 @@ func BenchmarkNewFamilyCrible(b *testing.B) {
 	}
 }
 
-func fontsetFromStretches(sts ...Stretch) (out FontSet) {
+func fontsetFromStretches(sts ...Stretch) (out fontSet) {
 	for _, stretch := range sts {
-		out = append(out, Footprint{Aspect: Aspect{Stretch: stretch}})
+		out = append(out, footprint{Aspect: Aspect{Stretch: stretch}})
 	}
 	return out
 }
 
-func fontsetFromStyles(sts ...Style) (out FontSet) {
+func fontsetFromStyles(sts ...Style) (out fontSet) {
 	for _, style := range sts {
-		out = append(out, Footprint{Aspect: Aspect{Style: style}})
+		out = append(out, footprint{Aspect: Aspect{Style: style}})
 	}
 	return out
 }
 
-func fontsetFromWeights(sts ...Weight) (out FontSet) {
+func fontsetFromWeights(sts ...Weight) (out fontSet) {
 	for _, weight := range sts {
-		out = append(out, Footprint{Aspect: Aspect{Weight: weight}})
+		out = append(out, footprint{Aspect: Aspect{Weight: weight}})
+	}
+	return out
+}
+
+func allIndices(fs fontSet) []int {
+	out := make([]int, len(fs))
+	for i := range fs {
+		out[i] = i
 	}
 	return out
 }
@@ -112,7 +121,7 @@ func fontsetFromWeights(sts ...Weight) (out FontSet) {
 func TestFontSet_matchStretch(t *testing.T) {
 	tests := []struct {
 		name string
-		fs   FontSet
+		fs   fontSet
 		args Stretch
 		want Stretch
 	}{
@@ -124,7 +133,7 @@ func TestFontSet_matchStretch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.fs.matchStretch(tt.args); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.fs.matchStretch(allIndices(tt.fs), tt.args); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FontSet.matchStretch() = %v, want %v", got, tt.want)
 			}
 		})
@@ -134,7 +143,7 @@ func TestFontSet_matchStretch(t *testing.T) {
 func TestFontSet_matchStyle(t *testing.T) {
 	tests := []struct {
 		name string
-		fs   FontSet
+		fs   fontSet
 		args Style
 		want Style
 	}{
@@ -149,7 +158,7 @@ func TestFontSet_matchStyle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.fs.matchStyle(tt.args); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.fs.matchStyle(allIndices(tt.fs), tt.args); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FontSet.matchStyle() = %v, want %v", got, tt.want)
 			}
 		})
@@ -159,7 +168,7 @@ func TestFontSet_matchStyle(t *testing.T) {
 func TestFontSet_matchWeight(t *testing.T) {
 	tests := []struct {
 		name string
-		fs   FontSet
+		fs   fontSet
 		args Weight
 		want Weight
 	}{
@@ -174,16 +183,16 @@ func TestFontSet_matchWeight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.fs.matchWeight(tt.args); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.fs.matchWeight(allIndices(tt.fs), tt.args); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FontSet.matchWeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func fontsetFromAspects(as ...Aspect) (out FontSet) {
+func fontsetFromAspects(as ...Aspect) (out fontSet) {
 	for _, a := range as {
-		out = append(out, Footprint{Aspect: a})
+		out = append(out, footprint{Aspect: a})
 	}
 	return out
 }
@@ -196,20 +205,20 @@ func TestFontSet_selectBestMatch(t *testing.T) {
 
 	tests := []struct {
 		name string
-		fs   FontSet
+		fs   fontSet
 		args Aspect
-		want Footprint
+		want footprint
 	}{
-		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), defaultAspect, Footprint{Aspect: defaultAspect}},
-		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), boldAspect, Footprint{Aspect: boldAspect}},
-		{"exact match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), boldItalicAspect, Footprint{Aspect: boldItalicAspect}},
-		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), Aspect{Style: fonts.StyleOblique}, Footprint{Aspect: boldItalicAspect}},
-		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect, narrowAspect), Aspect{Stretch: fonts.StretchExtraCondensed}, Footprint{Aspect: narrowAspect}},
+		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), defaultAspect, footprint{Aspect: defaultAspect}},
+		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), boldAspect, footprint{Aspect: boldAspect}},
+		{"exact match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), boldItalicAspect, footprint{Aspect: boldItalicAspect}},
+		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), Aspect{Style: fonts.StyleOblique}, footprint{Aspect: boldItalicAspect}},
+		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect, narrowAspect), Aspect{Stretch: fonts.StretchExtraCondensed}, footprint{Aspect: narrowAspect}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.fs.retainsBestMatches(tt.args)
-			if got := tt.fs[0]; !reflect.DeepEqual(got, tt.want) {
+			result := tt.fs.retainsBestMatches(allIndices(tt.fs), tt.args)
+			if got := tt.fs[result[0]]; !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FontSet.selectBestMatch() = %v, want %v", got, tt.want)
 			}
 		})
