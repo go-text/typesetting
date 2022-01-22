@@ -213,10 +213,14 @@ func (fh *timeStamp) deserialize(src []byte) {
 // systemFontsIndex stores the footprint comming from the file system
 type systemFontsIndex []fileFootprints
 
+// normalize the family names
 func (sfi systemFontsIndex) flatten() fontSet {
 	var out fontSet
 	for _, file := range sfi {
-		out = append(out, file.footprints...)
+		for _, fp := range file.footprints {
+			fp.Family = normalizeFamily(fp.Family)
+			out = append(out, fp)
+		}
 	}
 	return out
 }
@@ -286,17 +290,17 @@ func (fa *footprintScanner) consume(path string, info fs.FileInfo) error {
 	fontDescriptors, format := getFontDescriptors(file)
 
 	for i, fd := range fontDescriptors {
-		footprint, err := newFootprintFromDescriptor(fd, format)
+		fp, err := newFootprintFromDescriptor(fd, format)
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue
 		}
 
-		footprint.Location.File = path
-		footprint.Location.Index = uint16(i)
+		fp.Location.File = path
+		fp.Location.Index = uint16(i)
 		// TODO: for now, we do not handle variable fonts
 
-		ff.footprints = append(ff.footprints, footprint)
+		ff.footprints = append(ff.footprints, fp)
 	}
 
 	// newFootprintFromDescriptor still uses file, do not close earlier

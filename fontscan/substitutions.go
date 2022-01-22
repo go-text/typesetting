@@ -22,7 +22,7 @@ func init() {
 	// replace families keys by their no case no blank version
 	for i, v := range familySubstitution {
 		for i, s := range v.additionalFamilies {
-			v.additionalFamilies[i] = ignoreBlanksAndCase(s)
+			v.additionalFamilies[i] = normalizeFamily(s)
 		}
 
 		familySubstitution[i].test = v.test.normalize()
@@ -65,16 +65,14 @@ func (fl familyList) elementContains(family string) *list.Element {
 }
 
 // return the crible corresponding to the order
-func (fl familyList) compile() familyCrible {
-	out := make(familyCrible)
+func (fl familyList) compileTo(dst familyCrible) {
 	i := 0
 	for l := fl.List.Front(); l != nil; l, i = l.Next(), i+1 {
 		family := l.Value.(string)
-		if _, has := out[family]; !has { // for duplicated entries, keep the first (best) score
-			out[family] = i
+		if _, has := dst[family]; !has { // for duplicated entries, keep the first (best) score
+			dst[family] = i
 		}
 	}
-	return out
 }
 
 func (fl familyList) insertStart(families []string) {
@@ -144,7 +142,7 @@ func (mf familyEquals) test(list familyList) *list.Element {
 }
 
 func (mf familyEquals) normalize() substitutionTest {
-	return familyEquals(ignoreBlanksAndCase(string(mf)))
+	return familyEquals(normalizeFamily(string(mf)))
 }
 
 // a family in the list must contain 'mf'
@@ -155,7 +153,7 @@ func (mf familyContains) test(list familyList) *list.Element {
 }
 
 func (mf familyContains) normalize() substitutionTest {
-	return familyContains(ignoreBlanksAndCase(string(mf)))
+	return familyContains(normalizeFamily(string(mf)))
 }
 
 // the family list has no "serif", "sans-serif" or "monospace" generic fallback
@@ -188,7 +186,7 @@ func (langAndFamilyEqual) test(list familyList) *list.Element {
 }
 
 func (t langAndFamilyEqual) normalize() substitutionTest {
-	t.family = ignoreBlanksAndCase(t.family)
+	t.family = normalizeFamily(t.family)
 	return t
 }
 
@@ -205,7 +203,7 @@ func (langContainsAndFamilyEquals) test(list familyList) *list.Element {
 }
 
 func (t langContainsAndFamilyEquals) normalize() substitutionTest {
-	t.family = ignoreBlanksAndCase(t.family)
+	t.family = normalizeFamily(t.family)
 	return t
 }
 
@@ -222,7 +220,7 @@ func (langEqualsAndNoFamily) test(list familyList) *list.Element {
 }
 
 func (t langEqualsAndNoFamily) normalize() substitutionTest {
-	t.family = ignoreBlanksAndCase(t.family)
+	t.family = normalizeFamily(t.family)
 	return t
 }
 

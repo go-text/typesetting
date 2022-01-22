@@ -146,7 +146,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	if len(fontset3) != 2 {
 		t.Fatalf("unexpected font set: %v", fontset)
 	}
-	if family := fontset3.flatten()[0].Family; family != "Roboto" {
+	if family := fontset3.flatten()[0].Family; family != "roboto" {
 		t.Fatalf("unexpected family %s", family)
 	}
 
