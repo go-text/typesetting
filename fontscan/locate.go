@@ -99,7 +99,7 @@ func selectRegular(paths []string) (font.Face, error) {
 // In the (unlikely) case where no font is found,
 // ErrFontNotFound is returned.
 func FindFont(family string) (font.Face, error) {
-	directories, err := DefaultFontDirs()
+	directories, err := DefaultFontDirectories()
 	if err != nil {
 		return nil, err
 	}

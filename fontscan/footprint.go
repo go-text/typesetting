@@ -4,19 +4,21 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/fonts/type1"
+	"github.com/go-text/typesetting/font"
 )
 
 // Footprint is a condensed summary of the main information
 // about a font, serving as a lightweight surrogate
 // for the original font file.
 type Footprint struct {
-	// Location stores the adress of the font file.
-	Location fonts.FaceID
+	// Location stores the adress of the font resource.
+	Location Location
 
 	// Family is the general nature of the font, like
 	// "Arial"
@@ -105,6 +107,29 @@ func (as *Footprint) deserializeFrom(data []byte) (int, error) {
 	return n + 1, nil
 }
 
+// loadFromDisk assume the footprint location refers to the file system
+func (fp *Footprint) loadFromDisk() (font.Face, error) {
+	location := fp.Location
+
+	file, err := os.Open(location.File)
+	if err != nil {
+		return nil, err
+	}
+
+	faces, err := fp.Format.Loader()(file)
+	if err != nil {
+		return nil, err
+	}
+
+	if index := int(location.Index); len(faces) <= index {
+		// this should only happen if the font file as changed
+		// since the last scan (very unlikely)
+		return nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(faces))
+	}
+
+	return faces[location.Index], nil
+}
+
 // Format identifies the format of a font file.
 type Format uint8
 
@@ -141,19 +166,4 @@ func (ff Format) Loader() fonts.FontLoader {
 	default:
 		return nil
 	}
-}
-
-// We use a tree representation to facilitate
-// the consistency check of a saved fontset against the
-// file system.
-
-// SystemFontset stores the font footprints scanned
-// from the disk, from one or several source directories
-type SystemFontset []fontsetNode
-
-// fontsetNode represents one directory
-type fontsetNode struct {
-	directory  string
-	children   []fontsetNode // sorted by `directory`
-	footprints []Footprint   // the fonts contained in this directory, sorted by `Location.Filename`
 }
