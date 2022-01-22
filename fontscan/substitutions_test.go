@@ -18,7 +18,8 @@ func Test_familyList_insertStart(t *testing.T) {
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
 		l.insertStart(tt.families)
-		if c := l.compile(); !reflect.DeepEqual(c, tt.want) {
+		c := make(familyCrible)
+		if l.compileTo(c); !reflect.DeepEqual(c, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, c)
 		}
 	}
@@ -37,7 +38,8 @@ func Test_familyList_insertEnd(t *testing.T) {
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
 		l.insertEnd(tt.families)
-		if c := l.compile(); !reflect.DeepEqual(c, tt.want) {
+		c := make(familyCrible)
+		if l.compileTo(c); !reflect.DeepEqual(c, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, c)
 		}
 	}
@@ -60,7 +62,8 @@ func Test_familyList_insertAfter(t *testing.T) {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
 		l.insertAfter(mark, tt.families)
-		if c := l.compile(); !reflect.DeepEqual(c, tt.want) {
+		c := make(familyCrible)
+		if l.compileTo(c); !reflect.DeepEqual(c, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, c)
 		}
 	}
@@ -83,7 +86,8 @@ func Test_familyList_insertBefore(t *testing.T) {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
 		l.insertBefore(mark, tt.families)
-		if c := l.compile(); !reflect.DeepEqual(c, tt.want) {
+		c := make(familyCrible)
+		if l.compileTo(c); !reflect.DeepEqual(c, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, c)
 		}
 	}
@@ -106,7 +110,8 @@ func Test_familyList_replace(t *testing.T) {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
 		l.replace(mark, tt.families)
-		if c := l.compile(); !reflect.DeepEqual(c, tt.want) {
+		c := make(familyCrible)
+		if l.compileTo(c); !reflect.DeepEqual(c, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, c)
 		}
 	}
@@ -129,7 +134,8 @@ func Test_familyList_execute(t *testing.T) {
 	for _, tt := range tests {
 		fl := newFamilyList(tt.start)
 		fl.execute(tt.args)
-		if c := fl.compile(); !reflect.DeepEqual(c, tt.want) {
+		c := make(familyCrible)
+		if fl.compileTo(c); !reflect.DeepEqual(c, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, c)
 		}
 	}
