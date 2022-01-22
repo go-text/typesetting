@@ -49,7 +49,7 @@ func deserializeString(s *string, data []byte) (int, error) {
 
 // serialize into binary format, appending to `dst` and returning
 // the updated slice
-func serializeFootprintsTo(footprints []Footprint, dst []byte) []byte {
+func serializeFootprintsTo(footprints []footprint, dst []byte) []byte {
 	for _, fp := range footprints {
 		dst = fp.serializeTo(dst)
 	}
@@ -57,9 +57,9 @@ func serializeFootprintsTo(footprints []Footprint, dst []byte) []byte {
 }
 
 // parses the format written by `serializeFootprints`
-func deserializeFootprints(src []byte) (out []Footprint, err error) {
+func deserializeFootprints(src []byte) (out []footprint, err error) {
 	for totalRead := 0; totalRead < len(src); {
-		var fp Footprint
+		var fp footprint
 		read, err := fp.deserializeFrom(src[totalRead:])
 		if err != nil {
 			return nil, fmt.Errorf("invalid footprints: %s", err)

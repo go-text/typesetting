@@ -21,7 +21,7 @@ import (
 
 // DefaultFontDirectories return the OS-dependent usual directories for
 // fonts, or an error if no one exists.
-// These are the directories used by `FindFont` and `FontMap.LoadSystemFonts` to locate fonts.
+// These are the directories used by `FindFont` and `FontMap.UseSystemFonts` to locate fonts.
 func DefaultFontDirectories() ([]string, error) {
 	var dirs []string
 	switch runtime.GOOS {
@@ -177,18 +177,18 @@ func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) err
 
 // try the different supported loader and returns the list of the fonts
 // contained in `file`, with their format.
-func getFontDescriptors(file font.Resource) ([]fonts.FontDescriptor, Format) {
+func getFontDescriptors(file font.Resource) ([]fonts.FontDescriptor, fontFormat) {
 	out, err := truetype.ScanFont(file)
 	if err == nil {
-		return out, OpenType
+		return out, openType
 	}
 	out, err = type1.ScanFont(file)
 	if err == nil {
-		return out, Type1
+		return out, adobeType1
 	}
 	out, err = bitmap.ScanFont(file)
 	if err == nil {
-		return out, PCF
+		return out, pcf
 	}
 	return nil, 0
 }
@@ -213,8 +213,8 @@ func (fh *timeStamp) deserialize(src []byte) {
 // systemFontsIndex stores the footprint comming from the file system
 type systemFontsIndex []fileFootprints
 
-func (sfi systemFontsIndex) flatten() FontSet {
-	var out FontSet
+func (sfi systemFontsIndex) flatten() fontSet {
+	var out fontSet
 	for _, file := range sfi {
 		out = append(out, file.footprints...)
 	}
@@ -239,7 +239,7 @@ func (sfi systemFontsIndex) assertValid() error {
 type fileFootprints struct {
 	path string // file path
 
-	footprints []Footprint // font content for the path
+	footprints []footprint // font content for the path
 
 	// modification time for the file
 	modTime timeStamp

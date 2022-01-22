@@ -50,9 +50,9 @@ func TestRuneSet(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		cov := NewRuneSet(tt.start...)
+		cov := newRuneSet(tt.start...)
 		cov.Add(tt.r)
-		if runes := cov.Runes(); !reflect.DeepEqual(runes, tt.expected) {
+		if runes := cov.runes(); !reflect.DeepEqual(runes, tt.expected) {
 			t.Fatalf("expected %v, got %v (%v)", tt.expected, runes, cov)
 		}
 
@@ -64,7 +64,7 @@ func TestRuneSet(t *testing.T) {
 
 		cov.Delete(tt.r)
 		sort.Slice(tt.start, func(i, j int) bool { return tt.start[i] < tt.start[j] })
-		if runes := cov.Runes(); !reflect.DeepEqual(runes, tt.start) {
+		if runes := cov.runes(); !reflect.DeepEqual(runes, tt.start) {
 			t.Fatalf("expected %v, got %v (%v)", tt.start, runes, cov)
 		}
 
@@ -90,10 +90,10 @@ func TestRuneSet(t *testing.T) {
 
 func TestBinaryFormat(t *testing.T) {
 	for range [50]int{} {
-		cov := NewRuneSet(randomRunes()...)
+		cov := newRuneSet(randomRunes()...)
 		b := cov.serialize()
 
-		var got RuneSet
+		var got runeSet
 		n, err := got.deserializeFrom(b)
 		if err != nil {
 			t.Fatalf("Coverage.deserializeFrom: %s", err)
@@ -110,7 +110,7 @@ func TestBinaryFormat(t *testing.T) {
 }
 
 func TestDeserializeFrom(t *testing.T) {
-	var cov RuneSet
+	var cov runeSet
 
 	if _, err := cov.deserializeFrom(nil); err == nil {
 		t.Fatal("exepcted error on invalid input")
@@ -122,16 +122,16 @@ func TestDeserializeFrom(t *testing.T) {
 
 func TestCoverage_isSubset(t *testing.T) {
 	tests := []struct {
-		a    RuneSet
-		b    RuneSet
+		a    runeSet
+		b    runeSet
 		want bool
 	}{
-		{NewRuneSet(), NewRuneSet(), true},
-		{NewRuneSet(1, 10, 0x78DD), NewRuneSet(1, 10, 0x78DD), true},
-		{NewRuneSet(1, 10, 0x78DD), NewRuneSet(1, 10, 0x78DD, 13), true},
-		{NewRuneSet(1, 10, 0x78DD, 12), NewRuneSet(1, 10, 0x78DD), false},
-		{NewRuneSet(0x78DD), NewRuneSet(1, 10), false},
-		{NewRuneSet(1, 10), NewRuneSet(0x78DD), false},
+		{newRuneSet(), newRuneSet(), true},
+		{newRuneSet(1, 10, 0x78DD), newRuneSet(1, 10, 0x78DD), true},
+		{newRuneSet(1, 10, 0x78DD), newRuneSet(1, 10, 0x78DD, 13), true},
+		{newRuneSet(1, 10, 0x78DD, 12), newRuneSet(1, 10, 0x78DD), false},
+		{newRuneSet(0x78DD), newRuneSet(1, 10), false},
+		{newRuneSet(1, 10), newRuneSet(0x78DD), false},
 	}
 	for _, tt := range tests {
 		if got := tt.a.isSubset(tt.b); got != tt.want {
@@ -143,12 +143,12 @@ func TestCoverage_isSubset(t *testing.T) {
 func TestNewRuneSetFromCmap(t *testing.T) {
 	tests := []struct {
 		args fonts.Cmap
-		want RuneSet
+		want runeSet
 	}{
-		{fonts.CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, NewRuneSet(0, 1, 2, 0xfff)},
+		{fonts.CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, newRuneSet(0, 1, 2, 0xfff)},
 	}
 	for _, tt := range tests {
-		if got := NewRuneSetFromCmap(tt.args); !reflect.DeepEqual(got, tt.want) {
+		if got := newRuneSetFromCmap(tt.args); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("NewRuneSetFromCmap() = %v, want %v", got, tt.want)
 		}
 	}
