@@ -10,7 +10,7 @@ import (
 )
 
 func TestDefaultDirs(t *testing.T) {
-	dirs, err := DefaultFontDirs()
+	dirs, err := DefaultFontDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +20,7 @@ func TestDefaultDirs(t *testing.T) {
 func TestScanFontFiles(t *testing.T) {
 	ti := time.Now()
 
-	directories, err := DefaultFontDirs()
+	directories, err := DefaultFontDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestScanFontFiles(t *testing.T) {
 func TestScanFontFootprints(t *testing.T) {
 	ti := time.Now()
 
-	directories, err := DefaultFontDirs()
+	directories, err := DefaultFontDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestScanFontFootprints(t *testing.T) {
 func TestScanIncrementalNoOp(t *testing.T) {
 	ti := time.Now()
 
-	directories, err := DefaultFontDirs()
+	directories, err := DefaultFontDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
