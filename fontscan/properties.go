@@ -117,7 +117,7 @@ func newAspectFromDescriptor(fd fonts.FontDescriptor) Aspect {
 // inferFromStyle scans such a string and fills the missing fields,
 // eventually defaulting to "regular" values : StyleNormal, WeightNormal, StretchNormal
 func (as *Aspect) inferFromStyle(additionalStyle string) {
-	additionalStyle = ignoreBlanksAndCase(additionalStyle)
+	additionalStyle = normalizeFamily(additionalStyle)
 
 	if as.Style == 0 {
 		if index := stringContainsConst(additionalStyle, styleStrings[:]); index != -1 {
@@ -157,7 +157,7 @@ func (as *Aspect) setDefaults() {
 
 var rp = strings.NewReplacer(" ", "", "\t", "")
 
-func ignoreBlanksAndCase(s1 string) string { return rp.Replace(strings.ToLower(s1)) }
+func normalizeFamily(s1 string) string { return rp.Replace(strings.ToLower(s1)) }
 
 // returns the index in `constants` of a constant contained in `str`,
 // or -1

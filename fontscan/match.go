@@ -22,41 +22,30 @@ type Query struct {
 // fontSet stores the list of fonts available for text shaping.
 // It is usually build from a system font index or by manually appending
 // fonts.
+// footprint family names are normalized
 type fontSet []footprint
 
 // stores the possible matches with their score:
 // lower is better
 type familyCrible map[string]int
 
-func newFamilyCrible(family string, substitute bool) familyCrible {
-	family = ignoreBlanksAndCase(family)
-
-	// always substitute generic families
-	if substitute || isGenericFamily(family) {
-		return applySubstitutions(family)
+// clear fc but keep the underlying storage
+func (fc familyCrible) reset() {
+	for k := range fc {
+		delete(fc, k)
 	}
-
-	return familyCrible{family: 0}
 }
 
-// applySubstitutions starts from `family` (ignoring blank and case)
+// fillWithSubstitutions starts from `family`
 // and applies all the substitutions coded in the package
 // to add substitutes values
-func applySubstitutions(family string) familyCrible {
+func (fc familyCrible) fillWithSubstitutions(family string) {
 	fl := newFamilyList([]string{family})
 	for _, subs := range familySubstitution {
 		fl.execute(subs)
 	}
 
-	return fl.compile()
-}
-
-// returns -1 if no match
-func (fc familyCrible) matches(family string) int {
-	if score, has := fc[ignoreBlanksAndCase(family)]; has {
-		return score
-	}
-	return -1
+	fl.compileTo(fc)
 }
 
 type scoredFootprints struct {
@@ -97,25 +86,34 @@ func isGenericFamily(family string) bool {
 // are always expanded to concrete families.
 // The returned slice may be empty if no font matches the given `family`.
 // buffer is used to reduce allocations
-func (fm fontSet) selectByFamily(family string, substitute bool, buffer *scoredFootprints) []int {
+func (fm fontSet) selectByFamily(family string, substitute bool,
+	footprintBuffer *scoredFootprints, cribleBuffer familyCrible) []int {
 	// build the crible, handling substitutions
-	crible := newFamilyCrible(family, substitute)
+	family = normalizeFamily(family)
 
-	buffer.reset()
+	footprintBuffer.reset()
+	cribleBuffer.reset()
+
+	// always substitute generic families
+	if substitute || isGenericFamily(family) {
+		cribleBuffer.fillWithSubstitutions(family)
+	} else {
+		cribleBuffer = familyCrible{family: 0}
+	}
 
 	// select the matching fonts:
 	// loop through `footprints` and stores the matching fonts into `dst`
 	for index, footprint := range fm {
-		if score := crible.matches(footprint.Family); score != -1 {
-			buffer.footprints = append(buffer.footprints, index)
-			buffer.scores = append(buffer.scores, score)
+		if score, has := cribleBuffer[footprint.Family]; has {
+			footprintBuffer.footprints = append(footprintBuffer.footprints, index)
+			footprintBuffer.scores = append(footprintBuffer.scores, score)
 		}
 	}
 
 	// sort the matched font by score (lower is better)
-	sort.Stable(*buffer)
+	sort.Stable(*footprintBuffer)
 
-	return buffer.footprints
+	return footprintBuffer.footprints
 }
 
 // matchStretch look for the given stretch in the font set,
