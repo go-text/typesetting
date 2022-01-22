@@ -8,20 +8,20 @@ import (
 )
 
 func TestSerializeDeserialize(t *testing.T) {
-	for _, fp := range []Footprint{
+	for _, fp := range []footprint{
 		{
 			Family: "a strange one",
-			Runes:  NewRuneSet(1, 0, 2, 0x789, 0xfffee),
+			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
 			Aspect: Aspect{1, 200, 0.45},
-			Format: OpenType,
+			Format: openType,
 		},
 		{
-			Runes: RuneSet{},
+			Runes: runeSet{},
 		},
 	} {
 		b := fp.serializeTo(nil)
 
-		var got Footprint
+		var got footprint
 		n, err := got.deserializeFrom(b)
 		if err != nil {
 			t.Fatal(err)
@@ -53,7 +53,7 @@ func TestDeserializeInvalid(t *testing.T) {
 			binary.BigEndian.PutUint32(src[2:], 0)
 			src = src[:8] // truncate to simulate a broken input
 		}
-		var fp Footprint
+		var fp footprint
 		_, err := fp.deserializeFrom(src)
 		if err == nil {
 			t.Fatal("expected error on random input")
@@ -62,8 +62,8 @@ func TestDeserializeInvalid(t *testing.T) {
 }
 
 func TestFormat_Loader(t *testing.T) {
-	tests := []Format{
-		OpenType, Type1, PCF,
+	tests := []fontFormat{
+		openType, adobeType1, pcf,
 	}
 	for _, ft := range tests {
 		if ft.Loader() == nil {
@@ -71,10 +71,10 @@ func TestFormat_Loader(t *testing.T) {
 		}
 	}
 
-	if Format(0).Loader() != nil {
+	if fontFormat(0).Loader() != nil {
 		t.Fatal("unexpected loader")
 	}
-	if Format(0).String() != "<format 0>" {
+	if fontFormat(0).String() != "<format 0>" {
 		t.Fatal("unexpected representation")
 	}
 }

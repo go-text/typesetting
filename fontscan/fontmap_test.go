@@ -13,11 +13,16 @@ import (
 
 func TestResolveFace(t *testing.T) {
 	fm := NewFontMap()
+
+	if fm.ResolveFace(0x20) != nil {
+		t.Fatal("expected no face found in an empty FontMap")
+	}
+
 	if err := fm.UseSystemFonts(); err != nil {
 		t.Fatal(err)
 	}
 
-	fm.SetQuery(FontQuery{Families: []string{"helvetica"}, Aspect: Aspect{Weight: fonts.WeightBold}})
+	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: Aspect{Weight: fonts.WeightBold}})
 	foundFace := map[font.Face]bool{}
 	for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
 		face := fm.ResolveFace(r)
@@ -29,7 +34,7 @@ func TestResolveFace(t *testing.T) {
 	fmt.Println(len(foundFace), "faces used")
 
 	existingFamily := fm.database[0].Family
-	fm.SetQuery(FontQuery{Families: []string{existingFamily}})
+	fm.SetQuery(Query{Families: []string{existingFamily}})
 	for _, r := range "Hello world" {
 		face := fm.ResolveFace(r)
 		if face == nil {
@@ -37,6 +42,46 @@ func TestResolveFace(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkResolveFace(b *testing.B) {
+	fm := NewFontMap()
+
+	if err := fm.UseSystemFonts(); err != nil {
+		b.Fatal(err)
+	}
+
+	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: Aspect{Weight: fonts.WeightBold}})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
+			face := fm.ResolveFace(r)
+			if face == nil {
+				b.Fatalf("missing font for rune 0x%X", r)
+			}
+		}
+	}
+}
+
+func BenchmarkSetQuery(b *testing.B) {
+	fm := NewFontMap()
+
+	if err := fm.UseSystemFonts(); err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		fm.SetQuery(Query{
+			Families: []string{"helvetica", "DejaVu", "monospace"},
+			Aspect:   Aspect{Style: fonts.StyleItalic, Weight: fonts.WeightBold},
+		})
+	}
+}
+
+// BenchmarkSetQuery-4   	     495	   2396004 ns/op	  483261 B/op	   24289 allocs/op
 
 func Test_refreshSystemFontsIndex(t *testing.T) {
 	dir := t.TempDir()

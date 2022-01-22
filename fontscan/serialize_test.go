@@ -9,15 +9,15 @@ import (
 )
 
 func Test_serializeFootprints(t *testing.T) {
-	input := []Footprint{
+	input := []footprint{
 		{
 			Family: "a strange one",
-			Runes:  NewRuneSet(1, 0, 2, 0x789, 0xfffee),
+			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
 			Aspect: Aspect{1, 200, 0.45},
-			Format: OpenType,
+			Format: openType,
 		},
 		{
-			Runes: RuneSet{},
+			Runes: runeSet{},
 		},
 	}
 	dump := serializeFootprintsTo(input, nil)
@@ -32,7 +32,7 @@ func Test_serializeFootprints(t *testing.T) {
 	}
 }
 
-func assertFontsetEquals(expected, got []Footprint) error {
+func assertFontsetEquals(expected, got []footprint) error {
 	if len(expected) != len(got) {
 		return fmt.Errorf("invalid length: expected %d, got %d", len(expected), len(got))
 	}
