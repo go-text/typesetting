@@ -170,27 +170,3 @@ func TestScanIncrementalUpdate(t *testing.T) {
 		t.Fatalf("unexpected font set: %v", fontset)
 	}
 }
-
-// func TestDump(t *testing.T) { // TODO: cleanup
-// 	directories, err := DefaultFontDirs()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	// first scan
-// 	fontset, err := scanFontFootprints(nil, directories...)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	f, err := os.Create("tmp.fontscan")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if err = fontset.serializeTo(f); err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if err = f.Close(); err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
