@@ -117,12 +117,14 @@ func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) 
 	return face, footprint.Location, err
 }
 
-// FindFont look for a regular font matching `family` in the
+// FindFont looks for a font matching `family` and `aspect` in the
 // standard font folders.
 // If `family` is not found, suitable substitutions are tried
 // to find a close font.
-// In the (unlikely) case where no font is found,
-// ErrFontNotFound is returned.
+// If no exact match for `aspect` is found, the closer font is returned.
+// If `aspect` is empty, it is replaced by a regular style.
+//
+// In the (unlikely) case where no font is found, ErrFontNotFound is returned.
 func FindFont(family string, aspect Aspect) (font.Face, Location, error) {
 	directories, err := DefaultFontDirectories()
 	if err != nil {

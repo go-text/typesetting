@@ -277,7 +277,8 @@ func (fs fontSet) filterByWeight(candidates []int, weight Weight) []int {
 }
 
 // retainsBestMatches narrows `candidates` to the closest footprints to `query`, according to the CSS font rules
-// note that this method mutate `candidates`
+// `candidates` is a slice of indexed into `fs`, which is mutated and returned
+// if `candidates` is not empty, the returned slice is guaranteed not to be empty
 func (fs fontSet) retainsBestMatches(candidates []int, query Aspect) []int {
 	// this follows CSS Fonts Level 3 § 5.2 [1].
 	// https://drafts.csswg.org/css-fonts-3/#font-style-matching
