@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/go-text/typesetting/font"
 )
 
@@ -60,20 +59,36 @@ func selectFileByFamily(inFamily string, paths []string) []string {
 var ErrFontNotFound = errors.New("font not found")
 
 // loop through `paths` and select the first face with
-// a regular style, or `ErrFontNotFound` if not found
-func selectRegular(paths []string) (font.Face, error) {
+// a matching style.
+// Is no exact match is found, the CSS rules for approximate match are applied
+// the method panic if `paths` is empty
+func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) {
+	// try for an exact match and build the fontset for approximate match
+	var fs fontSet
+
+	aspect.setDefaults()
+
 	for _, path := range paths {
 		file, err := os.Open(path)
 		if err != nil {
-			return nil, fmt.Errorf("opening font file %s: %s", path, err)
+			return nil, Location{}, fmt.Errorf("opening font file %s: %s", path, err)
 		}
 
 		descriptors, format := getFontDescriptors(file)
 
 		for index, descriptor := range descriptors {
-			aspect := newAspectFromDescriptor(descriptor)
-			if aspect.Style == fonts.StyleNormal {
-				// found it: load the the face
+			fontAspect := newAspectFromDescriptor(descriptor)
+
+			loc := Location{
+				File:  path,
+				Index: uint16(index),
+			}
+			fs = append(fs, footprint{
+				Aspect:   fontAspect,
+				Location: loc,
+			})
+
+			if fontAspect == aspect { // exact match, return early
 				faces, err := format.Loader()(file)
 				if err != nil {
 					// if an error occur (for instance for unsupported cmaps)
@@ -82,15 +97,24 @@ func selectRegular(paths []string) (font.Face, error) {
 				}
 
 				file.Close()
-
-				return faces[index], nil
+				return faces[index], loc, nil
 			}
 		}
 
 		file.Close()
 	}
 
-	return nil, ErrFontNotFound
+	if len(fs) == 0 { // unlikely, may happen if all the paths are invalid font files
+		return nil, Location{}, ErrFontNotFound
+	}
+
+	// no exact match
+	matches := fs.retainsBestMatches(allIndices(fs), aspect)
+
+	footprint := fs[matches[0]]
+	face, err := footprint.loadFromDisk()
+
+	return face, footprint.Location, err
 }
 
 // FindFont look for a regular font matching `family` in the
@@ -99,23 +123,29 @@ func selectRegular(paths []string) (font.Face, error) {
 // to find a close font.
 // In the (unlikely) case where no font is found,
 // ErrFontNotFound is returned.
-func FindFont(family string) (font.Face, error) {
+func FindFont(family string, aspect Aspect) (font.Face, Location, error) {
 	directories, err := DefaultFontDirectories()
 	if err != nil {
-		return nil, err
+		return nil, Location{}, err
 	}
 
 	paths, err := scanFontFiles(directories...)
 	if err != nil {
-		return nil, err
+		return nil, Location{}, err
 	}
 
 	paths = selectFileByFamily(family, paths)
-
-	face, err := selectRegular(paths)
-	if err != nil {
-		return nil, err
+	if len(paths) == 0 {
+		return nil, Location{}, ErrFontNotFound
 	}
 
-	return face, nil
+	return selectByAspect(paths, aspect)
+}
+
+func allIndices(fs fontSet) []int {
+	out := make([]int, len(fs))
+	for i := range fs {
+		out[i] = i
+	}
+	return out
 }
