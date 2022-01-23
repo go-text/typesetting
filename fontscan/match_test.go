@@ -112,14 +112,6 @@ func fontsetFromWeights(sts ...Weight) (out fontSet) {
 	return out
 }
 
-func allIndices(fs fontSet) []int {
-	out := make([]int, len(fs))
-	for i := range fs {
-		out[i] = i
-	}
-	return out
-}
-
 func TestFontSet_matchStretch(t *testing.T) {
 	tests := []struct {
 		name string

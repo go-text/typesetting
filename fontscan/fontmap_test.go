@@ -124,14 +124,14 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 
 	fm := NewFontMap()
 
-	if err = fm.AddFont(file1, "Amiri"); err != nil {
+	if err = fm.AddFont(file1, "Amiri", ""); err != nil {
 		t.Fatal(err)
 	}
 	if len(fm.faces) != 1 {
 		t.Fatalf("unexpected face cache %d", len(fm.faces))
 	}
 
-	if err = fm.AddFont(file2, "Roboto"); err != nil {
+	if err = fm.AddFont(file2, "Roboto", ""); err != nil {
 		t.Fatal(err)
 	}
 	if len(fm.faces) != 2 {
@@ -151,5 +151,15 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	// try with an "invalid" face
 	if got := fm.FaceLocation(nil); got != (Location{}) {
 		t.Fatalf("FaceLocation: expected %v, got %v", Location{}, got)
+	}
+
+	err = fm.AddFont(file1, "Roboto2", "MyRoboto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fm.SetQuery(Query{Families: []string{"MyRoboto"}})
+	face := fm.ResolveFace(0x20)
+	if loc := fm.FaceLocation(face); loc.File != "Roboto2" {
+		t.Fatalf("unexepected face location %v", loc)
 	}
 }
