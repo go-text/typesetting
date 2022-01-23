@@ -270,8 +270,8 @@ func (fm *FontMap) buildCandidates() {
 		}
 	}
 
-	selectFootprints(true)
 	selectFootprints(false)
+	selectFootprints(true)
 }
 
 // candidates is a cache storing the indices into FontMap.database of footprints matching a Query
