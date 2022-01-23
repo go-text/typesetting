@@ -24,10 +24,9 @@ func TestResolveFace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var buf bytes.Buffer
-	log.Default().SetOutput(&buf)
+	var logOutput bytes.Buffer
+	log.Default().SetOutput(&logOutput)
 
-	// TODO: investigate on macos
 	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: Aspect{Weight: fonts.WeightBold}})
 	foundFace := map[font.Face]bool{}
 	for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
@@ -38,11 +37,12 @@ func TestResolveFace(t *testing.T) {
 		foundFace[face] = true
 	}
 	fmt.Println(len(foundFace), "faces used")
-	if buf.Len() != 0 {
-		t.Fatalf("unexpected logs %s", buf.String())
+
+	if logOutput.Len() != 0 {
+		t.Fatalf("unexpected logs %s", logOutput.String())
 	}
 
-	buf.Reset()
+	logOutput.Reset()
 	existingFamily := fm.database[0].Family
 	fm.SetQuery(Query{Families: []string{existingFamily}})
 	for _, r := range "Hello world" {
@@ -51,8 +51,8 @@ func TestResolveFace(t *testing.T) {
 			t.Fatalf("missing font for rune 0x%X", r)
 		}
 	}
-	if buf.Len() != 0 {
-		t.Fatalf("unexpected logs %s", buf.String())
+	if logOutput.Len() != 0 {
+		t.Fatalf("unexpected logs %s", logOutput.String())
 	}
 }
 
