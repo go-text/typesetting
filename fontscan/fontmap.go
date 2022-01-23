@@ -236,7 +236,7 @@ func (fm *FontMap) SetQuery(query Query) {
 	fm.buildCandidates()
 }
 
-func (cd *candidates) ensureSize(L int) {
+func (cd *candidates) resetWithSize(L int) {
 	if cap(cd.withFallback) < L { // reallocate
 		cd.withFallback = make([][]int, L)
 		cd.withoutFallback = make([]int, L)
@@ -244,11 +244,17 @@ func (cd *candidates) ensureSize(L int) {
 	// only reslice
 	cd.withFallback = cd.withFallback[0:L]
 	cd.withoutFallback = cd.withoutFallback[0:L]
+
+	// reset to "zero" values
+	for i := range cd.withoutFallback {
+		cd.withFallback[i] = nil
+		cd.withoutFallback[i] = -1
+	}
 }
 
 func (fm *FontMap) buildCandidates() {
 	fm.lastFootprintIndex = -1
-	fm.candidates.ensureSize(len(fm.query.Families))
+	fm.candidates.resetWithSize(len(fm.query.Families))
 
 	selectFootprints := func(systemFallback bool) {
 		for familyIndex, family := range fm.query.Families {
@@ -328,6 +334,9 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 
 	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range fm.candidates.withoutFallback {
+		if footprintIndex == -1 {
+			continue
+		}
 		if face := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
 			return face
 		}
