@@ -57,8 +57,8 @@ func TestScanFontFootprints(t *testing.T) {
 		families[font.Family] = 0
 	}
 
-	fmt.Printf("Found %d fonts in %s (distribution: %v)\n", len(fontset), time.Since(ti), distribution)
-	fmt.Printf("Families (%d): %v\n", len(families), families.families())
+	fmt.Printf("Found %d fonts (%d families) in %s (distribution: %v)\n",
+		len(fontset), len(families), time.Since(ti), distribution)
 }
 
 func TestScanIncrementalNoOp(t *testing.T) {
