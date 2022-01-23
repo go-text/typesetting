@@ -140,3 +140,14 @@ func Test_familyList_execute(t *testing.T) {
 		}
 	}
 }
+
+func TestSubstituteHelvetica(t *testing.T) {
+	fc := familyCrible{}
+	fc.fillWithSubstitutions("helvetica")
+	if f0 := fc.families()[0]; f0 != "helvetica" {
+		t.Fatalf("unexpected family %s", f0)
+	}
+	if f4 := fc.families()[4]; f4 != "arial" {
+		t.Fatalf("unexpected family %s", f4)
+	}
+}

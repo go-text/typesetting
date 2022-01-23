@@ -48,14 +48,17 @@ func TestScanFontFootprints(t *testing.T) {
 
 	// Show some basic stats
 	distribution := map[fontFormat]int{}
+	families := familyCrible{}
 	for _, font := range fontset.flatten() {
 		if font.Runes.Len() == 0 {
 			t.Fatalf("unexpected empty rune coverage for %s", font.Location.File)
 		}
 		distribution[font.Format]++
+		families[font.Family] = 0
 	}
 
 	fmt.Printf("Found %d fonts in %s (distribution: %v)\n", len(fontset), time.Since(ti), distribution)
+	fmt.Printf("Families (%d): %v\n", len(families), families.families())
 }
 
 func TestScanIncrementalNoOp(t *testing.T) {
