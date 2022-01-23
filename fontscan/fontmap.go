@@ -159,8 +159,10 @@ func refreshSystemFontsIndex(cachePath string) (systemFontsIndex, error) {
 // AddFont loads the faces contained in `fontFile` and add them to
 // the font map.
 // `fileID` is used as the Location.File entry returned by `FaceLocation`.
+// If `familyName` is not empty, it is used as the family name for `fontFile`
+// instead of the one found in the font file.
 // An error is returned if the font resource is not supported.
-func (fm *FontMap) AddFont(fontFile font.Resource, fileID string) error {
+func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) error {
 	fontDescriptors, format := getFontDescriptors(fontFile)
 	if format == 0 || len(fontDescriptors) == 0 {
 		return errors.New("unsupported font resource")
@@ -190,7 +192,11 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID string) error {
 		fp.Location.Index = uint16(i)
 		// TODO: for now, we do not handle variable fonts
 
-		fp.Family = normalizeFamily(fp.Family)
+		if familyName != "" {
+			fp.Family = normalizeFamily(familyName)
+		} else {
+			fp.Family = normalizeFamily(fp.Family)
+		}
 
 		addedFonts = append(addedFonts, fp)
 		fm.faces[fp.Location] = faces[i]
