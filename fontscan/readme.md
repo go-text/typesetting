@@ -93,6 +93,6 @@ in go-text.
 
 However, since it is actually a big addition, we could also only add some parts and keep the remaining parts of fontscan in a third-party repository. Some suggestions :
 
-- only provide FindFont, with no substitutions. It would be very close to what [go-findfont](github.com/flopp/go-findfont) provides; the main additional feature being the possiblity to match font by aspect.
+- only provide `FindFont`, with no substitutions. It would be very close to what [go-findfont](github.com/flopp/go-findfont) provides; the main additional feature being the possiblity to match font by aspect.
 
-- provide FindFont and support for substitutions. That would make the FindFont quite powerful on its own.
+- provide `FindFont` and support for family substitutions. That would make the `FindFont` quite powerful on its own.
