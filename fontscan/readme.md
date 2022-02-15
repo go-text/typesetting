@@ -86,6 +86,30 @@ The initial scan required to build this index is significantly slow (say between
 Once the first scan has been done, however, the subsequent launches are fast : at the first call of `UseSystemFonts`, the index is loaded from an on-disk cache, and its integrity is checked against the
 current file system state to detect font installation or suppression.
 
+## Performance overview
+
+Performance is a key goal of the package. This section roughly describes the performance of each matching task, with measures taken on a laptop running under a linux system.
+
+### Font file name matching
+
+The fastest way to match a font is to use its file name, which usually contains its family and sometimes its style.
+Walking font directories only using the file names is fast enough to be used at app startup.
+However, the family and style fetched may be a bit inaccurate, and the rune/language coverage of the font is not available.
+
+### Family and aspect matching
+
+Font files exposes in their content their family and aspect. Reading it requires to open the file and to parse part of its content, adding some overhead.
+
+### Rune coverage matching
+
+Lastly, fetching the rune (or even language) coverage of the fonts is even slower, since the encoding (cmap) table must be parsed.
+
+### Conclusion
+
+The faster `FindFont` uses the first approach to narrow the set of candidate files, then applies the second to select the best match. The total lookup time varies between 0.03 and 0.15 secs.
+
+The slower but more complete `FontMap.UseSystemFonts` method uses the second and third approaches, amortizing its cost by caching on the disk the result of the scan. The initial lookup time is around 1 sec.
+
 ## Possible integration in go-text
 
 I think the two proposed solutions have enough elements in common (font directories, family susbtitution, aspect best match) so that it makes sense to include both
