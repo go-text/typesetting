@@ -231,35 +231,38 @@ func (sp shapedPararaph) lineWrap(maxWidth int) []output {
 
 	var outputs []output
 	start := 0
-	runesProcessed := 0
+	runesProcessedCount := 0
 	for i := 0; i < len(sp.breaks); i++ {
 		b := sp.breaks[i]
 		// Always keep the first segment on a line.
 		good, _ := sp.shouldKeepSegmentOnLine(start, b, maxWidth, 0, maxWidth)
 		end := b.breakAtRune
 
+		// Search through break candidates looking for candidates that can fit on the current line.
 		for k := i + 1; k < len(sp.breaks); k++ {
 			bb := sp.breaks[k]
 			candidate, ok := sp.shouldKeepSegmentOnLine(start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
 			if ok {
-				// Use this new, longer segment.
+				// The break described by bb fits on this line. Use this new, longer segment.
 				good = candidate
 				end = bb.breakAtRune
 				i++
 			} else {
+				// The break described by bb will not fit on this line, commit whatever the last good
+				// break was and then start a new line.
 				break
 			}
 		}
 
-		numRunes := end - start + 1
+		lineRuneCount := end - start + 1
 		outputs = append(outputs, output{
 			Shaped: good,
 			RuneRange: Range{
-				Count:  numRunes,
-				Offset: runesProcessed,
+				Count:  lineRuneCount,
+				Offset: runesProcessedCount,
 			},
 		})
-		runesProcessed += numRunes
+		runesProcessedCount += lineRuneCount
 		start = end + 1
 	}
 	return outputs
