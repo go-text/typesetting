@@ -1,9 +1,9 @@
 package shaping
 
 import (
+	"github.com/gioui/uax/segment"
+	"github.com/gioui/uax/uax14"
 	"github.com/go-text/typesetting/di"
-	"github.com/npillmayer/uax/segment"
-	"github.com/npillmayer/uax/uax14"
 )
 
 // mapRunesToClusterIndices returns a slice. Each index within that slice corresponds
