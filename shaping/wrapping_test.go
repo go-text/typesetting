@@ -915,7 +915,12 @@ func complexGlyph(cluster, runes, glyphs int) Glyph {
 
 func TestGetBreakOptions(t *testing.T) {
 	if err := quick.Check(func(runes []rune) bool {
-		options := getBreakOptions(runes)
+		breaker := newBreaker(runes)
+		var options []breakOption
+		for b, ok := breaker.next(); ok; b, ok = breaker.next() {
+			options = append(options, b)
+		}
+
 		// Ensure breaks are in valid range.
 		for _, o := range options {
 			if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {

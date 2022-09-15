@@ -95,40 +95,76 @@ type breakOption struct {
 	penalty int
 }
 
-// getBreakOptions returns a slice of line break candidates for the
-// text in the provided slice.
-func getBreakOptions(text []rune) []breakOption {
-	// Collect options for breaking the lines in a slice.
-	var options []breakOption
-	const adjust = -1
-	breaker := uax14.NewLineWrap()
-	segmenter := segment.NewSegmenter(breaker)
-	segmenter.InitFromSlice(text)
-	runeOffset := 0
-	brokeAtEnd := false
-	for segmenter.Next() {
-		penalty, _ := segmenter.Penalties()
-		// Determine the indices of the breaking runes in the runes
-		// slice. Would be nice if the API provided this.
-		currentSegment := segmenter.Runes()
-		runeOffset += len(currentSegment)
+// breaker generates line breaking candidates for a text.
+type breaker struct {
+	segmenter  *segment.Segmenter
+	runeOffset int
+	brokeAtEnd bool
+	totalRunes int
+}
 
-		// Collect all break options.
-		options = append(options, breakOption{
-			penalty:     penalty,
-			breakAtRune: runeOffset + adjust,
-		})
-		if options[len(options)-1].breakAtRune == len(text)-1 {
-			brokeAtEnd = true
+// newBreaker returns a breaker initialized to break the provided text.
+func newBreaker(text []rune) *breaker {
+	segmenter := segment.NewSegmenter(uax14.NewLineWrap())
+	segmenter.InitFromSlice(text)
+	return &breaker{
+		segmenter:  segmenter,
+		totalRunes: len(text),
+	}
+}
+
+// isValid returns whether a given option violates shaping rules (like breaking
+// a shaped text cluster).
+func (b *breaker) isValid(option breakOption, runeToGlyph []int, out Output) bool {
+	if option.breakAtRune+1 < len(runeToGlyph) {
+		// Check if this break is valid.
+		gIdx := runeToGlyph[option.breakAtRune]
+		g2Idx := runeToGlyph[option.breakAtRune+1]
+		cIdx := out.Glyphs[gIdx].ClusterIndex
+		c2Idx := out.Glyphs[g2Idx].ClusterIndex
+		if cIdx == c2Idx {
+			// This break is within a harfbuzz cluster, and is
+			// therefore invalid.
+			return false
 		}
 	}
-	if len(text) > 0 && !brokeAtEnd {
-		options = append(options, breakOption{
-			penalty:     uax14.PenaltyForMustBreak,
-			breakAtRune: len(text) - 1,
-		})
+	return true
+}
+
+// nextValid returns the next valid break candidate, if any. If ok is false, there are no candidates.
+func (b *breaker) nextValid(currentRuneToGlyph []int, currentOutput Output) (option breakOption, ok bool) {
+	option, ok = b.next()
+	for ok && !b.isValid(option, currentRuneToGlyph, currentOutput) {
+		option, ok = b.next()
 	}
-	return options
+	return
+}
+
+// next returns a naive break candidate which may be invalid.
+func (b *breaker) next() (option breakOption, ok bool) {
+	if b.segmenter.Next() {
+		penalty, _ := b.segmenter.Penalties()
+		// Determine the indices of the breaking runes in the runes
+		// slice. Would be nice if the API provided this.
+		currentSegment := b.segmenter.Runes()
+		b.runeOffset += len(currentSegment)
+
+		// Collect all break options.
+		option := breakOption{
+			penalty:     penalty,
+			breakAtRune: b.runeOffset - 1,
+		}
+		if option.breakAtRune == b.totalRunes-1 {
+			b.brokeAtEnd = true
+		}
+		return option, true
+	} else if b.totalRunes > 0 && !b.brokeAtEnd {
+		return breakOption{
+			penalty:     uax14.PenaltyForMustBreak,
+			breakAtRune: b.totalRunes - 1,
+		}, true
+	}
+	return breakOption{}, false
 }
 
 // Range indicates the location of a sequence of elements within a longer slice.
@@ -145,8 +181,8 @@ type shapedPararaph struct {
 	text []rune
 	// glyphs is the result of the Harfbuzz shaping
 	glyphs Output
-	// breaks is the slice of the break options collected for the text
-	breaks []breakOption
+	// wordBreaker generates line break candidates between words.
+	wordBreaker *breaker
 	// mapping is a mapping where accessing the slice at the index of a rune
 	// will yield the index of the first glyph corresponding to that rune.
 	mapping []glyphIndex
@@ -154,10 +190,10 @@ type shapedPararaph struct {
 
 func newShapedParagraph(text []rune, glyphs Output) shapedPararaph {
 	return shapedPararaph{
-		text:    text,
-		glyphs:  glyphs,
-		mapping: mapRunesToClusterIndices(text, glyphs.Glyphs),
-		breaks:  getBreakOptions(text),
+		text:        text,
+		glyphs:      glyphs,
+		mapping:     mapRunesToClusterIndices(text, glyphs.Glyphs),
+		wordBreaker: newBreaker(text),
 	}
 }
 
@@ -193,31 +229,15 @@ func (sp shapedPararaph) shouldKeepSegmentOnLine(lineStartRune int, b breakOptio
 	return candidateLine, true
 }
 
-// sanitizeBreaks remove break options not compatible
-// with harbuzz shaping
-func (sp *shapedPararaph) sanitizeBreaks() {
-	for i := 0; i < len(sp.breaks); i++ {
-		b := sp.breaks[i]
-		if b.breakAtRune+1 < len(sp.mapping) {
-			// Check if this break is valid.
-			gIdx := sp.mapping[b.breakAtRune]
-			g2Idx := sp.mapping[b.breakAtRune+1]
-			cIdx := sp.glyphs.Glyphs[gIdx].ClusterIndex
-			c2Idx := sp.glyphs.Glyphs[g2Idx].ClusterIndex
-			if cIdx == c2Idx {
-				// This break is within a harfbuzz cluster, and is
-				// therefore invalid.
-				copy(sp.breaks[i:], sp.breaks[i+1:])
-				sp.breaks = sp.breaks[:len(sp.breaks)-1]
-				i--
-			}
-		}
-	}
+// nextValidBreak returns the next line-breaking candidate position if there is one.
+// If ok is false, there are no more candidates.
+func (sp shapedPararaph) nextValidBreak() (_ breakOption, ok bool) {
+	return sp.wordBreaker.nextValid(sp.mapping, sp.glyphs)
 }
 
 // lineWrap wraps the shaped glyphs of a paragraph to a particular max width.
 func (sp shapedPararaph) lineWrap(maxWidth int) []output {
-	if len(sp.breaks) == 0 {
+	if len(sp.glyphs.Glyphs) == 0 {
 		// Pass empty lines through as empty.
 		return []output{{
 			Shaped: sp.glyphs,
@@ -227,29 +247,32 @@ func (sp shapedPararaph) lineWrap(maxWidth int) []output {
 		}}
 	}
 
-	sp.sanitizeBreaks()
-
 	var outputs []output
 	start := 0
 	runesProcessedCount := 0
-	for i := 0; i < len(sp.breaks); i++ {
-		b := sp.breaks[i]
+	b, breakOk := sp.nextValidBreak()
+	for breakOk {
 		// Always keep the first segment on a line.
 		good, _ := sp.shouldKeepSegmentOnLine(start, b, maxWidth, 0, maxWidth)
 		end := b.breakAtRune
 
 		// Search through break candidates looking for candidates that can fit on the current line.
-		for k := i + 1; k < len(sp.breaks); k++ {
-			bb := sp.breaks[k]
+		for {
+			bb, ok := sp.nextValidBreak()
+			if !ok {
+				// There are no line breaking candidates remaining.
+				breakOk = false
+				break
+			}
 			candidate, ok := sp.shouldKeepSegmentOnLine(start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
 			if ok {
 				// The break described by bb fits on this line. Use this new, longer segment.
 				good = candidate
 				end = bb.breakAtRune
-				i++
 			} else {
 				// The break described by bb will not fit on this line, commit whatever the last good
-				// break was and then start a new line.
+				// break was and then start a new line considering this break candidate.
+				b = bb
 				break
 			}
 		}
