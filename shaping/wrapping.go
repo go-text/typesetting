@@ -3,15 +3,20 @@ package shaping
 import (
 	"github.com/gioui/uax/segment"
 	"github.com/gioui/uax/uax14"
-	"github.com/go-text/typesetting/di"
 )
+
+// glyphIndex is the index in a Glyph slice
+type glyphIndex = int
+
+// length is the unit used to measure a width
+type length = int
 
 // mapRunesToClusterIndices returns a slice. Each index within that slice corresponds
 // to an index within the runes input slice. The value stored at that index is the
 // index of the glyph at the start of the corresponding glyph cluster shaped by
 // harfbuzz.
-func mapRunesToClusterIndices(runes []rune, glyphs []Glyph) []int {
-	mapping := make([]int, len(runes))
+func mapRunesToClusterIndices(runes []rune, glyphs []Glyph) []glyphIndex {
+	mapping := make([]glyphIndex, len(runes))
 	glyphCursor := 0
 	if len(runes) == 0 {
 		return nil
@@ -59,21 +64,19 @@ func mapRunesToClusterIndices(runes []rune, glyphs []Glyph) []int {
 // glyph reprsentation produced by mapRunesToClusterIndices.
 // numGlyphs is the number of glyphs in the output representing the runes
 // under consideration.
-func inclusiveGlyphRange(start, breakAfter int, runeToGlyph []int, numGlyphs int) (glyphStart, glyphEnd int) {
+func inclusiveGlyphRange(start, breakAfter int, runeToGlyph []int, numGlyphs int) (glyphStart, glyphEnd glyphIndex) {
 	rtl := runeToGlyph[len(runeToGlyph)-1] < runeToGlyph[0]
-	runeStart := start
-	runeEnd := breakAfter
 	if rtl {
-		glyphStart = runeToGlyph[runeEnd]
-		if runeStart-1 >= 0 {
-			glyphEnd = runeToGlyph[runeStart-1] - 1
+		glyphStart = runeToGlyph[breakAfter]
+		if start-1 >= 0 {
+			glyphEnd = runeToGlyph[start-1] - 1
 		} else {
 			glyphEnd = numGlyphs - 1
 		}
 	} else {
-		glyphStart = runeToGlyph[runeStart]
-		if runeEnd+1 < len(runeToGlyph) {
-			glyphEnd = runeToGlyph[runeEnd+1] - 1
+		glyphStart = runeToGlyph[start]
+		if breakAfter+1 < len(runeToGlyph) {
+			glyphEnd = runeToGlyph[breakAfter+1] - 1
 		} else {
 			glyphEnd = numGlyphs - 1
 		}
@@ -128,6 +131,36 @@ func getBreakOptions(text []rune) []breakOption {
 	return options
 }
 
+// Range indicates the location of a sequence of elements within a longer slice.
+type Range struct {
+	Offset int
+	Count  int
+}
+
+// shapedPararaph holds a one-dimentional, shaped text,
+// to be wrapped into lines
+type shapedPararaph struct {
+	// out - the Output that is being line-broken.
+	// text is the original input text
+	text []rune
+	// glyphs is the result of the Harfbuzz shaping
+	glyphs Output
+	// breaks is the slice of the break options collected for the text
+	breaks []breakOption
+	// mapping is a mapping where accessing the slice at the index of a rune
+	// will yield the index of the first glyph corresponding to that rune.
+	mapping []glyphIndex
+}
+
+func newShapedParagraph(text []rune, glyphs Output) shapedPararaph {
+	return shapedPararaph{
+		text:    text,
+		glyphs:  glyphs,
+		mapping: mapRunesToClusterIndices(text, glyphs.Glyphs),
+		breaks:  getBreakOptions(text),
+	}
+}
+
 // shouldKeepSegmentOnLine decides whether the segment of text from the current
 // end of the line to the provided breakOption should be kept on the current
 // line. It should be called successively with each available breakOption,
@@ -135,9 +168,6 @@ func getBreakOptions(text []rune) []breakOption {
 // whenever it returns false.
 //
 // The parameters require some explanation:
-// out - the Output that is being line-broken.
-// runeToGlyph - a mapping where accessing the slice at the index of a rune
-// in out will yield the index of the first glyph corresponding to that rune.
 // lineStartRune - the index of the first rune in the line.
 // b - the line break candidate under consideration.
 // curLineWidth - the amount of space total in the current line.
@@ -146,12 +176,12 @@ func getBreakOptions(text []rune) []breakOption {
 //
 // This function returns both a valid Output broken at b and a boolean
 // indicating whether the returned output should be used.
-func shouldKeepSegmentOnLine(out Output, runeToGlyph []int, lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth int) (candidateLine Output, keep bool) {
+func (sp shapedPararaph) shouldKeepSegmentOnLine(lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
 	// Convert the break target to an inclusive index.
-	glyphStart, glyphEnd := inclusiveGlyphRange(lineStartRune, b.breakAtRune, runeToGlyph, len(out.Glyphs))
+	glyphStart, glyphEnd := inclusiveGlyphRange(lineStartRune, b.breakAtRune, sp.mapping, len(sp.glyphs.Glyphs))
 
 	// Construct a line out of the inclusive glyph range.
-	candidateLine = out
+	candidateLine = sp.glyphs
 	candidateLine.Glyphs = candidateLine.Glyphs[glyphStart : glyphEnd+1]
 	candidateLine.RecomputeAdvance()
 	candidateAdvance := candidateLine.Advance.Ceil()
@@ -163,64 +193,64 @@ func shouldKeepSegmentOnLine(out Output, runeToGlyph []int, lineStartRune int, b
 	return candidateLine, true
 }
 
-// Range indicates the location of a sequence of elements within a longer slice.
-type Range struct {
-	Count  int
-	Offset int
-}
-
-// lineWrap wraps the shaped glyphs of a paragraph to a particular max width.
-func lineWrap(out Output, dir di.Direction, paragraph []rune, runeToGlyph []int, breaks []breakOption, maxWidth int) []output {
-	var outputs []output
-	if len(breaks) == 0 {
-		// Pass empty lines through as empty.
-		outputs = append(outputs, output{
-			Shaped: out,
-			RuneRange: Range{
-				Count: len(paragraph),
-			},
-		})
-		return outputs
-	}
-
-	for i := 0; i < len(breaks); i++ {
-		b := breaks[i]
-		if b.breakAtRune+1 < len(runeToGlyph) {
+// sanitizeBreaks remove break options not compatible
+// with harbuzz shaping
+func (sp *shapedPararaph) sanitizeBreaks() {
+	for i := 0; i < len(sp.breaks); i++ {
+		b := sp.breaks[i]
+		if b.breakAtRune+1 < len(sp.mapping) {
 			// Check if this break is valid.
-			gIdx := runeToGlyph[b.breakAtRune]
-			g2Idx := runeToGlyph[b.breakAtRune+1]
-			cIdx := out.Glyphs[gIdx].ClusterIndex
-			c2Idx := out.Glyphs[g2Idx].ClusterIndex
+			gIdx := sp.mapping[b.breakAtRune]
+			g2Idx := sp.mapping[b.breakAtRune+1]
+			cIdx := sp.glyphs.Glyphs[gIdx].ClusterIndex
+			c2Idx := sp.glyphs.Glyphs[g2Idx].ClusterIndex
 			if cIdx == c2Idx {
 				// This break is within a harfbuzz cluster, and is
 				// therefore invalid.
-				copy(breaks[i:], breaks[i+1:])
-				breaks = breaks[:len(breaks)-1]
+				copy(sp.breaks[i:], sp.breaks[i+1:])
+				sp.breaks = sp.breaks[:len(sp.breaks)-1]
 				i--
 			}
 		}
 	}
+}
 
+// lineWrap wraps the shaped glyphs of a paragraph to a particular max width.
+func (sp shapedPararaph) lineWrap(maxWidth int) []output {
+	if len(sp.breaks) == 0 {
+		// Pass empty lines through as empty.
+		return []output{{
+			Shaped: sp.glyphs,
+			RuneRange: Range{
+				Count: len(sp.text),
+			},
+		}}
+	}
+
+	sp.sanitizeBreaks()
+
+	var outputs []output
 	start := 0
 	runesProcessed := 0
-	for i := 0; i < len(breaks); i++ {
-		b := breaks[i]
+	for i := 0; i < len(sp.breaks); i++ {
+		b := sp.breaks[i]
 		// Always keep the first segment on a line.
-		good, _ := shouldKeepSegmentOnLine(out, runeToGlyph, start, b, maxWidth, 0, maxWidth)
+		good, _ := sp.shouldKeepSegmentOnLine(start, b, maxWidth, 0, maxWidth)
 		end := b.breakAtRune
-	innerLoop:
-		for k := i + 1; k < len(breaks); k++ {
-			bb := breaks[k]
-			candidate, ok := shouldKeepSegmentOnLine(out, runeToGlyph, start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
+
+		for k := i + 1; k < len(sp.breaks); k++ {
+			bb := sp.breaks[k]
+			candidate, ok := sp.shouldKeepSegmentOnLine(start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
 			if ok {
 				// Use this new, longer segment.
 				good = candidate
 				end = bb.breakAtRune
 				i++
 			} else {
-				break innerLoop
+				break
 			}
 		}
+
 		numRunes := end - start + 1
 		outputs = append(outputs, output{
 			Shaped: good,
