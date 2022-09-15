@@ -91,7 +91,7 @@ func TestRecalculate(t *testing.T) {
 		Direction di.Direction
 		Input     []shaping.Glyph
 		Output    shaping.Output
-		Error     error
+		Error     *shaping.UnimplementedDirectionError
 	}
 	for _, tc := range []testcase{
 		{
@@ -145,7 +145,7 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical text not supported",
 			Direction: di.DirectionBTT,
-			Error:     shaping.UnimplementedDirectionError{},
+			Error:     &shaping.UnimplementedDirectionError{},
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -155,7 +155,7 @@ func TestRecalculate(t *testing.T) {
 				Direction:  tc.Direction,
 			}
 			err := output.RecalculateAll()
-			if tc.Error != nil && !errors.As(err, &tc.Error) {
+			if tc.Error != nil && !errors.As(err, tc.Error) {
 				t.Errorf("expected error of type %T, got %T", tc.Error, err)
 			} else if tc.Error == nil && !reflect.DeepEqual(output, tc.Output) {
 				t.Errorf("recalculation incorrect: expected %v, got %v", tc.Output, output)
