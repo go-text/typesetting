@@ -236,18 +236,14 @@ func (sp shapedPararaph) nextValidBreak() (_ breakOption, ok bool) {
 }
 
 // lineWrap wraps the shaped glyphs of a paragraph to a particular max width.
-func (sp shapedPararaph) lineWrap(maxWidth int) []output {
+func (sp shapedPararaph) lineWrap(maxWidth int) []Output {
 	if len(sp.glyphs.Glyphs) == 0 {
 		// Pass empty lines through as empty.
-		return []output{{
-			Shaped: sp.glyphs,
-			RuneRange: Range{
-				Count: len(sp.text),
-			},
-		}}
+		sp.glyphs.Runes = Range{Count: len(sp.text)}
+		return []Output{sp.glyphs}
 	}
 
-	var outputs []output
+	var outputs []Output
 	start := 0
 	runesProcessedCount := 0
 	b, breakOk := sp.nextValidBreak()
@@ -278,22 +274,13 @@ func (sp shapedPararaph) lineWrap(maxWidth int) []output {
 		}
 
 		lineRuneCount := end - start + 1
-		outputs = append(outputs, output{
-			Shaped: good,
-			RuneRange: Range{
-				Count:  lineRuneCount,
-				Offset: runesProcessedCount,
-			},
-		})
+		good.Runes = Range{
+			Count:  lineRuneCount,
+			Offset: runesProcessedCount,
+		}
+		outputs = append(outputs, good)
 		runesProcessedCount += lineRuneCount
 		start = end + 1
 	}
 	return outputs
-}
-
-// output is a run of shaped text with metadata about its position
-// within a text document.
-type output struct {
-	Shaped    Output
-	RuneRange Range
 }
