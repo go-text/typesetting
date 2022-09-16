@@ -55,18 +55,18 @@ func (g Glyph) RightSideBearing() fixed.Int26_6 {
 //
 // For horizontal text:
 //
-//     - Ascent      GLYPH
+//   - Ascent      GLYPH
 //     |             GLYPH
 //     |             GLYPH
 //     |             GLYPH
 //     |             GLYPH
-//     - Baseline    GLYPH
+//   - Baseline    GLYPH
 //     |             GLYPH
 //     |             GLYPH
 //     |             GLYPH
-//     - Descent     GLYPH
+//   - Descent     GLYPH
 //     |
-//     - Gap
+//   - Gap
 type Bounds struct {
 	// Ascent is the maximum ascent away from the baseline. This value is typically
 	// positive in coordiate systems that grow up.
@@ -101,6 +101,9 @@ type Output struct {
 	// Direction is the direction used to shape the text,
 	// as provided in the Input.
 	Direction di.Direction
+
+	// Runes describes the runes this output represents from the input text.
+	Runes Range
 }
 
 // UnimplementedDirectionError is returned when a function does not support the
