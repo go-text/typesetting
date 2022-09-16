@@ -173,9 +173,9 @@ type Range struct {
 	Count  int
 }
 
-// shapedPararaph holds a one-dimentional, shaped text,
+// LineWrapper holds a one-dimentional, shaped text,
 // to be wrapped into lines
-type shapedPararaph struct {
+type LineWrapper struct {
 	// out - the Output that is being line-broken.
 	// text is the original input text
 	text []rune
@@ -188,8 +188,11 @@ type shapedPararaph struct {
 	mapping []glyphIndex
 }
 
-func newShapedParagraph(text []rune, glyphs Output) shapedPararaph {
-	return shapedPararaph{
+// NewLineWrapper creates a line wrapper prepared to convert the given text and glyph
+// data into a multi-line paragraph. The provided glyphs should be the output of
+// invoking Shape on the given text.
+func NewLineWrapper(text []rune, glyphs Output) LineWrapper {
+	return LineWrapper{
 		text:        text,
 		glyphs:      glyphs,
 		mapping:     mapRunesToClusterIndices(text, glyphs.Glyphs),
@@ -212,7 +215,7 @@ func newShapedParagraph(text []rune, glyphs Output) shapedPararaph {
 //
 // This function returns both a valid Output broken at b and a boolean
 // indicating whether the returned output should be used.
-func (sp shapedPararaph) shouldKeepSegmentOnLine(lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
+func (sp LineWrapper) shouldKeepSegmentOnLine(lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
 	// Convert the break target to an inclusive index.
 	glyphStart, glyphEnd := inclusiveGlyphRange(lineStartRune, b.breakAtRune, sp.mapping, len(sp.glyphs.Glyphs))
 
@@ -231,12 +234,12 @@ func (sp shapedPararaph) shouldKeepSegmentOnLine(lineStartRune int, b breakOptio
 
 // nextValidBreak returns the next line-breaking candidate position if there is one.
 // If ok is false, there are no more candidates.
-func (sp shapedPararaph) nextValidBreak() (_ breakOption, ok bool) {
+func (sp LineWrapper) nextValidBreak() (_ breakOption, ok bool) {
 	return sp.wordBreaker.nextValid(sp.mapping, sp.glyphs)
 }
 
-// lineWrap wraps the shaped glyphs of a paragraph to a particular max width.
-func (sp shapedPararaph) lineWrap(maxWidth int) []Output {
+// WrapParagraph wraps the shaped glyphs of a paragraph to a particular max width.
+func (sp LineWrapper) WrapParagraph(maxWidth int) []Output {
 	if len(sp.glyphs.Glyphs) == 0 {
 		// Pass empty lines through as empty.
 		sp.glyphs.Runes = Range{Count: len(sp.text)}
