@@ -1,6 +1,8 @@
 github.com/benoitkugler/pstokenizer v1.0.0/go.mod h1:l1G2Voirz0q/jj0TQfabNxVsa8HZXh/VMxFSRALWTiE=
-github.com/benoitkugler/textlayout v0.0.5 h1:ZjMg+//sxYAxIhdirTaDBNnAfhxHm9D5q4WHNYlR888=
-github.com/benoitkugler/textlayout v0.0.5/go.mod h1:puH4v13Uz7uIhIH0XMk5jgc8U3MXcn5r3VlV9K8n0D8=
+github.com/benoitkugler/textlayout v0.1.3 h1:Jv0E28xDkke3KrWle90yOLtBmZsUqXLBy70lZRfbKN0=
+github.com/benoitkugler/textlayout v0.1.3/go.mod h1:o+1hFV+JSHBC9qNLIuwVoLedERU7sBPgEFcuSgfvi/w=
+github.com/benoitkugler/textlayout-testdata v0.1.1 h1:AvFxBxpfrQd8v55qH59mZOJOQjtD6K2SFe9/HvnIbJk=
+github.com/benoitkugler/textlayout-testdata v0.1.1/go.mod h1:i/qZl09BbUOtd7Bu/W1CAubRwTWrEXWq6JwMkw8wYxo=
 golang.org/x/image v0.0.0-20210504121937-7319ad40d33e/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/image v0.0.0-20210607152325-775e3b0c77b9 h1:D0iM1dTCbD5Dg1CbuvLC/v/agLc79efSj/L35Q3Vqhs=
 golang.org/x/image v0.0.0-20210607152325-775e3b0c77b9/go.mod h1:023OzeP/+EPmXeapQh35lcL3II3LrY8Ic+EFFKVhULM=
