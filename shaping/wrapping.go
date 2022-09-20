@@ -108,7 +108,8 @@ type breakOption struct {
 
 // breaker generates line breaking candidates for a text.
 type breaker struct {
-	segmenter *segmenter.LineIterator
+	segmenter  *segmenter.LineIterator
+	totalRunes int
 }
 
 // newBreaker returns a breaker initialized to break the provided text.
@@ -116,7 +117,8 @@ func newBreaker(text []rune) *breaker {
 	var seg segmenter.Segmenter // Note : we should cache this segmenter to reuse internal storage
 	seg.Init(text)
 	br := &breaker{
-		segmenter: seg.LineIterator(),
+		segmenter:  seg.LineIterator(),
+		totalRunes: len(text),
 	}
 	return br
 }

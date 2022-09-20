@@ -86,6 +86,7 @@ type cursor struct {
 }
 
 // initialise the cursor properties
+// some of them are set in [startIteration]
 func newCursor(text []rune) *cursor {
 	cr := cursor{
 		prevPrevLine: ucd.BreakXX,
@@ -117,7 +118,7 @@ func newCursor(text []rune) *cursor {
 // Some rules require variable length lookup, which we handle by keeping
 // a state in a [cursor] object.
 func computeAttributes(text []rune, attributes []runeAttr) {
-	// initialise the cursor properties: many are set in `startIteration`
+	// initialise the cursor properties
 	cr := newCursor(text)
 
 	for i := 0; i <= len(text); i++ { // note that we accept i == len(text) to fill the last attribute
@@ -125,9 +126,9 @@ func computeAttributes(text []rune, attributes []runeAttr) {
 
 		var attr runeAttr
 
-		// UAX#29 Grapheme Boundaries (also required for line breaking)
+		// UAX#29 Grapheme Boundaries
 
-		isGraphemeBoundary := cr.applyGraphemeRules()
+		isGraphemeBoundary := cr.applyGraphemeBoundaryRules()
 		if isGraphemeBoundary {
 			attr |= aGraphemeBoundary
 		}
