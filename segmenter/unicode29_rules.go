@@ -7,7 +7,7 @@ import ucd "github.com/benoitkugler/textlayout/unicodedata"
 // Apply the Grapheme_Cluster_Boundary_Rules and returns a true if we are
 // at a grapheme break.
 // See https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules
-func (cr *cursor) applyGraphemeRules() bool {
+func (cr *cursor) applyGraphemeBoundaryRules() bool {
 	triggerGB11 := cr.updatePictoSequence()    // apply rule GB11
 	triggerGB12_13 := cr.updateGraphemeRIOdd() // apply rule GB12 and GB13
 
