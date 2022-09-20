@@ -9,9 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/gioui/uax/segment"
-	"github.com/gioui/uax/uax14"
 )
 
 func hex(rs []rune) string {
@@ -148,28 +145,6 @@ func BenchmarkSegmentUnicodeReference(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, line := range inputs {
 			segmentCount(seg, line)
-		}
-	}
-}
-
-func segmentCountUax(s *segment.Segmenter, input []rune) int {
-	s.InitFromSlice(input)
-	var out int
-	for s.Next() {
-		out += 1
-	}
-	return out
-}
-
-func BenchmarkSegmentUnicodeReferenceUax(b *testing.B) {
-	inputs := getInputs()
-	b.ResetTimer()
-
-	lw := uax14.NewLineWrap()
-	seg := segment.NewSegmenter(lw)
-	for i := 0; i < b.N; i++ {
-		for _, line := range inputs {
-			segmentCountUax(seg, line)
 		}
 	}
 }
