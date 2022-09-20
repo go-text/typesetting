@@ -1,10 +1,8 @@
 github.com/benoitkugler/pstokenizer v1.0.0/go.mod h1:l1G2Voirz0q/jj0TQfabNxVsa8HZXh/VMxFSRALWTiE=
-github.com/benoitkugler/textlayout v0.1.3 h1:Jv0E28xDkke3KrWle90yOLtBmZsUqXLBy70lZRfbKN0=
-github.com/benoitkugler/textlayout v0.1.3/go.mod h1:o+1hFV+JSHBC9qNLIuwVoLedERU7sBPgEFcuSgfvi/w=
+github.com/benoitkugler/textlayout v0.2.0 h1:I+s1LuIKckIJgDbsGF1iUNEZ24HZ8mMfb2LsMJU+Uko=
+github.com/benoitkugler/textlayout v0.2.0/go.mod h1:o+1hFV+JSHBC9qNLIuwVoLedERU7sBPgEFcuSgfvi/w=
 github.com/benoitkugler/textlayout-testdata v0.1.1 h1:AvFxBxpfrQd8v55qH59mZOJOQjtD6K2SFe9/HvnIbJk=
 github.com/benoitkugler/textlayout-testdata v0.1.1/go.mod h1:i/qZl09BbUOtd7Bu/W1CAubRwTWrEXWq6JwMkw8wYxo=
-github.com/gioui/uax v0.2.1-0.20220819135011-cda973fac06d h1:ro1W5kY1pVBLHy4GokZUfr9cl7ewZhAiT5WsXqFDYE4=
-github.com/gioui/uax v0.2.1-0.20220819135011-cda973fac06d/go.mod h1:b6uGh9ySJPVQG/RdiI88bE5sUGDk6vzzRujv1BAeuJc=
 golang.org/x/image v0.0.0-20210504121937-7319ad40d33e/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d h1:RNPAfi2nHY7C2srAV8A49jpsYr0ADedCk1wq6fTMTvs=
 golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d/go.mod h1:023OzeP/+EPmXeapQh35lcL3II3LrY8Ic+EFFKVhULM=
@@ -13,7 +11,6 @@ golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
 golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
-golang.org/x/text v0.3.7 h1:olpwvP2KacW1ZWvsR7uQhoyTYvKAupfQrRGBFM352Gk=
-golang.org/x/text v0.3.7/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
