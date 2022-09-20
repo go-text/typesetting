@@ -1,9 +1,8 @@
 package shaping
 
 import (
-	"github.com/gioui/uax/segment"
-	"github.com/gioui/uax/uax14"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -109,20 +108,17 @@ type breakOption struct {
 
 // breaker generates line breaking candidates for a text.
 type breaker struct {
-	segmenter  *segment.Segmenter
-	runeOffset int
-	brokeAtEnd bool
-	totalRunes int
+	segmenter *segmenter.LineIterator
 }
 
 // newBreaker returns a breaker initialized to break the provided text.
 func newBreaker(text []rune) *breaker {
-	segmenter := segment.NewSegmenter(uax14.NewLineWrap())
-	segmenter.InitFromSlice(text)
-	return &breaker{
-		segmenter:  segmenter,
-		totalRunes: len(text),
+	var seg segmenter.Segmenter // Note : we should cache this segmenter to reuse internal storage
+	seg.Init(text)
+	br := &breaker{
+		segmenter: seg.LineIterator(),
 	}
+	return br
 }
 
 // isValid returns whether a given option violates shaping rules (like breaking
@@ -155,27 +151,15 @@ func (b *breaker) nextValid(currentRuneToGlyph []int, currentOutput Output) (opt
 // next returns a naive break candidate which may be invalid.
 func (b *breaker) next() (option breakOption, ok bool) {
 	if b.segmenter.Next() {
-		penalty, _ := b.segmenter.Penalties()
-		// Determine the indices of the breaking runes in the runes
-		// slice. Would be nice if the API provided this.
-		currentSegment := b.segmenter.Runes()
-		b.runeOffset += len(currentSegment)
-
-		// Collect all break options.
+		currentSegment := b.segmenter.Line()
+		// We dont use penalties for Mandatory Breaks so far,
+		// we could add it with currentSegment.IsMandatoryBreak
 		option := breakOption{
-			penalty:     penalty,
-			breakAtRune: b.runeOffset - 1,
-		}
-		if option.breakAtRune == b.totalRunes-1 {
-			b.brokeAtEnd = true
+			breakAtRune: currentSegment.Offset + len(currentSegment.Text) - 1,
 		}
 		return option, true
-	} else if b.totalRunes > 0 && !b.brokeAtEnd {
-		return breakOption{
-			penalty:     uax14.PenaltyForMustBreak,
-			breakAtRune: b.totalRunes - 1,
-		}, true
 	}
+	// Unicode rules impose to always break at the end
 	return breakOption{}, false
 }
 
