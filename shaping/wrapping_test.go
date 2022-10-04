@@ -558,7 +558,7 @@ func TestLineWrap(t *testing.T) {
 		shaped    []Output
 		paragraph []rune
 		maxWidth  int
-		expected  []Output
+		expected  []Line
 	}
 	for _, tc := range []testcase{
 		{
@@ -568,10 +568,12 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText1},
 			paragraph: []rune(text1),
 			maxWidth:  1000,
-			expected: []Output{
-				withRange(shapedText1, Range{
-					Count: len([]rune(text1)),
-				}),
+			expected: []Line{
+				[]Output{
+					withRange(shapedText1, Range{
+						Count: len([]rune(text1)),
+					}),
+				},
 			},
 		},
 		{
@@ -581,10 +583,12 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText1Trailing},
 			paragraph: []rune(text1Trailing),
 			maxWidth:  1000,
-			expected: []Output{
-				withRange(shapedText1Trailing, Range{
-					Count: len([]rune(text1)) + 1,
-				}),
+			expected: []Line{
+				[]Output{
+					withRange(shapedText1Trailing, Range{
+						Count: len([]rune(text1)) + 1,
+					}),
+				},
 			},
 		},
 		{
@@ -616,47 +620,51 @@ func TestLineWrap(t *testing.T) {
 			// segment break between them.
 			paragraph: []rune{0xa8e58, 0x3a4fd, 0x119dd},
 			maxWidth:  20,
-			expected: []Output{
-				withRange(
-					Output{
-						Direction: di.DirectionLTR,
-						Advance:   fixed.I(10),
-						LineBounds: Bounds{
-							Ascent:  fixed.I(10),
-							Descent: fixed.I(5),
+			expected: []Line{
+				[]Output{
+					withRange(
+						Output{
+							Direction: di.DirectionLTR,
+							Advance:   fixed.I(10),
+							LineBounds: Bounds{
+								Ascent:  fixed.I(10),
+								Descent: fixed.I(5),
+							},
+							GlyphBounds: Bounds{
+								Ascent: fixed.I(10),
+							},
+							Glyphs: []Glyph{
+								simpleGlyph(0),
+							},
 						},
-						GlyphBounds: Bounds{
-							Ascent: fixed.I(10),
+						Range{
+							Count: 1,
 						},
-						Glyphs: []Glyph{
-							simpleGlyph(0),
+					),
+				},
+				[]Output{
+					withRange(
+						Output{
+							Direction: di.DirectionLTR,
+							Advance:   fixed.I(20),
+							LineBounds: Bounds{
+								Ascent:  fixed.I(10),
+								Descent: fixed.I(5),
+							},
+							GlyphBounds: Bounds{
+								Ascent: fixed.I(10),
+							},
+							Glyphs: []Glyph{
+								complexGlyph(1, 2, 2),
+								complexGlyph(1, 2, 2),
+							},
 						},
-					},
-					Range{
-						Count: 1,
-					},
-				),
-				withRange(
-					Output{
-						Direction: di.DirectionLTR,
-						Advance:   fixed.I(20),
-						LineBounds: Bounds{
-							Ascent:  fixed.I(10),
-							Descent: fixed.I(5),
+						Range{
+							Count:  2,
+							Offset: 1,
 						},
-						GlyphBounds: Bounds{
-							Ascent: fixed.I(10),
-						},
-						Glyphs: []Glyph{
-							complexGlyph(1, 2, 2),
-							complexGlyph(1, 2, 2),
-						},
-					},
-					Range{
-						Count:  2,
-						Offset: 1,
-					},
-				),
+					),
+				},
 			},
 		},
 		{
@@ -666,20 +674,24 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText1},
 			paragraph: []rune(text1),
 			maxWidth:  120,
-			expected: []Output{
-				withRange(
-					splitShapedAt(shapedText1, di.DirectionLTR, 12)[0],
-					Range{
-						Count: len([]rune(text1)) - 3,
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText1, di.DirectionLTR, 12)[1],
-					Range{
-						Offset: len([]rune(text1)) - 3,
-						Count:  3,
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText1, di.DirectionLTR, 12)[0],
+						Range{
+							Count: len([]rune(text1)) - 3,
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText1, di.DirectionLTR, 12)[1],
+						Range{
+							Offset: len([]rune(text1)) - 3,
+							Count:  3,
+						},
+					),
+				},
 			},
 		},
 		{
@@ -690,27 +702,33 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText1},
 			paragraph: []rune(text1),
 			maxWidth:  70,
-			expected: []Output{
-				withRange(
-					splitShapedAt(shapedText1, di.DirectionLTR, 5)[0],
-					Range{
-						Count: 5,
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText1, di.DirectionLTR, 5, 12)[1],
-					Range{
-						Offset: 5,
-						Count:  7,
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText1, di.DirectionLTR, 12)[1],
-					Range{
-						Offset: 12,
-						Count:  3,
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText1, di.DirectionLTR, 5)[0],
+						Range{
+							Count: 5,
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText1, di.DirectionLTR, 5, 12)[1],
+						Range{
+							Offset: 5,
+							Count:  7,
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText1, di.DirectionLTR, 12)[1],
+						Range{
+							Offset: 12,
+							Count:  3,
+						},
+					),
+				},
 			},
 		},
 		{
@@ -719,13 +737,15 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText2},
 			paragraph: []rune(text2),
 			maxWidth:  1000,
-			expected: []Output{
-				withRange(
-					shapedText2,
-					Range{
-						Count: len([]rune(text2)),
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						shapedText2,
+						Range{
+							Count: len([]rune(text2)),
+						},
+					),
+				},
 			},
 		},
 		{
@@ -736,27 +756,33 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText2},
 			paragraph: []rune(text2),
 			maxWidth:  40,
-			expected: []Output{
-				withRange(
-					splitShapedAt(shapedText2, di.DirectionLTR, 4)[0],
-					Range{
-						Count: len([]rune("안П你 ")),
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText2, di.DirectionLTR, 4, 8)[1],
-					Range{
-						Count:  len([]rune("ligDROP 안П")),
-						Offset: len([]rune("안П你 ")),
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText2, di.DirectionLTR, 8, 11)[1],
-					Range{
-						Count:  len([]rune("你 ligDROP")),
-						Offset: len([]rune("안П你 ligDROP 안П")),
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText2, di.DirectionLTR, 4)[0],
+						Range{
+							Count: len([]rune("안П你 ")),
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText2, di.DirectionLTR, 4, 8)[1],
+						Range{
+							Count:  len([]rune("ligDROP 안П")),
+							Offset: len([]rune("안П你 ")),
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText2, di.DirectionLTR, 8, 11)[1],
+						Range{
+							Count:  len([]rune("你 ligDROP")),
+							Offset: len([]rune("안П你 ligDROP 안П")),
+						},
+					),
+				},
 			},
 		},
 		{
@@ -765,13 +791,15 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText3},
 			paragraph: []rune(text3),
 			maxWidth:  1000,
-			expected: []Output{
-				withRange(
-					shapedText3,
-					Range{
-						Count: len([]rune(text3)),
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						shapedText3,
+						Range{
+							Count: len([]rune(text3)),
+						},
+					),
+				},
 			},
 		},
 		{
@@ -780,20 +808,24 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText3},
 			paragraph: []rune(text3),
 			maxWidth:  100,
-			expected: []Output{
-				withRange(
-					splitShapedAt(shapedText3, di.DirectionRTL, 7)[1],
-					Range{
-						Count: len([]rune("שלום أهلا ")),
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText3, di.DirectionRTL, 7)[0],
-					Range{
-						Count:  len([]rune("שלום أهلا")),
-						Offset: len([]rune("שלום أهلا ")),
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText3, di.DirectionRTL, 7)[1],
+						Range{
+							Count: len([]rune("שלום أهلا ")),
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText3, di.DirectionRTL, 7)[0],
+						Range{
+							Count:  len([]rune("שלום أهلا")),
+							Offset: len([]rune("שלום أهلا ")),
+						},
+					),
+				},
 			},
 		},
 		{
@@ -802,34 +834,42 @@ func TestLineWrap(t *testing.T) {
 			shaped:    []Output{shapedText3},
 			paragraph: []rune(text3),
 			maxWidth:  50,
-			expected: []Output{
-				withRange(
-					splitShapedAt(shapedText3, di.DirectionRTL, 10)[1],
-					Range{
-						Count: len([]rune("שלום ")),
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText3, di.DirectionRTL, 7, 10)[1],
-					Range{
-						Count:  len([]rune("أهلا ")),
-						Offset: len([]rune("שלום ")),
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText3, di.DirectionRTL, 2, 7)[1],
-					Range{
-						Count:  len([]rune("שלום ")),
-						Offset: len([]rune("שלום أهلا ")),
-					},
-				),
-				withRange(
-					splitShapedAt(shapedText3, di.DirectionRTL, 2)[0],
-					Range{
-						Count:  len([]rune("أهلا")),
-						Offset: len([]rune("שלום أهلا שלום ")),
-					},
-				),
+			expected: []Line{
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText3, di.DirectionRTL, 10)[1],
+						Range{
+							Count: len([]rune("שלום ")),
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText3, di.DirectionRTL, 7, 10)[1],
+						Range{
+							Count:  len([]rune("أهلا ")),
+							Offset: len([]rune("שלום ")),
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText3, di.DirectionRTL, 2, 7)[1],
+						Range{
+							Count:  len([]rune("שלום ")),
+							Offset: len([]rune("שלום أهلا ")),
+						},
+					),
+				},
+				[]Output{
+					withRange(
+						splitShapedAt(shapedText3, di.DirectionRTL, 2)[0],
+						Range{
+							Count:  len([]rune("أهلا")),
+							Offset: len([]rune("שלום أهلا שלום ")),
+						},
+					),
+				},
 			},
 		},
 	} {
@@ -840,34 +880,42 @@ func TestLineWrap(t *testing.T) {
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
 			}
-			for i := range tc.expected {
-				e := tc.expected[i]
-				o := outs[i]
-				lenE := len(e.Glyphs)
-				lenO := len(o.Glyphs)
-				if lenE != lenO {
-					t.Errorf("line %d: expected %d glyphs, got %d", i, lenE, lenO)
-				} else {
-					for k := range e.Glyphs {
-						e := e.Glyphs[k]
-						o := o.Glyphs[k]
+			for lineNum := range tc.expected {
+				expectedLine := tc.expected[lineNum]
+				actualLine := outs[lineNum]
+				if len(expectedLine) != len(actualLine) {
+					t.Errorf("expected %d runs in line %d, got %d", len(expectedLine), lineNum, len(actualLine))
+					continue
+				}
+				for runNum := range expectedLine {
+					expectedRun := expectedLine[runNum]
+					actualRun := actualLine[runNum]
+					lenE := len(expectedRun.Glyphs)
+					lenO := len(actualRun.Glyphs)
+					if lenE != lenO {
+						t.Errorf("line %d run %d: expected %d glyphs, got %d", lineNum, runNum, lenE, lenO)
+						continue
+					}
+					for k := range expectedRun.Glyphs {
+						e := expectedRun.Glyphs[k]
+						o := actualRun.Glyphs[k]
 						if !reflect.DeepEqual(e, o) {
-							t.Errorf("line %d: glyph mismatch at index %d, expected: %#v, got %#v", i, k, e, o)
+							t.Errorf("line %d: glyph mismatch at index %d, expected: %#v, got %#v", runNum, k, e, o)
 						}
 					}
-				}
-				if e.Runes != o.Runes {
-					t.Errorf("line %d: expected %#v offsets, got %#v", i, e.Runes, o.Runes)
-				}
-				if e.Direction != o.Direction {
-					t.Errorf("line %d: expected %v direction, got %v", i, e.Direction, o.Direction)
-				}
-				// Reduce the verbosity of the reflect mismatch since we already
-				// compared the glyphs.
-				e.Glyphs = nil
-				o.Glyphs = nil
-				if !reflect.DeepEqual(e, o) {
-					t.Errorf("line %d: expected: %#v, got %#v", i, e, o)
+					if expectedRun.Runes != actualRun.Runes {
+						t.Errorf("line %d: expected %#v offsets, got %#v", runNum, expectedRun.Runes, actualRun.Runes)
+					}
+					if expectedRun.Direction != actualRun.Direction {
+						t.Errorf("line %d: expected %v direction, got %v", runNum, expectedRun.Direction, actualRun.Direction)
+					}
+					// Reduce the verbosity of the reflect mismatch since we already
+					// compared the glyphs.
+					expectedRun.Glyphs = nil
+					actualRun.Glyphs = nil
+					if !reflect.DeepEqual(expectedRun, actualRun) {
+						t.Errorf("line %d: expected: %#v, got %#v", runNum, expectedRun, actualRun)
+					}
 				}
 			}
 		})
@@ -963,7 +1011,7 @@ func BenchmarkWrapping(b *testing.B) {
 		b.Skipf("failed shaping: %v", err)
 	}
 	b.ResetTimer()
-	var outs []Output
+	var outs []Line
 	for i := 0; i < b.N; i++ {
 		lw := NewLineWrapper(textInput, out)
 		outs = lw.WrapParagraph(250)
