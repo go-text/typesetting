@@ -173,6 +173,10 @@ type Range struct {
 	Count  int
 }
 
+// Line holds runs of shaped text wrapped onto a single line. All the contained
+// Output should be displayed sequentially on one line.
+type Line []Output
+
 // LineWrapper holds a one-dimentional, shaped text,
 // to be wrapped into lines
 type LineWrapper struct {
@@ -235,16 +239,16 @@ func (sp LineWrapper) nextValidBreak(run Output, mapping []int) (_ breakOption, 
 }
 
 // WrapParagraph wraps the shaped glyphs of a paragraph to a particular max width.
-func (sp LineWrapper) WrapParagraph(maxWidth int) []Output {
+func (sp LineWrapper) WrapParagraph(maxWidth int) []Line {
 	if len(sp.glyphRuns) == 0 {
 		return nil
 	} else if len(sp.glyphRuns[0].Glyphs) == 0 {
 		// Pass empty lines through as empty.
 		sp.glyphRuns[0].Runes = Range{Count: len(sp.text)}
-		return []Output{sp.glyphRuns[0]}
+		return []Line{Line([]Output{sp.glyphRuns[0]})}
 	}
 
-	var outputs []Output
+	var outputs []Line
 	start := 0
 	runesProcessedCount := 0
 	for _, run := range sp.glyphRuns {
@@ -281,7 +285,7 @@ func (sp LineWrapper) WrapParagraph(maxWidth int) []Output {
 				Count:  lineRuneCount,
 				Offset: runesProcessedCount,
 			}
-			outputs = append(outputs, good)
+			outputs = append(outputs, Line([]Output{good}))
 			runesProcessedCount += lineRuneCount
 			start = end + 1
 		}
