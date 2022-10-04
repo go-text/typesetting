@@ -555,7 +555,6 @@ func splitShapedAt(shaped Output, direction di.Direction, indices ...int) []Outp
 func TestLineWrap(t *testing.T) {
 	type testcase struct {
 		name      string
-		direction di.Direction
 		shaped    Output
 		paragraph []rune
 		maxWidth  int
@@ -567,7 +566,6 @@ func TestLineWrap(t *testing.T) {
 			// necessary, and that the proper Offsets are reported in the output.
 			name:      "all one line",
 			shaped:    shapedText1,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text1),
 			maxWidth:  1000,
 			expected: []Output{
@@ -581,7 +579,6 @@ func TestLineWrap(t *testing.T) {
 			// line do not just disappear if it's the first line.
 			name:      "trailing whitespace",
 			shaped:    shapedText1Trailing,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text1Trailing),
 			maxWidth:  1000,
 			expected: []Output{
@@ -611,7 +608,6 @@ func TestLineWrap(t *testing.T) {
 					complexGlyph(1, 2, 2),
 				},
 			},
-			direction: di.DirectionLTR,
 			// This unicode data was discovered in a testing/quick failure
 			// for widget.Editor. It has the property that the middle two
 			// runes form a harfbuzz cluster but also have a legal UAX#14
@@ -666,7 +662,6 @@ func TestLineWrap(t *testing.T) {
 			// all lines have proper offsets.
 			name:      "line break on last word",
 			shaped:    shapedText1,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text1),
 			maxWidth:  120,
 			expected: []Output{
@@ -691,7 +686,6 @@ func TestLineWrap(t *testing.T) {
 			// is correctly hidden on lines after the first.
 			name:      "line break several times",
 			shaped:    shapedText1,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text1),
 			maxWidth:  70,
 			expected: []Output{
@@ -721,7 +715,6 @@ func TestLineWrap(t *testing.T) {
 			// This test case verifies baseline offset math for more complicated input.
 			name:      "all one line 2",
 			shaped:    shapedText2,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text2),
 			maxWidth:  1000,
 			expected: []Output{
@@ -739,7 +732,6 @@ func TestLineWrap(t *testing.T) {
 			// of more than one script, so this test expects that to occur.
 			name:      "line break several times 2",
 			shaped:    shapedText2,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text2),
 			maxWidth:  40,
 			expected: []Output{
@@ -769,7 +761,6 @@ func TestLineWrap(t *testing.T) {
 			// This test case verifies baseline offset math for complex RTL input.
 			name:      "all one line 3",
 			shaped:    shapedText3,
-			direction: di.DirectionLTR,
 			paragraph: []rune(text3),
 			maxWidth:  1000,
 			expected: []Output{
@@ -785,7 +776,6 @@ func TestLineWrap(t *testing.T) {
 			// This test case verifies line wrapping logic in RTL mode.
 			name:      "line break once [RTL]",
 			shaped:    shapedText3,
-			direction: di.DirectionRTL,
 			paragraph: []rune(text3),
 			maxWidth:  100,
 			expected: []Output{
@@ -808,7 +798,6 @@ func TestLineWrap(t *testing.T) {
 			// This test case verifies line wrapping logic in RTL mode.
 			name:      "line break several times [RTL]",
 			shaped:    shapedText3,
-			direction: di.DirectionRTL,
 			paragraph: []rune(text3),
 			maxWidth:  50,
 			expected: []Output{
