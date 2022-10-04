@@ -534,7 +534,7 @@ var (
 // on each provided glyph index in indices, with the index being the end of
 // a slice range (so it's exclusive). You can think of the index as the
 // first glyph of the next output.
-func splitShapedAt(shaped Output, direction di.Direction, indices ...int) []Output {
+func splitShapedAt(shaped Output, indices ...int) []Output {
 	numOut := len(indices) + 1
 	outputs := make([]Output, 0, numOut)
 	start := 0
@@ -677,7 +677,7 @@ func TestLineWrap(t *testing.T) {
 			expected: []Line{
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText1, di.DirectionLTR, 12)[0],
+						splitShapedAt(shapedText1, 12)[0],
 						Range{
 							Count: len([]rune(text1)) - 3,
 						},
@@ -685,7 +685,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText1, di.DirectionLTR, 12)[1],
+						splitShapedAt(shapedText1, 12)[1],
 						Range{
 							Offset: len([]rune(text1)) - 3,
 							Count:  3,
@@ -705,7 +705,7 @@ func TestLineWrap(t *testing.T) {
 			expected: []Line{
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText1, di.DirectionLTR, 5)[0],
+						splitShapedAt(shapedText1, 5)[0],
 						Range{
 							Count: 5,
 						},
@@ -713,7 +713,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText1, di.DirectionLTR, 5, 12)[1],
+						splitShapedAt(shapedText1, 5, 12)[1],
 						Range{
 							Offset: 5,
 							Count:  7,
@@ -722,7 +722,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText1, di.DirectionLTR, 12)[1],
+						splitShapedAt(shapedText1, 12)[1],
 						Range{
 							Offset: 12,
 							Count:  3,
@@ -759,7 +759,7 @@ func TestLineWrap(t *testing.T) {
 			expected: []Line{
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText2, di.DirectionLTR, 4)[0],
+						splitShapedAt(shapedText2, 4)[0],
 						Range{
 							Count: len([]rune("안П你 ")),
 						},
@@ -767,7 +767,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText2, di.DirectionLTR, 4, 8)[1],
+						splitShapedAt(shapedText2, 4, 8)[1],
 						Range{
 							Count:  len([]rune("ligDROP 안П")),
 							Offset: len([]rune("안П你 ")),
@@ -776,7 +776,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText2, di.DirectionLTR, 8, 11)[1],
+						splitShapedAt(shapedText2, 8, 11)[1],
 						Range{
 							Count:  len([]rune("你 ligDROP")),
 							Offset: len([]rune("안П你 ligDROP 안П")),
@@ -811,7 +811,7 @@ func TestLineWrap(t *testing.T) {
 			expected: []Line{
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText3, di.DirectionRTL, 7)[1],
+						splitShapedAt(shapedText3, 7)[1],
 						Range{
 							Count: len([]rune("שלום أهلا ")),
 						},
@@ -819,7 +819,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText3, di.DirectionRTL, 7)[0],
+						splitShapedAt(shapedText3, 7)[0],
 						Range{
 							Count:  len([]rune("שלום أهلا")),
 							Offset: len([]rune("שלום أهلا ")),
@@ -837,7 +837,7 @@ func TestLineWrap(t *testing.T) {
 			expected: []Line{
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText3, di.DirectionRTL, 10)[1],
+						splitShapedAt(shapedText3, 10)[1],
 						Range{
 							Count: len([]rune("שלום ")),
 						},
@@ -845,7 +845,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText3, di.DirectionRTL, 7, 10)[1],
+						splitShapedAt(shapedText3, 7, 10)[1],
 						Range{
 							Count:  len([]rune("أهلا ")),
 							Offset: len([]rune("שלום ")),
@@ -854,7 +854,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText3, di.DirectionRTL, 2, 7)[1],
+						splitShapedAt(shapedText3, 2, 7)[1],
 						Range{
 							Count:  len([]rune("שלום ")),
 							Offset: len([]rune("שלום أهلا ")),
@@ -863,7 +863,7 @@ func TestLineWrap(t *testing.T) {
 				},
 				[]Output{
 					withRange(
-						splitShapedAt(shapedText3, di.DirectionRTL, 2)[0],
+						splitShapedAt(shapedText3, 2)[0],
 						Range{
 							Count:  len([]rune("أهلا")),
 							Offset: len([]rune("שלום أهلا שלום ")),
