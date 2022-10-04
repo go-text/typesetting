@@ -3,6 +3,7 @@ package shaping
 import (
 	"github.com/gioui/uax/segment"
 	"github.com/gioui/uax/uax14"
+	"github.com/go-text/typesetting/di"
 )
 
 // glyphIndex is the index in a Glyph slice
@@ -11,23 +12,23 @@ type glyphIndex = int
 // length is the unit used to measure a width
 type length = int
 
-// mapRunesToClusterIndices returns a slice. Each index within that slice corresponds
-// to an index within the runes input slice. The value stored at that index is the
-// index of the glyph at the start of the corresponding glyph cluster shaped by
-// harfbuzz.
-func mapRunesToClusterIndices(runes []rune, glyphs []Glyph) []glyphIndex {
-	mapping := make([]glyphIndex, len(runes))
-	glyphCursor := 0
-	if len(runes) == 0 {
+// mapRunesToClusterIndices
+// returns a slice that maps rune indicies in the text to the index of the
+// first glyph in the glyph cluster containing that rune in the shaped text.
+// The indicies are relative to the region of runes covered by the input run.
+// To translate an absolute rune index in text into a rune index into the returned
+// mapping, subtract run.Runes.Offset first.
+func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph) []glyphIndex {
+	if runes.Count <= 0 {
 		return nil
 	}
-	// If the final cluster values are lower than the starting ones,
-	// the text is RTL.
-	rtl := len(glyphs) > 0 && glyphs[len(glyphs)-1].ClusterIndex < glyphs[0].ClusterIndex
+	mapping := make([]glyphIndex, runes.Count)
+	glyphCursor := 0
+	rtl := dir.Progression() == di.TowardTopLeft
 	if rtl {
 		glyphCursor = len(glyphs) - 1
 	}
-	for i := range runes {
+	for i := 0; i < runes.Count; i++ {
 		for glyphCursor >= 0 && glyphCursor < len(glyphs) &&
 			((rtl && glyphs[glyphCursor].ClusterIndex <= i) ||
 				(!rtl && glyphs[glyphCursor].ClusterIndex < i)) {
@@ -64,8 +65,8 @@ func mapRunesToClusterIndices(runes []rune, glyphs []Glyph) []glyphIndex {
 // glyph reprsentation produced by mapRunesToClusterIndices.
 // numGlyphs is the number of glyphs in the output representing the runes
 // under consideration.
-func inclusiveGlyphRange(start, breakAfter int, runeToGlyph []int, numGlyphs int) (glyphStart, glyphEnd glyphIndex) {
-	rtl := runeToGlyph[len(runeToGlyph)-1] < runeToGlyph[0]
+func inclusiveGlyphRange(dir di.Direction, start, breakAfter int, runeToGlyph []int, numGlyphs int) (glyphStart, glyphEnd glyphIndex) {
+	rtl := dir.Progression() == di.TowardTopLeft
 	if rtl {
 		glyphStart = runeToGlyph[breakAfter]
 		if start-1 >= 0 {
@@ -217,7 +218,7 @@ func NewLineWrapper(text []rune, glyphRuns ...Output) LineWrapper {
 // indicating whether the returned output should be used.
 func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
 	// Convert the break target to an inclusive index.
-	glyphStart, glyphEnd := inclusiveGlyphRange(lineStartRune, b.breakAtRune, mapping, len(run.Glyphs))
+	glyphStart, glyphEnd := inclusiveGlyphRange(run.Direction, lineStartRune, b.breakAtRune, mapping, len(run.Glyphs))
 
 	// Construct a line out of the inclusive glyph range.
 	candidateLine = run
@@ -252,7 +253,7 @@ func (sp LineWrapper) WrapParagraph(maxWidth int) []Line {
 	start := 0
 	runesProcessedCount := 0
 	for _, run := range sp.glyphRuns {
-		runeToGlyph := mapRunesToClusterIndices(sp.text, run.Glyphs)
+		runeToGlyph := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
 		b, breakOk := sp.nextValidBreak(run, runeToGlyph)
 		for breakOk {
 			// Always keep the first segment on a line.
