@@ -179,23 +179,19 @@ type LineWrapper struct {
 	// out - the Output that is being line-broken.
 	// text is the original input text
 	text []rune
-	// glyphs is the result of the Harfbuzz shaping
-	glyphs Output
+	// glyphRuns is the result of the Harfbuzz shaping
+	glyphRuns []Output
 	// wordBreaker generates line break candidates between words.
 	wordBreaker *breaker
-	// mapping is a mapping where accessing the slice at the index of a rune
-	// will yield the index of the first glyph corresponding to that rune.
-	mapping []glyphIndex
 }
 
 // NewLineWrapper creates a line wrapper prepared to convert the given text and glyph
 // data into a multi-line paragraph. The provided glyphs should be the output of
 // invoking Shape on the given text.
-func NewLineWrapper(text []rune, glyphs Output) LineWrapper {
+func NewLineWrapper(text []rune, glyphRuns ...Output) LineWrapper {
 	return LineWrapper{
 		text:        text,
-		glyphs:      glyphs,
-		mapping:     mapRunesToClusterIndices(text, glyphs.Glyphs),
+		glyphRuns:   glyphRuns,
 		wordBreaker: newBreaker(text),
 	}
 }
@@ -215,12 +211,12 @@ func NewLineWrapper(text []rune, glyphs Output) LineWrapper {
 //
 // This function returns both a valid Output broken at b and a boolean
 // indicating whether the returned output should be used.
-func (sp LineWrapper) shouldKeepSegmentOnLine(lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
+func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
 	// Convert the break target to an inclusive index.
-	glyphStart, glyphEnd := inclusiveGlyphRange(lineStartRune, b.breakAtRune, sp.mapping, len(sp.glyphs.Glyphs))
+	glyphStart, glyphEnd := inclusiveGlyphRange(lineStartRune, b.breakAtRune, mapping, len(run.Glyphs))
 
 	// Construct a line out of the inclusive glyph range.
-	candidateLine = sp.glyphs
+	candidateLine = run
 	candidateLine.Glyphs = candidateLine.Glyphs[glyphStart : glyphEnd+1]
 	candidateLine.RecomputeAdvance()
 	candidateAdvance := candidateLine.Advance.Ceil()
@@ -234,56 +230,61 @@ func (sp LineWrapper) shouldKeepSegmentOnLine(lineStartRune int, b breakOption, 
 
 // nextValidBreak returns the next line-breaking candidate position if there is one.
 // If ok is false, there are no more candidates.
-func (sp LineWrapper) nextValidBreak() (_ breakOption, ok bool) {
-	return sp.wordBreaker.nextValid(sp.mapping, sp.glyphs)
+func (sp LineWrapper) nextValidBreak(run Output, mapping []int) (_ breakOption, ok bool) {
+	return sp.wordBreaker.nextValid(mapping, run)
 }
 
 // WrapParagraph wraps the shaped glyphs of a paragraph to a particular max width.
 func (sp LineWrapper) WrapParagraph(maxWidth int) []Output {
-	if len(sp.glyphs.Glyphs) == 0 {
+	if len(sp.glyphRuns) == 0 {
+		return nil
+	} else if len(sp.glyphRuns[0].Glyphs) == 0 {
 		// Pass empty lines through as empty.
-		sp.glyphs.Runes = Range{Count: len(sp.text)}
-		return []Output{sp.glyphs}
+		sp.glyphRuns[0].Runes = Range{Count: len(sp.text)}
+		return []Output{sp.glyphRuns[0]}
 	}
 
 	var outputs []Output
 	start := 0
 	runesProcessedCount := 0
-	b, breakOk := sp.nextValidBreak()
-	for breakOk {
-		// Always keep the first segment on a line.
-		good, _ := sp.shouldKeepSegmentOnLine(start, b, maxWidth, 0, maxWidth)
-		end := b.breakAtRune
+	for _, run := range sp.glyphRuns {
+		runeToGlyph := mapRunesToClusterIndices(sp.text, run.Glyphs)
+		b, breakOk := sp.nextValidBreak(run, runeToGlyph)
+		for breakOk {
+			// Always keep the first segment on a line.
+			good, _ := sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, b, maxWidth, 0, maxWidth)
+			end := b.breakAtRune
 
-		// Search through break candidates looking for candidates that can fit on the current line.
-		for {
-			bb, ok := sp.nextValidBreak()
-			if !ok {
-				// There are no line breaking candidates remaining.
-				breakOk = false
-				break
+			// Search through break candidates looking for candidates that can fit on the current line.
+			for {
+				bb, ok := sp.nextValidBreak(run, runeToGlyph)
+				if !ok {
+					// There are no line breaking candidates remaining.
+					breakOk = false
+					break
+				}
+				candidate, ok := sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
+				if ok {
+					// The break described by bb fits on this line. Use this new, longer segment.
+					good = candidate
+					end = bb.breakAtRune
+				} else {
+					// The break described by bb will not fit on this line, commit whatever the last good
+					// break was and then start a new line considering this break candidate.
+					b = bb
+					break
+				}
 			}
-			candidate, ok := sp.shouldKeepSegmentOnLine(start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
-			if ok {
-				// The break described by bb fits on this line. Use this new, longer segment.
-				good = candidate
-				end = bb.breakAtRune
-			} else {
-				// The break described by bb will not fit on this line, commit whatever the last good
-				// break was and then start a new line considering this break candidate.
-				b = bb
-				break
-			}
-		}
 
-		lineRuneCount := end - start + 1
-		good.Runes = Range{
-			Count:  lineRuneCount,
-			Offset: runesProcessedCount,
+			lineRuneCount := end - start + 1
+			good.Runes = Range{
+				Count:  lineRuneCount,
+				Offset: runesProcessedCount,
+			}
+			outputs = append(outputs, good)
+			runesProcessedCount += lineRuneCount
+			start = end + 1
 		}
-		outputs = append(outputs, good)
-		runesProcessedCount += lineRuneCount
-		start = end + 1
 	}
 	return outputs
 }
