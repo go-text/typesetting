@@ -602,6 +602,22 @@ var (
 			Count: len([]rune(text3)),
 		},
 	}
+	multiInputText1       = "aa aa aa"
+	shapedMultiInputText1 = Output{
+		Advance: fixed.I(10 * len([]rune(multiInputText1))),
+		LineBounds: Bounds{
+			Ascent:  fixed.I(10),
+			Descent: fixed.I(5),
+			// No line gap.
+		},
+		GlyphBounds: Bounds{
+			Ascent: fixed.I(10),
+			// No glyphs descend.
+		},
+		Glyphs: glyphs(0, len([]rune(multiInputText1))-1),
+		Runes:  Range{Count: len([]rune(multiInputText1))},
+	}
+	splitShapedMultiInput1 = splitShapedAt(shapedMultiInputText1, 4, 6)
 )
 
 // splitShapedAt splits a single shaped output into multiple. It splits
@@ -618,7 +634,7 @@ func splitShapedAt(shaped Output, indices ...int) []Output {
 		newOut.Glyphs = newOut.Glyphs[start:i]
 		newOut.Runes.Offset = runeOffset
 		newOut.Runes.Count = 0
-		cluster := 0
+		cluster := -1
 		for _, g := range newOut.Glyphs {
 			if cluster == g.ClusterIndex {
 				continue
@@ -633,6 +649,8 @@ func splitShapedAt(shaped Output, indices ...int) []Output {
 	}
 	newOut := shaped
 	newOut.Glyphs = newOut.Glyphs[start:]
+	newOut.Runes.Offset = runeOffset
+	newOut.Runes.Count = shaped.Runes.Count + shaped.Runes.Offset - newOut.Runes.Offset
 	newOut.RecalculateAll()
 	outputs = append(outputs, newOut)
 	return outputs
@@ -959,6 +977,80 @@ func TestLineWrap(t *testing.T) {
 				},
 			},
 		},
+		{
+			// This test case verifies the behavior of the line wrapper for multi-run
+			// shaped input.
+			name:      "multiple input runs 1",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  20,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
+			},
+		},
+		{
+			name:      "multiple input runs 2",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  30,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
+			},
+		},
+		{
+			name:      "multiple input runs 3",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  40,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
+			},
+		},
+		{
+			name:      "multiple input runs 4",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  50,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
+			},
+		},
+		{
+			name:      "multiple input runs 5",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  60,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
+			},
+		},
+		{
+			name:      "multiple input runs 6",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  70,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
+			},
+		},
+		{
+			name:      "multiple input runs 7",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  80,
+			expected: []Line{
+				splitShapedMultiInput1,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sp := NewLineWrapper(tc.paragraph, tc.shaped...)
@@ -966,6 +1058,7 @@ func TestLineWrap(t *testing.T) {
 			outs := sp.WrapParagraph(tc.maxWidth)
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
+				return
 			}
 			for lineNum := range tc.expected {
 				expectedLine := tc.expected[lineNum]

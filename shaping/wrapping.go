@@ -222,7 +222,19 @@ func NewLineWrapper(text []rune, glyphRuns ...Output) LineWrapper {
 // indicating whether the returned output should be used.
 func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
 	// Convert the break target to an inclusive index.
-	glyphStart, glyphEnd := inclusiveGlyphRange(run.Direction, lineStartRune, b.breakAtRune, mapping, len(run.Glyphs))
+	runeStart := lineStartRune - run.Runes.Offset
+	runeEnd := b.breakAtRune - run.Runes.Offset
+	if runeStart < 0 {
+		// If the start location is prior to the run of shaped text under consideration,
+		// just work from the beginning of this run.
+		runeStart = 0
+	}
+	if runeEnd >= len(mapping) {
+		// If the break location is after the entire run of shaped text,
+		// keep through the end of the run.
+		runeEnd = len(mapping) - 1
+	}
+	glyphStart, glyphEnd := inclusiveGlyphRange(run.Direction, runeStart, runeEnd, mapping, len(run.Glyphs))
 
 	// Construct a line out of the inclusive glyph range.
 	candidateLine = run
