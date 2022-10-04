@@ -60,14 +60,16 @@ func glyphs(start, end int) []Glyph {
 func TestMapRunesToClusterIndices(t *testing.T) {
 	type testcase struct {
 		name     string
-		runes    []rune
+		dir      di.Direction
+		runes    Range
 		glyphs   []Glyph
 		expected []int
 	}
 	for _, tc := range []testcase{
 		{
 			name:  "simple",
-			runes: make([]rune, 5),
+			dir:   di.DirectionLTR,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(0),
 				glyph(1),
@@ -79,7 +81,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "simple rtl",
-			runes: make([]rune, 5),
+			dir:   di.DirectionRTL,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(4),
 				glyph(3),
@@ -91,7 +94,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "fused clusters",
-			runes: make([]rune, 5),
+			dir:   di.DirectionLTR,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(0),
 				glyph(0),
@@ -103,7 +107,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "fused clusters rtl",
-			runes: make([]rune, 5),
+			dir:   di.DirectionRTL,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(3),
 				glyph(3),
@@ -115,7 +120,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "ligatures",
-			runes: make([]rune, 5),
+			dir:   di.DirectionLTR,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(0),
 				glyph(2),
@@ -125,7 +131,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "ligatures rtl",
-			runes: make([]rune, 5),
+			dir:   di.DirectionRTL,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(3),
 				glyph(2),
@@ -135,7 +142,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "expansion",
-			runes: make([]rune, 5),
+			dir:   di.DirectionLTR,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(0),
 				glyph(1),
@@ -149,7 +157,8 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 		{
 			name:  "expansion rtl",
-			runes: make([]rune, 5),
+			dir:   di.DirectionRTL,
+			runes: Range{Count: 5},
 			glyphs: []Glyph{
 				glyph(4),
 				glyph(3),
@@ -163,7 +172,7 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			mapping := mapRunesToClusterIndices(tc.runes, tc.glyphs)
+			mapping := mapRunesToClusterIndices(tc.dir, tc.runes, tc.glyphs)
 			if !reflect.DeepEqual(tc.expected, mapping) {
 				t.Errorf("expected %v, got %v", tc.expected, mapping)
 			}
@@ -175,6 +184,7 @@ func TestInclusiveRange(t *testing.T) {
 	type testcase struct {
 		name string
 		// inputs
+		dir         di.Direction
 		start       int
 		breakAfter  int
 		runeToGlyph []int
@@ -185,6 +195,7 @@ func TestInclusiveRange(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:        "simple at start",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       0,
 			breakAfter:  2,
@@ -194,6 +205,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "simple in middle",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       1,
 			breakAfter:  3,
@@ -203,6 +215,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "simple at end",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       2,
 			breakAfter:  4,
@@ -212,6 +225,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "simple at start rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       0,
 			breakAfter:  2,
@@ -221,6 +235,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "simple in middle rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       1,
 			breakAfter:  3,
@@ -230,6 +245,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "simple at end rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       2,
 			breakAfter:  4,
@@ -239,6 +255,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters at start",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       0,
 			breakAfter:  1,
@@ -248,6 +265,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters start and middle",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       0,
 			breakAfter:  2,
@@ -257,6 +275,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters middle and end",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       2,
 			breakAfter:  4,
@@ -266,6 +285,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters at end",
+			dir:         di.DirectionLTR,
 			numGlyphs:   5,
 			start:       3,
 			breakAfter:  4,
@@ -275,6 +295,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters at start rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       0,
 			breakAfter:  1,
@@ -284,6 +305,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters start and middle rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       0,
 			breakAfter:  2,
@@ -293,6 +315,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters middle and end rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       2,
 			breakAfter:  4,
@@ -302,6 +325,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "fused clusters at end rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   5,
 			start:       3,
 			breakAfter:  4,
@@ -311,6 +335,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "ligatures at start",
+			dir:         di.DirectionLTR,
 			numGlyphs:   3,
 			start:       0,
 			breakAfter:  2,
@@ -320,6 +345,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "ligatures in middle",
+			dir:         di.DirectionLTR,
 			numGlyphs:   3,
 			start:       2,
 			breakAfter:  2,
@@ -329,6 +355,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "ligatures at end",
+			dir:         di.DirectionLTR,
 			numGlyphs:   3,
 			start:       2,
 			breakAfter:  4,
@@ -338,6 +365,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "ligatures at start rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   3,
 			start:       0,
 			breakAfter:  2,
@@ -347,6 +375,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "ligatures in middle rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   3,
 			start:       2,
 			breakAfter:  2,
@@ -356,6 +385,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "ligatures at end rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   3,
 			start:       2,
 			breakAfter:  4,
@@ -365,6 +395,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "expansion at start",
+			dir:         di.DirectionLTR,
 			numGlyphs:   7,
 			start:       0,
 			breakAfter:  2,
@@ -374,6 +405,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "expansion in middle",
+			dir:         di.DirectionLTR,
 			numGlyphs:   7,
 			start:       1,
 			breakAfter:  3,
@@ -383,6 +415,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "expansion at end",
+			dir:         di.DirectionLTR,
 			numGlyphs:   7,
 			start:       2,
 			breakAfter:  4,
@@ -392,6 +425,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "expansion at start rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   7,
 			start:       0,
 			breakAfter:  2,
@@ -401,6 +435,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "expansion in middle rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   7,
 			start:       1,
 			breakAfter:  3,
@@ -410,6 +445,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 		{
 			name:        "expansion at end rtl",
+			dir:         di.DirectionRTL,
 			numGlyphs:   7,
 			start:       2,
 			breakAfter:  4,
@@ -419,7 +455,7 @@ func TestInclusiveRange(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			gs, ge := inclusiveGlyphRange(tc.start, tc.breakAfter, tc.runeToGlyph, tc.numGlyphs)
+			gs, ge := inclusiveGlyphRange(tc.dir, tc.start, tc.breakAfter, tc.runeToGlyph, tc.numGlyphs)
 			if gs != tc.gs {
 				t.Errorf("glyphStart mismatch, got %d, expected %d", gs, tc.gs)
 			}
@@ -450,10 +486,14 @@ var (
 			// No glyphs descend.
 		},
 		Glyphs: glyphs(0, 14),
+		Runes: Range{
+			Count: len([]rune(text1)),
+		},
 	}
 	text1Trailing       = text1 + " "
 	shapedText1Trailing = func() Output {
 		out := shapedText1
+		out.Runes.Count++
 		out.Glyphs = append(out.Glyphs, glyph(len(out.Glyphs)))
 		out.RecalculateAll()
 		return out
@@ -488,6 +528,9 @@ var (
 			9:  glyph(15), // <space> - 1 byte
 			10: glyph(16), // lig     - 3 runes, 3 bytes
 			// DROP                   - 4 runes, 4 bytes
+		},
+		Runes: Range{
+			Count: len([]rune(text2)),
 		},
 	}
 	// Test RTL languages.
@@ -527,6 +570,10 @@ var (
 			13: glyph(1), // ל - 3 bytes
 			14: glyph(0), // ש - 3 bytes
 		},
+		Direction: di.DirectionRTL,
+		Runes: Range{
+			Count: len([]rune(text3)),
+		},
 	}
 )
 
@@ -538,9 +585,21 @@ func splitShapedAt(shaped Output, indices ...int) []Output {
 	numOut := len(indices) + 1
 	outputs := make([]Output, 0, numOut)
 	start := 0
+	runeOffset := shaped.Runes.Offset
 	for _, i := range indices {
 		newOut := shaped
 		newOut.Glyphs = newOut.Glyphs[start:i]
+		newOut.Runes.Offset = runeOffset
+		newOut.Runes.Count = 0
+		cluster := 0
+		for _, g := range newOut.Glyphs {
+			if cluster == g.ClusterIndex {
+				continue
+			}
+			cluster = g.ClusterIndex
+			newOut.Runes.Count += g.RuneCount
+		}
+		runeOffset += newOut.Runes.Count
 		newOut.RecalculateAll()
 		outputs = append(outputs, newOut)
 		start = i
@@ -612,6 +671,7 @@ func TestLineWrap(t *testing.T) {
 						complexGlyph(1, 2, 2),
 						complexGlyph(1, 2, 2),
 					},
+					Runes: Range{Count: 3},
 				},
 			},
 			// This unicode data was discovered in a testing/quick failure
