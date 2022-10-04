@@ -4,6 +4,7 @@ import (
 	"github.com/gioui/uax/segment"
 	"github.com/gioui/uax/uax14"
 	"github.com/go-text/typesetting/di"
+	"golang.org/x/image/math/fixed"
 )
 
 // glyphIndex is the index in a Glyph slice
@@ -220,7 +221,7 @@ func NewLineWrapper(text []rune, glyphRuns ...Output) LineWrapper {
 //
 // This function returns both a valid Output broken at b and a boolean
 // indicating whether the returned output should be used.
-func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep bool) {
+func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineStartRune int, b breakOption, curLineWidth, curLineUsed, nextLineWidth length) (candidateLine Output, keep, more bool) {
 	// Convert the break target to an inclusive index.
 	runeStart := lineStartRune - run.Runes.Offset
 	runeEnd := b.breakAtRune - run.Runes.Offset
@@ -233,6 +234,9 @@ func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineSta
 		// If the break location is after the entire run of shaped text,
 		// keep through the end of the run.
 		runeEnd = len(mapping) - 1
+		// Set the more return value to true, indicating that subsequent runs should be
+		// appended to the line candidate.
+		more = true
 	}
 	glyphStart, glyphEnd := inclusiveGlyphRange(run.Direction, runeStart, runeEnd, mapping, len(run.Glyphs))
 
@@ -240,13 +244,15 @@ func (sp LineWrapper) shouldKeepSegmentOnLine(run Output, mapping []int, lineSta
 	candidateLine = run
 	candidateLine.Glyphs = candidateLine.Glyphs[glyphStart : glyphEnd+1]
 	candidateLine.RecomputeAdvance()
+	candidateLine.Runes.Offset = run.Runes.Offset + runeStart
+	candidateLine.Runes.Count = runeEnd - runeStart + 1
 	candidateAdvance := candidateLine.Advance.Ceil()
 	if candidateAdvance > curLineWidth && candidateAdvance-curLineUsed <= nextLineWidth {
 		// If it fits on the next line, put it there.
-		return candidateLine, false
+		return candidateLine, false, more
 	}
 
-	return candidateLine, true
+	return candidateLine, true, more
 }
 
 // nextValidBreak returns the next line-breaking candidate position if there is one.
@@ -267,45 +273,71 @@ func (sp LineWrapper) WrapParagraph(maxWidth int) []Line {
 
 	var outputs []Line
 	start := 0
-	runesProcessedCount := 0
-	for _, run := range sp.glyphRuns {
-		runeToGlyph := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
-		b, breakOk := sp.nextValidBreak(run, runeToGlyph)
-		for breakOk {
-			// Always keep the first segment on a line.
-			good, _ := sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, b, maxWidth, 0, maxWidth)
-			end := b.breakAtRune
 
-			// Search through break candidates looking for candidates that can fit on the current line.
-			for {
-				bb, ok := sp.nextValidBreak(run, runeToGlyph)
-				if !ok {
-					// There are no line breaking candidates remaining.
-					breakOk = false
-					break
-				}
-				candidate, ok := sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, bb, maxWidth, good.Advance.Ceil(), maxWidth)
-				if ok {
-					// The break described by bb fits on this line. Use this new, longer segment.
-					good = candidate
-					end = bb.breakAtRune
-				} else {
-					// The break described by bb will not fit on this line, commit whatever the last good
-					// break was and then start a new line considering this break candidate.
-					b = bb
-					break
-				}
-			}
+	runIdx := 0
+	run := sp.glyphRuns[runIdx]
+	runeToGlyph := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
 
-			lineRuneCount := end - start + 1
-			good.Runes = Range{
-				Count:  lineRuneCount,
-				Offset: runesProcessedCount,
-			}
-			outputs = append(outputs, Line([]Output{good}))
-			runesProcessedCount += lineRuneCount
-			start = end + 1
+	b, breakOk := sp.nextValidBreak(run, runeToGlyph)
+	for breakOk {
+		var goodLine []Output
+		var goodLineWidth fixed.Int26_6
+		lineRunIndex := runIdx
+		// Always keep the first segment on a line.
+		good, _, more := sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, b, maxWidth, 0, maxWidth)
+		goodLine = append(goodLine, good)
+		goodLineWidth += good.Advance
+		for more {
+			lineRunIndex++
+			run = sp.glyphRuns[lineRunIndex]
+			runeToGlyph = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
+			good, _, more = sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, b, maxWidth, goodLineWidth.Ceil(), maxWidth)
+			goodLine = append(goodLine, good)
+			goodLineWidth += good.Advance
 		}
+		end := b.breakAtRune
+
+		// Search through break candidates looking for candidates that can fit on the current line.
+		for {
+			if lineRunIndex != runIdx {
+				// If we've already traversed forward through the runs, reset to the beginning
+				// of the line.
+				run = sp.glyphRuns[runIdx]
+				runeToGlyph = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
+				lineRunIndex = runIdx
+			}
+			var candidateLine []Output
+			var candidateLineWidth fixed.Int26_6
+			bb, ok := sp.nextValidBreak(run, runeToGlyph)
+			if !ok {
+				// There are no line breaking candidates remaining.
+				breakOk = false
+				break
+			}
+			candidate, ok, more := sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, bb, maxWidth, goodLineWidth.Ceil(), maxWidth)
+			candidateLine = append(candidateLine, candidate)
+			candidateLineWidth += candidate.Advance
+			for more && ok {
+				lineRunIndex++
+				run = sp.glyphRuns[lineRunIndex]
+				runeToGlyph = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
+				candidate, ok, more = sp.shouldKeepSegmentOnLine(run, runeToGlyph, start, bb, maxWidth, candidateLineWidth.Ceil(), maxWidth)
+				candidateLine = append(candidateLine, candidate)
+				candidateLineWidth += candidate.Advance
+			}
+			if ok {
+				// The break described by bb fits on this line. Use this new, longer segment.
+				goodLine = candidateLine
+				end = bb.breakAtRune
+			} else {
+				// The break described by bb will not fit on this line, commit whatever the last good
+				// break was and then start a new line considering this break candidate.
+				b = bb
+				break
+			}
+		}
+		outputs = append(outputs, goodLine)
+		start = end + 1
 	}
 	return outputs
 }
