@@ -28,10 +28,14 @@ func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph) []g
 	if rtl {
 		glyphCursor = len(glyphs) - 1
 	}
+	// off tracks the offset position of the glyphs from the first rune of the
+	// shaped text. This must be subtracted from all cluster indicies in order to
+	// normalize them into the range [0,runes.Count).
+	off := runes.Offset
 	for i := 0; i < runes.Count; i++ {
 		for glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			((rtl && glyphs[glyphCursor].ClusterIndex <= i) ||
-				(!rtl && glyphs[glyphCursor].ClusterIndex < i)) {
+			((rtl && glyphs[glyphCursor].ClusterIndex-off <= i) ||
+				(!rtl && glyphs[glyphCursor].ClusterIndex-off < i)) {
 			if rtl {
 				glyphCursor--
 			} else {
@@ -41,11 +45,11 @@ func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph) []g
 		if rtl {
 			glyphCursor++
 		} else if (glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			glyphs[glyphCursor].ClusterIndex > i) ||
+			glyphs[glyphCursor].ClusterIndex-off > i) ||
 			(glyphCursor == len(glyphs) && len(glyphs) > 1) {
 			glyphCursor--
-			targetClusterIndex := glyphs[glyphCursor].ClusterIndex
-			for glyphCursor-1 >= 0 && glyphs[glyphCursor-1].ClusterIndex == targetClusterIndex {
+			targetClusterIndex := glyphs[glyphCursor].ClusterIndex - off
+			for glyphCursor-1 >= 0 && glyphs[glyphCursor-1].ClusterIndex-off == targetClusterIndex {
 				glyphCursor--
 			}
 		}

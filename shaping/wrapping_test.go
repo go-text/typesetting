@@ -24,6 +24,7 @@ func glyph(cluster int) Glyph {
 		Height:       fixed.I(10),
 		YBearing:     fixed.I(10),
 		ClusterIndex: cluster,
+		RuneCount:    1,
 	}
 }
 
@@ -80,6 +81,19 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			expected: []int{0, 1, 2, 3, 4},
 		},
 		{
+			name:  "simple offset",
+			dir:   di.DirectionLTR,
+			runes: Range{Count: 5, Offset: 5},
+			glyphs: []Glyph{
+				glyph(5),
+				glyph(6),
+				glyph(7),
+				glyph(8),
+				glyph(9),
+			},
+			expected: []int{0, 1, 2, 3, 4},
+		},
+		{
 			name:  "simple rtl",
 			dir:   di.DirectionRTL,
 			runes: Range{Count: 5},
@@ -89,6 +103,19 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 				glyph(2),
 				glyph(1),
 				glyph(0),
+			},
+			expected: []int{4, 3, 2, 1, 0},
+		},
+		{
+			name:  "simple offset rtl",
+			dir:   di.DirectionRTL,
+			runes: Range{Count: 5, Offset: 5},
+			glyphs: []Glyph{
+				glyph(9),
+				glyph(8),
+				glyph(7),
+				glyph(6),
+				glyph(5),
 			},
 			expected: []int{4, 3, 2, 1, 0},
 		},
