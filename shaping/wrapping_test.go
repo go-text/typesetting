@@ -576,12 +576,12 @@ var (
 			//                         ا - 3 bytes
 			//                         ل - 3 bytes
 			//                         ه - 3 bytes
-			9:  simpleGlyph(5), //           أ - 3 bytes
-			10: simpleGlyph(4), //           <space> - 1 byte
-			11: simpleGlyph(3), //           ם - 3 bytes
-			12: simpleGlyph(2), //           ו - 3 bytes
-			13: simpleGlyph(1), //           ל - 3 bytes
-			14: simpleGlyph(0), //           ש - 3 bytes
+			9:  simpleGlyph(5), //     أ - 3 bytes
+			10: simpleGlyph(4), //     <space> - 1 byte
+			11: simpleGlyph(3), //     ם - 3 bytes
+			12: simpleGlyph(2), //     ו - 3 bytes
+			13: simpleGlyph(1), //     ל - 3 bytes
+			14: simpleGlyph(0), //     ש - 3 bytes
 		},
 		Direction: di.DirectionRTL,
 		Runes: Range{
