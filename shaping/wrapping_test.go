@@ -14,20 +14,6 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// glyph returns a glyph with the given cluster. Its dimensions
-// are a square sitting atop the baseline, with 10 units to a side.
-func glyph(cluster int) Glyph {
-	return Glyph{
-		XAdvance:     fixed.I(10),
-		YAdvance:     fixed.I(10),
-		Width:        fixed.I(10),
-		Height:       fixed.I(10),
-		YBearing:     fixed.I(10),
-		ClusterIndex: cluster,
-		RuneCount:    1,
-	}
-}
-
 func max(a, b int) int {
 	if a > b {
 		return a
@@ -53,7 +39,7 @@ func glyphs(start, end int) []Glyph {
 	num := max(start, end) - min(start, end) + 1
 	g := make([]Glyph, 0, num)
 	for i := start; i >= 0 && i <= max(start, end); i += inc {
-		g = append(g, glyph(i))
+		g = append(g, simpleGlyph(i))
 	}
 	return g
 }
@@ -72,11 +58,11 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionLTR,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(0),
-				glyph(1),
-				glyph(2),
-				glyph(3),
-				glyph(4),
+				simpleGlyph(0),
+				simpleGlyph(1),
+				simpleGlyph(2),
+				simpleGlyph(3),
+				simpleGlyph(4),
 			},
 			expected: []int{0, 1, 2, 3, 4},
 		},
@@ -85,11 +71,11 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionLTR,
 			runes: Range{Count: 5, Offset: 5},
 			glyphs: []Glyph{
-				glyph(5),
-				glyph(6),
-				glyph(7),
-				glyph(8),
-				glyph(9),
+				simpleGlyph(5),
+				simpleGlyph(6),
+				simpleGlyph(7),
+				simpleGlyph(8),
+				simpleGlyph(9),
 			},
 			expected: []int{0, 1, 2, 3, 4},
 		},
@@ -98,11 +84,11 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionRTL,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(4),
-				glyph(3),
-				glyph(2),
-				glyph(1),
-				glyph(0),
+				simpleGlyph(4),
+				simpleGlyph(3),
+				simpleGlyph(2),
+				simpleGlyph(1),
+				simpleGlyph(0),
 			},
 			expected: []int{4, 3, 2, 1, 0},
 		},
@@ -111,11 +97,11 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionRTL,
 			runes: Range{Count: 5, Offset: 5},
 			glyphs: []Glyph{
-				glyph(9),
-				glyph(8),
-				glyph(7),
-				glyph(6),
-				glyph(5),
+				simpleGlyph(9),
+				simpleGlyph(8),
+				simpleGlyph(7),
+				simpleGlyph(6),
+				simpleGlyph(5),
 			},
 			expected: []int{4, 3, 2, 1, 0},
 		},
@@ -124,11 +110,11 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionLTR,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(0),
-				glyph(0),
-				glyph(2),
-				glyph(3),
-				glyph(3),
+				complexGlyph(0, 2, 2),
+				complexGlyph(0, 2, 2),
+				simpleGlyph(2),
+				complexGlyph(3, 2, 2),
+				complexGlyph(3, 2, 2),
 			},
 			expected: []int{0, 0, 2, 3, 3},
 		},
@@ -137,11 +123,11 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionRTL,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(3),
-				glyph(3),
-				glyph(2),
-				glyph(0),
-				glyph(0),
+				complexGlyph(3, 2, 2),
+				complexGlyph(3, 2, 2),
+				simpleGlyph(2),
+				complexGlyph(0, 2, 2),
+				complexGlyph(0, 2, 2),
 			},
 			expected: []int{3, 3, 2, 0, 0},
 		},
@@ -150,9 +136,9 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionLTR,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(0),
-				glyph(2),
-				glyph(3),
+				ligatureGlyph(0, 2),
+				simpleGlyph(2),
+				ligatureGlyph(3, 2),
 			},
 			expected: []int{0, 0, 1, 2, 2},
 		},
@@ -161,9 +147,9 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionRTL,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(3),
-				glyph(2),
-				glyph(0),
+				ligatureGlyph(3, 2),
+				simpleGlyph(2),
+				ligatureGlyph(0, 2),
 			},
 			expected: []int{2, 2, 1, 0, 0},
 		},
@@ -172,13 +158,13 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionLTR,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(0),
-				glyph(1),
-				glyph(1),
-				glyph(1),
-				glyph(2),
-				glyph(3),
-				glyph(4),
+				simpleGlyph(0),
+				expansionGlyph(1, 3),
+				expansionGlyph(1, 3),
+				expansionGlyph(1, 3),
+				simpleGlyph(2),
+				simpleGlyph(3),
+				simpleGlyph(4),
 			},
 			expected: []int{0, 1, 4, 5, 6},
 		},
@@ -187,13 +173,13 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			dir:   di.DirectionRTL,
 			runes: Range{Count: 5},
 			glyphs: []Glyph{
-				glyph(4),
-				glyph(3),
-				glyph(2),
-				glyph(1),
-				glyph(1),
-				glyph(1),
-				glyph(0),
+				simpleGlyph(4),
+				simpleGlyph(3),
+				simpleGlyph(2),
+				expansionGlyph(1, 3),
+				expansionGlyph(1, 3),
+				expansionGlyph(1, 3),
+				simpleGlyph(0),
 			},
 			expected: []int{6, 3, 2, 1, 0},
 		},
@@ -521,7 +507,7 @@ var (
 	shapedText1Trailing = func() Output {
 		out := shapedText1
 		out.Runes.Count++
-		out.Glyphs = append(out.Glyphs, glyph(len(out.Glyphs)))
+		out.Glyphs = append(out.Glyphs, simpleGlyph(len(out.Glyphs)))
 		out.RecalculateAll()
 		return out
 	}()
@@ -542,19 +528,19 @@ var (
 			// No glyphs descend.
 		},
 		Glyphs: []Glyph{
-			0: glyph(0), // 안        - 4 bytes
-			1: glyph(1), // П         - 3 bytes
-			2: glyph(2), // 你        - 4 bytes
-			3: glyph(3), // <space>   - 1 byte
-			4: glyph(4), // lig       - 3 runes, 3 bytes
-			// DROP                   - 4 runes, 4 bytes
-			5:  glyph(11), // <space> - 1 byte
-			6:  glyph(12), // 안      - 4 bytes
-			7:  glyph(13), // П       - 3 bytes
-			8:  glyph(14), // 你      - 4 bytes
-			9:  glyph(15), // <space> - 1 byte
-			10: glyph(16), // lig     - 3 runes, 3 bytes
-			// DROP                   - 4 runes, 4 bytes
+			0: simpleGlyph(0),      // 안        - 4 bytes
+			1: simpleGlyph(1),      // П         - 3 bytes
+			2: simpleGlyph(2),      // 你        - 4 bytes
+			3: simpleGlyph(3),      // <space>   - 1 byte
+			4: ligatureGlyph(4, 7), // lig       - 3 runes, 3 bytes
+			// DROP                   - 4 runes, 4 bytes (included in ligature rune count)
+			5:  simpleGlyph(11),      // <space> - 1 byte
+			6:  simpleGlyph(12),      // 안      - 4 bytes
+			7:  simpleGlyph(13),      // П       - 3 bytes
+			8:  simpleGlyph(14),      // 你      - 4 bytes
+			9:  simpleGlyph(15),      // <space> - 1 byte
+			10: ligatureGlyph(16, 7), // lig     - 3 runes, 3 bytes
+			// DROP                   - 4 runes, 4 bytes (included in ligature rune count)
 		},
 		Runes: Range{
 			Count: len([]rune(text2)),
@@ -575,27 +561,27 @@ var (
 			// No glyphs descend.
 		},
 		Glyphs: []Glyph{
-			0: glyph(16), // LIGATURE of three runes:
-			//               ا - 3 bytes
-			//               ل - 3 bytes
-			//               ه - 3 bytes
-			1: glyph(15), // أ - 3 bytes
-			2: glyph(14), // <space> - 1 byte
-			3: glyph(13), // ם - 3 bytes
-			4: glyph(12), // ו - 3 bytes
-			5: glyph(11), // ל - 3 bytes
-			6: glyph(10), // ש - 3 bytes
-			7: glyph(9),  // <space> - 1 byte
-			8: glyph(6),  // LIGATURE of three runes:
-			//               ا - 3 bytes
-			//               ل - 3 bytes
-			//               ه - 3 bytes
-			9:  glyph(5), // أ - 3 bytes
-			10: glyph(4), // <space> - 1 byte
-			11: glyph(3), // ם - 3 bytes
-			12: glyph(2), // ו - 3 bytes
-			13: glyph(1), // ל - 3 bytes
-			14: glyph(0), // ש - 3 bytes
+			0: ligatureGlyph(16, 3), // LIGATURE of three runes:
+			//                         ا - 3 bytes
+			//                         ل - 3 bytes
+			//                         ه - 3 bytes
+			1: simpleGlyph(15),     // أ - 3 bytes
+			2: simpleGlyph(14),     // <space> - 1 byte
+			3: simpleGlyph(13),     // ם - 3 bytes
+			4: simpleGlyph(12),     // ו - 3 bytes
+			5: simpleGlyph(11),     // ל - 3 bytes
+			6: simpleGlyph(10),     // ש - 3 bytes
+			7: simpleGlyph(9),      // <space> - 1 byte
+			8: ligatureGlyph(6, 3), // LIGATURE of three runes:
+			//                         ا - 3 bytes
+			//                         ل - 3 bytes
+			//                         ه - 3 bytes
+			9:  simpleGlyph(5), //           أ - 3 bytes
+			10: simpleGlyph(4), //           <space> - 1 byte
+			11: simpleGlyph(3), //           ם - 3 bytes
+			12: simpleGlyph(2), //           ו - 3 bytes
+			13: simpleGlyph(1), //           ל - 3 bytes
+			14: simpleGlyph(0), //           ש - 3 bytes
 		},
 		Direction: di.DirectionRTL,
 		Runes: Range{
