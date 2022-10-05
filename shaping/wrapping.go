@@ -328,6 +328,7 @@ func (sp LineWrapper) WrapParagraph(maxWidth int) []Line {
 			if ok {
 				// The break described by bb fits on this line. Use this new, longer segment.
 				goodLine = candidateLine
+				goodLineWidth = candidateLineWidth
 				end = bb.breakAtRune
 			} else {
 				// The break described by bb will not fit on this line, commit whatever the last good
