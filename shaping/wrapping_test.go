@@ -1278,7 +1278,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs := l.WrapParagraph2(tc.maxWidth, tc.paragraph, tc.shaped...)
+			outs := l.WrapParagraph(tc.maxWidth, tc.paragraph, tc.shaped...)
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1415,7 +1415,7 @@ func TestWrappingLatinE2E(t *testing.T) {
 		t.Skipf("failed shaping: %v", err)
 	}
 	var l LineWrapper
-	outs := l.WrapParagraph2(250, textInput, out)
+	outs := l.WrapParagraph(250, textInput, out)
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
@@ -1443,7 +1443,7 @@ func BenchmarkWrapping(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs = l.WrapParagraph2(250, textInput, out)
+		outs = l.WrapParagraph(250, textInput, out)
 	}
 	_ = outs
 }
