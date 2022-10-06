@@ -1,10 +1,44 @@
 package shaping
 
 import (
+	"bytes"
 	"testing"
 
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
+	"golang.org/x/image/font/gofont/goregular"
 )
+
+func TestShape(t *testing.T) {
+	textInput := []rune("Lorem ipsum.")
+	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      16 * 72,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	out, err := Shape(input)
+	if err != nil {
+		t.Errorf("failed shaping: %v", err)
+	}
+	if expected := (Range{Offset: 0, Count: len(textInput)}); out.Runes != expected {
+		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
+	}
+	input.RunStart = 6
+	out, err = Shape(input)
+	if err != nil {
+		t.Errorf("failed shaping: %v", err)
+	}
+	if expected := (Range{Offset: 6, Count: len(textInput) - 6}); out.Runes != expected {
+		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
+	}
+}
 
 func TestCountClusters(t *testing.T) {
 	type testcase struct {

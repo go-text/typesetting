@@ -112,6 +112,8 @@ func Shape(input Input) (Output, error) {
 		Descent: fixed.I(int(fontExtents.Descender)) >> scaleShift,
 		Gap:     fixed.I(int(fontExtents.LineGap)) >> scaleShift,
 	}
+	out.Runes.Offset = input.RunStart
+	out.Runes.Count = input.RunEnd - input.RunStart
 	return out, out.RecalculateAll()
 }
 
