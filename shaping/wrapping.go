@@ -205,6 +205,9 @@ func NewBreakState(paragraph []rune, shapedRuns ...Output) BreakState {
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
 // It is equivalent to iteratively invoking WrapLine with a constant maxWidth.
 func (l *LineWrapper) WrapParagraph(maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
+	if len(shapedRuns) == 1 && shapedRuns[0].Advance.Ceil() < maxWidth {
+		return []Line{shapedRuns}
+	}
 	state := NewBreakState(paragraph, shapedRuns...)
 	var lines []Line
 	var done bool
@@ -262,6 +265,8 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 		// Pass empty lines through as empty.
 		state.glyphRuns[0].Runes = Range{Count: state.breaker.totalRunes}
 		return Line([]Output{state.glyphRuns[0]}), state, true
+	} else if len(state.glyphRuns) == 1 && state.glyphRuns[0].Advance.Ceil() < maxWidth {
+		return Line(state.glyphRuns), state, true
 	}
 
 	lineCandidate, bestCandidate := []Output{}, []Output{}
