@@ -186,7 +186,7 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			mapping := mapRunesToClusterIndices(tc.dir, tc.runes, tc.glyphs)
+			mapping := mapRunesToClusterIndices(tc.dir, tc.runes, tc.glyphs, nil)
 			if !reflect.DeepEqual(tc.expected, mapping) {
 				t.Errorf("expected %v, got %v", tc.expected, mapping)
 			}
@@ -834,12 +834,13 @@ func TestWrapLine(t *testing.T) {
 			var (
 				line Line
 				done bool
+				l    LineWrapper
 			)
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
 			for lineNumber, expected := range tc.expected {
-				line, state, done = WrapLine(tc.maxWidth, state)
+				line, state, done = l.WrapLine(tc.maxWidth, state)
 				compareLines(t, lineNumber, expected.line, line)
 				if done != expected.done {
 					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
@@ -1276,7 +1277,8 @@ func TestLineWrap(t *testing.T) {
 		*/
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			outs := WrapParagraph2(tc.maxWidth, tc.paragraph, tc.shaped...)
+			var l LineWrapper
+			outs := l.WrapParagraph2(tc.maxWidth, tc.paragraph, tc.shaped...)
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1412,7 +1414,8 @@ func TestWrappingLatinE2E(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed shaping: %v", err)
 	}
-	outs := WrapParagraph2(250, textInput, out)
+	var l LineWrapper
+	outs := l.WrapParagraph2(250, textInput, out)
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
@@ -1436,10 +1439,11 @@ func BenchmarkWrapping(b *testing.B) {
 	if err != nil {
 		b.Skipf("failed shaping: %v", err)
 	}
+	var l LineWrapper
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs = WrapParagraph2(250, textInput, out)
+		outs = l.WrapParagraph2(250, textInput, out)
 	}
 	_ = outs
 }
