@@ -411,7 +411,7 @@ func WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakState, done bool) 
 			} else if len(bestCandidate) < target {
 				bestCandidate = bestCandidate[:target-1]
 			}
-			copy(bestCandidate, lineCandidate)
+			bestCandidate = bestCandidate[:copy(bestCandidate, lineCandidate)]
 			bestCandidate = append(bestCandidate, candidateRun)
 		}
 	}

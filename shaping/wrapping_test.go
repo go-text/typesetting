@@ -1276,9 +1276,8 @@ func TestLineWrap(t *testing.T) {
 		*/
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			sp := NewLineWrapper(tc.paragraph, tc.shaped...)
+			outs := WrapParagraph2(tc.maxWidth, tc.paragraph, tc.shaped...)
 
-			outs := sp.WrapParagraph(tc.maxWidth)
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
 				return
