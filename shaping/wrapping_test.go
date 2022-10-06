@@ -1447,3 +1447,31 @@ func BenchmarkWrapping(b *testing.B) {
 	}
 	_ = outs
 }
+
+// BenchmarkWrappingHappyPath measures the performance when it's obvious that
+// the shaped text will fit within the available space without doing any extra
+// work.
+func BenchmarkWrappingHappyPath(b *testing.B) {
+	textInput := []rune("happy path")
+	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	out, err := Shape(Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      16,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})
+	if err != nil {
+		b.Skipf("failed shaping: %v", err)
+	}
+	var l LineWrapper
+	b.ResetTimer()
+	var outs []Line
+	for i := 0; i < b.N; i++ {
+		outs = l.WrapParagraph(250, textInput, out)
+	}
+	_ = outs
+}
