@@ -642,6 +642,100 @@ func splitShapedAt(shaped Output, indices ...int) []Output {
 	return outputs
 }
 
+func TestWrapLine(t *testing.T) {
+	type expected struct {
+		line Line
+		done bool
+	}
+	type testcase struct {
+		name      string
+		shaped    []Output
+		paragraph []rune
+		maxWidth  int
+		expected  []expected
+	}
+	for _, tc := range []testcase{
+		{
+			name:      "simple",
+			shaped:    []Output{shapedText1},
+			paragraph: []rune(text1),
+			maxWidth:  40,
+			expected: []expected{
+				{
+					line: []Output{splitShapedAt(shapedText1, 5)[0]},
+					done: false,
+				},
+				{
+					line: []Output{splitShapedAt(shapedText1, 5, 9)[1]},
+					done: false,
+				},
+				{
+					line: []Output{splitShapedAt(shapedText1, 9, 12)[1]},
+					done: false,
+				},
+				{
+					line: []Output{splitShapedAt(shapedText1, 12)[1]},
+					done: true,
+				},
+			},
+		},
+		{
+			// This test uses the same input text as the previous, but chops
+			// every glyph into its own run. This simulates text that changes
+			// font or style every glyph.
+			name:      "simple in pieces 1",
+			shaped:    splitShapedAt(shapedText1, 1, 2, 3, 4, 5),
+			paragraph: []rune(text1),
+			maxWidth:  40,
+			expected: []expected{
+				{
+					line: splitShapedAt(shapedText1, 1, 2, 3, 4, 5)[:5],
+					done: false,
+				},
+			},
+		},
+		{
+			// This test uses the same test strategy as the previous, but divides
+			// the run into segments that do not align evenly with line break
+			// candidates. This forces the wrapper to break one run across lines.
+			name:      "simple in pieces 2",
+			shaped:    splitShapedAt(shapedText1, 3, 6),
+			paragraph: []rune(text1),
+			maxWidth:  40,
+			expected: []expected{
+				{
+					line: splitShapedAt(shapedText1, 3, 5)[:2],
+					done: false,
+				},
+				{
+					line: splitShapedAt(shapedText1, 5, 6, 9)[1:3],
+					done: false,
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			state := NewBreakState(tc.paragraph, tc.shaped...)
+			var (
+				line Line
+				done bool
+			)
+			// Iterate every line declared in the test case expectations. This
+			// allows test cases to be exhaustive if they need to wihtout forcing
+			// every case to wrap entire paragraphs.
+			for lineNumber, expected := range tc.expected {
+				line, state, done = WrapLine(tc.maxWidth, state)
+				if !reflect.DeepEqual(line, expected.line) {
+					t.Errorf("line %d mismatch! expected:\n%#+v\ngot:\n%#+v", lineNumber, expected.line, line)
+				}
+				if done != expected.done {
+					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
+				}
+			}
+		})
+	}
+}
+
 func TestLineWrap(t *testing.T) {
 	type testcase struct {
 		name      string
