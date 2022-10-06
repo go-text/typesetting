@@ -18,12 +18,18 @@ type length = int
 // first glyph in the glyph cluster containing that rune in the shaped text.
 // The indicies are relative to the region of runes covered by the input run.
 // To translate an absolute rune index in text into a rune index into the returned
-// mapping, subtract run.Runes.Offset first.
-func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph) []glyphIndex {
+// mapping, subtract run.Runes.Offset first. If the provided buf is large enough to
+// hold the return value, it will be used instead of allocating a new slice.
+func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
 	if runes.Count <= 0 {
 		return nil
 	}
-	mapping := make([]glyphIndex, runes.Count)
+	var mapping []glyphIndex
+	if cap(buf) >= runes.Count {
+		mapping = buf[:runes.Count]
+	} else {
+		mapping = make([]glyphIndex, runes.Count)
+	}
 	glyphCursor := 0
 	rtl := dir.Progression() == di.TowardTopLeft
 	if rtl {
@@ -212,13 +218,13 @@ func NewBreakState(paragraph []rune, shapedRuns ...Output) BreakState {
 
 // WrapParagraph2 wraps the paragraph's shaped glyphs to a constant maxWidth.
 // It is equivalent to iteratively invoking WrapLine with a constant maxWidth.
-func WrapParagraph2(maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
+func (l *LineWrapper) WrapParagraph2(maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
 	state := NewBreakState(paragraph, shapedRuns...)
 	var lines []Line
 	var done bool
 	for !done {
 		var line Line
-		line, state, done = WrapLine(maxWidth, state)
+		line, state, done = l.WrapLine(maxWidth, state)
 		lines = append(lines, line)
 	}
 	return lines
@@ -251,13 +257,19 @@ func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
 	return run
 }
 
+// LineWrapper holds reusable state for a line wrapping operation. Reusing
+// LineWrappers for multiple paragraphs should improve performance.
+type LineWrapper struct {
+	mapping []glyphIndex
+}
+
 // WrapLine wraps the shaped glyphs of a paragraph to a particular max width.
 // It is meant to be called iteratively to wrap each line, allowing lines to
 // be wrapped to different widths within the same paragraph. The returned
 // BreakState should always be passed as input to the next call until the
 // returned done boolean is true. Subsequent invocations with the returned
 // BreakState are invalid.
-func WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakState, done bool) {
+func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakState, done bool) {
 	if len(state.glyphRuns) == 0 {
 		return nil, state, true
 	} else if len(state.glyphRuns[0].Glyphs) == 0 {
@@ -287,8 +299,8 @@ func WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakState, done bool) 
 			if state.lineStartRune > run.Runes.Offset {
 				// If part of this run has already been used on a previous line, trim
 				// the runes corresponding to those glyphs off.
-				mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
-				run = cutRun(run, mapping, state.lineStartRune, run.Runes.Count+run.Runes.Offset)
+				l.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, l.mapping)
+				run = cutRun(run, l.mapping, state.lineStartRune, run.Runes.Count+run.Runes.Offset)
 			}
 			// While the run being processed doesn't contain the current line breaking
 			// candidate, just append it to the candidate line.
@@ -297,12 +309,12 @@ func WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakState, done bool) 
 			state.currentRun++
 			run = state.glyphRuns[state.currentRun]
 		}
-		mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs)
-		if !state.breaker.isValid(option, mapping, run) {
+		l.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, l.mapping)
+		if !state.breaker.isValid(option, l.mapping, run) {
 			// Reject invalid line break candidate and acquire a new one.
 			continue
 		}
-		candidateRun := cutRun(run, mapping, state.lineStartRune, option.breakAtRune)
+		candidateRun := cutRun(run, l.mapping, state.lineStartRune, option.breakAtRune)
 		if (candidateRun.Advance + candidateWidth).Ceil() > maxWidth {
 			// The run doesn't fit on the line.
 			if len(bestCandidate) < 1 {
