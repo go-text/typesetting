@@ -281,6 +281,19 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 	lineCandidate, bestCandidate := []Output{}, []Output{}
 	candidateWidth := fixed.I(0)
 
+	// mappedRun tracks which run (if any) we have already generated rune->glyph
+	// mappings for. This allows us to skip regenerating them if we need them
+	// again.
+	mappedRun := -1
+	// mapRun performs a rune->glyph mapping for the given run, using the provided
+	// run index to skip the work if that run was already mapped.
+	mapRun := func(runIdx int, run Output) {
+		if mappedRun != runIdx {
+			l.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, l.mapping)
+			mappedRun = runIdx
+		}
+	}
+
 	for {
 		run := state.glyphRuns[state.currentRun]
 		var option breakOption
@@ -299,7 +312,7 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 			if state.lineStartRune > run.Runes.Offset {
 				// If part of this run has already been used on a previous line, trim
 				// the runes corresponding to those glyphs off.
-				l.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, l.mapping)
+				mapRun(state.currentRun, run)
 				run = cutRun(run, l.mapping, state.lineStartRune, run.Runes.Count+run.Runes.Offset)
 			}
 			// While the run being processed doesn't contain the current line breaking
@@ -309,7 +322,7 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 			state.currentRun++
 			run = state.glyphRuns[state.currentRun]
 		}
-		l.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, l.mapping)
+		mapRun(state.currentRun, run)
 		if !state.breaker.isValid(option, l.mapping, run) {
 			// Reject invalid line break candidate and acquire a new one.
 			continue
