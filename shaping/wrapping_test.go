@@ -38,8 +38,9 @@ func glyphs(start, end int) []Glyph {
 	}
 	num := max(start, end) - min(start, end) + 1
 	g := make([]Glyph, 0, num)
-	for i := start; i >= 0 && i <= max(start, end); i += inc {
-		g = append(g, simpleGlyph(i))
+	for i := 0; i < num; i++ {
+		g = append(g, simpleGlyph(start))
+		start += inc
 	}
 	return g
 }
