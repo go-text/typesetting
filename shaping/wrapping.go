@@ -202,9 +202,9 @@ func NewBreakState(paragraph []rune, shapedRuns ...Output) BreakState {
 	}
 }
 
-// WrapParagraph2 wraps the paragraph's shaped glyphs to a constant maxWidth.
+// WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
 // It is equivalent to iteratively invoking WrapLine with a constant maxWidth.
-func (l *LineWrapper) WrapParagraph2(maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
+func (l *LineWrapper) WrapParagraph(maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
 	state := NewBreakState(paragraph, shapedRuns...)
 	var lines []Line
 	var done bool
