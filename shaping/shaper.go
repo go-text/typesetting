@@ -11,6 +11,10 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+type TextShaper struct {
+	buf *harfbuzz.Buffer
+}
+
 type Shaper interface {
 	// Shape takes an Input and shapes it into the Output.
 	Shape(Input) Output
@@ -47,40 +51,43 @@ const (
 )
 
 // Shape turns an input into an output.
-func Shape(input Input) (Output, error) {
+func (t *TextShaper) Shape(input Input) (Output, error) {
 	// Prepare to shape the text.
-	// TODO: maybe reuse these buffers for performance?
-	buf := harfbuzz.NewBuffer()
+	if t.buf == nil {
+		t.buf = harfbuzz.NewBuffer()
+	} else {
+		t.buf.Clear()
+	}
 	runes, start, end := input.Text, input.RunStart, input.RunEnd
 	if end < start {
 		return Output{}, InvalidRunError{RunStart: start, RunEnd: end, TextLength: len(input.Text)}
 	}
-	buf.AddRunes(runes, start, end-start)
+	t.buf.AddRunes(runes, start, end-start)
 	// TODO: handle vertical text?
 	switch input.Direction {
 	case di.DirectionLTR:
-		buf.Props.Direction = harfbuzz.LeftToRight
+		t.buf.Props.Direction = harfbuzz.LeftToRight
 	case di.DirectionRTL:
-		buf.Props.Direction = harfbuzz.RightToLeft
+		t.buf.Props.Direction = harfbuzz.RightToLeft
 	default:
 		return Output{}, UnimplementedDirectionError{
 			Direction: input.Direction,
 		}
 	}
-	buf.Props.Language = input.Language
-	buf.Props.Script = input.Script
+	t.buf.Props.Language = input.Language
+	t.buf.Props.Script = input.Script
 	// TODO: figure out what (if anything) to do if this type assertion fails.
 	font := harfbuzz.NewFont(input.Face.(harfbuzz.Face))
 	font.XScale = int32(input.Size.Ceil()) << scaleShift
 	font.YScale = font.XScale
 
 	// Actually use harfbuzz to shape the text.
-	buf.Shape(font, nil)
+	t.buf.Shape(font, nil)
 
 	// Convert the shaped text into an Output.
-	glyphs := make([]Glyph, len(buf.Info))
+	glyphs := make([]Glyph, len(t.buf.Info))
 	for i := range glyphs {
-		g := buf.Info[i].Glyph
+		g := t.buf.Info[i].Glyph
 		extents, ok := font.GlyphExtents(g)
 		if !ok {
 			// TODO: can this error happen? Will harfbuzz return a
@@ -92,13 +99,13 @@ func Shape(input Input) (Output, error) {
 			Height:       fixed.I(int(extents.Height)) >> scaleShift,
 			XBearing:     fixed.I(int(extents.XBearing)) >> scaleShift,
 			YBearing:     fixed.I(int(extents.YBearing)) >> scaleShift,
-			XAdvance:     fixed.I(int(buf.Pos[i].XAdvance)) >> scaleShift,
-			YAdvance:     fixed.I(int(buf.Pos[i].YAdvance)) >> scaleShift,
-			XOffset:      fixed.I(int(buf.Pos[i].XOffset)) >> scaleShift,
-			YOffset:      fixed.I(int(buf.Pos[i].YOffset)) >> scaleShift,
-			ClusterIndex: buf.Info[i].Cluster,
+			XAdvance:     fixed.I(int(t.buf.Pos[i].XAdvance)) >> scaleShift,
+			YAdvance:     fixed.I(int(t.buf.Pos[i].YAdvance)) >> scaleShift,
+			XOffset:      fixed.I(int(t.buf.Pos[i].XOffset)) >> scaleShift,
+			YOffset:      fixed.I(int(t.buf.Pos[i].YOffset)) >> scaleShift,
+			ClusterIndex: t.buf.Info[i].Cluster,
 			GlyphID:      g,
-			Mask:         buf.Info[i].Mask,
+			Mask:         t.buf.Info[i].Mask,
 		}
 	}
 	countClusters(glyphs, input.RunEnd-input.RunStart, input.Direction)
@@ -106,7 +113,7 @@ func Shape(input Input) (Output, error) {
 		Glyphs:    glyphs,
 		Direction: input.Direction,
 	}
-	fontExtents := font.ExtentsForDirection(buf.Props.Direction)
+	fontExtents := font.ExtentsForDirection(t.buf.Props.Direction)
 	out.LineBounds = Bounds{
 		Ascent:  fixed.I(int(fontExtents.Ascender)) >> scaleShift,
 		Descent: fixed.I(int(fontExtents.Descender)) >> scaleShift,

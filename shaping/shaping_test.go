@@ -23,7 +23,8 @@ func TestShape(t *testing.T) {
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	}
-	out, err := Shape(input)
+	shaper := TextShaper{}
+	out, err := shaper.Shape(input)
 	if err != nil {
 		t.Errorf("failed shaping: %v", err)
 	}
@@ -31,7 +32,7 @@ func TestShape(t *testing.T) {
 		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
 	}
 	input.RunStart = 6
-	out, err = Shape(input)
+	out, err = shaper.Shape(input)
 	if err != nil {
 		t.Errorf("failed shaping: %v", err)
 	}
@@ -190,4 +191,29 @@ func TestCountClusters(t *testing.T) {
 			}
 		})
 	}
+}
+
+func BenchmarkShapingLatin(b *testing.B) {
+	textInput := []rune(benchParagraph)
+	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		b.Skipf("failed parsing font: %v", err)
+	}
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      16,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	var shaper TextShaper
+	var out Output
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out, _ = shaper.Shape(input)
+	}
+	_ = out
 }
