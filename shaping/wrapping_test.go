@@ -1394,6 +1394,30 @@ func TestGetBreakOptions(t *testing.T) {
 	}
 }
 
+// TestWrappingLatinE2E actually performs both text shaping and line wrapping
+// on a selection of latin text.
+func TestWrappingLatinE2E(t *testing.T) {
+	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
+	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	out, err := Shape(Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      16 * 72,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})
+	if err != nil {
+		t.Skipf("failed shaping: %v", err)
+	}
+	outs := WrapParagraph2(250, textInput, out)
+	if len(outs) < 3 {
+		t.Errorf("expected %d lines, got %d", 3, len(outs))
+	}
+}
+
 const benchParagraph = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Porttitor eget dolor morbi non arcu risus quis. Nibh sit amet commodo nulla. Posuere ac ut consequat semper viverra nam libero justo. Risus in hendrerit gravida rutrum quisque. Natoque penatibus et magnis dis parturient montes nascetur. In metus vulputate eu scelerisque felis imperdiet proin fermentum. Mattis rhoncus urna neque viverra. Elit pellentesque habitant morbi tristique. Nisl nunc mi ipsum faucibus vitae aliquet nec. Sed augue lacus viverra vitae congue eu consequat. At quis risus sed vulputate odio ut. Sit amet volutpat consequat mauris nunc congue nisi. Dignissim cras tincidunt lobortis feugiat. Faucibus turpis in eu mi bibendum. Odio aenean sed adipiscing diam donec adipiscing tristique. Fermentum leo vel orci porta non pulvinar. Ut venenatis tellus in metus vulputate eu scelerisque felis imperdiet. Et netus et malesuada fames ac turpis. Venenatis urna cursus eget nunc scelerisque viverra mauris in. Risus ultricies tristique nulla aliquet enim tortor. Risus pretium quam vulputate dignissim suspendisse in. Interdum velit euismod in pellentesque massa placerat duis ultricies lacus. Proin gravida hendrerit lectus a. Auctor augue mauris augue neque gravida in fermentum et. Laoreet sit amet cursus sit amet dictum. In fermentum et sollicitudin ac orci phasellus egestas tellus rutrum. Tempus imperdiet nulla malesuada pellentesque elit eget gravida. Consequat id porta nibh venenatis cras sed. Vulputate ut pharetra sit amet aliquam. Congue mauris rhoncus aenean vel elit. Risus quis varius quam quisque id diam vel quam elementum. Pretium lectus quam id leo in vitae. Sed sed risus pretium quam vulputate dignissim suspendisse in est. Velit laoreet id donec ultrices. Nunc sed velit dignissim sodales ut. Nunc scelerisque viverra mauris in aliquam sem fringilla ut. Sed enim ut sem viverra aliquet eget sit. Convallis posuere morbi leo urna molestie at. Aliquam id diam maecenas ultricies mi eget mauris. Ipsum dolor sit amet consectetur adipiscing elit ut aliquam. Accumsan tortor posuere ac ut consequat semper. Viverra vitae congue eu consequat ac felis donec et odio. Scelerisque in dictum non consectetur a. Consequat nisl vel pretium lectus quam id leo in vitae. Morbi tristique senectus et netus et malesuada fames ac turpis. Ac orci phasellus egestas tellus. Tempus egestas sed sed risus. Ullamcorper morbi tincidunt ornare massa eget egestas purus. Nibh venenatis cras sed felis eget velit.`
 
 func BenchmarkWrapping(b *testing.B) {
@@ -1415,8 +1439,7 @@ func BenchmarkWrapping(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		lw := NewLineWrapper(textInput, out)
-		outs = lw.WrapParagraph(250)
+		outs = WrapParagraph2(250, textInput, out)
 	}
 	_ = outs
 }
