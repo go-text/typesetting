@@ -17,7 +17,7 @@ type TextShaper struct {
 
 type Shaper interface {
 	// Shape takes an Input and shapes it into the Output.
-	Shape(Input) Output
+	Shape(Input) (Output, error)
 }
 
 // MissingGlyphError indicates that the font used in shaping did not
