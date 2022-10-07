@@ -679,7 +679,7 @@ var (
 // on each provided glyph index in indices, with the index being the end of
 // a slice range (so it's exclusive). You can think of the index as the
 // first glyph of the next output.
-func splitShapedAt(shaped Output, indices ...int) []Output {
+func splitShapedAt(shaped Output, indices ...glyphIndex) []Output {
 	numOut := len(indices) + 1
 	outputs := make([]Output, 0, numOut)
 	start := 0
