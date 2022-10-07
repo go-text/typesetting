@@ -297,7 +297,11 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 			state.unusedBreak = option
 		}
 		for option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
-			if state.lineStartRune > run.Runes.Offset {
+			if state.lineStartRune >= run.Runes.Offset+run.Runes.Count {
+				state.currentRun++
+				run = state.glyphRuns[state.currentRun]
+				continue
+			} else if state.lineStartRune > run.Runes.Offset {
 				// If part of this run has already been used on a previous line, trim
 				// the runes corresponding to those glyphs off.
 				mapRun(state.currentRun, run)

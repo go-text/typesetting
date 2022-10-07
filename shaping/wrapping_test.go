@@ -1213,82 +1213,80 @@ func TestLineWrap(t *testing.T) {
 				},
 			},
 		},
-		/*
-			{
-				// This test case verifies the behavior of the line wrapper for multi-run
-				// shaped input.
-				name:      "multiple input runs 1",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  20,
-				expected: []Line{
-					splitShapedAt(shapedMultiInputText1, 3)[:1],
-					splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
-					splitShapedAt(shapedMultiInputText1, 6)[1:],
-				},
+		{
+			// This test case verifies the behavior of the line wrapper for multi-run
+			// shaped input.
+			name:      "multiple input runs 1",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  20,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
 			},
-			{
-				name:      "multiple input runs 2",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  30,
-				expected: []Line{
-					splitShapedAt(shapedMultiInputText1, 3)[:1],
-					splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
-					splitShapedAt(shapedMultiInputText1, 6)[1:],
-				},
+		},
+		{
+			name:      "multiple input runs 2",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  30,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
 			},
-			{
-				name:      "multiple input runs 3",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  40,
-				expected: []Line{
-					splitShapedAt(shapedMultiInputText1, 3)[:1],
-					splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
-					splitShapedAt(shapedMultiInputText1, 6)[1:],
-				},
+		},
+		{
+			name:      "multiple input runs 3",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  40,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:3],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
 			},
-			{
-				name:      "multiple input runs 4",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  50,
-				expected: []Line{
-					splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
-					splitShapedAt(shapedMultiInputText1, 6)[1:],
-				},
+		},
+		{
+			name:      "multiple input runs 4",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  50,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
 			},
-			{
-				name:      "multiple input runs 5",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  60,
-				expected: []Line{
-					splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
-					splitShapedAt(shapedMultiInputText1, 6)[1:],
-				},
+		},
+		{
+			name:      "multiple input runs 5",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  60,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
 			},
-			{
-				name:      "multiple input runs 6",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  70,
-				expected: []Line{
-					splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
-					splitShapedAt(shapedMultiInputText1, 6)[1:],
-				},
+		},
+		{
+			name:      "multiple input runs 6",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  70,
+			expected: []Line{
+				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
+				splitShapedAt(shapedMultiInputText1, 6)[1:],
 			},
-			{
-				name:      "multiple input runs 7",
-				shaped:    splitShapedMultiInput1,
-				paragraph: []rune(multiInputText1),
-				maxWidth:  80,
-				expected: []Line{
-					splitShapedMultiInput1,
-				},
+		},
+		{
+			name:      "multiple input runs 7",
+			shaped:    splitShapedMultiInput1,
+			paragraph: []rune(multiInputText1),
+			maxWidth:  80,
+			expected: []Line{
+				splitShapedMultiInput1,
 			},
-		*/
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
