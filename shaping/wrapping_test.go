@@ -1527,7 +1527,7 @@ func BenchmarkWrappingArabic(b *testing.B) {
 				RunEnd:    size,
 				Direction: di.DirectionRTL,
 				Face:      face,
-				Size:      16,
+				Size:      16 * 72,
 				Script:    language.Arabic,
 				Language:  language.NewLanguage("AR"),
 			})
@@ -1538,7 +1538,7 @@ func BenchmarkWrappingArabic(b *testing.B) {
 			b.ResetTimer()
 			var outs []Line
 			for i := 0; i < b.N; i++ {
-				outs = l.WrapParagraph(250, textInput, out)
+				outs = l.WrapParagraph(100, textInput, out)
 			}
 			_ = outs
 		})
@@ -1558,7 +1558,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 		RunEnd:    len(textInput),
 		Direction: di.DirectionLTR,
 		Face:      face,
-		Size:      16,
+		Size:      16 * 72,
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	})
@@ -1569,7 +1569,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs = l.WrapParagraph(250, textInput, out)
+		outs = l.WrapParagraph(100, textInput, out)
 	}
 	_ = outs
 }
