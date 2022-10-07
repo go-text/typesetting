@@ -9,9 +9,6 @@ import (
 // glyphIndex is the index in a Glyph slice
 type glyphIndex = int
 
-// length is the unit used to measure a width
-type length = int
-
 // mapRunesToClusterIndices
 // returns a slice that maps rune indicies in the text to the index of the
 // first glyph in the glyph cluster containing that rune in the shaped text.
