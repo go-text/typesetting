@@ -1401,7 +1401,7 @@ func TestGetBreakOptions(t *testing.T) {
 func TestWrappingLatinE2E(t *testing.T) {
 	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
-	var shaper TextShaper
+	var shaper HarfbuzzShaper
 	out, err := shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
@@ -1427,7 +1427,7 @@ const benchParagraph = `Lorem ipsum dolor sit amet, consectetur adipiscing elit,
 func BenchmarkWrapping(b *testing.B) {
 	textInput := []rune(benchParagraph)
 	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
-	var shaper TextShaper
+	var shaper HarfbuzzShaper
 	out, err := shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
@@ -1456,7 +1456,7 @@ func BenchmarkWrapping(b *testing.B) {
 func BenchmarkWrappingHappyPath(b *testing.B) {
 	textInput := []rune("happy path")
 	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
-	var shaper TextShaper
+	var shaper HarfbuzzShaper
 	out, err := shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,

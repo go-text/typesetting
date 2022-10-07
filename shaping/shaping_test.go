@@ -23,7 +23,7 @@ func TestShape(t *testing.T) {
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	}
-	shaper := TextShaper{}
+	shaper := HarfbuzzShaper{}
 	out, err := shaper.Shape(input)
 	if err != nil {
 		t.Errorf("failed shaping: %v", err)
@@ -209,7 +209,7 @@ func BenchmarkShapingLatin(b *testing.B) {
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	}
-	var shaper TextShaper
+	var shaper HarfbuzzShaper
 	var out Output
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -11,10 +11,15 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-type TextShaper struct {
+// HarfbuzzShaper implements the Shaper interface using harfbuzz.
+// Reusing this shaper type across multiple shaping operations is
+// faster and more memory-efficient than creating a new shaper
+// for each operation.
+type HarfbuzzShaper struct {
 	buf *harfbuzz.Buffer
 }
 
+// Shaper describes the signature of a font shaping operation.
 type Shaper interface {
 	// Shape takes an Input and shapes it into the Output.
 	Shape(Input) (Output, error)
@@ -51,7 +56,7 @@ const (
 )
 
 // Shape turns an input into an output.
-func (t *TextShaper) Shape(input Input) (Output, error) {
+func (t *HarfbuzzShaper) Shape(input Input) (Output, error) {
 	// Prepare to shape the text.
 	if t.buf == nil {
 		t.buf = harfbuzz.NewBuffer()
