@@ -231,6 +231,7 @@ func BenchmarkShapingLatin(b *testing.B) {
 
 func BenchmarkShapingArabic(b *testing.B) {
 	textInput := []rune(benchParagraphArabic)
+	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
 	for _, size := range []int{10, 100, 1000, len(textInput)} {
 		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
 			input := Input{
@@ -238,7 +239,7 @@ func BenchmarkShapingArabic(b *testing.B) {
 				RunStart:  0,
 				RunEnd:    size,
 				Direction: di.DirectionLTR,
-				Face:      urdu,
+				Face:      face,
 				Size:      16,
 				Script:    language.Latin,
 				Language:  language.NewLanguage("EN"),

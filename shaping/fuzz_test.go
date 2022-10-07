@@ -12,6 +12,7 @@ import (
 // FuzzE2E shapes and wraps large strings looking for unshapable text or failures
 // in rune accounting.
 func FuzzE2E(f *testing.F) {
+	face := loadOpentypeFont(f, "../font/testdata/Amiri-Regular.ttf")
 	f.Add(benchParagraphLatin)
 	f.Add(benchParagraphArabic)
 	f.Fuzz(func(t *testing.T, input string) {
@@ -22,7 +23,7 @@ func FuzzE2E(f *testing.F) {
 			RunStart:  0,
 			RunEnd:    len(textInput),
 			Direction: di.DirectionRTL,
-			Face:      urdu,
+			Face:      face,
 			Size:      16 * 72,
 			Script:    language.Arabic,
 			Language:  language.NewLanguage("AR"),

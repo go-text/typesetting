@@ -55,7 +55,11 @@ func (lowerFont) NominalGlyph(r rune) (font.GID, bool) {
 	return 0, unicode.IsLower(r)
 }
 
-func loadOpentypeFont(t *testing.T, filename string) font.Face {
+type failer interface {
+	Fatalf(string, ...interface{})
+}
+
+func loadOpentypeFont(t failer, filename string) font.Face {
 	file, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("opening font file: %s", err)

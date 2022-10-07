@@ -8,25 +8,12 @@ import (
 	"testing"
 	"testing/quick"
 
-	hbtest "github.com/benoitkugler/textlayout-testdata/harfbuzz"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
 )
-
-var urdu = func() *truetype.Font {
-	data, err := hbtest.Files.ReadFile("fonts/NotoNastaliqUrdu-Regular.ttf")
-	if err != nil {
-		panic(err)
-	}
-	font, err := truetype.Parse(bytes.NewReader(data))
-	if err != nil {
-		panic(err)
-	}
-	return font
-}()
 
 func max(a, b int) int {
 	if a > b {
@@ -1517,7 +1504,7 @@ func BenchmarkWrappingLatin(b *testing.B) {
 
 func BenchmarkWrappingArabic(b *testing.B) {
 	textInput := []rune(benchParagraphArabic)
-	face := urdu
+	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
 	for _, size := range []int{10, 100, 1000, len(textInput)} {
 		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
 			var shaper HarfbuzzShaper
