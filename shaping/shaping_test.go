@@ -32,6 +32,9 @@ func TestShape(t *testing.T) {
 	if expected := (Range{Offset: 0, Count: len(textInput)}); out.Runes != expected {
 		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
 	}
+	if face != out.Face {
+		t.Error("shaper did not propagate input font face to output")
+	}
 	input.RunStart = 6
 	out, err = shaper.Shape(input)
 	if err != nil {
@@ -39,6 +42,9 @@ func TestShape(t *testing.T) {
 	}
 	if expected := (Range{Offset: 6, Count: len(textInput) - 6}); out.Runes != expected {
 		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
+	}
+	if face != out.Face {
+		t.Error("shaper did not propagate input font face to output")
 	}
 }
 
