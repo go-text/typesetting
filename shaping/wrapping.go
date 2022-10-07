@@ -282,13 +282,17 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 		}
 	}
 
+	// candidateCurrentRun tracks the glyph run in use by the lineCandidate. It is
+	// incremented separately so that the candidate search can run ahead of the
+	// state.currentRun.
+	candidateCurrentRun := state.currentRun
 	incRun := func() bool {
-		state.currentRun++
-		return state.currentRun >= len(state.glyphRuns)
+		candidateCurrentRun++
+		return candidateCurrentRun >= len(state.glyphRuns)
 	}
 
 	for {
-		run := state.glyphRuns[state.currentRun]
+		run := state.glyphRuns[candidateCurrentRun]
 		var option breakOption
 		if state.isUnused {
 			option = state.unusedBreak
@@ -306,12 +310,12 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 				if incRun() {
 					return bestCandidate, state, true
 				}
-				run = state.glyphRuns[state.currentRun]
+				run = state.glyphRuns[candidateCurrentRun]
 				continue
 			} else if state.lineStartRune > run.Runes.Offset {
 				// If part of this run has already been used on a previous line, trim
 				// the runes corresponding to those glyphs off.
-				mapRun(state.currentRun, run)
+				mapRun(candidateCurrentRun, run)
 				run = cutRun(run, l.mapping, state.lineStartRune, run.Runes.Count+run.Runes.Offset)
 			}
 			// While the run being processed doesn't contain the current line breaking
@@ -321,9 +325,9 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 			if incRun() {
 				return lineCandidate, state, true
 			}
-			run = state.glyphRuns[state.currentRun]
+			run = state.glyphRuns[candidateCurrentRun]
 		}
-		mapRun(state.currentRun, run)
+		mapRun(candidateCurrentRun, run)
 		if !state.breaker.isValid(option, l.mapping, run) {
 			// Reject invalid line break candidate and acquire a new one.
 			continue
@@ -337,6 +341,7 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 				// best available, even though it doesn't fit.
 				lineCandidate = append(lineCandidate, candidateRun)
 				state.lineStartRune = candidateRun.Runes.Offset + candidateRun.Runes.Count
+				state.currentRun = candidateCurrentRun
 				return lineCandidate, state, state.lineStartRune >= state.breaker.totalRunes
 			} else {
 				// The line is a valid, shorter wrapping. Return it and mark that
@@ -359,6 +364,7 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 			}
 			bestCandidate = bestCandidate[:copy(bestCandidate, lineCandidate)]
 			bestCandidate = append(bestCandidate, candidateRun)
+			state.currentRun = candidateCurrentRun
 		}
 	}
 }
