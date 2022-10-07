@@ -337,7 +337,7 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 				// best available, even though it doesn't fit.
 				lineCandidate = append(lineCandidate, candidateRun)
 				state.lineStartRune = candidateRun.Runes.Offset + candidateRun.Runes.Count
-				return lineCandidate, state, false
+				return lineCandidate, state, state.lineStartRune >= state.breaker.totalRunes
 			} else {
 				// The line is a valid, shorter wrapping. Return it and mark that
 				// we should reuse the current line break candidate on the next

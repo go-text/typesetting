@@ -512,7 +512,7 @@ var (
 			Ascent: fixed.I(10),
 			// No glyphs descend.
 		},
-		Glyphs: glyphs(0, len(oneWord)),
+		Glyphs: glyphs(0, len(oneWord)-1),
 		Runes: Range{
 			Count: len([]rune(oneWord)),
 		},
