@@ -2,6 +2,7 @@ package shaping
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts/truetype"
@@ -194,26 +195,55 @@ func TestCountClusters(t *testing.T) {
 }
 
 func BenchmarkShapingLatin(b *testing.B) {
-	textInput := []rune(benchParagraph)
+	textInput := []rune(benchParagraphLatin)
 	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
 	if err != nil {
 		b.Skipf("failed parsing font: %v", err)
 	}
-	input := Input{
-		Text:      textInput,
-		RunStart:  0,
-		RunEnd:    len(textInput),
-		Direction: di.DirectionLTR,
-		Face:      face,
-		Size:      16,
-		Script:    language.Latin,
-		Language:  language.NewLanguage("EN"),
+	for _, size := range []int{10, 100, 1000, len(textInput)} {
+		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
+			input := Input{
+				Text:      textInput,
+				RunStart:  0,
+				RunEnd:    size,
+				Direction: di.DirectionLTR,
+				Face:      face,
+				Size:      16,
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			}
+			var shaper HarfbuzzShaper
+			var out Output
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				out, _ = shaper.Shape(input)
+			}
+			_ = out
+		})
 	}
-	var shaper HarfbuzzShaper
-	var out Output
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		out, _ = shaper.Shape(input)
+}
+
+func BenchmarkShapingArabic(b *testing.B) {
+	textInput := []rune(benchParagraphArabic)
+	for _, size := range []int{10, 100, 1000, len(textInput)} {
+		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
+			input := Input{
+				Text:      textInput,
+				RunStart:  0,
+				RunEnd:    size,
+				Direction: di.DirectionLTR,
+				Face:      urdu,
+				Size:      16,
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			}
+			var shaper HarfbuzzShaper
+			var out Output
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				out, _ = shaper.Shape(input)
+			}
+			_ = out
+		})
 	}
-	_ = out
 }
