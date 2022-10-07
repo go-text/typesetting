@@ -1288,8 +1288,8 @@ func TestLineWrap(t *testing.T) {
 			paragraph: []rune(multiInputText1),
 			maxWidth:  50,
 			expected: []Line{
-				splitShapedAt(shapedMultiInputText1, 4, 6)[:2],
-				splitShapedAt(shapedMultiInputText1, 6)[1:],
+				splitShapedAt(shapedMultiInputText1, 3)[:1],
+				splitShapedAt(shapedMultiInputText1, 3, 4, 6)[1:],
 			},
 		},
 		{
