@@ -500,6 +500,23 @@ func withRange(output Output, runes Range) Output {
 }
 
 var (
+	oneWord       = "aaaa"
+	shapedOneWord = Output{
+		Advance: fixed.I(10 * len([]rune(oneWord))),
+		LineBounds: Bounds{
+			Ascent:  fixed.I(10),
+			Descent: fixed.I(5),
+			// No line gap.
+		},
+		GlyphBounds: Bounds{
+			Ascent: fixed.I(10),
+			// No glyphs descend.
+		},
+		Glyphs: glyphs(0, len(oneWord)),
+		Runes: Range{
+			Count: len([]rune(oneWord)),
+		},
+	}
 	// Assume the simple case of 1:1:1 glyph:rune:byte for this input.
 	text1       = "text one is ltr"
 	shapedText1 = Output{
@@ -837,6 +854,23 @@ func TestWrapLine(t *testing.T) {
 						withRange(splitShapedAt(shapedBidiText1[1], 5)[0],
 							Range{Offset: 11, Count: 5}),
 						shapedBidiText1[2],
+					},
+					done: true,
+				},
+			},
+		},
+		{
+			// This is regression test. One of the benchmarks would hit this case in which
+			// the line wrap candidate was exactly at the end of the available runs and
+			// would increment the currentRun off of the end of the available runs.
+			name:      "one word",
+			shaped:    []Output{shapedOneWord},
+			paragraph: []rune(oneWord),
+			maxWidth:  10,
+			expected: []expected{
+				{
+					line: []Output{
+						shapedOneWord,
 					},
 					done: true,
 				},
@@ -1285,6 +1319,20 @@ func TestLineWrap(t *testing.T) {
 			maxWidth:  80,
 			expected: []Line{
 				splitShapedMultiInput1,
+			},
+		},
+		{
+			// This is regression test. One of the benchmarks would hit this case in which
+			// the line wrap candidate was exactly at the end of the available runs and
+			// would increment the currentRun off of the end of the available runs.
+			name:      "one word",
+			shaped:    []Output{shapedOneWord},
+			paragraph: []rune(oneWord),
+			maxWidth:  10,
+			expected: []Line{
+				{
+					shapedOneWord,
+				},
 			},
 		},
 	} {

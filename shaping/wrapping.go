@@ -282,6 +282,11 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 		}
 	}
 
+	incRun := func() bool {
+		state.currentRun++
+		return state.currentRun >= len(state.glyphRuns)
+	}
+
 	for {
 		run := state.glyphRuns[state.currentRun]
 		var option breakOption
@@ -298,7 +303,9 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 		}
 		for option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
 			if state.lineStartRune >= run.Runes.Offset+run.Runes.Count {
-				state.currentRun++
+				if incRun() {
+					return bestCandidate, state, true
+				}
 				run = state.glyphRuns[state.currentRun]
 				continue
 			} else if state.lineStartRune > run.Runes.Offset {
@@ -311,7 +318,9 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 			// candidate, just append it to the candidate line.
 			lineCandidate = append(lineCandidate, run)
 			candidateWidth += run.Advance
-			state.currentRun++
+			if incRun() {
+				return lineCandidate, state, true
+			}
 			run = state.glyphRuns[state.currentRun]
 		}
 		mapRun(state.currentRun, run)
