@@ -92,6 +92,33 @@ func inclusiveGlyphRange(dir di.Direction, start, breakAfter int, runeToGlyph []
 	return
 }
 
+// cutRun returns the sub-run of run containing glyphs corresponding to the provided
+// _inclusive_ rune range.
+func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
+	// Convert the rune range of interest into an inclusive range within the
+	// current run's runes.
+	runeStart := startRune - run.Runes.Offset
+	runeEnd := endRune - run.Runes.Offset
+	if runeStart < 0 {
+		// If the start location is prior to the run of shaped text under consideration,
+		// just work from the beginning of this run.
+		runeStart = 0
+	}
+	if runeEnd >= len(mapping) {
+		// If the break location is after the entire run of shaped text,
+		// keep through the end of the run.
+		runeEnd = len(mapping) - 1
+	}
+	glyphStart, glyphEnd := inclusiveGlyphRange(run.Direction, runeStart, runeEnd, mapping, len(run.Glyphs))
+
+	// Construct a run out of the inclusive glyph range.
+	run.Glyphs = run.Glyphs[glyphStart : glyphEnd+1]
+	run.RecomputeAdvance()
+	run.Runes.Offset = run.Runes.Offset + runeStart
+	run.Runes.Count = runeEnd - runeStart + 1
+	return run
+}
+
 // breakOption represets a location within the rune slice at which
 // it may be safe to break a line of text.
 type breakOption struct {
@@ -199,6 +226,12 @@ func NewBreakState(paragraph []rune, shapedRuns ...Output) BreakState {
 	}
 }
 
+// LineWrapper holds reusable state for a line wrapping operation. Reusing
+// LineWrappers for multiple paragraphs should improve performance.
+type LineWrapper struct {
+	mapping []glyphIndex
+}
+
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
 // It is equivalent to iteratively invoking WrapLine with a constant maxWidth.
 func (l *LineWrapper) WrapParagraph(maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
@@ -214,39 +247,6 @@ func (l *LineWrapper) WrapParagraph(maxWidth int, paragraph []rune, shapedRuns .
 		lines = append(lines, line)
 	}
 	return lines
-}
-
-// cutRun returns the sub-run of run containing glyphs corresponding to the provided
-// _inclusive_ rune range.
-func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
-	// Convert the rune range of interest into an inclusive range within the
-	// current run's runes.
-	runeStart := startRune - run.Runes.Offset
-	runeEnd := endRune - run.Runes.Offset
-	if runeStart < 0 {
-		// If the start location is prior to the run of shaped text under consideration,
-		// just work from the beginning of this run.
-		runeStart = 0
-	}
-	if runeEnd >= len(mapping) {
-		// If the break location is after the entire run of shaped text,
-		// keep through the end of the run.
-		runeEnd = len(mapping) - 1
-	}
-	glyphStart, glyphEnd := inclusiveGlyphRange(run.Direction, runeStart, runeEnd, mapping, len(run.Glyphs))
-
-	// Construct a run out of the inclusive glyph range.
-	run.Glyphs = run.Glyphs[glyphStart : glyphEnd+1]
-	run.RecomputeAdvance()
-	run.Runes.Offset = run.Runes.Offset + runeStart
-	run.Runes.Count = runeEnd - runeStart + 1
-	return run
-}
-
-// LineWrapper holds reusable state for a line wrapping operation. Reusing
-// LineWrappers for multiple paragraphs should improve performance.
-type LineWrapper struct {
-	mapping []glyphIndex
 }
 
 // WrapLine wraps the shaped glyphs of a paragraph to a particular max width.
