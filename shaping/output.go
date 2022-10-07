@@ -104,6 +104,11 @@ type Output struct {
 
 	// Runes describes the runes this output represents from the input text.
 	Runes Range
+
+	// Face is the font face that this output is rendered in. This is needed in
+	// the output in order to render each run in a multi-font sequence in the
+	// correct font.
+	Face font.Face
 }
 
 // UnimplementedDirectionError is returned when a function does not support the
