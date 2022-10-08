@@ -869,17 +869,17 @@ func TestWrapLine(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			state := NewBreakState(tc.paragraph, tc.shaped...)
 			var (
 				line Line
 				done bool
 				l    LineWrapper
 			)
+			l.Prepare(tc.paragraph, tc.shaped...)
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
 			for lineNumber, expected := range tc.expected {
-				line, state, done = l.WrapLine(tc.maxWidth, state)
+				line, done = l.WrapNextLine(tc.maxWidth)
 				compareLines(t, lineNumber, expected.line, line)
 				if done != expected.done {
 					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
