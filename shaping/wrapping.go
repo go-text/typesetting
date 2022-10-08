@@ -254,33 +254,6 @@ type Range struct {
 // Output should be displayed sequentially on one line.
 type Line []Output
 
-// BreakState holds intermediate line-wrapping state for breaking runs of text
-// across multiple lines.
-type BreakState struct {
-	breaker *breaker
-	// unusedBreak is a break requested from the breaker in a previous iteration
-	// but which was not chosen as the line ending. Subsequent invocations of
-	// WrapLine should start with this break.
-	unusedBreak breakOption
-	// isUnused indicates that the unusedBreak field is valid.
-	isUnused bool
-	// glyphRuns holds the runs of shaped text being wrapped.
-	glyphRuns []Output
-	// currentRun holds the index in use within glyphRuns.
-	currentRun int
-	// lineStartRune is the rune index of the first rune on the next line to
-	// be shaped.
-	lineStartRune int
-}
-
-// NewBreakState initializes a BreakState for the given paragraph of text.
-func NewBreakState(paragraph []rune, shapedRuns ...Output) BreakState {
-	return BreakState{
-		breaker:   newBreaker(paragraph),
-		glyphRuns: shapedRuns,
-	}
-}
-
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
 // LineWrappers for multiple paragraphs should improve performance.
 type LineWrapper struct {
