@@ -191,6 +191,10 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			if !reflect.DeepEqual(tc.expected, mapping) {
 				t.Errorf("expected %v, got %v", tc.expected, mapping)
 			}
+			mapping = mapRunesToClusterIndices2(tc.dir, tc.runes, tc.glyphs, nil)
+			if !reflect.DeepEqual(tc.expected, mapping) {
+				t.Errorf("expected %v, got %v", tc.expected, mapping)
+			}
 		})
 	}
 }

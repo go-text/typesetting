@@ -66,6 +66,61 @@ func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf
 	return mapping
 }
 
+func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
+	if runes.Count <= 0 {
+		return nil
+	}
+	var mapping []glyphIndex
+	if cap(buf) >= runes.Count {
+		mapping = buf[:runes.Count]
+	} else {
+		mapping = make([]glyphIndex, runes.Count)
+	}
+
+	rtl := dir.Progression() == di.TowardTopLeft
+	if rtl {
+		for gIdx := len(glyphs) - 1; gIdx >= 0; gIdx-- {
+			cluster := glyphs[gIdx].ClusterIndex
+			clusterEnd := gIdx
+			for gIdx-1 >= 0 && glyphs[gIdx-1].ClusterIndex == cluster {
+				gIdx--
+				clusterEnd = gIdx
+			}
+			var nextCluster int
+			if gIdx-1 >= 0 {
+				nextCluster = glyphs[gIdx-1].ClusterIndex
+			} else {
+				nextCluster = runes.Count + runes.Offset
+			}
+			runesInCluster := nextCluster - cluster
+			clusterOffset := cluster - runes.Offset
+			for i := clusterOffset; i <= runesInCluster+clusterOffset && i < len(mapping); i++ {
+				mapping[i] = clusterEnd
+			}
+		}
+	} else {
+		for gIdx := 0; gIdx < len(glyphs); gIdx++ {
+			cluster := glyphs[gIdx].ClusterIndex
+			clusterStart := gIdx
+			for gIdx+1 < len(glyphs) && glyphs[gIdx+1].ClusterIndex == cluster {
+				gIdx++
+			}
+			var nextCluster int
+			if gIdx+1 < len(glyphs) {
+				nextCluster = glyphs[gIdx+1].ClusterIndex
+			} else {
+				nextCluster = runes.Count + runes.Offset
+			}
+			runesInCluster := nextCluster - cluster
+			clusterOffset := cluster - runes.Offset
+			for i := clusterOffset; i <= runesInCluster+clusterOffset && i < len(mapping); i++ {
+				mapping[i] = clusterStart
+			}
+		}
+	}
+	return mapping
+}
+
 // inclusiveGlyphRange returns the inclusive range of runes and glyphs matching
 // the provided start and breakAfter rune positions.
 // runeToGlyph must be a valid mapping from the rune representation to the
@@ -277,7 +332,7 @@ func (l *LineWrapper) WrapLine(maxWidth int, state BreakState) (_ Line, _ BreakS
 	// run index to skip the work if that run was already mapped.
 	mapRun := func(runIdx int, run Output) {
 		if mappedRun != runIdx {
-			l.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, l.mapping)
+			l.mapping = mapRunesToClusterIndices2(run.Direction, run.Runes, run.Glyphs, l.mapping)
 			mappedRun = runIdx
 		}
 	}
