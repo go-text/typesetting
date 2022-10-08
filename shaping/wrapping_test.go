@@ -1506,6 +1506,41 @@ func BenchmarkWrappingLatin(b *testing.B) {
 	}
 }
 
+func BenchmarkMappingRunesArabic(b *testing.B) {
+	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
+	textInput := []rune(benchParagraphArabic)
+	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
+	for _, size := range []int{10, 100, 1000, len(textInput)} {
+		for impl, f := range map[string]wrapfunc{
+			"original": mapRunesToClusterIndices,
+			"v2":       mapRunesToClusterIndices2,
+		} {
+			b.Run(fmt.Sprintf("%drunes-%s", size, impl), func(b *testing.B) {
+				var shaper HarfbuzzShaper
+				out, err := shaper.Shape(Input{
+					Text:      textInput,
+					RunStart:  0,
+					RunEnd:    size,
+					Direction: di.DirectionRTL,
+					Face:      face,
+					Size:      16 * 72,
+					Script:    language.Arabic,
+					Language:  language.NewLanguage("AR"),
+				})
+				if err != nil {
+					b.Skipf("failed shaping: %v", err)
+				}
+				var m []glyphIndex
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					m = f(out.Direction, out.Runes, out.Glyphs, m)
+				}
+				_ = m
+			})
+		}
+	}
+}
+
 func BenchmarkWrappingArabic(b *testing.B) {
 	textInput := []rune(benchParagraphArabic)
 	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
