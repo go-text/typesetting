@@ -251,32 +251,11 @@ func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
 type breakOption struct {
 	// breakAtRune is the index at which it is safe to break.
 	breakAtRune int
-	// penalty is the cost of breaking at this index. Negative
-	// penalties mean that the break is beneficial, and a penalty
-	// of uax14.PenaltyForMustBreak means a required break.
-	penalty int
-}
-
-// breaker generates line breaking candidates for a text.
-type breaker struct {
-	segmenter  *segmenter.LineIterator
-	totalRunes int
-}
-
-// newBreaker returns a breaker initialized to break the provided text.
-func newBreaker(text []rune) *breaker {
-	var seg segmenter.Segmenter // Note : we should cache this segmenter to reuse internal storage
-	seg.Init(text)
-	br := &breaker{
-		segmenter:  seg.LineIterator(),
-		totalRunes: len(text),
-	}
-	return br
 }
 
 // isValid returns whether a given option violates shaping rules (like breaking
 // a shaped text cluster).
-func (b *breaker) isValid(option breakOption, runeToGlyph []int, out Output) bool {
+func (option breakOption) isValid(runeToGlyph []int, out Output) bool {
 	if option.breakAtRune+1 < len(runeToGlyph) {
 		// Check if this break is valid.
 		gIdx := runeToGlyph[option.breakAtRune]
@@ -292,10 +271,26 @@ func (b *breaker) isValid(option breakOption, runeToGlyph []int, out Output) boo
 	return true
 }
 
+// breaker generates line breaking candidates for a text.
+type breaker struct {
+	segmenter  *segmenter.LineIterator
+	totalRunes int
+}
+
+// newBreaker returns a breaker initialized to break the provided text.
+func newBreaker(seg *segmenter.Segmenter, text []rune) *breaker {
+	seg.Init(text)
+	br := &breaker{
+		segmenter:  seg.LineIterator(),
+		totalRunes: len(text),
+	}
+	return br
+}
+
 // nextValid returns the next valid break candidate, if any. If ok is false, there are no candidates.
 func (b *breaker) nextValid(currentRuneToGlyph []int, currentOutput Output) (option breakOption, ok bool) {
 	option, ok = b.next()
-	for ok && !b.isValid(option, currentRuneToGlyph, currentOutput) {
+	for ok && !option.isValid(currentRuneToGlyph, currentOutput) {
 		option, ok = b.next()
 	}
 	return
@@ -305,7 +300,7 @@ func (b *breaker) nextValid(currentRuneToGlyph []int, currentOutput Output) (opt
 func (b *breaker) next() (option breakOption, ok bool) {
 	if b.segmenter.Next() {
 		currentSegment := b.segmenter.Line()
-		// We dont use penalties for Mandatory Breaks so far,
+		// Note : we dont use penalties for Mandatory Breaks so far,
 		// we could add it with currentSegment.IsMandatoryBreak
 		option := breakOption{
 			breakAtRune: currentSegment.Offset + len(currentSegment.Text) - 1,
@@ -329,6 +324,12 @@ type Line []Output
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
 // LineWrappers for multiple paragraphs should improve performance.
 type LineWrapper struct {
+	// seg is an internal storage used to initiate the breaker iterator
+	seg segmenter.Segmenter
+
+	// breaker provides line-breaking candidates.
+	breaker *breaker
+
 	// mappingValid indicates that the mapping field is populated.
 	mappingValid bool
 	// mappedRun is the index of the mapped run within glyphRuns.
@@ -336,8 +337,6 @@ type LineWrapper struct {
 	// mapping holds the rune->glyph mapping for the run at index mappedRun within
 	// glyphRuns.
 	mapping []glyphIndex
-	// breaker provides line-breaking candidates.
-	breaker *breaker
 	// unusedBreak is a break requested from the breaker in a previous iteration
 	// but which was not chosen as the line ending. Subsequent invocations of
 	// WrapLine should start with this break.
@@ -358,7 +357,7 @@ type LineWrapper struct {
 // Prepare initializes the LineWrapper for the given paragraph and shaped text.
 // It must be called prior to invoking WrapNextLine.
 func (l *LineWrapper) Prepare(paragraph []rune, shapedRuns ...Output) {
-	l.breaker = newBreaker(paragraph)
+	l.breaker = newBreaker(&l.seg, paragraph)
 	l.glyphRuns = shapedRuns
 	l.isUnused = false
 	l.currentRun = 0
@@ -465,7 +464,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (_ Line, done bool) {
 			run = l.glyphRuns[candidateCurrentRun]
 		}
 		mapRun(candidateCurrentRun, run)
-		if !l.breaker.isValid(option, l.mapping, run) {
+		if !option.isValid(l.mapping, run) {
 			// Reject invalid line break candidate and acquire a new one.
 			continue
 		}
