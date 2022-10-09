@@ -413,7 +413,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (_ Line, done bool) {
 	// run index to skip the work if that run was already mapped.
 	mapRun := func(runIdx int, run Output) {
 		if l.mappedRun != runIdx || !l.mappingValid {
-			l.mapping = mapRunesToClusterIndices2(run.Direction, run.Runes, run.Glyphs, l.mapping)
+			l.mapping = mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, l.mapping)
 			l.mappedRun = runIdx
 			l.mappingValid = true
 		}
