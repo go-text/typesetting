@@ -1,6 +1,8 @@
 package shaping
 
 import (
+	"sort"
+
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/math/fixed"
@@ -64,6 +66,36 @@ func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf
 		mapping[i] = glyphCursor
 	}
 	return mapping
+}
+
+// mapRuneToClusterIndex finds the lowest-index glyph for the glyph cluster contiaining the rune
+// at runeIdx in the source text. It uses a binary search of the glyphs in order to achieve this.
+// It is equivalent to using mapRunesToClusterIndices on only a single rune index, and is thus
+// more efficient for single lookups while being less efficient for runs which require many
+// lookups anyway.
+func mapRuneToClusterIndex(dir di.Direction, runes Range, glyphs []Glyph, runeIdx int) glyphIndex {
+	var index int
+	rtl := dir.Progression() == di.TowardTopLeft
+	if !rtl {
+		index = sort.Search(len(glyphs), func(index int) bool {
+			return glyphs[index].ClusterIndex-runes.Offset > runeIdx
+		})
+	} else {
+		index = sort.Search(len(glyphs), func(index int) bool {
+			return glyphs[index].ClusterIndex-runes.Offset < runeIdx
+		})
+	}
+	if index < 1 {
+		return 0
+	}
+	cluster := glyphs[index-1].ClusterIndex
+	if rtl && cluster-runes.Offset > runeIdx {
+		return index
+	}
+	for index-1 >= 0 && glyphs[index-1].ClusterIndex == cluster {
+		index--
+	}
+	return index
 }
 
 func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {

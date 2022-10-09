@@ -199,6 +199,12 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			if !reflect.DeepEqual(tc.expected, mapping) {
 				t.Errorf("expected %v, got %v", tc.expected, mapping)
 			}
+			for runeIdx, glyphIdx := range tc.expected {
+				g := mapRuneToClusterIndex(tc.dir, tc.runes, tc.glyphs, runeIdx)
+				if g != glyphIdx {
+					t.Errorf("map single, expected rune %d to yield %d, got %d", runeIdx, glyphIdx, g)
+				}
+			}
 		})
 	}
 }
