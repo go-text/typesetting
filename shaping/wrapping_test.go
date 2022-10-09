@@ -11,6 +11,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
 )
@@ -1422,7 +1423,7 @@ func complexGlyph(cluster, runes, glyphs int) Glyph {
 
 func TestGetBreakOptions(t *testing.T) {
 	if err := quick.Check(func(runes []rune) bool {
-		breaker := newBreaker(runes)
+		breaker := newBreaker(&segmenter.Segmenter{}, runes)
 		var options []breakOption
 		for b, ok := breaker.next(); ok; b, ok = breaker.next() {
 			options = append(options, b)
