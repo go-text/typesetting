@@ -121,6 +121,46 @@ func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, bu
 	return mapping
 }
 
+func mapRunesToClusterIndices3(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
+	if runes.Count <= 0 {
+		return nil
+	}
+	var mapping []glyphIndex
+	if cap(buf) >= runes.Count {
+		mapping = buf[:runes.Count]
+	} else {
+		mapping = make([]glyphIndex, runes.Count)
+	}
+
+	rtl := dir.Progression() == di.TowardTopLeft
+	if rtl {
+		for gIdx := len(glyphs) - 1; gIdx >= 0; {
+			glyph := &glyphs[gIdx]
+			// go to the start of the cluster
+			gIdx -= (glyph.GlyphCount - 1)
+			clusterStart := glyph.ClusterIndex - runes.Offset // map back to [0;runes.Count[
+			clusterEnd := glyph.RuneCount + clusterStart
+			for i := clusterStart; i <= clusterEnd && i < len(mapping); i++ {
+				mapping[i] = gIdx
+			}
+			// go to the next cluster
+			gIdx--
+		}
+	} else {
+		for gIdx := 0; gIdx < len(glyphs); {
+			glyph := &glyphs[gIdx]
+			clusterStart := glyph.ClusterIndex - runes.Offset // map back to [0;runes.Count[
+			clusterEnd := glyph.RuneCount + clusterStart
+			for i := clusterStart; i <= clusterEnd && i < len(mapping); i++ {
+				mapping[i] = gIdx
+			}
+			// go to the next cluster
+			gIdx += glyph.GlyphCount
+		}
+	}
+	return mapping
+}
+
 // inclusiveGlyphRange returns the inclusive range of runes and glyphs matching
 // the provided start and breakAfter rune positions.
 // runeToGlyph must be a valid mapping from the rune representation to the
