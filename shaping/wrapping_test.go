@@ -3,6 +3,7 @@ package shaping
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
@@ -1484,141 +1486,146 @@ func TestWrappingLatinE2E(t *testing.T) {
 	}
 }
 
-func BenchmarkWrappingLatin(b *testing.B) {
-	textInput := []rune(benchParagraphLatin)
-	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
-	if err != nil {
-		b.Skipf("failed parsing font: %v", err)
-	}
-	for _, size := range []int{10, 100, 1000, len(textInput)} {
-		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
-			var shaper HarfbuzzShaper
-			out, err := shaper.Shape(Input{
-				Text:      textInput,
-				RunStart:  0,
-				RunEnd:    size,
-				Direction: di.DirectionLTR,
-				Face:      face,
-				Size:      16,
-				Script:    language.Latin,
-				Language:  language.NewLanguage("EN"),
-			})
-			if err != nil {
-				b.Skipf("failed shaping: %v", err)
-			}
-			var l LineWrapper
-			b.ResetTimer()
-			var outs []Line
-			for i := 0; i < b.N; i++ {
-				outs = l.WrapParagraph(250, textInput, out)
-			}
-			_ = outs
-		})
-	}
-}
-
-func BenchmarkMappingRunesLatin(b *testing.B) {
+func BenchmarkMappingRunes(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
-	textInput := []rune(benchParagraphLatin)
-	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
-	if err != nil {
-		b.Skip(err)
-	}
-	for _, size := range []int{10, 100, 1000, len(textInput)} {
-		for impl, f := range map[string]wrapfunc{
-			"original": mapRunesToClusterIndices,
-			"v2":       mapRunesToClusterIndices2,
-			"v3":       mapRunesToClusterIndices3,
-		} {
-			b.Run(fmt.Sprintf("%drunes-%s", size, impl), func(b *testing.B) {
-				var shaper HarfbuzzShaper
-				out, err := shaper.Shape(Input{
-					Text:      textInput,
-					RunStart:  0,
-					RunEnd:    size,
-					Direction: di.DirectionLTR,
-					Face:      face,
-					Size:      16 * 72,
-					Script:    language.Latin,
-					Language:  language.NewLanguage("EN"),
+	for _, langInfo := range benchLangs {
+		for _, size := range []int{10, 100, 1000} {
+			for impl, f := range map[string]wrapfunc{
+				"v1": mapRunesToClusterIndices,
+				"v2": mapRunesToClusterIndices2,
+				"v3": mapRunesToClusterIndices3,
+			} {
+				b.Run(fmt.Sprintf("%drunes-%s-%s", size, langInfo.name, impl), func(b *testing.B) {
+					var shaper HarfbuzzShaper
+					out, err := shaper.Shape(Input{
+						Text:      langInfo.text[:size],
+						RunStart:  0,
+						RunEnd:    size,
+						Direction: langInfo.dir,
+						Face:      langInfo.face,
+						Size:      16 * 72,
+						Script:    langInfo.script,
+						Language:  langInfo.lang,
+					})
+					if err != nil {
+						b.Skipf("failed shaping: %v", err)
+					}
+					var m []glyphIndex
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						m = f(out.Direction, out.Runes, out.Glyphs, m)
+					}
+					_ = m
 				})
-				if err != nil {
-					b.Skipf("failed shaping: %v", err)
-				}
-				var m []glyphIndex
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					m = f(out.Direction, out.Runes, out.Glyphs, m)
-				}
-				_ = m
-			})
+			}
 		}
 	}
 }
 
-func BenchmarkMappingRunesArabic(b *testing.B) {
-	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
-	textInput := []rune(benchParagraphArabic)
-	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
-	for _, size := range []int{10, 100, 1000, len(textInput)} {
-		for impl, f := range map[string]wrapfunc{
-			"original": mapRunesToClusterIndices,
-			"v2":       mapRunesToClusterIndices2,
-			"v3":       mapRunesToClusterIndices3,
-		} {
-			b.Run(fmt.Sprintf("%drunes-%s", size, impl), func(b *testing.B) {
-				var shaper HarfbuzzShaper
-				out, err := shaper.Shape(Input{
-					Text:      textInput,
-					RunStart:  0,
-					RunEnd:    size,
-					Direction: di.DirectionRTL,
-					Face:      face,
-					Size:      16 * 72,
-					Script:    language.Arabic,
-					Language:  language.NewLanguage("AR"),
-				})
-				if err != nil {
-					b.Skipf("failed shaping: %v", err)
-				}
-				var m []glyphIndex
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					m = f(out.Direction, out.Runes, out.Glyphs, m)
-				}
-				_ = m
-			})
-		}
-	}
+// benchLangInfo describes the language configuration for a text shaping input.
+type benchLangInfo struct {
+	name   string
+	dir    di.Direction
+	script language.Script
+	lang   language.Language
+	face   font.Face
+	text   []rune
 }
 
-func BenchmarkWrappingArabic(b *testing.B) {
-	textInput := []rune(benchParagraphArabic)
-	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
-	for _, size := range []int{10, 100, 1000, len(textInput)} {
-		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
-			var shaper HarfbuzzShaper
-			out, err := shaper.Shape(Input{
-				Text:      textInput,
-				RunStart:  0,
-				RunEnd:    size,
-				Direction: di.DirectionRTL,
-				Face:      face,
-				Size:      16 * 72,
-				Script:    language.Arabic,
-				Language:  language.NewLanguage("AR"),
-			})
-			if err != nil {
-				b.Skipf("failed shaping: %v", err)
+// benchSizeConfig describes a size of benchmarking input and a set of configurations
+// for cutting the runes into quantities of equal-sized parts.
+type benchSizeConfig struct {
+	runes int
+	parts []int
+}
+
+// benchArFace is an arabic font face for use in benchmarks.
+var benchArFace = func() font.Face {
+	data, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
+	if err != nil {
+		panic(err)
+	}
+	arFace, err := truetype.Parse(bytes.NewReader(data))
+	if err != nil {
+		panic(err)
+	}
+	return arFace
+}()
+
+// benchEnFace is a latin font face for use in benchmarks.
+var benchEnFace = func() font.Face {
+	enFace, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		panic(err)
+	}
+	return enFace
+}()
+
+var benchLangs = []benchLangInfo{
+	{
+		name:   "arabic",
+		dir:    di.DirectionRTL,
+		script: language.Arabic,
+		lang:   language.NewLanguage("AR"),
+		face:   benchArFace,
+		text:   []rune(benchParagraphArabic),
+	},
+	{
+		name:   "latin",
+		dir:    di.DirectionLTR,
+		script: language.Latin,
+		lang:   language.NewLanguage("EN"),
+		face:   benchEnFace,
+		text:   []rune(benchParagraphLatin),
+	},
+}
+
+var benchSizes = []benchSizeConfig{
+	{runes: 10, parts: []int{1, 10}},
+	{runes: 100, parts: []int{1, 10, 100}},
+	{runes: 1000, parts: []int{1, 10, 100, 1000}},
+}
+
+func BenchmarkWrapping(b *testing.B) {
+	for _, langInfo := range benchLangs {
+		for _, size := range benchSizes {
+			for _, parts := range size.parts {
+				b.Run(fmt.Sprintf("%drunes-%s-%dparts", size.runes, langInfo.name, parts), func(b *testing.B) {
+					var shaper HarfbuzzShaper
+					out, err := shaper.Shape(Input{
+						Text:      langInfo.text[:size.runes],
+						RunStart:  0,
+						RunEnd:    size.runes,
+						Direction: langInfo.dir,
+						Face:      langInfo.face,
+						Size:      16 * 72,
+						Script:    langInfo.script,
+						Language:  langInfo.lang,
+					})
+					if err != nil {
+						b.Skipf("failed shaping: %v", err)
+					}
+					var outs []Output
+					if parts-1 > 0 {
+						mapping := mapRunesToClusterIndices3(out.Direction, out.Runes, out.Glyphs, nil)
+						runesPerPart := size.runes / parts
+						start := 0
+						for i := 0; i < parts-1; i++ {
+							outs = append(outs, cutRun(out, mapping, start, start+runesPerPart-1))
+						}
+					} else {
+						outs = append(outs, out)
+					}
+					var l LineWrapper
+					b.ResetTimer()
+					var lines []Line
+					for i := 0; i < b.N; i++ {
+						lines = l.WrapParagraph(100, langInfo.text[:size.runes], outs...)
+					}
+					_ = lines
+				})
 			}
-			var l LineWrapper
-			b.ResetTimer()
-			var outs []Line
-			for i := 0; i < b.N; i++ {
-				outs = l.WrapParagraph(100, textInput, out)
-			}
-			_ = outs
-		})
+		}
 	}
 }
 

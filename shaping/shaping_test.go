@@ -200,57 +200,28 @@ func TestCountClusters(t *testing.T) {
 	}
 }
 
-func BenchmarkShapingLatin(b *testing.B) {
-	textInput := []rune(benchParagraphLatin)
-	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
-	if err != nil {
-		b.Skipf("failed parsing font: %v", err)
-	}
-	for _, size := range []int{10, 100, 1000, len(textInput)} {
-		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
-			input := Input{
-				Text:      textInput,
-				RunStart:  0,
-				RunEnd:    size,
-				Direction: di.DirectionLTR,
-				Face:      face,
-				Size:      16,
-				Script:    language.Latin,
-				Language:  language.NewLanguage("EN"),
-			}
-			var shaper HarfbuzzShaper
-			var out Output
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				out, _ = shaper.Shape(input)
-			}
-			_ = out
-		})
-	}
-}
-
-func BenchmarkShapingArabic(b *testing.B) {
-	textInput := []rune(benchParagraphArabic)
-	face := loadOpentypeFont(b, "../font/testdata/Amiri-Regular.ttf")
-	for _, size := range []int{10, 100, 1000, len(textInput)} {
-		b.Run(fmt.Sprintf("%drunes", size), func(b *testing.B) {
-			input := Input{
-				Text:      textInput,
-				RunStart:  0,
-				RunEnd:    size,
-				Direction: di.DirectionLTR,
-				Face:      face,
-				Size:      16,
-				Script:    language.Latin,
-				Language:  language.NewLanguage("EN"),
-			}
-			var shaper HarfbuzzShaper
-			var out Output
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				out, _ = shaper.Shape(input)
-			}
-			_ = out
-		})
+func BenchmarkShaping(b *testing.B) {
+	for _, langInfo := range benchLangs {
+		for _, size := range []int{10, 100, 1000} {
+			b.Run(fmt.Sprintf("%drunes-%s", size, langInfo.name), func(b *testing.B) {
+				input := Input{
+					Text:      langInfo.text[:size],
+					RunStart:  0,
+					RunEnd:    size,
+					Direction: langInfo.dir,
+					Face:      langInfo.face,
+					Size:      16 * 72,
+					Script:    langInfo.script,
+					Language:  langInfo.lang,
+				}
+				var shaper HarfbuzzShaper
+				var out Output
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					out, _ = shaper.Shape(input)
+				}
+				_ = out
+			})
+		}
 	}
 }
