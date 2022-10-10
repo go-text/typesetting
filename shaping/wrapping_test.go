@@ -1486,13 +1486,13 @@ func TestWrappingLatinE2E(t *testing.T) {
 	}
 }
 
-func BenchmarkMappingRunes(b *testing.B) {
+func BenchmarkMapping(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
 	for _, langInfo := range benchLangs {
 		for _, size := range []int{10, 100, 1000} {
 			for impl, f := range map[string]wrapfunc{
-				"v1": mapRunesToClusterIndices,
-				"v2": mapRunesToClusterIndices2,
+				//"v1": mapRunesToClusterIndices,
+				//"v2": mapRunesToClusterIndices2,
 				"v3": mapRunesToClusterIndices3,
 			} {
 				b.Run(fmt.Sprintf("%drunes-%s-%s", size, langInfo.name, impl), func(b *testing.B) {
@@ -1586,6 +1586,64 @@ var benchSizes = []benchSizeConfig{
 	{runes: 1000, parts: []int{1, 10, 100, 1000}},
 }
 
+// cutRunInto divides the run into parts of size (with the last part absorbing any remainder).
+func cutRunInto(run Output, parts, size int) []Output {
+	var outs []Output
+	mapping := mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, nil)
+	runesPerPart := size / parts
+	partStart := 0
+	for i := 0; i < parts-1; i++ {
+		outs = append(outs, cutRun(run, mapping, partStart, partStart+runesPerPart-1))
+		partStart += runesPerPart
+	}
+	outs = append(outs, cutRun(run, mapping, partStart, size-1))
+	return outs
+}
+
+// TestCutRunInto ensures that the cutRunInto helper function actually cuts the run into the
+// right pieces.
+func TestCutRunInto(t *testing.T) {
+	for _, langInfo := range benchLangs {
+		for _, size := range benchSizes {
+			for _, parts := range size.parts {
+				var shaper HarfbuzzShaper
+				out, err := shaper.Shape(Input{
+					Text:      langInfo.text[:size.runes],
+					RunStart:  0,
+					RunEnd:    size.runes,
+					Direction: langInfo.dir,
+					Face:      langInfo.face,
+					Size:      16 * 72,
+					Script:    langInfo.script,
+					Language:  langInfo.lang,
+				})
+				if err != nil {
+					t.Skipf("failed shaping: %v", err)
+				}
+				outs := cutRunInto(out, parts, size.runes)
+				accountedRunes := make([]int, size.runes)
+				maxRune := -1
+				for _, part := range outs {
+					for i := part.Runes.Offset; i < part.Runes.Count+part.Runes.Offset; i++ {
+						accountedRunes[i]++
+						if i > maxRune {
+							maxRune = i
+						}
+					}
+				}
+				if maxRune != size.runes-1 {
+					t.Errorf("maximum rune in cut result is %d, expected %d", maxRune, size.runes-1)
+				}
+				for runeIdx, count := range accountedRunes {
+					if count != 1 {
+						t.Errorf("rune at position %d seen %d times", runeIdx, count)
+					}
+				}
+			}
+		}
+	}
+}
+
 func BenchmarkWrapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range benchSizes {
@@ -1605,17 +1663,7 @@ func BenchmarkWrapping(b *testing.B) {
 					if err != nil {
 						b.Skipf("failed shaping: %v", err)
 					}
-					var outs []Output
-					if parts-1 > 0 {
-						mapping := mapRunesToClusterIndices3(out.Direction, out.Runes, out.Glyphs, nil)
-						runesPerPart := size.runes / parts
-						start := 0
-						for i := 0; i < parts-1; i++ {
-							outs = append(outs, cutRun(out, mapping, start, start+runesPerPart-1))
-						}
-					} else {
-						outs = append(outs, out)
-					}
+					outs := cutRunInto(out, parts, size.runes)
 					var l LineWrapper
 					b.ResetTimer()
 					var lines []Line
