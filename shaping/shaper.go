@@ -113,7 +113,7 @@ func (t *HarfbuzzShaper) Shape(input Input) (Output, error) {
 			Mask:         t.buf.Info[i].Mask,
 		}
 	}
-	countClusters(glyphs, input.RunEnd-input.RunStart, input.Direction)
+	countClusters(glyphs, input.RunEnd, input.Direction)
 	out := Output{
 		Glyphs:    glyphs,
 		Direction: input.Direction,

@@ -35,16 +35,27 @@ func TestShape(t *testing.T) {
 	if face != out.Face {
 		t.Error("shaper did not propagate input font face to output")
 	}
+	// Ensure properties of the run come out correctly adjusted if it starts after
+	// the beginning of the text.
 	input.RunStart = 6
+	input.RunEnd = 8
 	out, err = shaper.Shape(input)
 	if err != nil {
 		t.Errorf("failed shaping: %v", err)
 	}
-	if expected := (Range{Offset: 6, Count: len(textInput) - 6}); out.Runes != expected {
+	if expected := (Range{Offset: 6, Count: 2}); out.Runes != expected {
 		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
 	}
 	if face != out.Face {
 		t.Error("shaper did not propagate input font face to output")
+	}
+	for i, g := range out.Glyphs {
+		if g.GlyphCount != 1 {
+			t.Errorf("out.Glyphs[%d].GlyphCount != %d, is %d", i, 1, g.GlyphCount)
+		}
+		if g.RuneCount != 1 {
+			t.Errorf("out.Runes[%d].RuneCount != %d, is %d", i, 1, g.RuneCount)
+		}
 	}
 }
 
