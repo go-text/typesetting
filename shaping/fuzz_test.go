@@ -18,7 +18,7 @@ func FuzzE2E(f *testing.F) {
 	f.Fuzz(func(t *testing.T, input string) {
 		textInput := []rune(input)
 		var shaper HarfbuzzShaper
-		out, err := shaper.Shape(Input{
+		out := shaper.Shape(Input{
 			Text:      textInput,
 			RunStart:  0,
 			RunEnd:    len(textInput),
@@ -28,9 +28,6 @@ func FuzzE2E(f *testing.F) {
 			Script:    language.Arabic,
 			Language:  language.NewLanguage("AR"),
 		})
-		if err != nil {
-			t.Errorf("failed shaping: %v", err)
-		}
 		if out.Runes.Count != len(textInput) {
 			t.Errorf("expected %d shaped runes, got %d", len(textInput), out.Runes.Count)
 		}

@@ -1464,9 +1464,9 @@ func TestGetBreakOptions(t *testing.T) {
 // on a selection of latin text.
 func TestWrappingLatinE2E(t *testing.T) {
 	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
-	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out, err := shaper.Shape(Input{
+	out := shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -1476,9 +1476,6 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	})
-	if err != nil {
-		t.Skipf("failed shaping: %v", err)
-	}
 	var l LineWrapper
 	outs := l.WrapParagraph(250, textInput, out)
 	if len(outs) < 3 {
@@ -1497,7 +1494,7 @@ func BenchmarkMapping(b *testing.B) {
 			} {
 				b.Run(fmt.Sprintf("%drunes-%s-%s", size, langInfo.name, impl), func(b *testing.B) {
 					var shaper HarfbuzzShaper
-					out, err := shaper.Shape(Input{
+					out := shaper.Shape(Input{
 						Text:      langInfo.text[:size],
 						RunStart:  0,
 						RunEnd:    size,
@@ -1507,9 +1504,6 @@ func BenchmarkMapping(b *testing.B) {
 						Script:    langInfo.script,
 						Language:  langInfo.lang,
 					})
-					if err != nil {
-						b.Skipf("failed shaping: %v", err)
-					}
 					var m []glyphIndex
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
@@ -1607,7 +1601,7 @@ func TestCutRunInto(t *testing.T) {
 		for _, size := range benchSizes {
 			for _, parts := range size.parts {
 				var shaper HarfbuzzShaper
-				out, err := shaper.Shape(Input{
+				out := shaper.Shape(Input{
 					Text:      langInfo.text[:size.runes],
 					RunStart:  0,
 					RunEnd:    size.runes,
@@ -1617,9 +1611,6 @@ func TestCutRunInto(t *testing.T) {
 					Script:    langInfo.script,
 					Language:  langInfo.lang,
 				})
-				if err != nil {
-					t.Skipf("failed shaping: %v", err)
-				}
 				outs := cutRunInto(out, parts, size.runes)
 				accountedRunes := make([]int, size.runes)
 				maxRune := -1
@@ -1650,7 +1641,7 @@ func BenchmarkWrapping(b *testing.B) {
 			for _, parts := range size.parts {
 				b.Run(fmt.Sprintf("%drunes-%s-%dparts", size.runes, langInfo.name, parts), func(b *testing.B) {
 					var shaper HarfbuzzShaper
-					out, err := shaper.Shape(Input{
+					out := shaper.Shape(Input{
 						Text:      langInfo.text[:size.runes],
 						RunStart:  0,
 						RunEnd:    size.runes,
@@ -1660,9 +1651,6 @@ func BenchmarkWrapping(b *testing.B) {
 						Script:    langInfo.script,
 						Language:  langInfo.lang,
 					})
-					if err != nil {
-						b.Skipf("failed shaping: %v", err)
-					}
 					outs := cutRunInto(out, parts, size.runes)
 					var l LineWrapper
 					b.ResetTimer()
@@ -1682,9 +1670,9 @@ func BenchmarkWrapping(b *testing.B) {
 // work.
 func BenchmarkWrappingHappyPath(b *testing.B) {
 	textInput := []rune("happy path")
-	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out, err := shaper.Shape(Input{
+	out := shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -1694,9 +1682,6 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	})
-	if err != nil {
-		b.Skipf("failed shaping: %v", err)
-	}
 	var l LineWrapper
 	b.ResetTimer()
 	var outs []Line

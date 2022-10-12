@@ -3,8 +3,6 @@
 package shaping
 
 import (
-	"fmt"
-
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
@@ -111,17 +109,6 @@ type Output struct {
 	Face font.Face
 }
 
-// UnimplementedDirectionError is returned when a function does not support the
-// provided layout direction yet.
-type UnimplementedDirectionError struct {
-	Direction di.Direction
-}
-
-// Error formats the error into a string message.
-func (u UnimplementedDirectionError) Error() string {
-	return fmt.Sprintf("support for text direction %v is not implemented yet", u.Direction)
-}
-
 // RecomputeAdvance updates only the Advance field based on the current
 // contents of the Glyphs field. It is faster than RecalculateAll(),
 // and can be used to speed up line wrapping logic.
@@ -143,7 +130,7 @@ func (o *Output) RecomputeAdvance() {
 // to match the current contents of the Glyphs field.
 // This method will fail with UnimplementedDirectionError if the Output
 // direction is unimplemented.
-func (o *Output) RecalculateAll() error {
+func (o *Output) RecalculateAll() {
 	var (
 		advance fixed.Int26_6
 		tallest fixed.Int26_6
@@ -151,7 +138,18 @@ func (o *Output) RecalculateAll() error {
 	)
 
 	if o.Direction.IsVertical() {
-		return UnimplementedDirectionError{Direction: o.Direction}
+		for i := range o.Glyphs {
+			g := &o.Glyphs[i]
+			advance += g.YAdvance
+			height := g.XBearing + g.XOffset
+			if height > tallest {
+				tallest = height
+			}
+			depth := height + g.Width
+			if depth < lowest {
+				lowest = depth
+			}
+		}
 	} else { // horizontal
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
@@ -171,6 +169,4 @@ func (o *Output) RecalculateAll() error {
 		Ascent:  tallest,
 		Descent: lowest,
 	}
-
-	return nil
 }

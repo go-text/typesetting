@@ -3,7 +3,6 @@
 package shaping_test
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
@@ -65,7 +64,7 @@ var (
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(0)),
 		YOffset:  fixed.I(int(0)),
-		Width:    fixed.I(int(10)),
+		Width:    -fixed.I(int(10)),
 		Height:   -fixed.I(int(10)),
 		YBearing: fixed.I(int(0)),
 		XBearing: fixed.I(int(0)),
@@ -76,14 +75,14 @@ var (
 		YAdvance: fixed.I(int(10)),
 		XOffset:  fixed.I(int(2)),
 		YOffset:  fixed.I(int(2)),
-		Width:    fixed.I(int(10)),
+		Width:    -fixed.I(int(10)),
 		Height:   -fixed.I(int(10)),
 		YBearing: fixed.I(int(10)),
-		XBearing: fixed.I(int(0)),
+		XBearing: fixed.I(int(10)),
 	}
 )
 
-// TestRecalculate ensures that the Output.Recalculate function correctly
+// TestRecalculate ensures that the Output.RecalculateAll function correctly
 // computes the bounds, advance, and baseline of the output.
 func TestRecalculate(t *testing.T) {
 	type testcase struct {
@@ -91,7 +90,6 @@ func TestRecalculate(t *testing.T) {
 		Direction di.Direction
 		Input     []shaping.Glyph
 		Output    shaping.Output
-		Error     *shaping.UnimplementedDirectionError
 	}
 	for _, tc := range []testcase{
 		{
@@ -101,7 +99,7 @@ func TestRecalculate(t *testing.T) {
 			},
 		},
 		{
-			Name:      "single simple glyph",
+			Name:      "horizontal single simple glyph",
 			Direction: di.DirectionLTR,
 			Input:     []shaping.Glyph{simpleGlyph},
 			Output: shaping.Output{
@@ -115,7 +113,7 @@ func TestRecalculate(t *testing.T) {
 			},
 		},
 		{
-			Name:      "glyph below baseline",
+			Name:      "horizontal glyph below baseline",
 			Direction: di.DirectionLTR,
 			Input:     []shaping.Glyph{simpleGlyph, deepGlyph},
 			Output: shaping.Output{
@@ -129,7 +127,7 @@ func TestRecalculate(t *testing.T) {
 			},
 		},
 		{
-			Name:      "single complex glyph",
+			Name:      "horizontal single complex glyph",
 			Direction: di.DirectionLTR,
 			Input:     []shaping.Glyph{offsetGlyph},
 			Output: shaping.Output{
@@ -143,9 +141,46 @@ func TestRecalculate(t *testing.T) {
 			},
 		},
 		{
-			Name:      "vertical text not supported",
-			Direction: di.DirectionBTT,
-			Error:     &shaping.UnimplementedDirectionError{},
+			Name:      "vertical single simple glyph",
+			Direction: di.DirectionTTB,
+			Input:     []shaping.Glyph{simpleGlyph},
+			Output: shaping.Output{
+				Glyphs:  []shaping.Glyph{simpleGlyph},
+				Advance: simpleGlyph.YAdvance,
+				GlyphBounds: shaping.Bounds{
+					Ascent:  simpleGlyph.XBearing,
+					Descent: fixed.I(0),
+				},
+				LineBounds: expectedFontExtents,
+			},
+		},
+		{
+			Name:      "vertical glyph below baseline",
+			Direction: di.DirectionTTB,
+			Input:     []shaping.Glyph{simpleGlyph, deepGlyph},
+			Output: shaping.Output{
+				Glyphs:  []shaping.Glyph{simpleGlyph, deepGlyph},
+				Advance: simpleGlyph.YAdvance + deepGlyph.YAdvance,
+				GlyphBounds: shaping.Bounds{
+					Ascent:  simpleGlyph.XBearing,
+					Descent: deepGlyph.XBearing + deepGlyph.Width,
+				},
+				LineBounds: expectedFontExtents,
+			},
+		},
+		{
+			Name:      "vertical single complex glyph",
+			Direction: di.DirectionTTB,
+			Input:     []shaping.Glyph{offsetGlyph},
+			Output: shaping.Output{
+				Glyphs:  []shaping.Glyph{offsetGlyph},
+				Advance: offsetGlyph.YAdvance,
+				GlyphBounds: shaping.Bounds{
+					Ascent:  offsetGlyph.XBearing + offsetGlyph.XOffset,
+					Descent: fixed.I(0),
+				},
+				LineBounds: expectedFontExtents,
+			},
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -154,11 +189,21 @@ func TestRecalculate(t *testing.T) {
 				LineBounds: expectedFontExtents,
 				Direction:  tc.Direction,
 			}
-			err := output.RecalculateAll()
-			if tc.Error != nil && !errors.As(err, tc.Error) {
-				t.Errorf("expected error of type %T, got %T", tc.Error, err)
-			} else if tc.Error == nil && !reflect.DeepEqual(output, tc.Output) {
-				t.Errorf("recalculation incorrect: expected %v, got %v", tc.Output, output)
+			output.RecalculateAll()
+			if output.Advance != tc.Output.Advance {
+				t.Errorf("advance mismatch, expected %s, got %s", tc.Output.Advance, output.Advance)
+			}
+			if !reflect.DeepEqual(output.Glyphs, tc.Output.Glyphs) {
+				t.Errorf("glyphs mismatch: expected %v, got %v", tc.Output.Glyphs, output.Glyphs)
+			}
+			if output.LineBounds != tc.Output.LineBounds {
+				t.Errorf("line bounds mismatch, expected %#+v, got %#+v", tc.Output.LineBounds, output.LineBounds)
+			}
+			if output.GlyphBounds != tc.Output.GlyphBounds {
+				t.Errorf("glyph bounds mismatch, expected %#+v, got %#+v", tc.Output.GlyphBounds, output.GlyphBounds)
+			}
+			if output.Runes != tc.Output.Runes {
+				t.Errorf("runes mismatch, expected %#+v, got %#+v", tc.Output.Runes, output.Runes)
 			}
 		})
 	}
