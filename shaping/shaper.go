@@ -3,11 +3,8 @@
 package shaping
 
 import (
-	"fmt"
-
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/go-text/typesetting/di"
-	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -19,31 +16,12 @@ type HarfbuzzShaper struct {
 	buf *harfbuzz.Buffer
 }
 
+var _ Shaper = (*HarfbuzzShaper)(nil)
+
 // Shaper describes the signature of a font shaping operation.
 type Shaper interface {
 	// Shape takes an Input and shapes it into the Output.
-	Shape(Input) (Output, error)
-}
-
-// MissingGlyphError indicates that the font used in shaping did not
-// have a glyph needed to complete the shaping.
-type MissingGlyphError struct {
-	font.GID
-}
-
-func (m MissingGlyphError) Error() string {
-	return fmt.Sprintf("missing glyph with id %d", m.GID)
-}
-
-// InvalidRunError represents an invalid run of text, either because
-// the end is before the start or because start or end is greater
-// than the length.
-type InvalidRunError struct {
-	RunStart, RunEnd, TextLength int
-}
-
-func (i InvalidRunError) Error() string {
-	return fmt.Sprintf("run from %d to %d is not valid for text len %d", i.RunStart, i.RunEnd, i.TextLength)
+	Shape(Input) Output
 }
 
 const (
@@ -55,8 +33,19 @@ const (
 	scaleShift = 6
 )
 
+// clamp ensures val is in the inclusive range [low,high].
+func clamp(val, low, high int) int {
+	if val < low {
+		return low
+	}
+	if val > high {
+		return high
+	}
+	return val
+}
+
 // Shape turns an input into an output.
-func (t *HarfbuzzShaper) Shape(input Input) (Output, error) {
+func (t *HarfbuzzShaper) Shape(input Input) Output {
 	// Prepare to shape the text.
 	if t.buf == nil {
 		t.buf = harfbuzz.NewBuffer()
@@ -65,19 +54,22 @@ func (t *HarfbuzzShaper) Shape(input Input) (Output, error) {
 	}
 	runes, start, end := input.Text, input.RunStart, input.RunEnd
 	if end < start {
-		return Output{}, InvalidRunError{RunStart: start, RunEnd: end, TextLength: len(input.Text)}
+		// Try to guess what the caller actually wanted.
+		end, start = start, end
 	}
+	start = clamp(start, 0, len(runes))
+	end = clamp(end, 0, len(runes))
 	t.buf.AddRunes(runes, start, end-start)
-	// TODO: handle vertical text?
 	switch input.Direction {
-	case di.DirectionLTR:
-		t.buf.Props.Direction = harfbuzz.LeftToRight
 	case di.DirectionRTL:
 		t.buf.Props.Direction = harfbuzz.RightToLeft
+	case di.DirectionBTT:
+		t.buf.Props.Direction = harfbuzz.BottomToTop
+	case di.DirectionTTB:
+		t.buf.Props.Direction = harfbuzz.TopToBottom
 	default:
-		return Output{}, UnimplementedDirectionError{
-			Direction: input.Direction,
-		}
+		// Default to LTR.
+		t.buf.Props.Direction = harfbuzz.LeftToRight
 	}
 	t.buf.Props.Language = input.Language
 	t.buf.Props.Script = input.Script
@@ -93,25 +85,25 @@ func (t *HarfbuzzShaper) Shape(input Input) (Output, error) {
 	glyphs := make([]Glyph, len(t.buf.Info))
 	for i := range glyphs {
 		g := t.buf.Info[i].Glyph
-		extents, ok := font.GlyphExtents(g)
-		if !ok {
-			// TODO: can this error happen? Will harfbuzz return a
-			// GID for a glyph that isn't in the font?
-			return Output{}, MissingGlyphError{GID: g}
-		}
 		glyphs[i] = Glyph{
-			Width:        fixed.I(int(extents.Width)) >> scaleShift,
-			Height:       fixed.I(int(extents.Height)) >> scaleShift,
-			XBearing:     fixed.I(int(extents.XBearing)) >> scaleShift,
-			YBearing:     fixed.I(int(extents.YBearing)) >> scaleShift,
-			XAdvance:     fixed.I(int(t.buf.Pos[i].XAdvance)) >> scaleShift,
-			YAdvance:     fixed.I(int(t.buf.Pos[i].YAdvance)) >> scaleShift,
-			XOffset:      fixed.I(int(t.buf.Pos[i].XOffset)) >> scaleShift,
-			YOffset:      fixed.I(int(t.buf.Pos[i].YOffset)) >> scaleShift,
 			ClusterIndex: t.buf.Info[i].Cluster,
 			GlyphID:      g,
 			Mask:         t.buf.Info[i].Mask,
 		}
+		extents, ok := font.GlyphExtents(g)
+		if !ok {
+			// Leave the glyph having zero size if it isn't in the font. There
+			// isn't really anything we can do to recover from such an error.
+			continue
+		}
+		glyphs[i].Width = fixed.I(int(extents.Width)) >> scaleShift
+		glyphs[i].Height = fixed.I(int(extents.Height)) >> scaleShift
+		glyphs[i].XBearing = fixed.I(int(extents.XBearing)) >> scaleShift
+		glyphs[i].YBearing = fixed.I(int(extents.YBearing)) >> scaleShift
+		glyphs[i].XAdvance = fixed.I(int(t.buf.Pos[i].XAdvance)) >> scaleShift
+		glyphs[i].YAdvance = fixed.I(int(t.buf.Pos[i].YAdvance)) >> scaleShift
+		glyphs[i].XOffset = fixed.I(int(t.buf.Pos[i].XOffset)) >> scaleShift
+		glyphs[i].YOffset = fixed.I(int(t.buf.Pos[i].YOffset)) >> scaleShift
 	}
 	countClusters(glyphs, input.RunEnd, input.Direction)
 	out := Output{
@@ -127,7 +119,8 @@ func (t *HarfbuzzShaper) Shape(input Input) (Output, error) {
 	}
 	out.Runes.Offset = input.RunStart
 	out.Runes.Count = input.RunEnd - input.RunStart
-	return out, out.RecalculateAll()
+	out.RecalculateAll()
+	return out
 }
 
 // countClusters tallies the number of runes and glyphs in each cluster

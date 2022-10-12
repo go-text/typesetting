@@ -1,19 +1,16 @@
 package shaping
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
-	"golang.org/x/image/font/gofont/goregular"
 )
 
 func TestShape(t *testing.T) {
 	textInput := []rune("Lorem ipsum.")
-	face, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	face := benchEnFace
 	input := Input{
 		Text:      textInput,
 		RunStart:  0,
@@ -25,10 +22,7 @@ func TestShape(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	}
 	shaper := HarfbuzzShaper{}
-	out, err := shaper.Shape(input)
-	if err != nil {
-		t.Errorf("failed shaping: %v", err)
-	}
+	out := shaper.Shape(input)
 	if expected := (Range{Offset: 0, Count: len(textInput)}); out.Runes != expected {
 		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
 	}
@@ -39,10 +33,7 @@ func TestShape(t *testing.T) {
 	// the beginning of the text.
 	input.RunStart = 6
 	input.RunEnd = 8
-	out, err = shaper.Shape(input)
-	if err != nil {
-		t.Errorf("failed shaping: %v", err)
-	}
+	out = shaper.Shape(input)
 	if expected := (Range{Offset: 6, Count: 2}); out.Runes != expected {
 		t.Errorf("expected runes %#+v, got %#+v", expected, out.Runes)
 	}
@@ -229,7 +220,7 @@ func BenchmarkShaping(b *testing.B) {
 				var out Output
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					out, _ = shaper.Shape(input)
+					out = shaper.Shape(input)
 				}
 				_ = out
 			})
