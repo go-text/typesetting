@@ -1047,6 +1047,152 @@ func TestLineWrap(t *testing.T) {
 			},
 		},
 		{
+			// This test case verifies that the line wrapper rejects line break
+			// candidates that would split a glyph cluster at non-zero offsets
+			// within the shaped text.
+			name: "reject mid-cluster line breaks at non-zero offsets",
+			shaped: []Output{
+				{
+					Advance: fixed.I(10),
+					LineBounds: Bounds{
+						Ascent:  fixed.I(10),
+						Descent: fixed.I(5),
+						// No line gap.
+					},
+					GlyphBounds: Bounds{
+						Ascent: fixed.I(10),
+						// No glyphs descend.
+					},
+					Glyphs: []Glyph{
+						simpleGlyph(0),
+					},
+					Runes: Range{Count: 1},
+				},
+				{
+					Advance: fixed.I(10),
+					LineBounds: Bounds{
+						Ascent:  fixed.I(10),
+						Descent: fixed.I(5),
+						// No line gap.
+					},
+					GlyphBounds: Bounds{
+						Ascent: fixed.I(10),
+						// No glyphs descend.
+					},
+					Glyphs: []Glyph{
+						simpleGlyph(1),
+					},
+					Runes: Range{Count: 1, Offset: 1},
+				},
+				{
+					Advance: fixed.I(10 * 2),
+					LineBounds: Bounds{
+						Ascent:  fixed.I(10),
+						Descent: fixed.I(5),
+						// No line gap.
+					},
+					GlyphBounds: Bounds{
+						Ascent: fixed.I(10),
+						// No glyphs descend.
+					},
+					Glyphs: []Glyph{
+						complexGlyph(2, 2, 2),
+						complexGlyph(2, 2, 2),
+					},
+					Runes: Range{Count: 2, Offset: 2},
+				},
+				{
+					Advance: fixed.I(10),
+					LineBounds: Bounds{
+						Ascent:  fixed.I(10),
+						Descent: fixed.I(5),
+						// No line gap.
+					},
+					GlyphBounds: Bounds{
+						Ascent: fixed.I(10),
+						// No glyphs descend.
+					},
+					Glyphs: []Glyph{
+						simpleGlyph(4),
+					},
+					Runes: Range{Count: 1, Offset: 4},
+				},
+			},
+			// This unicode data was discovered in a fuzz test failure
+			// for Gio's text shaper.
+			paragraph: []rune{1593, 48, 32, 1474, 48},
+			maxWidth:  40,
+			expected: []Line{
+				[]Output{
+					{
+						Advance: fixed.I(10),
+						LineBounds: Bounds{
+							Ascent:  fixed.I(10),
+							Descent: fixed.I(5),
+							// No line gap.
+						},
+						GlyphBounds: Bounds{
+							Ascent: fixed.I(10),
+							// No glyphs descend.
+						},
+						Glyphs: []Glyph{
+							simpleGlyph(0),
+						},
+						Runes: Range{Count: 1},
+					},
+					{
+						Advance: fixed.I(10),
+						LineBounds: Bounds{
+							Ascent:  fixed.I(10),
+							Descent: fixed.I(5),
+							// No line gap.
+						},
+						GlyphBounds: Bounds{
+							Ascent: fixed.I(10),
+							// No glyphs descend.
+						},
+						Glyphs: []Glyph{
+							simpleGlyph(1),
+						},
+						Runes: Range{Count: 1, Offset: 1},
+					},
+					{
+						Advance: fixed.I(10 * 2),
+						LineBounds: Bounds{
+							Ascent:  fixed.I(10),
+							Descent: fixed.I(5),
+							// No line gap.
+						},
+						GlyphBounds: Bounds{
+							Ascent: fixed.I(10),
+							// No glyphs descend.
+						},
+						Glyphs: []Glyph{
+							complexGlyph(2, 2, 2),
+							complexGlyph(2, 2, 2),
+						},
+						Runes: Range{Count: 2, Offset: 2},
+					},
+					{
+						Advance: fixed.I(10),
+						LineBounds: Bounds{
+							Ascent:  fixed.I(10),
+							Descent: fixed.I(5),
+							// No line gap.
+						},
+						GlyphBounds: Bounds{
+							Ascent: fixed.I(10),
+							// No glyphs descend.
+						},
+						Glyphs: []Glyph{
+							simpleGlyph(4),
+						},
+						Runes: Range{Count: 1, Offset: 4},
+					},
+				},
+			},
+		},
+		{
 			// This test case verifies that line breaking does occur, and that
 			// all lines have proper offsets.
 			name:      "line break on last word",
