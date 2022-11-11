@@ -86,6 +86,9 @@ func (b Bounds) LineHeight() fixed.Int26_6 {
 type Output struct {
 	// Advance is the distance the Dot has advanced.
 	Advance fixed.Int26_6
+	// Size is the scaling factor applied to this text during shaping, copied from
+	// the corresponding Input.
+	Size fixed.Int26_6
 	// Glyphs are the shaped output text.
 	Glyphs []Glyph
 	// LineBounds describes the font's suggested line bounding dimensions. The
