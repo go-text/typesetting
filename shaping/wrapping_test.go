@@ -887,7 +887,7 @@ func TestWrapLine(t *testing.T) {
 				done bool
 				l    LineWrapper
 			)
-			l.Prepare(tc.paragraph, tc.shaped...)
+			l.Prepare(WrapConfig{}, tc.paragraph, tc.shaped...)
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
@@ -1488,7 +1488,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs := l.WrapParagraph(tc.maxWidth, tc.paragraph, tc.shaped...)
+			outs := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, tc.shaped...)
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1623,9 +1623,42 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})
 	var l LineWrapper
-	outs := l.WrapParagraph(250, textInput, out)
+	outs := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
+	}
+}
+
+// TestWrappingTruncation checks that the line wrapper's truncation features
+// behave as expected.
+func TestWrappingTruncation(t *testing.T) {
+	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
+	face := benchEnFace
+	var shaper HarfbuzzShaper
+	out := shaper.Shape(Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})
+	var l LineWrapper
+	outs := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
+	untruncatedCount := len(outs)
+
+	for i := untruncatedCount + 1; i > 0; i-- {
+		newLines := l.WrapParagraph(WrapConfig{
+			TruncateAfterLines: i,
+		}, 250, textInput, out)
+		lineCount := len(newLines)
+		if i <= untruncatedCount && lineCount != i {
+			t.Errorf("expected %d lines, got %d", i, lineCount)
+		} else if i > untruncatedCount && lineCount != untruncatedCount {
+			t.Errorf("expected %d lines, got %d", untruncatedCount, lineCount)
+		}
 	}
 }
 
@@ -1802,7 +1835,7 @@ func BenchmarkWrapping(b *testing.B) {
 					b.ResetTimer()
 					var lines []Line
 					for i := 0; i < b.N; i++ {
-						lines = l.WrapParagraph(100, langInfo.text[:size.runes], outs...)
+						lines = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], outs...)
 					}
 					_ = lines
 				})
@@ -1832,7 +1865,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs = l.WrapParagraph(100, textInput, out)
+		outs = l.WrapParagraph(WrapConfig{}, 100, textInput, out)
 	}
 	_ = outs
 }
