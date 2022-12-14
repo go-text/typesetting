@@ -374,6 +374,8 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, shapedRuns ..
 
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
 // It is equivalent to iteratively invoking WrapLine with a constant maxWidth.
+// If the config has a non-zero TruncateAfterLines, WrapParagraph will return at most
+// that many lines.
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, shapedRuns ...Output) []Line {
 	if len(shapedRuns) == 1 && shapedRuns[0].Advance.Ceil() < maxWidth {
 		return []Line{shapedRuns}
