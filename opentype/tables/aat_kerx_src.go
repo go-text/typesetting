@@ -314,8 +314,7 @@ func (kd *KerxData6) parseKernings(_, parentSrc []byte, tupleCount, _ int) error
 	return nil
 }
 
-// this type is only used so that the code generator add
-// a ParseAATLookupExt function
+//lint:ignore U1000 this type is required so that the code generator add a ParseAATLookupExt function
 type dummy struct {
 	A AATLookupExt
 }
