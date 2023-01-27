@@ -186,7 +186,7 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 
 	raw, _ = ld.RawTable(loader.MustNewTag("GPOS"))
 	layout, _, err = tables.ParseLayout(raw)
-	// harfbuzz rely on GSUB.Loookups being nil when the table is absent
+	// harfbuzz relies on GPOS.Loookups being nil when the table is absent
 	if err == nil {
 		out.GPOS, _ = newGPOS(layout)
 	}
