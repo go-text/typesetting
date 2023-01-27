@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Unlicense OR BSD-3-Clause
+
 // Package psinterpreter implement a Postscript interpreter
 // required to parse .CFF files, and Type1 and Type2 Charstrings.
 // This package provides the low-level mechanisms needed to

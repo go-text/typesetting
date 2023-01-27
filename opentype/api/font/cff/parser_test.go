@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Unlicense OR BSD-3-Clause
+
 package cff
 
 import (

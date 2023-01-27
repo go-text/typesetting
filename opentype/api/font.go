@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Unlicense OR BSD-3-Clause
+
 // Package font provides an high level API to access
 // Opentype font properties.
 // See packages [loader] and [tables] for a lower level, more detailled API.
