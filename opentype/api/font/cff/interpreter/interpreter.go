@@ -40,14 +40,14 @@ const (
 	maxRealNumberStrLen = 64 // Maximum length in bytes of the "-123.456E-7" representation.
 )
 
-// PsContext is the flavour of the Postcript language.
-type PsContext uint32
+// Context is the flavour of the Postcript language.
+type Context uint32
 
 const (
-	TopDict         PsContext = iota // Top dict in CFF files
-	PrivateDict                      // Private dict in CFF files
-	Type2Charstring                  // Charstring in CFF files
-	Type1Charstring                  // Charstring in Type1 font files
+	TopDict         Context = iota // Top dict in CFF files
+	PrivateDict                    // Private dict in CFF files
+	Type2Charstring                // Charstring in CFF files
+	Type1Charstring                // Charstring in Type1 font files
 )
 
 type ArgStack struct {
@@ -106,7 +106,7 @@ type Machine struct {
 	ArgStack ArgStack
 
 	parseNumberBuf [maxRealNumberStrLen]byte
-	ctx            PsContext
+	ctx            Context
 }
 
 // SkipBytes skips the next `count` bytes from the instructions, and clears the argument stack.
@@ -125,7 +125,7 @@ const escapeByte = 12
 
 // Run runs the instructions in the PostScript context asked by `handler`.
 // `localSubrs` and `globalSubrs` contains the subroutines that may be called in the instructions.
-func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handler PsOperatorHandler) error {
+func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handler OperatorHandler) error {
 	p.ctx = handler.Context()
 	p.instructions = instructions
 	p.localSubrs = localSubrs
@@ -156,7 +156,7 @@ func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, han
 			p.instructions = p.instructions[1:]
 		}
 
-		err := handler.Apply(PsOperator{Operator: b, IsEscaped: escaped}, p)
+		err := handler.Apply(Operator{Operator: b, IsEscaped: escaped}, p)
 		if err == ErrInterrupt { // stop cleanly
 			return nil
 		}
@@ -336,28 +336,28 @@ func (p *Machine) Return() error {
 	return nil
 }
 
-// PsOperator is a postcript command, which may be escaped.
-type PsOperator struct {
+// Operator is a postcript command, which may be escaped.
+type Operator struct {
 	Operator  byte
 	IsEscaped bool
 }
 
-func (p PsOperator) String() string {
+func (p Operator) String() string {
 	if p.IsEscaped {
 		return fmt.Sprintf("2-byte operator (12 %d)", p.Operator)
 	}
 	return fmt.Sprintf("1-byte operator (%d)", p.Operator)
 }
 
-// PsOperatorHandler defines the behaviour of an operator.
-type PsOperatorHandler interface {
+// OperatorHandler defines the behaviour of an operator.
+type OperatorHandler interface {
 	// Context defines the precise behaviour of the interpreter,
 	// which has small nuances depending on the context.
-	Context() PsContext
+	Context() Context
 
 	// Apply implements the operator defined by `operator` (which is the second byte if `escaped` is true).
 	//
 	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
 	// It can be used as an optimization.
-	Apply(operator PsOperator, state *Machine) error
+	Apply(operator Operator, state *Machine) error
 }

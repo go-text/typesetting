@@ -635,9 +635,9 @@ type topDictData struct {
 	privateDictLength                                  int32
 }
 
-func (topDict *topDictData) Context() ps.PsContext { return ps.TopDict }
+func (topDict *topDictData) Context() ps.Context { return ps.TopDict }
 
-func (topDict *topDictData) Apply(op ps.PsOperator, state *ps.Machine) error {
+func (topDict *topDictData) Apply(op ps.Operator, state *ps.Machine) error {
 	ops := topDictOperators[0]
 	if op.IsEscaped {
 		ops = topDictOperators[1]
@@ -780,11 +780,11 @@ type privateDict struct {
 	defaultWidthX, nominalWidthX int32
 }
 
-func (privateDict) Context() ps.PsContext { return ps.PrivateDict }
+func (privateDict) Context() ps.Context { return ps.PrivateDict }
 
 // The Private DICT operators are defined by 5176.CFF.pdf Table 23 "Private
 // DICT Operators".
-func (priv *privateDict) Apply(op ps.PsOperator, state *ps.Machine) error {
+func (priv *privateDict) Apply(op ps.Operator, state *ps.Machine) error {
 	if !op.IsEscaped { // 1-byte operators.
 		switch op.Operator {
 		case 6, 7, 8, 9: // "BlueValues" "OtherBlues" "FamilyBlues" "FamilyOtherBlues"
