@@ -65,7 +65,7 @@ type Font struct {
 	upem uint16 // cached value
 }
 
-// NewFont load all the font tables, sanitizing them.
+// NewFont loads all the font tables, sanitizing them.
 // An error is returned only when required tables 'cmap', 'head', 'maxp' are invalid (or missing).
 // More control on errors is available by using package [tables].
 func NewFont(ld *loader.Loader) (*Font, error) {
