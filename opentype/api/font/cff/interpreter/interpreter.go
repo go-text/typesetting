@@ -156,7 +156,7 @@ func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, han
 			p.instructions = p.instructions[1:]
 		}
 
-		err := handler.Apply(Operator{Operator: b, IsEscaped: escaped}, p)
+		err := handler.Apply(p, Operator{Operator: b, IsEscaped: escaped})
 		if err == ErrInterrupt { // stop cleanly
 			return nil
 		}
@@ -359,5 +359,5 @@ type OperatorHandler interface {
 	//
 	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
 	// It can be used as an optimization.
-	Apply(operator Operator, state *Machine) error
+	Apply(state *Machine, operator Operator) error
 }

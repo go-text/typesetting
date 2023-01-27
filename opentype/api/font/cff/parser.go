@@ -637,7 +637,7 @@ type topDictData struct {
 
 func (topDict *topDictData) Context() ps.Context { return ps.TopDict }
 
-func (topDict *topDictData) Apply(op ps.Operator, state *ps.Machine) error {
+func (topDict *topDictData) Apply(state *ps.Machine, op ps.Operator) error {
 	ops := topDictOperators[0]
 	if op.IsEscaped {
 		ops = topDictOperators[1]
@@ -784,7 +784,7 @@ func (privateDict) Context() ps.Context { return ps.PrivateDict }
 
 // The Private DICT operators are defined by 5176.CFF.pdf Table 23 "Private
 // DICT Operators".
-func (priv *privateDict) Apply(op ps.Operator, state *ps.Machine) error {
+func (priv *privateDict) Apply(state *ps.Machine, op ps.Operator) error {
 	if !op.IsEscaped { // 1-byte operators.
 		switch op.Operator {
 		case 6, 7, 8, 9: // "BlueValues" "OtherBlues" "FamilyBlues" "FamilyOtherBlues"

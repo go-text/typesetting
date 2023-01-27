@@ -45,7 +45,7 @@ type type2CharstringHandler struct {
 
 func (type2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
 
-func (met *type2CharstringHandler) Apply(op ps.Operator, state *ps.Machine) error {
+func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) error {
 	var err error
 	if !op.IsEscaped {
 		switch op.Operator {
