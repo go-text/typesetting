@@ -31,7 +31,7 @@ type Font struct {
 	post post // optional
 	svg  svg  // optional
 
-	// Optionnal, only present in variable fonts
+	// Optional, only present in variable fonts
 
 	fvar fvar         // optional
 	hvar *tables.HVAR // optional
