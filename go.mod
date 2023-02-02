@@ -1,9 +1,11 @@
 module github.com/go-text/typesetting
 
-go 1.15
+go 1.17
 
 require (
 	github.com/benoitkugler/textlayout v0.3.0
-	github.com/go-text/typesetting-utils v0.0.0-20230107101729-1c4f3b1a9164
-	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d
+	github.com/go-text/typesetting-utils v0.0.0-20230118084914-08192cce2b12
+	golang.org/x/image v0.3.0
 )
+
+require golang.org/x/text v0.6.0 // indirect

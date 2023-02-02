@@ -4,7 +4,7 @@ package segmenter
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io/ioutil" //lint:ignore SA1019 since we still want to support version under 1.16
 	"reflect"
 	"strconv"
 	"strings"
