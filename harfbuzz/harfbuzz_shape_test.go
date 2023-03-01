@@ -30,7 +30,7 @@ func TestShapeExpected(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
-	// This test is a shortcut to inspect one specific tests
+	// This test is a shortcut to inspect one specific test
 	// when debugging
 	t.Skip()
 

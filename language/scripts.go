@@ -3,11 +3,10 @@ package language
 import (
 	"encoding/binary"
 	"fmt"
-	"strings"
 )
 
 // Script identifies different writing systems.
-// It is represented as the binary encoding of a script tag of 4 letters,
+// It is represented as the binary encoding of a script tag of 4 (case sensitive) letters,
 // as specified by ISO 15924.
 // Note that the default value is usually the Unknown script, not the 0 value (which is invalid)
 type Script uint32
@@ -17,7 +16,7 @@ func ParseScript(script string) (Script, error) {
 	if len(script) != 4 {
 		return 0, fmt.Errorf("invalid script string: %s", script)
 	}
-	return Script(binary.BigEndian.Uint32([]byte(strings.ToLower(script)))), nil
+	return Script(binary.BigEndian.Uint32([]byte(script))), nil
 }
 
 // LookupScript looks up the script for a particular character (as defined by

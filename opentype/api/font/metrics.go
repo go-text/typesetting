@@ -165,7 +165,7 @@ func (f *Face) LineMetric(metric api.LineMetric) float32 {
 // or false if not found.
 // Note that it only looks into the cmap, without taking account substitutions
 // nor variation selectors.
-func (f *Font) NominalGlyph(ch rune) (GID, bool) { return f.cmap.Lookup(ch) }
+func (f *Font) NominalGlyph(ch rune) (GID, bool) { return f.Cmap.Lookup(ch) }
 
 // VariationGlyph retrieves the glyph ID for a specified Unicode code point
 // followed by a specified Variation Selector code point, or false if not found

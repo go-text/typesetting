@@ -6,8 +6,9 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/opentype/api"
+	oFont "github.com/go-text/typesetting/opentype/api/font"
 )
 
 func Test_ignoreFaceChange(t *testing.T) {
@@ -33,33 +34,23 @@ func Test_ignoreFaceChange(t *testing.T) {
 }
 
 // support any rune
-type universalFont struct {
-	fonts.Face
-}
+type universalCmap struct{ api.Cmap }
 
-func (universalFont) NominalGlyph(rune) (font.GID, bool) { return 0, true }
+func (universalCmap) Lookup(rune) (font.GID, bool) { return 0, true }
 
-type upperFont struct {
-	fonts.Face
-}
+type upperCmap struct{ api.Cmap }
 
-func (upperFont) NominalGlyph(r rune) (font.GID, bool) {
+func (upperCmap) Lookup(r rune) (font.GID, bool) {
 	return 0, unicode.IsUpper(r)
 }
 
-type lowerFont struct {
-	fonts.Face
-}
+type lowerCmap struct{ api.Cmap }
 
-func (lowerFont) NominalGlyph(r rune) (font.GID, bool) {
+func (lowerCmap) Lookup(r rune) (font.GID, bool) {
 	return 0, unicode.IsLower(r)
 }
 
-type failer interface {
-	Fatalf(string, ...interface{})
-}
-
-func loadOpentypeFont(t failer, filename string) font.Face {
+func loadOpentypeFont(t testing.TB, filename string) font.Face {
 	file, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("opening font file: %s", err)
@@ -77,6 +68,10 @@ func TestSplitByFontGlyphs(t *testing.T) {
 		availableFaces []font.Face
 	}
 
+	universalFont := &oFont.Face{Font: &oFont.Font{Cmap: universalCmap{}}}
+	lowerFont := &oFont.Face{Font: &oFont.Font{Cmap: lowerCmap{}}}
+	upperFont := &oFont.Face{Font: &oFont.Font{Cmap: upperCmap{}}}
+
 	latinFont := loadOpentypeFont(t, "../font/testdata/Roboto-Regular.ttf")
 	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")
 	englishArabic := []rune("Hello " + "تثذرزسشص" + "world" + "لمنهويء")
@@ -93,13 +88,13 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("a simple text"),
 					RunStart: 0, RunEnd: len("a simple text"),
 				},
-				availableFaces: []font.Face{universalFont{}},
+				availableFaces: []font.Face{universalFont},
 			},
 			[]Input{
 				{
 					Text:     []rune("a simple text"),
 					RunStart: 0, RunEnd: len("a simple text"),
-					Face: universalFont{},
+					Face: universalFont,
 				},
 			},
 		},
@@ -110,18 +105,18 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("aaaAAA"),
 					RunStart: 0, RunEnd: len("aaaAAA"),
 				},
-				availableFaces: []font.Face{lowerFont{}, upperFont{}},
+				availableFaces: []font.Face{lowerFont, upperFont},
 			},
 			[]Input{
 				{
 					Text:     []rune("aaaAAA"),
 					RunStart: 0, RunEnd: 3,
-					Face: lowerFont{},
+					Face: lowerFont,
 				},
 				{
 					Text:     []rune("aaaAAA"),
 					RunStart: 3, RunEnd: 6,
-					Face: upperFont{},
+					Face: upperFont,
 				},
 			},
 		},
@@ -132,18 +127,18 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("aaa AAA "),
 					RunStart: 0, RunEnd: len("aaa AAA "),
 				},
-				availableFaces: []font.Face{lowerFont{}, upperFont{}},
+				availableFaces: []font.Face{lowerFont, upperFont},
 			},
 			[]Input{
 				{
 					Text:     []rune("aaa AAA "),
 					RunStart: 0, RunEnd: 4,
-					Face: lowerFont{},
+					Face: lowerFont,
 				},
 				{
 					Text:     []rune("aaa AAA "),
 					RunStart: 4, RunEnd: 8,
-					Face: upperFont{},
+					Face: upperFont,
 				},
 			},
 		},
@@ -154,13 +149,13 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: len("__"),
 				},
-				availableFaces: []font.Face{lowerFont{}, upperFont{}},
+				availableFaces: []font.Face{lowerFont, upperFont},
 			},
 			[]Input{
 				{
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: 2,
-					Face: lowerFont{},
+					Face: lowerFont,
 				},
 			},
 		},
@@ -171,13 +166,13 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: len("__"),
 				},
-				availableFaces: []font.Face{upperFont{}, lowerFont{}},
+				availableFaces: []font.Face{upperFont, lowerFont},
 			},
 			[]Input{
 				{
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: 2,
-					Face: upperFont{},
+					Face: upperFont,
 				},
 			},
 		},

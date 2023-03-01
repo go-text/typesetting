@@ -9,10 +9,9 @@ import (
 	"testing"
 	"testing/quick"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
-	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
@@ -1718,7 +1717,7 @@ var benchArFace = func() font.Face {
 	if err != nil {
 		panic(err)
 	}
-	arFace, err := truetype.Parse(bytes.NewReader(data))
+	arFace, err := font.ParseTTF(bytes.NewReader(data))
 	if err != nil {
 		panic(err)
 	}
@@ -1727,7 +1726,7 @@ var benchArFace = func() font.Face {
 
 // benchEnFace is a latin font face for use in benchmarks.
 var benchEnFace = func() font.Face {
-	enFace, err := truetype.Parse(bytes.NewReader(goregular.TTF))
+	enFace, err := font.ParseTTF(bytes.NewReader(goregular.TTF))
 	if err != nil {
 		panic(err)
 	}
