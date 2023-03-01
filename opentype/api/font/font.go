@@ -23,7 +23,8 @@ type (
 //
 // All its methods are read-only and a [*Font] object is thus safe for concurrent use.
 type Font struct {
-	cmap    api.Cmap
+	// Cmap is the 'cmap' table
+	Cmap    api.Cmap
 	cmapVar api.UnicodeVariations
 
 	hhea *tables.Hhea
@@ -84,7 +85,7 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 	if err != nil {
 		return nil, err
 	}
-	out.cmap, out.cmapVar, err = api.ProcessCmap(tb)
+	out.Cmap, out.cmapVar, err = api.ProcessCmap(tb)
 	if err != nil {
 		return nil, err
 	}

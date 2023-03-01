@@ -20,7 +20,8 @@ import (
 func collectTests(t testing.TB) []testData {
 	disabledTests := map[string]struct{}{
 		// requires proprietary fonts from the system (see the file)
-		// "harfbuzz_reference/in-house/tests/macos.tests":{},
+		// enabling this tests requires to use a local replace of typesetting-utils
+		"harfbuzz_reference/in-house/tests/macos.tests": {},
 
 		// already handled in emojis_test.go
 		"harfbuzz_reference/in-house/tests/emoji-clusters.tests": {},

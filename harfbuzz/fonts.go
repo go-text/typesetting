@@ -10,43 +10,10 @@ import (
 
 type Face = *font.Face
 
-var _ FaceOpentype = (*font.Font)(nil)
-
-// FaceOpentype adds support for advanced layout features
-// found in Opentype/Truetype font files.
-// See the package fonts/truetype for more details.
-type FaceOpentype interface {
-	// Face
-	// tables.FaceVariable
-
-	// // Returns true if the font has Graphite capabilities.
-	// // Note that tables validity will still be checked in `NewFont`,
-	// // using the table from the returned `tables.Font`.
-	// // Overide this method to disable Graphite functionalities.
-	// IsGraphite() (*tables.Font, bool)
-
-	// // LayoutTables fetchs the Opentype layout tables of the font.
-	// LayoutTables() tables.LayoutTables
-
-	// GetGlyphContourPoint retrieves the (X,Y) coordinates (in font units) for a
-	// specified contour point in a glyph, or false if not found.
-	GetGlyphContourPoint(glyph GID, pointIndex uint16) (x, y int32, ok bool)
-
-	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
-	// followed by a specified Variation Selector code point, or false if not found
-	VariationGlyph(ch, varSelector rune) (GID, bool)
-}
-
 // Font is used internally as a light wrapper around the provided Face.
 //
-// While a font face is generally the in-memory representation of a static font file,
-// `Font` handles dynamic attributes like size, width and
-// other parameters (pixels-per-em, points-per-em, variation
-// settings).
-//
 // Font are constructed with `NewFont` and adjusted by accessing the fields
-// XPpem, YPpem, Ptem,XScale, YScale and with the method `SetVarCoordsDesign` for
-// variable fonts.
+// Ptem, XScale, YScale.
 type Font struct {
 	face Face
 

@@ -466,7 +466,7 @@ func TestGlyphDataCrash(t *testing.T) {
 	} {
 		font := loadFont(t, filename)
 		face := Face{Font: font}
-		iter := font.cmap.Iter()
+		iter := font.Cmap.Iter()
 		for iter.Next() {
 			_, g := iter.Char()
 			data := face.GlyphData(g)
@@ -479,7 +479,7 @@ func TestGlyphDataCrash(t *testing.T) {
 	} {
 		font := loadFont(t, filename)
 		face := Face{Font: font}
-		iter := font.cmap.Iter()
+		iter := font.Cmap.Iter()
 		for iter.Next() {
 			_, g := iter.Char()
 			_ = face.GlyphData(g)

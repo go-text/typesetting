@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/language"
 )
 
 func TestShape(t *testing.T) {

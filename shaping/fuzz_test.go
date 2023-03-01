@@ -6,8 +6,8 @@ package shaping
 import (
 	"testing"
 
-	"github.com/benoitkugler/textlayout/language"
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/language"
 )
 
 // FuzzE2E shapes and wraps large strings looking for unshapable text or failures

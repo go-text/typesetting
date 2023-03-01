@@ -12,10 +12,9 @@ func TestParseScript(t *testing.T) {
 		wantErr bool
 	}{
 		{"xxxxx", 0, true},
-		{"Bamu", Bamum, false},
 		{"bamu", Bamum, false},
 		{"cyrl", Cyrillic, false},
-		{"Samr", Samaritan, false},
+		{"samr", Samaritan, false},
 	}
 	for _, tt := range tests {
 		got, err := ParseScript(tt.args)
@@ -71,6 +70,7 @@ func BenchmarkLookupScript(b *testing.B) {
 	})
 }
 
+//lint:ignore ST1018 for simplicity
 const scriptsSample = `
 	Ek kan glas eet, maar dit doen my nie skade nie. 
 	نص حكيم له سر قاطع وذو شأن عظيم مكتوب على ثوب أخضر ومغلف بجلد أزرق. 
