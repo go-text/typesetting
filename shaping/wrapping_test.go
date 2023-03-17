@@ -891,7 +891,7 @@ func TestWrapLine(t *testing.T) {
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
 			for lineNumber, expected := range tc.expected {
-				line, done = l.WrapNextLine(tc.maxWidth)
+				line, _, done = l.WrapNextLine(tc.maxWidth)
 				compareLines(t, lineNumber, expected.line, line)
 				if done != expected.done {
 					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
@@ -1487,7 +1487,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, tc.shaped...)
+			outs, _ := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, tc.shaped...)
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1622,7 +1622,7 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})
 	var l LineWrapper
-	outs := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
+	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
@@ -1645,21 +1645,236 @@ func TestWrappingTruncation(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})
 	var l LineWrapper
-	outs := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
+	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
 	untruncatedCount := len(outs)
 
-	for i := untruncatedCount + 1; i > 0; i-- {
-		newLines := l.WrapParagraph(WrapConfig{
-			TruncateAfterLines: i,
-		}, 250, textInput, out)
-		lineCount := len(newLines)
-		if i <= untruncatedCount && lineCount != i {
-			t.Errorf("expected %d lines, got %d", i, lineCount)
-		} else if i > untruncatedCount && lineCount != untruncatedCount {
-			t.Errorf("expected %d lines, got %d", untruncatedCount, lineCount)
+	for _, truncator := range []Output{
+		{}, // No truncator.
+		shaper.Shape(Input{ // Multi-rune truncator.
+			Text:      []rune("..."),
+			RunStart:  0,
+			RunEnd:    len([]rune("...")),
+			Direction: di.DirectionLTR,
+			Face:      face,
+			Size:      fixed.I(16),
+			Script:    language.Latin,
+			Language:  language.NewLanguage("EN"),
+		}),
+		shaper.Shape(Input{ // Single-rune truncator.
+			Text:      []rune("…"),
+			RunStart:  0,
+			RunEnd:    len([]rune("…")),
+			Direction: di.DirectionLTR,
+			Face:      face,
+			Size:      fixed.I(16),
+			Script:    language.Latin,
+			Language:  language.NewLanguage("EN"),
+		}),
+	} {
+		for i := untruncatedCount + 1; i > 0; i-- {
+			wc := WrapConfig{
+				TruncateAfterLines: i,
+				Truncator:          truncator,
+			}
+			newLines, truncated := l.WrapParagraph(wc, 250, textInput, out)
+			lineCount := len(newLines)
+			t.Logf("wrapping with max lines=%d, untruncatedCount=%d", i, untruncatedCount)
+			if i < untruncatedCount {
+				if lineCount != i {
+					t.Errorf("expected %d lines, got %d", i, lineCount)
+				}
+				if truncated < 1 {
+					t.Errorf("expected lines to indicate truncation")
+				}
+				lastLine := newLines[len(newLines)-1]
+				lastRun := lastLine[len(lastLine)-1]
+				if !reflect.DeepEqual(lastRun, truncator) {
+					t.Errorf("expected truncator as last run")
+				}
+			} else if i >= untruncatedCount {
+				if lineCount != untruncatedCount {
+					t.Errorf("expected %d lines, got %d", untruncatedCount, lineCount)
+				}
+				if truncated > 0 {
+					t.Errorf("expected lines to indicate no truncation")
+				}
+			}
+			runeCount := 0
+			for _, line := range newLines {
+				for _, run := range line {
+					runeCount += run.Runes.Count
+				}
+			}
+			// Remove the runes of the truncator, if any.
+			if truncated > 0 {
+				runeCount -= truncator.Runes.Count
+			}
+			if runeCount+truncated != len(textInput) {
+				t.Errorf("expected %d runes total, got %d output and %d truncated", len(textInput), runeCount, truncated)
+			}
 		}
 	}
 }
+
+// TestWrappingTruncation checks that the line wrapper's truncation features
+// handle some edge cases.
+func TestWrappingTruncationEdgeCases(t *testing.T) {
+	type testcase struct {
+		// name describing what is being tested.
+		name string
+		// input string to shape.
+		input string
+		// width to wrap shaped text to.
+		wrapWidth int
+		// cutInto is a count of how many runs the shaped input should be cut into
+		// before wrapping, in order to ensure consistent wrapping behavior regardless
+		// of the number of runs involved.
+		cutInto int
+		// maxLines controls how many lines of text will be wrapped before attempting
+		// truncation.
+		maxLines int
+		// truncator to shape and use as the final run on truncated lines.
+		truncator string
+		// expectedTruncated is the expected count of truncated runes.
+		expectedTruncated int
+	}
+	for _, tc := range []testcase{
+		{
+			name:              "only run doesn't fit (1 part)",
+			input:             "mmmmm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 5,
+		},
+		{
+			name:              "only run doesn't fit (5 parts)",
+			input:             "mmmmm",
+			wrapWidth:         40,
+			cutInto:           5,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 5,
+		},
+		{
+			name:              "run only fits without truncator (1 part)",
+			input:             "mmmm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 0,
+		},
+		{
+			name:              "run only fits without truncator (4 part)",
+			input:             "mmmm",
+			wrapWidth:         40,
+			cutInto:           4,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 0,
+		},
+		{
+			name:              "multi-word run only fits without truncator (1 part)",
+			input:             "m mm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 0,
+		},
+		{
+			name:              "multi-word run only fits without truncator (4 part)",
+			input:             "m mm",
+			wrapWidth:         40,
+			cutInto:           4,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 0,
+		},
+		{
+			name:              "multi-word run doesn't fit (1 part)",
+			input:             "mmm mm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 2,
+		},
+		{
+			name:              "multi-word run doesn't fit (4 part)",
+			input:             "mmm mm",
+			wrapWidth:         40,
+			cutInto:           4,
+			maxLines:          1,
+			truncator:         "...",
+			expectedTruncated: 2,
+		},
+		{
+			name:              "only run doesn't fit and truncator doesn't fit",
+			input:             "mm mmm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "mmmmm",
+			expectedTruncated: 6,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			inputRunes := []rune(tc.input)
+			truncRunes := []rune(tc.truncator)
+			var shaper HarfbuzzShaper
+			trunc := shaper.Shape(Input{
+				Text:      truncRunes,
+				RunStart:  0,
+				RunEnd:    len(truncRunes),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(10),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			out := shaper.Shape(Input{
+				Text:      inputRunes,
+				RunStart:  0,
+				RunEnd:    len(inputRunes),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(10),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			var outs []Output
+			if tc.cutInto > 1 {
+				outs = cutRunInto(out, tc.cutInto)
+			} else {
+				outs = append(outs, out)
+			}
+			var l LineWrapper
+			lines, truncatedRunes := l.WrapParagraph(WrapConfig{
+				Truncator:          trunc,
+				TruncateAfterLines: tc.maxLines,
+			}, tc.wrapWidth, inputRunes, outs...)
+			if truncatedRunes != tc.expectedTruncated {
+				t.Errorf("got %d truncated runes when truncation expectation was %d", truncatedRunes, tc.expectedTruncated)
+			}
+			lastLine := lines[len(lines)-1]
+			lastRun := lastLine[len(lastLine)-1]
+			shouldTruncate := (tc.expectedTruncated > 0)
+			if lastRunIsTruncator := reflect.DeepEqual(lastRun, trunc); lastRunIsTruncator != shouldTruncate {
+				t.Errorf("shouldTruncate = %v, but lastRunIsTruncator = %v", shouldTruncate, lastRunIsTruncator)
+			}
+		})
+	}
+}
+
+/*
+TODO: specific truncation text cases like:
+
+- text fits exactly if truncator is not used
+- no text fits, so only truncator should be used
+*/
 
 func BenchmarkMapping(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
@@ -1759,16 +1974,16 @@ var benchSizes = []benchSizeConfig{
 }
 
 // cutRunInto divides the run into parts of size (with the last part absorbing any remainder).
-func cutRunInto(run Output, parts, size int) []Output {
+func cutRunInto(run Output, parts int) []Output {
 	var outs []Output
 	mapping := mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, nil)
-	runesPerPart := size / parts
+	runesPerPart := run.Runes.Count / parts
 	partStart := 0
 	for i := 0; i < parts-1; i++ {
 		outs = append(outs, cutRun(run, mapping, partStart, partStart+runesPerPart-1))
 		partStart += runesPerPart
 	}
-	outs = append(outs, cutRun(run, mapping, partStart, size-1))
+	outs = append(outs, cutRun(run, mapping, partStart, run.Runes.Count-1))
 	return outs
 }
 
@@ -1789,7 +2004,7 @@ func TestCutRunInto(t *testing.T) {
 					Script:    langInfo.script,
 					Language:  langInfo.lang,
 				})
-				outs := cutRunInto(out, parts, size.runes)
+				outs := cutRunInto(out, parts)
 				accountedRunes := make([]int, size.runes)
 				maxRune := -1
 				for _, part := range outs {
@@ -1829,12 +2044,12 @@ func BenchmarkWrapping(b *testing.B) {
 						Script:    langInfo.script,
 						Language:  langInfo.lang,
 					})
-					outs := cutRunInto(out, parts, size.runes)
+					outs := cutRunInto(out, parts)
 					var l LineWrapper
 					b.ResetTimer()
 					var lines []Line
 					for i := 0; i < b.N; i++ {
-						lines = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], outs...)
+						lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], outs...)
 					}
 					_ = lines
 				})
@@ -1864,7 +2079,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs = l.WrapParagraph(WrapConfig{}, 100, textInput, out)
+		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, out)
 	}
 	_ = outs
 }
