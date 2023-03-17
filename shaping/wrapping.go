@@ -408,6 +408,22 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 	return lines
 }
 
+func (l *LineWrapper) nextBreakOption() (breakOption, bool) {
+	var option breakOption
+	if l.isUnused {
+		option = l.unusedBreak
+		l.isUnused = false
+	} else {
+		var breakOk bool
+		option, breakOk = l.breaker.next()
+		if !breakOk {
+			return option, false
+		}
+		l.unusedBreak = option
+	}
+	return option, true
+}
+
 // WrapNextLine wraps the shaped glyphs of a paragraph to a particular max width.
 // It is meant to be called iteratively to wrap each line, allowing lines to
 // be wrapped to different widths within the same paragraph. When done is true,
@@ -450,17 +466,9 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 
 	for {
 		run := l.glyphRuns[candidateCurrentRun]
-		var option breakOption
-		if l.isUnused {
-			option = l.unusedBreak
-			l.isUnused = false
-		} else {
-			var breakOk bool
-			option, breakOk = l.breaker.next()
-			if !breakOk {
-				return bestCandidate, true
-			}
-			l.unusedBreak = option
+		option, ok := l.nextBreakOption()
+		if !ok {
+			return bestCandidate, true
 		}
 		for option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
 			if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
