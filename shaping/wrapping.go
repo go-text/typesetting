@@ -321,6 +321,28 @@ type WrapConfig struct {
 	TruncateAfterLines int
 }
 
+// runMapper efficiently maps a run to glyph clusters.
+type runMapper struct {
+	// valid indicates that the mapping field is populated.
+	valid bool
+	// runIdx is the index of the mapped run within glyphRuns.
+	runIdx int
+	// mapping holds the rune->glyph mapping for the run at index mappedRun within
+	// glyphRuns.
+	mapping []glyphIndex
+}
+
+// mapRun updates the mapping field to be valid for the given run. It will skip the mapping
+// operation if the provided runIdx is equal to the runIdx of the previous call, as the
+// current mapping value is already correct.
+func (r *runMapper) mapRun(runIdx int, run Output) {
+	if r.runIdx != runIdx || !r.valid {
+		r.mapping = mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, r.mapping)
+		r.runIdx = runIdx
+		r.valid = true
+	}
+}
+
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
 // LineWrappers for multiple paragraphs should improve performance.
 type LineWrapper struct {
@@ -334,13 +356,8 @@ type LineWrapper struct {
 	// breaker provides line-breaking candidates.
 	breaker *breaker
 
-	// mappingValid indicates that the mapping field is populated.
-	mappingValid bool
-	// mappedRun is the index of the mapped run within glyphRuns.
-	mappedRun int
-	// mapping holds the rune->glyph mapping for the run at index mappedRun within
-	// glyphRuns.
-	mapping []glyphIndex
+	// mapper tracks rune->glyphCluster mappings.
+	mapper runMapper
 	// unusedBreak is a break requested from the breaker in a previous iteration
 	// but which was not chosen as the line ending. Subsequent invocations of
 	// WrapLine should start with this break.
@@ -369,7 +386,7 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, shapedRuns ..
 	l.currentRun = 0
 	l.lineStartRune = 0
 	l.more = true
-	l.mappingValid = false
+	l.mapper.valid = false
 }
 
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
@@ -395,7 +412,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 // It is meant to be called iteratively to wrap each line, allowing lines to
 // be wrapped to different widths within the same paragraph. When done is true,
 // subsequent calls to WrapNextLine (without calling Prepare) will return a nil line.
-func (l *LineWrapper) WrapNextLine(maxWidth int) (_ Line, done bool) {
+func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 	defer func() {
 		if l.truncating {
 			l.config.TruncateAfterLines--
@@ -421,16 +438,6 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (_ Line, done bool) {
 
 	lineCandidate, bestCandidate := []Output{}, []Output{}
 	candidateWidth := fixed.I(0)
-
-	// mapRun performs a rune->glyph mapping for the given run, using the provided
-	// run index to skip the work if that run was already mapped.
-	mapRun := func(runIdx int, run Output) {
-		if l.mappedRun != runIdx || !l.mappingValid {
-			l.mapping = mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, l.mapping)
-			l.mappedRun = runIdx
-			l.mappingValid = true
-		}
-	}
 
 	// candidateCurrentRun tracks the glyph run in use by the lineCandidate. It is
 	// incremented separately so that the candidate search can run ahead of the
@@ -465,8 +472,8 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (_ Line, done bool) {
 			} else if l.lineStartRune > run.Runes.Offset {
 				// If part of this run has already been used on a previous line, trim
 				// the runes corresponding to those glyphs off.
-				mapRun(candidateCurrentRun, run)
-				run = cutRun(run, l.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset)
+				l.mapper.mapRun(candidateCurrentRun, run)
+				run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset)
 			}
 			// While the run being processed doesn't contain the current line breaking
 			// candidate, just append it to the candidate line.
@@ -477,12 +484,12 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (_ Line, done bool) {
 			}
 			run = l.glyphRuns[candidateCurrentRun]
 		}
-		mapRun(candidateCurrentRun, run)
-		if !option.isValid(l.mapping, run) {
+		l.mapper.mapRun(candidateCurrentRun, run)
+		if !option.isValid(l.mapper.mapping, run) {
 			// Reject invalid line break candidate and acquire a new one.
 			continue
 		}
-		candidateRun := cutRun(run, l.mapping, l.lineStartRune, option.breakAtRune)
+		candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune)
 		if (candidateRun.Advance + candidateWidth).Ceil() > maxWidth {
 			// The run doesn't fit on the line.
 			if len(bestCandidate) < 1 {
