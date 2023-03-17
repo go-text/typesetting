@@ -319,6 +319,7 @@ type WrapConfig struct {
 	// TruncateAfterLines is the number of lines of text to allow before truncating
 	// the text. A value of zero means no limit.
 	TruncateAfterLines int
+	Truncator          Output
 }
 
 // runMapper efficiently maps a run to glyph clusters.
@@ -426,6 +427,51 @@ func (l *LineWrapper) nextBreakOption() (breakOption, bool) {
 	return option, true
 }
 
+type fillResult uint8
+
+const (
+	// noCandidate indicates that it is not possible to compose a new line candidate using the provided
+	// breakOption, so the best known line should be used instead.
+	noCandidate fillResult = iota
+	// noRunWithBreak indicates that none of the runs available to the line wrapper contain the break
+	// option, so the returned candidate is the best option.
+	noRunWithBreak
+	// newCandidate indicates that the returned line candidate is valid.
+	newCandidate
+)
+
+// fillUntil tries to fill the provided line candidate slice with runs until it reaches a run containing the
+// provided break option. It returns the index of the run containing the option, the new width of the candidate
+// line, the contents of the new candidate line, and a result indicating how to proceed.
+func (l *LineWrapper) fillUntil(option breakOption, startRunIdx int, startWidth fixed.Int26_6, lineCandidate []Output) (newRunIdx int, newWidth fixed.Int26_6, newLineCandidate []Output, status fillResult) {
+	run := l.glyphRuns[startRunIdx]
+	for option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
+		if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
+			startRunIdx++
+			if startRunIdx >= len(l.glyphRuns) {
+				return startRunIdx, startWidth, lineCandidate, noCandidate
+			}
+			run = l.glyphRuns[startRunIdx]
+			continue
+		} else if l.lineStartRune > run.Runes.Offset {
+			// If part of this run has already been used on a previous line, trim
+			// the runes corresponding to those glyphs off.
+			l.mapper.mapRun(startRunIdx, run)
+			run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset)
+		}
+		// While the run being processed doesn't contain the current line breaking
+		// candidate, just append it to the candidate line.
+		lineCandidate = append(lineCandidate, run)
+		startWidth += run.Advance
+		startRunIdx++
+		if startRunIdx >= len(l.glyphRuns) {
+			return startRunIdx, startWidth, lineCandidate, noRunWithBreak
+		}
+		run = l.glyphRuns[startRunIdx]
+	}
+	return startRunIdx, startWidth, lineCandidate, newCandidate
+}
+
 // WrapNextLine wraps the shaped glyphs of a paragraph to a particular max width.
 // It is meant to be called iteratively to wrap each line, allowing lines to
 // be wrapped to different widths within the same paragraph. When done is true,
@@ -454,82 +500,89 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 		return Line(l.glyphRuns), true
 	}
 
+	// lineCandidate is filled with runs as we search for valid line breaks. When we find a valid
+	// option, we commit it into bestCandidate and keep looking.
 	lineCandidate, bestCandidate := []Output{}, []Output{}
-	candidateWidth := fixed.I(0)
+	// lineWidth tracks the width of the lineCandidate.
+	lineWidth := fixed.I(0)
+	var result fillResult
 
-	// candidateCurrentRun tracks the glyph run in use by the lineCandidate. It is
+	// lineRun tracks the glyph run in use by the lineCandidate. It is
 	// incremented separately so that the candidate search can run ahead of the
 	// l.currentRun.
-	candidateCurrentRun := l.currentRun
+	lineRun := l.currentRun
+
+	truncating := l.config.TruncateAfterLines == 1 && l.config.Truncator.Advance != 0
+	truncatedMaxWidth := maxWidth - l.config.Truncator.Advance.Ceil()
 
 	for {
-		run := l.glyphRuns[candidateCurrentRun]
 		option, ok := l.nextBreakOption()
 		if !ok {
 			return bestCandidate, true
 		}
-		for option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
-			if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
-				candidateCurrentRun++
-				if candidateCurrentRun >= len(l.glyphRuns) {
-					return bestCandidate, true
-				}
-				run = l.glyphRuns[candidateCurrentRun]
-				continue
-			} else if l.lineStartRune > run.Runes.Offset {
-				// If part of this run has already been used on a previous line, trim
-				// the runes corresponding to those glyphs off.
-				l.mapper.mapRun(candidateCurrentRun, run)
-				run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset)
-			}
-			// While the run being processed doesn't contain the current line breaking
-			// candidate, just append it to the candidate line.
-			lineCandidate = append(lineCandidate, run)
-			candidateWidth += run.Advance
-			candidateCurrentRun++
-			if candidateCurrentRun >= len(l.glyphRuns) {
-				return lineCandidate, true
-			}
-			run = l.glyphRuns[candidateCurrentRun]
+		lineRun, lineWidth, lineCandidate, result = l.fillUntil(
+			option,
+			lineRun,
+			lineWidth,
+			lineCandidate,
+		)
+		if result == noCandidate {
+			return bestCandidate, true
+		} else if result == noRunWithBreak {
+			return lineCandidate, true
 		}
-		l.mapper.mapRun(candidateCurrentRun, run)
+		run := l.glyphRuns[lineRun]
+		l.mapper.mapRun(lineRun, run)
 		if !option.isValid(l.mapper.mapping, run) {
 			// Reject invalid line break candidate and acquire a new one.
 			continue
 		}
 		candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune)
-		if (candidateRun.Advance + candidateWidth).Ceil() > maxWidth {
-			// The run doesn't fit on the line.
-			if len(bestCandidate) < 1 {
-				// There is no existing candidate that fits, and we have just hit the
-				// first line breaking canddiate. Commit this break position as the
-				// best available, even though it doesn't fit.
-				lineCandidate = append(lineCandidate, candidateRun)
-				l.lineStartRune = candidateRun.Runes.Offset + candidateRun.Runes.Count
-				l.currentRun = candidateCurrentRun
-				return lineCandidate, l.lineStartRune >= l.breaker.totalRunes
+		if truncating {
+			if (candidateRun.Advance + lineWidth).Ceil() > maxWidth {
+				// The candidate run does not fit.
+			} else if (candidateRun.Advance + lineWidth).Ceil() > truncatedMaxWidth {
+				// The candidate fits, but not with the truncator.
+
+				// Is there more stuff?
+				// It's fine if not, but if there is, we need to show the truncator anyway.
 			} else {
-				// The line is a valid, shorter wrapping. Return it and mark that
-				// we should reuse the current line break candidate on the next
-				// line.
-				l.isUnused = true
-				finalRunRunes := bestCandidate[len(bestCandidate)-1].Runes
-				l.lineStartRune = finalRunRunes.Count + finalRunRunes.Offset
-				return bestCandidate, false
+				// The candidate fits whether we truncate or not, so it's safe to commit.
 			}
 		} else {
-			// The run does fit on the line. Commit this line as the best known
-			// line, but keep lineCandidate unmodified so that later break
-			// options can be attempted to see if a more optimal solution is
-			// available.
-			if target := len(lineCandidate) + 1; cap(bestCandidate) < target {
-				bestCandidate = make([]Output, target-1, target)
-			} else if len(bestCandidate) < target {
-				bestCandidate = bestCandidate[:target-1]
+			if (candidateRun.Advance + lineWidth).Ceil() > maxWidth {
+				// The run doesn't fit on the line.
+				if len(bestCandidate) < 1 {
+					// There is no existing candidate that fits, and we have just hit the
+					// first line breaking canddiate. Commit this break position as the
+					// best available, even though it doesn't fit.
+					lineCandidate = append(lineCandidate, candidateRun)
+					l.lineStartRune = candidateRun.Runes.Offset + candidateRun.Runes.Count
+					l.currentRun = lineRun
+					return lineCandidate, l.lineStartRune >= l.breaker.totalRunes
+				} else {
+					// The line is a valid, shorter wrapping. Return it and mark that
+					// we should reuse the current line break candidate on the next
+					// line.
+					l.isUnused = true
+					finalRunRunes := bestCandidate[len(bestCandidate)-1].Runes
+					l.lineStartRune = finalRunRunes.Count + finalRunRunes.Offset
+					return bestCandidate, false
+				}
+			} else {
+				// The run does fit on the line. Commit this line as the best known
+				// line, but keep lineCandidate unmodified so that later break
+				// options can be attempted to see if a more optimal solution is
+				// available.
+				if target := len(lineCandidate) + 1; cap(bestCandidate) < target {
+					bestCandidate = make([]Output, target-1, target)
+				} else if len(bestCandidate) < target {
+					bestCandidate = bestCandidate[:target-1]
+				}
+				bestCandidate = bestCandidate[:copy(bestCandidate, lineCandidate)]
+				bestCandidate = append(bestCandidate, candidateRun)
+				l.currentRun = lineRun
 			}
-			bestCandidate = bestCandidate[:copy(bestCandidate, lineCandidate)]
-			bestCandidate = append(bestCandidate, candidateRun)
-			l.currentRun = candidateCurrentRun
 		}
 	}
 }
