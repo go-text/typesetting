@@ -408,6 +408,8 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 	return lines
 }
 
+// nextBreakOption returns the next rune offset at which the line can be broken,
+// if any. If it returns false, there are no more candidates.
 func (l *LineWrapper) nextBreakOption() (breakOption, bool) {
 	var option breakOption
 	if l.isUnused {
