@@ -459,10 +459,6 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 	// incremented separately so that the candidate search can run ahead of the
 	// l.currentRun.
 	candidateCurrentRun := l.currentRun
-	incRun := func() bool {
-		candidateCurrentRun++
-		return candidateCurrentRun >= len(l.glyphRuns)
-	}
 
 	for {
 		run := l.glyphRuns[candidateCurrentRun]
@@ -472,7 +468,8 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 		}
 		for option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
 			if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
-				if incRun() {
+				candidateCurrentRun++
+				if candidateCurrentRun >= len(l.glyphRuns) {
 					return bestCandidate, true
 				}
 				run = l.glyphRuns[candidateCurrentRun]
@@ -487,7 +484,8 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 			// candidate, just append it to the candidate line.
 			lineCandidate = append(lineCandidate, run)
 			candidateWidth += run.Advance
-			if incRun() {
+			candidateCurrentRun++
+			if candidateCurrentRun >= len(l.glyphRuns) {
 				return lineCandidate, true
 			}
 			run = l.glyphRuns[candidateCurrentRun]
