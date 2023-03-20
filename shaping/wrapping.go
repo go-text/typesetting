@@ -522,12 +522,20 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 			// line, but keep lineCandidate unmodified so that later break
 			// options can be attempted to see if a more optimal solution is
 			// available.
-			bestCandidate = resize(bestCandidate, len(lineCandidate), len(lineCandidate)+1)
-			bestCandidate = bestCandidate[:copy(bestCandidate, lineCandidate)]
-			bestCandidate = append(bestCandidate, candidateRun)
+			bestCandidate = commitCandidate(bestCandidate, lineCandidate, candidateRun)
 			l.currentRun = candidateCurrentRun
 		}
 	}
+}
+
+// commitCandidate efficiently updates destination to contain append(source, newRun),
+// returning the resulting slice. This operation only makes sense when destination
+// is not known to contain the elements of source already.
+func commitCandidate(destination, source []Output, newRun Output) []Output {
+	destination = resize(destination, len(source), len(source)+1)
+	destination = destination[:copy(destination, source)]
+	destination = append(destination, newRun)
+	return destination
 }
 
 // resize returns input resized to have the provided length and at least the provided
