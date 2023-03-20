@@ -522,14 +522,29 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, done bool) {
 			// line, but keep lineCandidate unmodified so that later break
 			// options can be attempted to see if a more optimal solution is
 			// available.
-			if target := len(lineCandidate) + 1; cap(bestCandidate) < target {
-				bestCandidate = make([]Output, target-1, target)
-			} else if len(bestCandidate) < target {
-				bestCandidate = bestCandidate[:target-1]
-			}
+			bestCandidate = resize(bestCandidate, len(lineCandidate), len(lineCandidate)+1)
 			bestCandidate = bestCandidate[:copy(bestCandidate, lineCandidate)]
 			bestCandidate = append(bestCandidate, candidateRun)
 			l.currentRun = candidateCurrentRun
 		}
 	}
+}
+
+// resize returns input resized to have the provided length and at least the provided
+// capacity. It may copy the data if the provided capacity is greater than the capacity
+// of in. If the provided length is greater than the provided capacity, the capacity will
+// be used as the length.
+func resize(input []Output, length, capacity int) []Output {
+	if length > capacity {
+		length = capacity
+	}
+	out := input
+	if cap(input) < capacity {
+		out = make([]Output, capacity)
+		copy(out, input)
+	}
+	if len(out) != length {
+		out = out[:length]
+	}
+	return out
 }
