@@ -1,7 +1,7 @@
 package harfbuzz
 
 import (
-	"io/ioutil" //lint:ignore SA1019 since we still want to support version under 1.16
+	"io/ioutil"
 	"testing"
 
 	"github.com/go-text/typesetting/language"
