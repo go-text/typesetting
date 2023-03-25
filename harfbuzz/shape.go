@@ -2,7 +2,6 @@ package harfbuzz
 
 import (
 	"fmt"
-	"sync"
 )
 
 // ported from harfbuzz/src/hb-shape.cc, harfbuzz/src/hb-shape-plan.cc Copyright © 2009, 2012 Behdad Esfahbod
@@ -26,7 +25,7 @@ import (
 // It also depends on the properties of the segment of text : the `Props`
 // field of the buffer must be set before calling `Shape`.
 func (b *Buffer) Shape(font *Font, features []Feature) {
-	shapePlan := newShapePlanCached(font, b.Props, features, font.varCoords())
+	shapePlan := b.newShapePlanCached(font, b.Props, features, font.varCoords())
 	shapePlan.execute(font, b, features)
 }
 
@@ -133,23 +132,18 @@ func (sp *shapePlan) execute(font *Font, buffer *Buffer, features []Feature) {
  * Caching
  */
 
-var (
-	planCache     = map[Face][]*shapePlan{}
-	planCacheLock sync.Mutex
-)
-
 // creates (or returns) a cached shaping plan suitable for reuse, for a combination
 // of `face`, `userFeatures`, `props`, plus the variation-space coordinates `coords`.
-func newShapePlanCached(font *Font, props SegmentProperties,
+func (b *Buffer) newShapePlanCached(font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32,
 ) *shapePlan {
 	var key shapePlan
 	key.init(false, font, props, userFeatures, coords)
 
-	planCacheLock.Lock()
-	defer planCacheLock.Unlock()
+	b.planCacheLock.Lock()
+	defer b.planCacheLock.Unlock()
 
-	plans := planCache[font.face]
+	plans := b.planCache[font.face]
 
 	for _, plan := range plans {
 		if plan.equal(key) {
@@ -162,7 +156,7 @@ func newShapePlanCached(font *Font, props SegmentProperties,
 	plan := newShapePlan(font, props, userFeatures, coords)
 
 	plans = append(plans, plan)
-	planCache[font.face] = plans
+	b.planCache[font.face] = plans
 
 	if debugMode >= 1 {
 		fmt.Printf("\tPLAN %p inserted into cache\n", plan)
