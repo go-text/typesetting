@@ -2,6 +2,7 @@ package harfbuzz
 
 import (
 	"math"
+	"sync"
 
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -103,6 +104,9 @@ type Buffer struct {
 	scratchFlags bufferScratchFlags /* Have space-fallback, etc. */
 
 	haveOutput bool
+
+	planCache     map[Face][]*shapePlan
+	planCacheLock sync.Mutex
 }
 
 // NewBuffer allocate a storage with default options.
@@ -111,6 +115,7 @@ func NewBuffer() *Buffer {
 	return &Buffer{
 		ClusterLevel: MonotoneGraphemes,
 		maxOps:       maxOpsDefault,
+		planCache:    map[Face][]*shapePlan{},
 	}
 }
 
