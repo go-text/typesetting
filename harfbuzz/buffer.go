@@ -105,8 +105,7 @@ type Buffer struct {
 
 	haveOutput bool
 
-	planCache     map[Face][]*shapePlan
-	planCacheLock *sync.Mutex
+	planCache map[Face][]*shapePlan
 }
 
 // NewBuffer allocate a storage with default options.
@@ -116,7 +115,6 @@ func NewBuffer() *Buffer {
 		ClusterLevel:  MonotoneGraphemes,
 		maxOps:        maxOpsDefault,
 		planCache:     map[Face][]*shapePlan{},
-		planCacheLock: &sync.Mutex{},
 	}
 }
 
