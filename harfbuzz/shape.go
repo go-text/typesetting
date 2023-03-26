@@ -140,9 +140,6 @@ func (b *Buffer) newShapePlanCached(font *Font, props SegmentProperties,
 	var key shapePlan
 	key.init(false, font, props, userFeatures, coords)
 
-	b.planCacheLock.Lock()
-	defer b.planCacheLock.Unlock()
-
 	plans := b.planCache[font.face]
 
 	for _, plan := range plans {
