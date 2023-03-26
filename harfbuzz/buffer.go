@@ -2,7 +2,6 @@ package harfbuzz
 
 import (
 	"math"
-	"sync"
 
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/tables"
