@@ -322,6 +322,15 @@ type WrapConfig struct {
 	// Truncator, if provided, will be inserted at the end of a truncated line. This
 	// feature is only active if TruncateAfterLines is nonzero.
 	Truncator Output
+	// TextContinues indicates that the paragraph wrapped by this config is not the
+	// final paragraph in the text. This alters text truncation when filling the
+	// final line permitted by TruncateAfterLines. If the text of this paragraph
+	// does fit entirely on TruncateAfterLines, normally the truncator symbol would
+	// not be inserted. However, if the overall body of text continues beyond this
+	// paragraph (indicated by TextContinues), the truncator should still be inserted
+	// to indicate that further paragraphs of text were truncated. This field has
+	// no effect if TruncateAfterLines is zero.
+	TextContinues bool
 }
 
 // WithTruncator returns a copy of WrapConfig with the Truncator field set to the
@@ -405,7 +414,7 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, shapedRuns ..
 // that many lines. The truncated return value is the count of runes truncated from
 // the end of the text.
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, shapedRuns ...Output) (_ []Line, truncated int) {
-	if len(shapedRuns) == 1 && shapedRuns[0].Advance.Ceil() < maxWidth {
+	if len(shapedRuns) == 1 && shapedRuns[0].Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
 		return []Line{shapedRuns}, 0
 	}
 	l.Prepare(config, paragraph, shapedRuns...)
@@ -497,11 +506,13 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 		done = done || l.lineStartRune >= l.breaker.totalRunes
 		if l.truncating {
 			l.config.TruncateAfterLines--
+			insertTruncator := false
 			if l.config.TruncateAfterLines == 0 {
 				done = true
 				truncated = l.breaker.totalRunes - l.lineStartRune
+				insertTruncator = truncated > 0 || l.config.TextContinues
 			}
-			if truncated > 0 {
+			if insertTruncator {
 				finalLine = append(finalLine, l.config.Truncator)
 			}
 		}
@@ -517,7 +528,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 		// Pass empty lines through as empty.
 		l.glyphRuns[0].Runes = Range{Count: l.breaker.totalRunes}
 		return Line([]Output{l.glyphRuns[0]}), truncated, true
-	} else if len(l.glyphRuns) == 1 && l.glyphRuns[0].Advance.Ceil() < maxWidth {
+	} else if len(l.glyphRuns) == 1 && l.glyphRuns[0].Advance.Ceil() < maxWidth && !(l.config.TextContinues && l.config.TruncateAfterLines == 1) {
 		return Line(l.glyphRuns), truncated, true
 	}
 
@@ -585,7 +596,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 		} else if truncating && candidateLineWidth > truncatedMaxWidth {
 			// The run would not fit if truncated.
 			finalRunRune := candidateRun.Runes.Count + candidateRun.Runes.Offset
-			if finalRunRune == l.breaker.totalRunes {
+			if finalRunRune == l.breaker.totalRunes && !l.config.TextContinues {
 				// The run contains the entire end of the text, so no truncation is
 				// necessary.
 				bestCandidate = commitCandidate(bestCandidate, lineCandidate, candidateRun)

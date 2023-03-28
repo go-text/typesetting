@@ -1735,12 +1735,15 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 		maxLines int
 		// truncator to shape and use as the final run on truncated lines.
 		truncator string
+		// forceTruncation ensures that the final line in maxLines will show the truncator
+		// symbol.
+		forceTruncation bool
 		// expectedTruncated is the expected count of truncated runes.
 		expectedTruncated int
 	}
 	for _, tc := range []testcase{
 		{
-			name:              "only run doesn't fit (1 part)",
+			name:              "only run doesn't fit 1 part",
 			input:             "mmmmm",
 			wrapWidth:         40,
 			cutInto:           1,
@@ -1749,7 +1752,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 5,
 		},
 		{
-			name:              "only run doesn't fit (5 parts)",
+			name:              "only run doesn't fit 5 parts",
 			input:             "mmmmm",
 			wrapWidth:         40,
 			cutInto:           5,
@@ -1758,7 +1761,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 5,
 		},
 		{
-			name:              "run only fits without truncator (1 part)",
+			name:              "run only fits without truncator 1 part",
 			input:             "mmmm",
 			wrapWidth:         40,
 			cutInto:           1,
@@ -1767,7 +1770,17 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 0,
 		},
 		{
-			name:              "run only fits without truncator (4 part)",
+			name:              "run only fits without truncator 1 part, forced to truncate",
+			input:             "mmmm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "...",
+			forceTruncation:   true,
+			expectedTruncated: 4,
+		},
+		{
+			name:              "run only fits without truncator 4 part",
 			input:             "mmmm",
 			wrapWidth:         40,
 			cutInto:           4,
@@ -1776,7 +1789,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 0,
 		},
 		{
-			name:              "multi-word run only fits without truncator (1 part)",
+			name:              "multi-word run only fits without truncator 1 part",
 			input:             "m mm",
 			wrapWidth:         40,
 			cutInto:           1,
@@ -1785,7 +1798,17 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 0,
 		},
 		{
-			name:              "multi-word run only fits without truncator (4 part)",
+			name:              "multi-word run only fits without truncator 1 part, forced to truncate",
+			input:             "m mm",
+			wrapWidth:         40,
+			cutInto:           1,
+			maxLines:          1,
+			truncator:         "...",
+			forceTruncation:   true,
+			expectedTruncated: 0,
+		},
+		{
+			name:              "multi-word run only fits without truncator 4 part",
 			input:             "m mm",
 			wrapWidth:         40,
 			cutInto:           4,
@@ -1794,7 +1817,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 0,
 		},
 		{
-			name:              "multi-word run doesn't fit (1 part)",
+			name:              "multi-word run doesn't fit 1 part",
 			input:             "mmm mm",
 			wrapWidth:         40,
 			cutInto:           1,
@@ -1803,7 +1826,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			expectedTruncated: 2,
 		},
 		{
-			name:              "multi-word run doesn't fit (4 part)",
+			name:              "multi-word run doesn't fit 4 part",
 			input:             "mmm mm",
 			wrapWidth:         40,
 			cutInto:           4,
@@ -1855,13 +1878,14 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			lines, truncatedRunes := l.WrapParagraph(WrapConfig{
 				Truncator:          trunc,
 				TruncateAfterLines: tc.maxLines,
+				TextContinues:      tc.forceTruncation,
 			}, tc.wrapWidth, inputRunes, outs...)
 			if truncatedRunes != tc.expectedTruncated {
 				t.Errorf("got %d truncated runes when truncation expectation was %d", truncatedRunes, tc.expectedTruncated)
 			}
 			lastLine := lines[len(lines)-1]
 			lastRun := lastLine[len(lastLine)-1]
-			shouldTruncate := (tc.expectedTruncated > 0)
+			shouldTruncate := (tc.expectedTruncated > 0 || tc.forceTruncation)
 			if lastRunIsTruncator := reflect.DeepEqual(lastRun, trunc); lastRunIsTruncator != shouldTruncate {
 				t.Errorf("shouldTruncate = %v, but lastRunIsTruncator = %v", shouldTruncate, lastRunIsTruncator)
 			}
