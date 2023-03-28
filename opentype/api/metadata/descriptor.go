@@ -7,29 +7,12 @@ import (
 )
 
 const (
-	_ tables.NameID = iota
-	nameFontFamily
-	nameFontSubfamily
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	_
-	namePreferredFamily    // or Typographic Family
-	namePreferredSubfamily // or Typographic Subfamily
-	_
-	_
-	_
-	nameWWSFamily
-	nameWWSSubfamily
+	nameFontFamily         tables.NameID = 1
+	nameFontSubfamily      tables.NameID = 2
+	namePreferredFamily    tables.NameID = 16 // or Typographic Family
+	namePreferredSubfamily tables.NameID = 17 // or Typographic Subfamily
+	nameWWSFamily          tables.NameID = 21 //
+	nameWWSSubfamily       tables.NameID = 22 //
 )
 
 type fontDescriptor struct {
