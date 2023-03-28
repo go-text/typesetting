@@ -7,7 +7,6 @@ import (
 
 	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/opentype/loader"
-	"github.com/go-text/typesetting/opentype/testutils"
 	tu "github.com/go-text/typesetting/opentype/testutils"
 )
 
@@ -42,7 +41,7 @@ func TestEncodings(t *testing.T) {
 		{[]byte{0, 78, 0, 111, 0, 116, 0, 111, 0, 32, 0, 83, 0, 97, 0, 110, 0, 115, 0, 32, 0, 77, 0, 111, 0, 110, 0, 111, 0, 32, 0, 67, 0, 74, 0, 75, 0, 32, 0, 72, 0, 75}, "Noto Sans Mono CJK HK"},
 	}
 	for _, utf16 := range utf16s {
-		testutils.Assert(t, decodeUtf16(utf16.encoded) == utf16.decoded)
+		tu.Assert(t, decodeUtf16(utf16.encoded) == utf16.decoded)
 	}
 
 	macs := []struct {
@@ -53,10 +52,10 @@ func TestEncodings(t *testing.T) {
 		{[]byte{71, 101, 110, 101, 118, 97}, "Geneva"},
 	}
 	for _, mac := range macs {
-		testutils.Assert(t, DecodeMacintosh(mac.encoded) == mac.decoded)
+		tu.Assert(t, DecodeMacintosh(mac.encoded) == mac.decoded)
 	}
 
-	testutils.Assert(t, DecodeMacintoshByte(71) == 'G')
+	tu.Assert(t, DecodeMacintoshByte(71) == 'G')
 }
 
 func TestFamilyNames(t *testing.T) {
