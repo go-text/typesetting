@@ -15,7 +15,7 @@ type Face = *font.Face
 // Font are constructed with `NewFont` and adjusted by accessing the fields
 // Ptem, XScale, YScale.
 //
-// Fonts private fields only depends on the provided [*font.Font], so a Font object is suitable for caching.
+// Fonts private fields only depend on the provided [*font.Font], so a Font object is suitable for caching.
 type Font struct {
 	face Face
 
