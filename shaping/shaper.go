@@ -5,7 +5,6 @@ package shaping
 import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/harfbuzz"
-	"github.com/go-text/typesetting/opentype/api/font"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -16,7 +15,14 @@ import (
 type HarfbuzzShaper struct {
 	buf *harfbuzz.Buffer
 
-	fonts map[*font.Font]*harfbuzz.Font
+	fonts fontLRU
+}
+
+// SetFontCacheSize adjusts the size of the font cache within the shaper.
+// It is safe to adjust the size after using the shaper, though shrinking
+// it may result in many evictions on the next shaping.
+func (h *HarfbuzzShaper) SetFontCacheSize(size int) {
+	h.fonts.maxSize = size
 }
 
 var _ Shaper = (*HarfbuzzShaper)(nil)
@@ -55,9 +61,6 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 	} else {
 		t.buf.Clear()
 	}
-	if t.fonts == nil {
-		t.fonts = make(map[*font.Font]*harfbuzz.Font)
-	}
 
 	runes, start, end := input.Text, input.RunStart, input.RunEnd
 	if end < start {
@@ -82,10 +85,10 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 	t.buf.Props.Script = input.Script
 
 	// reuse font when possible
-	font, ok := t.fonts[input.Face.Font]
+	font, ok := t.fonts.Get(input.Face.Font)
 	if !ok { // create a new font and cache it
 		font = harfbuzz.NewFont(input.Face)
-		t.fonts[input.Face.Font] = font
+		t.fonts.Put(input.Face.Font, font)
 	}
 	// adjust the user provided fields
 	font.XScale = int32(input.Size.Ceil()) << scaleShift
