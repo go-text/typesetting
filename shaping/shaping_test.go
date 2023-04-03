@@ -205,25 +205,29 @@ func TestCountClusters(t *testing.T) {
 func BenchmarkShaping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range []int{10, 100, 1000} {
-			b.Run(fmt.Sprintf("%drunes-%s", size, langInfo.name), func(b *testing.B) {
-				input := Input{
-					Text:      langInfo.text[:size],
-					RunStart:  0,
-					RunEnd:    size,
-					Direction: langInfo.dir,
-					Face:      langInfo.face,
-					Size:      16 * 72,
-					Script:    langInfo.script,
-					Language:  langInfo.lang,
-				}
-				var shaper HarfbuzzShaper
-				var out Output
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					out = shaper.Shape(input)
-				}
-				_ = out
-			})
+			for _, cacheSize := range []int{0, 5} {
+
+				b.Run(fmt.Sprintf("%drunes-%s-%dfontCache", size, langInfo.name, cacheSize), func(b *testing.B) {
+					input := Input{
+						Text:      langInfo.text[:size],
+						RunStart:  0,
+						RunEnd:    size,
+						Direction: langInfo.dir,
+						Face:      langInfo.face,
+						Size:      16 * 72,
+						Script:    langInfo.script,
+						Language:  langInfo.lang,
+					}
+					var shaper HarfbuzzShaper
+					shaper.SetFontCacheSize(cacheSize)
+					var out Output
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						out = shaper.Shape(input)
+					}
+					_ = out
+				})
+			}
 		}
 	}
 }
