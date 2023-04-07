@@ -147,7 +147,7 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 	svg, _, _ := tables.ParseSVG(raw)
 	out.svg, _ = newSvg(svg)
 
-	out.hhea, out.hmtx, _ = loadHmtx(ld, int(maxp.NumGlyphs))
+	out.hhea, out.hmtx, _ = LoadHmtx(ld, int(maxp.NumGlyphs))
 	out.vhea, out.vmtx, _ = loadVmtx(ld, int(maxp.NumGlyphs))
 
 	if len(out.fvar) != 0 {
@@ -278,7 +278,7 @@ func loadCff(ld *loader.Loader, numGlyphs int) (*cff.Font, error) {
 	return cff, nil
 }
 
-func loadHmtx(ld *loader.Loader, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
+func LoadHmtx(ld *loader.Loader, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
 	raw, err := ld.RawTable(loader.MustNewTag("hhea"))
 	if err != nil {
 		return nil, tables.Hmtx{}, err

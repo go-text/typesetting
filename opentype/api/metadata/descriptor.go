@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"github.com/go-text/typesetting/opentype/api"
 	"github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -21,6 +22,9 @@ type fontDescriptor struct {
 	os2   *tables.Os2 // optional
 	names tables.Name
 	head  tables.Head
+
+	cmap    api.Cmap // optional
+	metrics tables.Hmtx
 }
 
 func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
@@ -36,6 +40,17 @@ func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
 	out.names, _, _ = tables.ParseName(raw)
 
 	out.head, _ = font.LoadHeadTable(ld)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("cmap"))
+	tb, _, _ := tables.ParseCmap(raw)
+	out.cmap, _, _ = api.ProcessCmap(tb)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("name"))
+	out.names, _, _ = tables.ParseName(raw)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("maxp"))
+	maxp, _, _ := tables.ParseMaxp(raw)
+	_, out.metrics, _ = font.LoadHmtx(ld, int(maxp.NumGlyphs))
 
 	return &out
 }

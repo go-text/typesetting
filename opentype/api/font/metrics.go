@@ -183,21 +183,14 @@ func (f *Font) VariationGlyph(ch, varSelector rune) (GID, bool) {
 
 // do not take into account variations
 func (f *Font) getBaseAdvance(gid gID, table tables.Hmtx) int16 {
-	LM, LS := len(table.Metrics), len(table.LeftSideBearings)
-	index := int(gid)
-	if index < LM {
-		return table.Metrics[index].AdvanceWidth
-	} else if index < LS+LM { // return the last value
-		return table.Metrics[len(table.Metrics)-1].AdvanceWidth
-	} else {
-		/* If `table` is empty, it means we don't have the metrics table
-		 * for this direction: return default advance.  Otherwise, it means that the
-		 * glyph index is out of bound: return zero. */
-		if LM+LS == 0 {
-			return int16(f.upem)
-		}
-		return 0
+	/* If `table` is empty, it means we don't have the metrics table
+	 * for this direction: return default advance.  Otherwise, it means that the
+	 * glyph index is out of bound: return zero. */
+	if table.IsEmpty() {
+		return int16(f.upem)
 	}
+
+	return table.Advance(gid)
 }
 
 // return the base side bearing, handling invalid glyph index
