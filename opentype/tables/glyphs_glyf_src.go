@@ -81,15 +81,18 @@ func (SimpleGlyph) isGlyphData()    {}
 func (CompositeGlyph) isGlyphData() {}
 
 type SimpleGlyph struct {
-	EndPtsOfContours []uint16            // [numberOfContours] Array of point indices for the last point of each contour, in increasing numeric order.
-	Instructions     []byte              `arrayCount:"FirstUint16"` // [instructionLength] Array of instruction byte code for the glyph.
-	Points           []GlyphContourPoint `isOpaque:"" subsliceStart:"AtCurrent"`
+	EndPtsOfContours []uint16 // [numberOfContours] Array of point indices for the last point of each contour, in increasing numeric order.
+	Instructions     []byte   `arrayCount:"FirstUint16"` // [instructionLength] Array of instruction byte code for the glyph.
+
+	pointsData simpleGlyphData `isOpaque:"" subsliceStart:"AtCurrent"`
 }
 
-type GlyphContourPoint struct {
-	Flag uint8
-	X, Y int16
-}
+// Len return the number of contours points.
+// It is the same as len(Points()), but is more efficient.
+func (sg SimpleGlyph) Len() int { return len(sg.pointsData.flags) }
+
+// Points decodes the encoded data, returning the coordinates and flag of the contour points.
+func (sg SimpleGlyph) Points() []GlyphContourPoint { return sg.pointsData.parsePoints() }
 
 const (
 	xShortVector                  = 0x02
@@ -98,19 +101,18 @@ const (
 	yIsSameOrPositiveYShortVector = 0x20
 )
 
-func (sg *SimpleGlyph) parsePoints(src []byte, _ int) error {
-	if len(sg.EndPtsOfContours) == 0 {
+// read flags
+// to avoid costly length check, we also precompute the expected data size for coordinates
+func (sg *SimpleGlyph) parsePointsData(src []byte, _ int) error {
+	if len(sg.EndPtsOfContours) == 0 { // nothing to do
 		return nil
 	}
 
 	numPoints := int(sg.EndPtsOfContours[len(sg.EndPtsOfContours)-1]) + 1
+	sg.pointsData.flags = make([]uint8, numPoints)
 
 	const repeatFlag = 0x08
 
-	sg.Points = make([]GlyphContourPoint, numPoints)
-
-	// read flags
-	// to avoid costly length check, we also precompute the expected data size for coordinates
 	var (
 		coordinatesLengthX, coordinatesLengthY int
 		cursor                                 int
@@ -121,7 +123,7 @@ func (sg *SimpleGlyph) parsePoints(src []byte, _ int) error {
 			return errors.New("invalid simple glyph data flags (EOF)")
 		}
 		flag := src[cursor]
-		sg.Points[i].Flag = flag
+		sg.pointsData.flags[i] = flag
 		cursor++
 
 		localLengthX, localLengthY := 0, 0
@@ -145,9 +147,9 @@ func (sg *SimpleGlyph) parsePoints(src []byte, _ int) error {
 			if i+repeatCount+1 > numPoints { // gracefully handle out of bounds
 				repeatCount = numPoints - i - 1
 			}
-			subSlice := sg.Points[i+1 : i+repeatCount+1]
+			subSlice := sg.pointsData.flags[i+1 : i+repeatCount+1]
 			for j := range subSlice {
-				subSlice[j].Flag = flag
+				subSlice[j] = flag
 			}
 			i += repeatCount
 			localLengthX += repeatCount * localLengthX
@@ -163,11 +165,27 @@ func (sg *SimpleGlyph) parsePoints(src []byte, _ int) error {
 		return fmt.Errorf("EOF: expected length: %d, got %d", E, L)
 	}
 
-	dataX, dataY := src[:coordinatesLengthX], src[coordinatesLengthX:coordinatesLengthX+coordinatesLengthY]
-	// read x and y coordinates
-	parseGlyphContourPoints(dataX, dataY, sg.Points)
+	sg.pointsData.dataX, sg.pointsData.dataY = src[:coordinatesLengthX], src[coordinatesLengthX:coordinatesLengthX+coordinatesLengthY]
 
 	return nil
+}
+
+type GlyphContourPoint struct {
+	Flag uint8
+	X, Y int16
+}
+
+func (sg *simpleGlyphData) parsePoints() []GlyphContourPoint {
+	points := make([]GlyphContourPoint, len(sg.flags))
+
+	for i, f := range sg.flags {
+		points[i].Flag = f
+	}
+
+	// read x and y coordinates
+	parseGlyphContourPoints(sg.dataX, sg.dataY, points)
+
+	return points
 }
 
 // returns the position after the read and the relative coordinate

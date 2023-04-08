@@ -143,9 +143,9 @@ func (f *Face) getPointsForGlyph(gid tables.GlyphID, currentDepth int, allPoints
 func pointNumbersCount(g tables.Glyph) int {
 	switch g := g.Data.(type) {
 	case tables.SimpleGlyph:
-		return len(g.Points)
+		return g.Len()
 	case tables.CompositeGlyph:
-		/* pseudo component points for each component in composite glyph */
+		// pseudo component points for each component in composite glyph
 		return len(g.Glyphs)
 	}
 	return 0
@@ -155,11 +155,12 @@ func pointNumbersCount(g tables.Glyph) int {
 func getContourPoints(sg tables.SimpleGlyph) []contourPoint {
 	const flagOnCurve = 1 << 0 // 0x0001
 
-	points := make([]contourPoint, len(sg.Points))
+	glyphPoints := sg.Points()
+	points := make([]contourPoint, len(glyphPoints))
 	for _, end := range sg.EndPtsOfContours {
 		points[end].isEndPoint = true
 	}
-	for i, p := range sg.Points {
+	for i, p := range glyphPoints {
 		points[i].X, points[i].Y = float32(p.X), float32(p.Y)
 		points[i].isOnCurve = p.Flag&flagOnCurve != 0
 	}

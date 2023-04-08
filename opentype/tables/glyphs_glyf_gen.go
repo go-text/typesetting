@@ -126,7 +126,7 @@ func ParseSimpleGlyph(src []byte, endPtsOfContoursCount int) (SimpleGlyph, int, 
 	}
 	{
 
-		err := item.parsePoints(src[n:], endPtsOfContoursCount)
+		err := item.parsePointsData(src[n:], endPtsOfContoursCount)
 		if err != nil {
 			return item, 0, fmt.Errorf("reading SimpleGlyph: %s", err)
 		}

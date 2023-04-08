@@ -100,11 +100,11 @@ func TestGlyphCoordinates(t *testing.T) {
 		{x: 935, y: 352},
 		{x: 249, y: 352},
 	}
-	tu.Assert(t, len(glyphData.Points) == len(exp))
+	tu.Assert(t, len(glyphData.Points()) == len(exp))
 
 	const overlapSimple = 0x40
 
-	for i, v := range glyphData.Points {
+	for i, v := range glyphData.Points() {
 		e := exp[i]
 		tu.Assert(t, v.X == e.x && v.Y == e.y)
 		tu.Assert(t, (v.Flag&overlapSimple != 0) == e.overlap)
@@ -122,61 +122,70 @@ func TestGlyphCoordinates2(t *testing.T) {
 	glyf, err := ParseGlyf(readTable(t, fp, "glyf"), loca)
 	tu.AssertNoErr(t, err)
 
+	expPoints := [][]GlyphContourPoint{
+		{
+			{X: 96, Y: 0},
+			{X: 96, Y: 660},
+			{X: 528, Y: 660},
+			{X: 528, Y: 0},
+			{X: 144, Y: 32},
+			{X: 476, Y: 32},
+			{X: 376, Y: 208},
+			{X: 314, Y: 314},
+			{X: 310, Y: 314},
+			{X: 246, Y: 208},
+			{X: 310, Y: 366},
+			{X: 314, Y: 366},
+			{X: 368, Y: 458},
+			{X: 462, Y: 626},
+			{X: 160, Y: 626},
+			{X: 254, Y: 458},
+			{X: 134, Y: 74},
+			{X: 288, Y: 340},
+			{X: 134, Y: 610},
+			{X: 488, Y: 74},
+			{X: 488, Y: 610},
+			{X: 336, Y: 340},
+		},
+		{
+			{X: 10, Y: 0},
+			{X: 246, Y: 660},
+			{X: 274, Y: 660},
+			{X: 510, Y: 0},
+			{X: 476, Y: 0},
+			{X: 338, Y: 396},
+			{X: 317, Y: 456},
+			{X: 280, Y: 565},
+			{X: 262, Y: 626},
+			{X: 258, Y: 626},
+			{X: 240, Y: 565},
+			{X: 203, Y: 456},
+			{X: 182, Y: 396},
+			{X: 42, Y: 0},
+			{X: 112, Y: 236},
+			{X: 112, Y: 264},
+			{X: 405, Y: 264},
+			{X: 405, Y: 236},
+		},
+		nil,
+		{
+			{X: -22, Y: 710},
+			{X: -36, Y: 726},
+			{X: 82, Y: 846},
+			{X: 104, Y: 822},
+		},
+	}
 	exp := Glyf{
 		Glyph{
 			XMin: 96, XMax: 528, YMin: 0, YMax: 660,
 			Data: SimpleGlyph{
 				EndPtsOfContours: []uint16{3, 9, 15, 18, 21},
-				Points: []GlyphContourPoint{
-					{X: 96, Y: 0},
-					{X: 96, Y: 660},
-					{X: 528, Y: 660},
-					{X: 528, Y: 0},
-					{X: 144, Y: 32},
-					{X: 476, Y: 32},
-					{X: 376, Y: 208},
-					{X: 314, Y: 314},
-					{X: 310, Y: 314},
-					{X: 246, Y: 208},
-					{X: 310, Y: 366},
-					{X: 314, Y: 366},
-					{X: 368, Y: 458},
-					{X: 462, Y: 626},
-					{X: 160, Y: 626},
-					{X: 254, Y: 458},
-					{X: 134, Y: 74},
-					{X: 288, Y: 340},
-					{X: 134, Y: 610},
-					{X: 488, Y: 74},
-					{X: 488, Y: 610},
-					{X: 336, Y: 340},
-				},
 			},
 		},
 		{
 			XMin: 10, XMax: 510, YMin: 0, YMax: 660,
 			Data: SimpleGlyph{
 				EndPtsOfContours: []uint16{13, 17},
-				Points: []GlyphContourPoint{
-					{X: 10, Y: 0},
-					{X: 246, Y: 660},
-					{X: 274, Y: 660},
-					{X: 510, Y: 0},
-					{X: 476, Y: 0},
-					{X: 338, Y: 396},
-					{X: 317, Y: 456},
-					{X: 280, Y: 565},
-					{X: 262, Y: 626},
-					{X: 258, Y: 626},
-					{X: 240, Y: 565},
-					{X: 203, Y: 456},
-					{X: 182, Y: 396},
-					{X: 42, Y: 0},
-					{X: 112, Y: 236},
-					{X: 112, Y: 264},
-					{X: 405, Y: 264},
-					{X: 405, Y: 236},
-				},
 			},
 		},
 		{
@@ -192,12 +201,6 @@ func TestGlyphCoordinates2(t *testing.T) {
 			XMin: -36, XMax: 104, YMin: 710, YMax: 846,
 			Data: SimpleGlyph{
 				EndPtsOfContours: []uint16{3},
-				Points: []GlyphContourPoint{
-					{X: -22, Y: 710},
-					{X: -36, Y: 726},
-					{X: 82, Y: 846},
-					{X: 104, Y: 822},
-				},
 			},
 		},
 	}
@@ -210,9 +213,11 @@ func TestGlyphCoordinates2(t *testing.T) {
 		case SimpleGlyph:
 			eData := e.Data.(SimpleGlyph)
 			tu.Assert(t, reflect.DeepEqual(eData.EndPtsOfContours, data.EndPtsOfContours))
-			tu.Assert(t, len(eData.Points) == len(data.Points))
-			for i, got := range data.Points {
-				assertPointEqual(t, eData.Points[i], got)
+			ePoints := expPoints[i]
+			gotPoints := data.Points()
+			tu.Assert(t, len(ePoints) == len(gotPoints))
+			for i, got := range gotPoints {
+				assertPointEqual(t, ePoints[i], got)
 			}
 		case CompositeGlyph:
 			eData := e.Data.(CompositeGlyph)

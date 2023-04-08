@@ -15,3 +15,8 @@ type EBLC = CBLC
 // Bloc is the bitmap location table
 // See - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6bloc.html
 type Bloc = CBLC
+
+type simpleGlyphData struct {
+	flags        []uint8 // one per point
+	dataX, dataY []byte  // raw point coordinates
+}
