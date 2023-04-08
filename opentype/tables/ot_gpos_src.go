@@ -3,7 +3,6 @@
 package tables
 
 import (
-	"encoding/binary"
 	"fmt"
 )
 
@@ -78,29 +77,17 @@ type PairPosData1 struct {
 // binarygen: argument=valueFormat1  ValueFormat
 // binarygen: argument=valueFormat2  ValueFormat
 type PairSet struct {
-	pairValueCount   uint16            // Number of PairValueRecords
-	PairValueRecords []PairValueRecord `isOpaque:""` // [pairValueCount] Array of PairValueRecords, ordered by glyph ID of the second glyph.
+	pairValueCount uint16 // Number of PairValueRecords
+	// we store the compressed form to avoid wasting to much memory
+	data pairValueRecords `isOpaque:""`
 }
 
-func (ps *PairSet) parsePairValueRecords(src []byte, fmt1, fmt2 ValueFormat) error {
-	out := make([]PairValueRecord, ps.pairValueCount)
-	offsetR := 2
-	var err error
-	for i := range out {
-		if L := len(src); L < 2+offsetR {
-			return fmt.Errorf("EOF: expected length: %d, got %d", 2+offsetR, L)
-		}
-		out[i].SecondGlyph = GlyphID(binary.BigEndian.Uint16(src[offsetR:]))
-		out[i].ValueRecord1, offsetR, err = parseValueRecord(fmt1, src, offsetR+2)
-		if err != nil {
-			return fmt.Errorf("invalid pair set table: %s", err)
-		}
-		out[i].ValueRecord2, offsetR, err = parseValueRecord(fmt2, src, offsetR)
-		if err != nil {
-			return fmt.Errorf("invalid pair set table: %s", err)
-		}
+func (ps *PairSet) parseData(src []byte, fmt1, fmt2 ValueFormat) error {
+	recNbUint16 := 1 + fmt1.size() + fmt2.size()                         // in uint16
+	if exp := 2 + recNbUint16*2*int(ps.pairValueCount); len(src) < exp { //
+		return fmt.Errorf("EOF: expected length: %d, got %d", exp, len(src))
 	}
-	ps.PairValueRecords = out
+	ps.data = pairValueRecords{data: src, fmt1: fmt1, fmt2: fmt2}
 	return nil
 }
 

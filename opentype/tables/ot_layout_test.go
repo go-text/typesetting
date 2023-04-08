@@ -378,5 +378,23 @@ func TestGPOS2_1(t *testing.T) {
 	tu.Assert(t, ok)
 	tu.Assert(t, data.ValueFormat1 == 1 && data.ValueFormat2 == 2)
 	tu.Assert(t, len(data.PairSets) == 1)
-	tu.Assert(t, len(data.PairSets[0].PairValueRecords) == 2)
+	tu.Assert(t, data.PairSets[0].pairValueCount == 2)
+
+	v1 := PairValueRecord{
+		19,
+		ValueRecord{-200, 0, 0, 0, nil, nil, nil, nil},
+		ValueRecord{0, -100, 0, 0, nil, nil, nil, nil},
+	}
+	v2 := PairValueRecord{
+		20,
+		ValueRecord{-300, 0, 0, 0, nil, nil, nil, nil},
+		ValueRecord{0, -400, 0, 0, nil, nil, nil, nil},
+	}
+	v1g, err := data.PairSets[0].data.get(0)
+	tu.AssertNoErr(t, err)
+	v2g, err := data.PairSets[0].data.get(1)
+	tu.AssertNoErr(t, err)
+
+	tu.Assert(t, reflect.DeepEqual(v1, v1g))
+	tu.Assert(t, reflect.DeepEqual(v2, v2g))
 }

@@ -1538,7 +1538,7 @@ func ParsePairSet(src []byte, valueFormat1 ValueFormat, valueFormat2 ValueFormat
 
 	{
 
-		err := item.parsePairValueRecords(src[:], valueFormat1, valueFormat2)
+		err := item.parseData(src[:], valueFormat1, valueFormat2)
 		if err != nil {
 			return item, 0, fmt.Errorf("reading PairSet: %s", err)
 		}

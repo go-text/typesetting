@@ -550,6 +550,30 @@ func parseValueRecord(format ValueFormat, data []byte, offset int) (out ValueRec
 	return out, offset + 2*size, err
 }
 
+type pairValueRecords struct {
+	data       []byte // start with the item count
+	fmt1, fmt2 ValueFormat
+}
+
+// panic if index is out of range
+func (ps pairValueRecords) get(index int) (out PairValueRecord, err error) {
+	recLen := 1 + ps.fmt1.size() + ps.fmt2.size()
+	offset := 2 + 2*index*recLen
+
+	out.SecondGlyph = GlyphID(binary.BigEndian.Uint16(ps.data[offset:]))
+	v1, newOffset, err := parseValueRecord(ps.fmt1, ps.data, offset+2)
+	if err != nil {
+		return out, fmt.Errorf("invalid pair set table: %s", err)
+	}
+	v2, _, err := parseValueRecord(ps.fmt2, ps.data, newOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid pair set table: %s", err)
+	}
+	out.ValueRecord1 = v1
+	out.ValueRecord2 = v2
+	return out, nil
+}
+
 // DeviceTable is either an DeviceHinting for standard fonts,
 // or a DeviceVariation for variable fonts.
 type DeviceTable interface {
