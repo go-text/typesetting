@@ -1519,10 +1519,7 @@ func ParsePairPosData2(src []byte) (PairPosData2, int, error) {
 	}
 	{
 
-		err := item.parseClass1Records(src[:])
-		if err != nil {
-			return item, 0, fmt.Errorf("reading PairPosData2: %s", err)
-		}
+		item.classData = src[0:]
 	}
 	return item, n, nil
 }

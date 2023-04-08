@@ -163,7 +163,7 @@ func (c *otApplyContext) applyGPOS(table tables.GPOSLookup) bool {
 		case tables.PairPosData2:
 			class1, _ := inner.ClassDef1.Class(gID(glyphID))
 			class2, _ := inner.ClassDef2.Class(gID(buffer.Info[skippyIter.idx].Glyph))
-			vals := inner.Class1Records[class1][class2]
+			vals := inner.Record(class1, class2)
 			c.applyGPOSPair(inner.ValueFormat1, inner.ValueFormat2, vals.ValueRecord1, vals.ValueRecord2, skippyIter.idx)
 		}
 

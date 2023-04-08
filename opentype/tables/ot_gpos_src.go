@@ -98,35 +98,24 @@ type PairPosData2 struct {
 	ValueFormat1 ValueFormat //	Defines the types of data in valueRecord1 — for the first glyph in the pair (may be zero).
 	ValueFormat2 ValueFormat //	Defines the types of data in valueRecord2 — for the second glyph in the pair (may be zero).
 
-	ClassDef1     ClassDef       `offsetSize:"Offset16"` // Offset to ClassDef table, from beginning of PairPos subtable — for the first glyph of the pair.
-	ClassDef2     ClassDef       `offsetSize:"Offset16"` // Offset to ClassDef table, from beginning of PairPos subtable — for the second glyph of the pair.
-	class1Count   uint16         //	Number of classes in classDef1 table — includes Class 0.
-	class2Count   uint16         //	Number of classes in classDef2 table — includes Class 0.
-	Class1Records []Class1Record `isOpaque:""` //[class1Count]	Array of Class1 records, ordered by classes in classDef1.
+	ClassDef1   ClassDef `offsetSize:"Offset16"` // Offset to ClassDef table, from beginning of PairPos subtable — for the first glyph of the pair.
+	ClassDef2   ClassDef `offsetSize:"Offset16"` // Offset to ClassDef table, from beginning of PairPos subtable — for the second glyph of the pair.
+	class1Count uint16   //	Number of classes in classDef1 table — includes Class 0.
+	class2Count uint16   //	Number of classes in classDef2 table — includes Class 0.
+
+	classData []byte `subsliceStart:"AtStart" arrayCount:"ToEnd"`
 }
 
-func (pp *PairPosData2) parseClass1Records(src []byte) error {
+// Record returns the record for the given classes, which must come from ClassDef1
+// and ClassDef2
+func (pp *PairPosData2) Record(class1, class2 uint16) Class2Record {
 	const headerSize = 16 // including posFormat and coverageOffset
-
-	pp.Class1Records = make([]Class1Record, pp.class1Count)
-
-	offset := headerSize
-	for i := range pp.Class1Records {
-		vi := make(Class1Record, pp.class2Count)
-		for j := range vi {
-			var err error
-			vi[j].ValueRecord1, offset, err = parseValueRecord(pp.ValueFormat1, src, offset)
-			if err != nil {
-				return err
-			}
-			vi[j].ValueRecord2, offset, err = parseValueRecord(pp.ValueFormat2, src, offset)
-			if err != nil {
-				return err
-			}
-		}
-		pp.Class1Records[i] = vi
-	}
-	return nil
+	size2 := (pp.ValueFormat1.size() + pp.ValueFormat2.size()) * 2
+	size1 := int(pp.class2Count) * size2
+	offset := headerSize + size1*int(class1) + size2*int(class2)
+	v1, newOffset, _ := parseValueRecord(pp.ValueFormat1, pp.classData, offset)
+	v2, _, _ := parseValueRecord(pp.ValueFormat2, pp.classData, newOffset)
+	return Class2Record{v1, v2}
 }
 
 // DeviceTableHeader is the common header for DeviceTable
