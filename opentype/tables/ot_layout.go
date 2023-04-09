@@ -359,8 +359,11 @@ func (mp *MarkBasePos) Sanitize() error {
 	if exp, got := mp.markCoverage.Len(), len(mp.MarkArray.MarkRecords); exp != got {
 		return fmt.Errorf("GPOS: invalid MarkBasePos marks count (%d != %d)", exp, got)
 	}
-	if exp, got := mp.BaseCoverage.Len(), len(mp.BaseArray.BaseAnchors); exp != got {
+	if exp, got := mp.BaseCoverage.Len(), len(mp.BaseArray.baseRecords); exp != got {
 		return fmt.Errorf("GPOS: invalid MarkBasePos marks count (%d != %d)", exp, got)
+	}
+	if err := mp.BaseArray.Anchors().sanitizeOffsets(); err != nil {
+		return err
 	}
 
 	return nil
@@ -701,6 +704,44 @@ func (af *AnchorFormat3) parseYDevice(src []byte) error {
 	var err error
 	af.YDevice, err = parseDeviceTable(src, uint16(af.yDeviceOffset))
 	return err
+}
+
+// AnchorMatrix is a compact representation of a [][]Anchor
+type AnchorMatrix struct {
+	records []anchorOffsets
+	data    []byte
+}
+
+func (am AnchorMatrix) Len() int { return len(am.records) }
+
+func (am AnchorMatrix) sanitizeOffsets() error {
+	for _, list := range am.records {
+		for _, offset := range list.offsets {
+			if offset == 0 {
+				continue
+			}
+			if L := len(am.data); L < int(offset) {
+				return fmt.Errorf("EOF: expected length: %d, got %d", offset, L)
+			}
+		}
+	}
+	return nil
+}
+
+func (am AnchorMatrix) Anchor(index, class int) Anchor {
+	if len(am.records) < index {
+		return nil
+	}
+	offsets := am.records[index].offsets
+	if len(offsets) < class {
+		return nil
+	}
+	offset := offsets[class]
+	if offset == 0 {
+		return nil
+	}
+	anchor, _, _ := ParseAnchor(am.data[offset:]) // offset is sanitized
+	return anchor
 }
 
 type MarkArray struct {

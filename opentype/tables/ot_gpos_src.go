@@ -184,40 +184,13 @@ type MarkBasePos struct {
 
 type BaseArray struct {
 	baseRecords []anchorOffsets `arrayCount:"FirstUint16"` //  [markClassCount] Array of offsets (one per mark class) to Anchor tables. Offsets are from beginning of BaseArray table, ordered by class (offsets may be NULL).
-	BaseAnchors [][]Anchor      `isOpaque:""`
+	data        []byte          `arrayCount:"ToEnd" subsliceStart:"AtStart"`
 }
 
-func (ba *BaseArray) parseBaseAnchors(src []byte, _ int) (err error) {
-	ba.BaseAnchors, err = resolveAnchorOffsets(ba.baseRecords, src)
-	return err
-}
+func (ba BaseArray) Anchors() AnchorMatrix { return AnchorMatrix{ba.baseRecords, ba.data} }
 
 type anchorOffsets struct {
 	offsets []Offset16 // Array of offsets to Anchor tables, with external length
-}
-
-// resolveAnchorOffsets resolve the offsset using the given input slice
-func resolveAnchorOffsets(offsets []anchorOffsets, src []byte) ([][]Anchor, error) {
-	out := make([][]Anchor, len(offsets))
-	var err error
-	for i, list := range offsets {
-		bi := make([]Anchor, len(list.offsets))
-		for j, offset := range list.offsets {
-			if offset == 0 {
-				continue
-			}
-
-			if L := len(src); L < int(offset) {
-				return nil, fmt.Errorf("EOF: expected length: %d, got %d", offset, L)
-			}
-			bi[j], _, err = ParseAnchor(src[offset:])
-			if err != nil {
-				return nil, err
-			}
-		}
-		out[i] = bi
-	}
-	return out, nil
 }
 
 type MarkLigPos struct {
@@ -237,13 +210,10 @@ type LigatureAttach struct {
 	// [componentCount]	Array of Component records, ordered in writing direction.
 	// Each element is an array of offsets (one per class, length = [markClassCount]) to Anchor tables. Offsets are from beginning of LigatureAttach table, ordered by class (offsets may be NULL).
 	componentRecords []anchorOffsets `arrayCount:"FirstUint16"`
-	ComponentAnchors [][]Anchor      `isOpaque:""`
+	data             []byte          `arrayCount:"ToEnd" subsliceStart:"AtStart"`
 }
 
-func (la *LigatureAttach) parseComponentAnchors(src []byte, _ int) (err error) {
-	la.ComponentAnchors, err = resolveAnchorOffsets(la.componentRecords, src)
-	return err
-}
+func (la LigatureAttach) Anchors() AnchorMatrix { return AnchorMatrix{la.componentRecords, la.data} }
 
 type MarkMarkPos struct {
 	PosFormat      uint16     //	Format identifier: format = 1
@@ -258,13 +228,10 @@ type Mark2Array struct {
 	// [mark2Count]	Array of Mark2Records, in Coverage order.
 	// Each element if an array of offsets (one per class, length = [markClassCount]) to Anchor tables. Offsets are from beginning of Mark2Array table, in class order (offsets may be NULL).
 	mark2Records []anchorOffsets `arrayCount:"FirstUint16"`
-	Mark2Anchors [][]Anchor      `isOpaque:""`
+	data         []byte          `arrayCount:"ToEnd" subsliceStart:"AtStart"`
 }
 
-func (ma *Mark2Array) parseMark2Anchors(src []byte, _ int) (err error) {
-	ma.Mark2Anchors, err = resolveAnchorOffsets(ma.mark2Records, src)
-	return err
-}
+func (ma Mark2Array) Anchors() AnchorMatrix { return AnchorMatrix{ma.mark2Records, ma.data} }
 
 type ContextualPos struct {
 	Data ContextualPosITF
