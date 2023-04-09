@@ -17,6 +17,6 @@ type EBLC = CBLC
 type Bloc = CBLC
 
 type simpleGlyphData struct {
-	flags        []uint8 // one per point
-	dataX, dataY []byte  // raw point coordinates
+	data                   []byte
+	startDataX, startDataY int
 }

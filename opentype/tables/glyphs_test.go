@@ -175,6 +175,17 @@ func TestGlyphCoordinates2(t *testing.T) {
 			{X: 104, Y: 822},
 		},
 	}
+
+	expComposites := [][]CompositeGlyphPart{
+		nil,
+		nil,
+		{
+			{GlyphIndex: 1, arg1: 0, arg2: 0, Scale: [4]float32{1, 0, 0, 1}},
+			{GlyphIndex: 3, arg1: 260, arg2: 0, Scale: [4]float32{1, 0, 0, 1}},
+		},
+		nil,
+	}
+
 	exp := Glyf{
 		Glyph{
 			XMin: 96, XMax: 528, YMin: 0, YMax: 660,
@@ -190,12 +201,7 @@ func TestGlyphCoordinates2(t *testing.T) {
 		},
 		{
 			XMin: 10, XMax: 510, YMin: 0, YMax: 846,
-			Data: CompositeGlyph{
-				Glyphs: []CompositeGlyphPart{
-					{GlyphIndex: 1, arg1: 0, arg2: 0, Scale: [4]float32{1, 0, 0, 1}},
-					{GlyphIndex: 3, arg1: 260, arg2: 0, Scale: [4]float32{1, 0, 0, 1}},
-				},
-			},
+			Data: CompositeGlyph{},
 		},
 		{
 			XMin: -36, XMax: 104, YMin: 710, YMax: 846,
@@ -220,10 +226,11 @@ func TestGlyphCoordinates2(t *testing.T) {
 				assertPointEqual(t, ePoints[i], got)
 			}
 		case CompositeGlyph:
-			eData := e.Data.(CompositeGlyph)
-			tu.Assert(t, len(eData.Glyphs) == len(data.Glyphs))
-			for i, got := range data.Glyphs {
-				assertCompositeEqual(t, eData.Glyphs[i], got)
+			eGlyphs := expComposites[i]
+			gotGlyphs := data.Parts()
+			tu.Assert(t, len(eGlyphs) == len(gotGlyphs))
+			for i, got := range gotGlyphs {
+				assertCompositeEqual(t, eGlyphs[i], got)
 			}
 		}
 	}

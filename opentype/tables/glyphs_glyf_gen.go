@@ -40,6 +40,13 @@ func ParseCompositeGlyph(src []byte) (CompositeGlyph, int, error) {
 	}
 	{
 
+		err := item.parseNbGlyphs(src[:])
+		if err != nil {
+			return item, 0, fmt.Errorf("reading CompositeGlyph: %s", err)
+		}
+	}
+	{
+
 		err := item.parseInstructions(src[:])
 		if err != nil {
 			return item, 0, fmt.Errorf("reading CompositeGlyph: %s", err)

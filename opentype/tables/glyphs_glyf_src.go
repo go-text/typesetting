@@ -89,10 +89,13 @@ type SimpleGlyph struct {
 
 // Len return the number of contours points.
 // It is the same as len(Points()), but is more efficient.
-func (sg SimpleGlyph) Len() int { return len(sg.pointsData.flags) }
+func (sg SimpleGlyph) Len() int {
+	if len(sg.EndPtsOfContours) == 0 { // nothing to do
+		return 0
+	}
 
-// Points decodes the encoded data, returning the coordinates and flag of the contour points.
-func (sg SimpleGlyph) Points() []GlyphContourPoint { return sg.pointsData.parsePoints() }
+	return int(sg.EndPtsOfContours[len(sg.EndPtsOfContours)-1]) + 1
+}
 
 const (
 	xShortVector                  = 0x02
@@ -101,17 +104,11 @@ const (
 	yIsSameOrPositiveYShortVector = 0x20
 )
 
-// read flags
-// to avoid costly length check, we also precompute the expected data size for coordinates
+const repeatFlag = 0x08
+
+// to avoid costly length check at run time, we precompute the expected data size for coordinates
 func (sg *SimpleGlyph) parsePointsData(src []byte, _ int) error {
-	if len(sg.EndPtsOfContours) == 0 { // nothing to do
-		return nil
-	}
-
-	numPoints := int(sg.EndPtsOfContours[len(sg.EndPtsOfContours)-1]) + 1
-	sg.pointsData.flags = make([]uint8, numPoints)
-
-	const repeatFlag = 0x08
+	numPoints := sg.Len()
 
 	var (
 		coordinatesLengthX, coordinatesLengthY int
@@ -123,7 +120,6 @@ func (sg *SimpleGlyph) parsePointsData(src []byte, _ int) error {
 			return errors.New("invalid simple glyph data flags (EOF)")
 		}
 		flag := src[cursor]
-		sg.pointsData.flags[i] = flag
 		cursor++
 
 		localLengthX, localLengthY := 0, 0
@@ -147,10 +143,6 @@ func (sg *SimpleGlyph) parsePointsData(src []byte, _ int) error {
 			if i+repeatCount+1 > numPoints { // gracefully handle out of bounds
 				repeatCount = numPoints - i - 1
 			}
-			subSlice := sg.pointsData.flags[i+1 : i+repeatCount+1]
-			for j := range subSlice {
-				subSlice[j] = flag
-			}
 			i += repeatCount
 			localLengthX += repeatCount * localLengthX
 			localLengthY += repeatCount * localLengthY
@@ -160,12 +152,13 @@ func (sg *SimpleGlyph) parsePointsData(src []byte, _ int) error {
 		coordinatesLengthY += localLengthY
 	}
 
-	src = src[cursor:]
-	if L, E := len(src), coordinatesLengthX+coordinatesLengthY; L < E {
+	endData := cursor + coordinatesLengthX + coordinatesLengthY
+	if L, E := len(src), endData; L < E {
 		return fmt.Errorf("EOF: expected length: %d, got %d", E, L)
 	}
 
-	sg.pointsData.dataX, sg.pointsData.dataY = src[:coordinatesLengthX], src[coordinatesLengthX:coordinatesLengthX+coordinatesLengthY]
+	startDataX, startDataY := cursor, cursor+coordinatesLengthX
+	sg.pointsData = simpleGlyphData{data: src[:endData], startDataX: startDataX, startDataY: startDataY}
 
 	return nil
 }
@@ -175,15 +168,40 @@ type GlyphContourPoint struct {
 	X, Y int16
 }
 
-func (sg *simpleGlyphData) parsePoints() []GlyphContourPoint {
-	points := make([]GlyphContourPoint, len(sg.flags))
+// Points decodes the encoded data, returning the coordinates and flag of the contour points.
+func (sg SimpleGlyph) Points() []GlyphContourPoint {
+	if len(sg.EndPtsOfContours) == 0 { // nothing to do
+		return nil
+	}
 
-	for i, f := range sg.flags {
-		points[i].Flag = f
+	numPoints := int(sg.EndPtsOfContours[len(sg.EndPtsOfContours)-1]) + 1
+	points := make([]GlyphContourPoint, numPoints)
+
+	src := sg.pointsData.data
+	var cursor int
+	// decompress flags
+	for i := 0; i < numPoints; i++ {
+		flag := src[cursor]
+		points[i].Flag = flag
+		cursor++
+
+		if flag&repeatFlag != 0 {
+			repeatCount := int(src[cursor])
+			cursor++
+			if i+repeatCount+1 > numPoints { // gracefully handle out of bounds
+				repeatCount = numPoints - i - 1
+			}
+			subSlice := points[i+1 : i+repeatCount+1]
+			for j := range subSlice {
+				subSlice[j].Flag = flag
+			}
+			i += repeatCount
+		}
 	}
 
 	// read x and y coordinates
-	parseGlyphContourPoints(sg.dataX, sg.dataY, points)
+	dataX, dataY := src[sg.pointsData.startDataX:sg.pointsData.startDataY], src[sg.pointsData.startDataY:]
+	parseGlyphContourPoints(dataX, dataY, points)
 
 	return points
 }
@@ -226,46 +244,104 @@ func parseGlyphContourPoints(dataX, dataY []byte, points []GlyphContourPoint) {
 }
 
 type CompositeGlyph struct {
-	Glyphs       []CompositeGlyphPart `isOpaque:""`
-	Instructions []byte               `isOpaque:""`
+	glyphs       []byte `isOpaque:""`
+	nbGlyphs     uint16 `isOpaque:""`
+	Instructions []byte `isOpaque:""`
 }
 
-const arg1And2AreWords = 1
+const (
+	arg1And2AreWords = 1 << iota
+	_
+	_
+	weHaveAScale
+	_
+	moreComponents
+	weHaveAnXAndYScale
+	weHaveATwoByTwo
+	weHaveInstructions
+)
 
+// we store the condensed form, but we process it to accelerate
+// runtime access.
 func (cg *CompositeGlyph) parseGlyphs(src []byte) error {
-	const (
-		_ = 1 << iota
-		_
-		_
-		weHaveAScale
-		_
-		moreComponents
-		weHaveAnXAndYScale
-		weHaveATwoByTwo
-		weHaveInstructions
+	var (
+		flags  uint16
+		cursor int
 	)
-	var flags uint16
 	for do := true; do; do = flags&moreComponents != 0 {
-		var part CompositeGlyphPart
-
-		if L := len(src); L < 4 {
+		if L := len(src[cursor:]); L < 4 {
 			return fmt.Errorf("EOF: expected length: %d, got %d", 4, L)
 		}
-		flags = binary.BigEndian.Uint16(src)
+		flags = binary.BigEndian.Uint16(src[cursor:])
+
+		if flags&arg1And2AreWords != 0 { // 16 bits
+			if L, E := len(src[cursor:]), 4+4; L < E {
+				return fmt.Errorf("EOF: expected length: %d, got %d", E, L)
+			}
+			cursor += 8
+		} else {
+			if L, E := len(src[cursor:]), 4+2; L < E {
+				return fmt.Errorf("EOF: expected length: %d, got %d", E, L)
+			}
+			cursor += 6
+		}
+
+		if flags&weHaveAScale != 0 {
+			if L := len(src[cursor:]); L < 2 {
+				return fmt.Errorf("EOF: expected length: %d, got %d", 2, L)
+			}
+			cursor += 2
+		} else if flags&weHaveAnXAndYScale != 0 {
+			if L := len(src[cursor:]); L < 4 {
+				return fmt.Errorf("EOF: expected length: %d, got %d", 4, L)
+			}
+			cursor += 4
+		} else if flags&weHaveATwoByTwo != 0 {
+			if L := len(src[cursor:]); L < 8 {
+				return fmt.Errorf("EOF: expected length: %d, got %d", 8, L)
+			}
+			cursor += 8
+		}
+		cg.nbGlyphs++
+	}
+
+	cg.glyphs = src[:cursor]
+
+	if flags&weHaveInstructions != 0 {
+		if L := len(src[cursor:]); L < 2 {
+			return fmt.Errorf("EOF: expected length: 2, got %d", L)
+		}
+		E := int(binary.BigEndian.Uint16(src[cursor:]))
+		if L := len(src[cursor:]); L < E {
+			return fmt.Errorf("EOF: expected length: %d, got %d", E, len(src[cursor:]))
+		}
+		cg.Instructions = src[cursor : cursor+E]
+	}
+
+	return nil
+}
+
+// Len returns the number of composite parts in this glyph.
+// It is the same as len(Parts()) but is more efficient.
+func (cg CompositeGlyph) Len() int { return int(cg.nbGlyphs) }
+
+// Parts decodes the glyph part of the composite glyph.
+func (cg *CompositeGlyph) Parts() []CompositeGlyphPart {
+	out := make([]CompositeGlyphPart, cg.nbGlyphs)
+
+	src := cg.glyphs
+	for i := range out {
+		part := &out[i]
+
+		flags := binary.BigEndian.Uint16(src)
 		part.Flags = flags
 		part.GlyphIndex = GlyphID(binary.BigEndian.Uint16(src[2:]))
 
 		if flags&arg1And2AreWords != 0 { // 16 bits
-			if L, E := len(src), 4+4; L < E {
-				return fmt.Errorf("EOF: expected length: %d, got %d", E, L)
-			}
 			part.arg1 = binary.BigEndian.Uint16(src[4:])
 			part.arg2 = binary.BigEndian.Uint16(src[6:])
 			src = src[8:]
 		} else {
-			if L, E := len(src), 4+2; L < E {
-				return fmt.Errorf("EOF: expected length: %d, got %d", E, L)
-			}
 			part.arg1 = uint16(src[4])
 			part.arg2 = uint16(src[5])
 			src = src[6:]
@@ -273,23 +349,14 @@ func (cg *CompositeGlyph) parseGlyphs(src []byte) error {
 
 		part.Scale[0], part.Scale[3] = 1, 1
 		if flags&weHaveAScale != 0 {
-			if L := len(src); L < 2 {
-				return fmt.Errorf("EOF: expected length: %d, got %d", 2, L)
-			}
 			part.Scale[0] = Float214FromUint(binary.BigEndian.Uint16(src))
 			part.Scale[3] = part.Scale[0]
 			src = src[2:]
 		} else if flags&weHaveAnXAndYScale != 0 {
-			if L := len(src); L < 4 {
-				return fmt.Errorf("EOF: expected length: %d, got %d", 4, L)
-			}
 			part.Scale[0] = Float214FromUint(binary.BigEndian.Uint16(src))
 			part.Scale[3] = Float214FromUint(binary.BigEndian.Uint16(src[2:]))
 			src = src[4:]
 		} else if flags&weHaveATwoByTwo != 0 {
-			if L := len(src); L < 8 {
-				return fmt.Errorf("EOF: expected length: %d, got %d", 8, L)
-			}
 			part.Scale[0] = Float214FromUint(binary.BigEndian.Uint16(src))
 			part.Scale[1] = Float214FromUint(binary.BigEndian.Uint16(src[2:]))
 			part.Scale[2] = Float214FromUint(binary.BigEndian.Uint16(src[4:]))
@@ -297,24 +364,13 @@ func (cg *CompositeGlyph) parseGlyphs(src []byte) error {
 			src = src[8:]
 		}
 
-		cg.Glyphs = append(cg.Glyphs, part)
 	}
 
-	if flags&weHaveInstructions != 0 {
-		if L := len(src); L < 2 {
-			return fmt.Errorf("EOF: expected length: 2, got %d", L)
-		}
-		E := int(binary.BigEndian.Uint16(src))
-		if L := len(src); L < E {
-			return fmt.Errorf("EOF: expected length: %d, got %d", E, len(src))
-		}
-		cg.Instructions = src[0:E]
-	}
-
-	return nil
+	return out
 }
 
 // already handled in parseGlyphs
+func (cg *CompositeGlyph) parseNbGlyphs(src []byte) error     { return nil }
 func (cg *CompositeGlyph) parseInstructions(src []byte) error { return nil }
 
 type CompositeGlyphPart struct {

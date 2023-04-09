@@ -85,7 +85,7 @@ func (f *Face) getPointsForGlyph(gid tables.GlyphID, currentDepth int, allPoints
 	case tables.SimpleGlyph:
 		*allPoints = append(*allPoints, points...)
 	case tables.CompositeGlyph:
-		for compIndex, item := range data.Glyphs {
+		for compIndex, item := range data.Parts() {
 			// recurse on component
 			var compPoints []contourPoint
 
@@ -146,7 +146,7 @@ func pointNumbersCount(g tables.Glyph) int {
 		return g.Len()
 	case tables.CompositeGlyph:
 		// pseudo component points for each component in composite glyph
-		return len(g.Glyphs)
+		return g.Len()
 	}
 	return 0
 }
