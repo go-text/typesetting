@@ -231,3 +231,31 @@ func BenchmarkShaping(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkShapingGlyphInfoExtraction(b *testing.B) {
+	for _, langInfo := range benchLangs {
+		for _, size := range []int{10, 100, 1000} {
+			b.Run(fmt.Sprintf("%drunes-%s", size, langInfo.name), func(b *testing.B) {
+				input := Input{
+					Text:      langInfo.text[:size],
+					RunStart:  0,
+					RunEnd:    size,
+					Direction: langInfo.dir,
+					Face:      langInfo.face,
+					Size:      16 * 72,
+					Script:    langInfo.script,
+					Language:  langInfo.lang,
+				}
+				var shaper HarfbuzzShaper
+				out := shaper.Shape(input)
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					for _, g := range out.Glyphs {
+						_ = out.Face.GlyphData(g.GlyphID)
+					}
+				}
+				_ = out
+			})
+		}
+	}
+}
