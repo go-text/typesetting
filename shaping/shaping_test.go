@@ -1,11 +1,15 @@
 package shaping
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/go-text/typesetting/di"
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
 func TestShape(t *testing.T) {
@@ -229,6 +233,45 @@ func BenchmarkShaping(b *testing.B) {
 				})
 			}
 		}
+	}
+}
+
+func BenchmarkShapingFontLoad(b *testing.B) {
+	arabicBytes, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
+	if err != nil {
+		b.Errorf("failed loading arabic font data: %v", err)
+	}
+	robotoBytes, err := os.ReadFile("../font/testdata/Roboto-Regular.ttf")
+	if err != nil {
+		b.Errorf("failed loading roboto font data: %v", err)
+	}
+	latinBytes := goregular.TTF
+	type benchcase struct {
+		name     string
+		fontData []byte
+	}
+	for _, bc := range []benchcase{
+		{
+			name:     "arabic:amiri regular",
+			fontData: arabicBytes,
+		},
+		{
+			name:     "latin:go regular",
+			fontData: latinBytes,
+		},
+		{
+			name:     "latin:roboto regular",
+			fontData: robotoBytes,
+		},
+	} {
+		b.Run(bc.name, func(b *testing.B) {
+			reader := bytes.NewReader(bc.fontData)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				face, _ := font.ParseTTF(reader)
+				_ = face
+			}
+		})
 	}
 }
 
