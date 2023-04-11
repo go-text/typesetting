@@ -163,7 +163,7 @@ func (c *otApplyContext) applyGPOS(table tables.GPOSLookup) bool {
 		case tables.PairPosData2:
 			class1, _ := inner.ClassDef1.Class(gID(glyphID))
 			class2, _ := inner.ClassDef2.Class(gID(buffer.Info[skippyIter.idx].Glyph))
-			vals := inner.Class1Records[class1][class2]
+			vals := inner.Record(class1, class2)
 			c.applyGPOSPair(inner.ValueFormat1, inner.ValueFormat2, vals.ValueRecord1, vals.ValueRecord2, skippyIter.idx)
 		}
 
@@ -447,12 +447,12 @@ func (c *otApplyContext) getAnchor(anchor tables.Anchor, glyph GID) (x, y float3
 	}
 }
 
-func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyphIndex int, anchors [][]tables.Anchor, glyphPos int) bool {
+func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyphIndex int, anchors tables.AnchorMatrix, glyphPos int) bool {
 	buffer := c.buffer
 	markClass := marks.MarkRecords[markIndex].MarkClass
 	markAnchor := marks.MarkAnchors[markIndex]
 
-	glyphAnchor := anchors[glyphIndex][markClass]
+	glyphAnchor := anchors.Anchor(glyphIndex, int(markClass))
 	// If this subtable doesn't have an anchor for this base and this class,
 	// return false such that the subsequent subtables have a chance at it.
 	if glyphAnchor == nil {
@@ -507,7 +507,7 @@ func (c *otApplyContext) applyGPOSMarkToBase(data tables.MarkBasePos, markIndex 
 		return false
 	}
 
-	return c.applyGPOSMarks(data.MarkArray, markIndex, baseIndex, data.BaseArray.BaseAnchors, skippyIter.idx)
+	return c.applyGPOSMarks(data.MarkArray, markIndex, baseIndex, data.BaseArray.Anchors(), skippyIter.idx)
 }
 
 func (c *otApplyContext) applyGPOSMarkToLigature(data tables.MarkLigPos, markIndex int) bool {
@@ -527,10 +527,10 @@ func (c *otApplyContext) applyGPOSMarkToLigature(data tables.MarkLigPos, markInd
 		return false
 	}
 
-	ligAttach := data.LigatureArray.LigatureAttachs[ligIndex].ComponentAnchors
+	ligAttach := data.LigatureArray.LigatureAttachs[ligIndex].Anchors()
 
 	// Find component to attach to
-	compCount := len(ligAttach)
+	compCount := ligAttach.Len()
 	if compCount == 0 {
 		return false
 	}
@@ -595,5 +595,5 @@ good:
 		return false
 	}
 
-	return c.applyGPOSMarks(data.Mark1Array, mark1Index, mark2Index, data.Mark2Array.Mark2Anchors, j)
+	return c.applyGPOSMarks(data.Mark1Array, mark1Index, mark2Index, data.Mark2Array.Anchors(), j)
 }
