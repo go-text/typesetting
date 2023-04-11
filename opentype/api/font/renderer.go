@@ -12,6 +12,9 @@ import (
 	"github.com/go-text/typesetting/opentype/api"
 )
 
+var errEmptySbixTable = errors.New("empty 'sbix' table")
+var errEmptyBitmapTable = errors.New("empty bitmap table")
+
 // GlyphData returns the glyph content for [gid], or nil if
 // not found.
 func (f *Face) GlyphData(gid GID) api.GlyphData {
@@ -53,7 +56,7 @@ func (f *Face) GlyphData(gid GID) api.GlyphData {
 func (sb sbix) glyphData(gid gID, xPpem, yPpem uint16) (api.GlyphBitmap, error) {
 	st := sb.chooseStrike(xPpem, yPpem)
 	if st == nil {
-		return api.GlyphBitmap{}, errors.New("empty 'sbix' table")
+		return api.GlyphBitmap{}, errEmptySbixTable
 	}
 
 	glyph := strikeGlyph(st, gid, 0)
@@ -71,7 +74,7 @@ func (sb sbix) glyphData(gid gID, xPpem, yPpem uint16) (api.GlyphBitmap, error) 
 func (bt bitmap) glyphData(gid gID, xPpem, yPpem uint16) (api.GlyphBitmap, error) {
 	st := bt.chooseStrike(xPpem, yPpem)
 	if st == nil || st.ppemX == 0 || st.ppemY == 0 {
-		return api.GlyphBitmap{}, errors.New("empty bitmap table")
+		return api.GlyphBitmap{}, errEmptyBitmapTable
 	}
 
 	subtable := st.findTable(gid)
