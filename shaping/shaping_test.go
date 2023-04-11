@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime"
 	"testing"
 
+	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
@@ -210,7 +212,6 @@ func BenchmarkShaping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range []int{10, 100, 1000} {
 			for _, cacheSize := range []int{0, 5} {
-
 				b.Run(fmt.Sprintf("%drunes-%s-%dfontCache", size, langInfo.name, cacheSize), func(b *testing.B) {
 					input := Input{
 						Text:      langInfo.text[:size],
@@ -301,4 +302,68 @@ func BenchmarkShapingGlyphInfoExtraction(b *testing.B) {
 			})
 		}
 	}
+}
+
+func TestFontLoadHeapSize(t *testing.T) {
+	arabicBytes, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
+	if err != nil {
+		t.Errorf("failed loading arabic font data: %v", err)
+	}
+	robotoBytes, err := os.ReadFile("../font/testdata/Roboto-Regular.ttf")
+	if err != nil {
+		t.Errorf("failed loading roboto font data: %v", err)
+	}
+	latinBytes := goregular.TTF
+	notoArabicBytes, err := td.Files.ReadFile("common/NotoSansArabic.ttf")
+	if err != nil {
+		t.Errorf("failed loading noto font data: %v", err)
+	}
+	freeSerifBytes, err := td.Files.ReadFile("common/FreeSerif.ttf")
+	if err != nil {
+		t.Errorf("failed loading free font data: %v", err)
+	}
+
+	type benchcase struct {
+		name     string
+		fontData []byte
+	}
+	for _, bc := range []benchcase{
+		{
+			name:     "arabic:amiri regular",
+			fontData: arabicBytes,
+		},
+		{
+			name:     "lating:go regular",
+			fontData: latinBytes,
+		},
+		{
+			name:     "lating:roboto regular",
+			fontData: robotoBytes,
+		},
+		{
+			name:     "arabic:noto sans arabic regular",
+			fontData: notoArabicBytes,
+		},
+		{
+			name:     "free serif regular",
+			fontData: freeSerifBytes,
+		},
+	} {
+		t.Run(bc.name, func(t *testing.T) {
+			onDiskSize := len(bc.fontData)
+			allocBefore := heapSize()
+			face, _ := font.ParseTTF(bytes.NewReader(bc.fontData))
+			allocAfter := heapSize()
+			additionnalAlloc := allocAfter - allocBefore
+			fmt.Printf("On disk: %v KB, additional memory: %v KB\n", onDiskSize/1024, additionnalAlloc/1024)
+			_ = face.Upem()
+		})
+	}
+}
+
+func heapSize() uint64 {
+	runtime.GC()
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	return stats.Alloc
 }
