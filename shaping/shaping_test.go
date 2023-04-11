@@ -11,6 +11,10 @@ import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
+	apiFont "github.com/go-text/typesetting/opentype/api/font"
+	"github.com/go-text/typesetting/opentype/api/metadata"
+	"github.com/go-text/typesetting/opentype/loader"
+	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
 )
 
@@ -237,7 +241,7 @@ func BenchmarkShaping(b *testing.B) {
 	}
 }
 
-func BenchmarkShapingFontLoad(b *testing.B) {
+func BenchmarkFontLoad(b *testing.B) {
 	arabicBytes, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
 	if err != nil {
 		b.Errorf("failed loading arabic font data: %v", err)
@@ -247,6 +251,7 @@ func BenchmarkShapingFontLoad(b *testing.B) {
 		b.Errorf("failed loading roboto font data: %v", err)
 	}
 	latinBytes := goregular.TTF
+	latinMonoBytes := gomono.TTF
 	type benchcase struct {
 		name     string
 		fontData []byte
@@ -261,6 +266,10 @@ func BenchmarkShapingFontLoad(b *testing.B) {
 			fontData: latinBytes,
 		},
 		{
+			name:     "latin:go mono",
+			fontData: latinMonoBytes,
+		},
+		{
 			name:     "latin:roboto regular",
 			fontData: robotoBytes,
 		},
@@ -271,6 +280,95 @@ func BenchmarkShapingFontLoad(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				face, _ := font.ParseTTF(reader)
 				_ = face
+			}
+		})
+	}
+}
+
+func BenchmarkFontMetadata(b *testing.B) {
+	arabicBytes, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
+	if err != nil {
+		b.Errorf("failed loading arabic font data: %v", err)
+	}
+	robotoBytes, err := os.ReadFile("../font/testdata/Roboto-Regular.ttf")
+	if err != nil {
+		b.Errorf("failed loading roboto font data: %v", err)
+	}
+	latinBytes := goregular.TTF
+	latinMonoBytes := gomono.TTF
+	type benchcase struct {
+		name     string
+		fontData []byte
+	}
+	for _, bc := range []benchcase{
+		{
+			name:     "arabic:amiri regular",
+			fontData: arabicBytes,
+		},
+		{
+			name:     "latin:go regular",
+			fontData: latinBytes,
+		},
+		{
+			name:     "latin:go mono",
+			fontData: latinMonoBytes,
+		},
+		{
+			name:     "latin:roboto regular",
+			fontData: robotoBytes,
+		},
+	} {
+		b.Run(bc.name, func(b *testing.B) {
+			reader := bytes.NewReader(bc.fontData)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				ld, _ := loader.NewLoader(reader)
+				_, _ = metadata.Metadata(ld)
+			}
+		})
+	}
+}
+
+func BenchmarkFontMetadataAndParse(b *testing.B) {
+	arabicBytes, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
+	if err != nil {
+		b.Errorf("failed loading arabic font data: %v", err)
+	}
+	robotoBytes, err := os.ReadFile("../font/testdata/Roboto-Regular.ttf")
+	if err != nil {
+		b.Errorf("failed loading roboto font data: %v", err)
+	}
+	latinBytes := goregular.TTF
+	latinMonoBytes := gomono.TTF
+	type benchcase struct {
+		name     string
+		fontData []byte
+	}
+	for _, bc := range []benchcase{
+		{
+			name:     "arabic:amiri regular",
+			fontData: arabicBytes,
+		},
+		{
+			name:     "latin:go regular",
+			fontData: latinBytes,
+		},
+		{
+			name:     "latin:go mono",
+			fontData: latinMonoBytes,
+		},
+		{
+			name:     "latin:roboto regular",
+			fontData: robotoBytes,
+		},
+	} {
+		b.Run(bc.name, func(b *testing.B) {
+			reader := bytes.NewReader(bc.fontData)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				ld, _ := loader.NewLoader(reader)
+				_, _ = metadata.Metadata(ld)
+				_, _ = apiFont.NewFont(ld)
 			}
 		})
 	}
@@ -333,11 +431,11 @@ func TestFontLoadHeapSize(t *testing.T) {
 			fontData: arabicBytes,
 		},
 		{
-			name:     "lating:go regular",
+			name:     "latin:go regular",
 			fontData: latinBytes,
 		},
 		{
-			name:     "lating:roboto regular",
+			name:     "latin:roboto regular",
 			fontData: robotoBytes,
 		},
 		{
