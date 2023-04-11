@@ -322,10 +322,6 @@ func TestFontLoadHeapSize(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed loading free font data: %v", err)
 	}
-	notoUniversalBytes, err := os.ReadFile("/home/benoit/Téléchargements/GoNotoCurrent.ttf")
-	if err != nil {
-		t.Errorf("failed loading universal font data: %v", err)
-	}
 
 	type benchcase struct {
 		name     string
@@ -352,20 +348,14 @@ func TestFontLoadHeapSize(t *testing.T) {
 			name:     "free serif regular",
 			fontData: freeSerifBytes,
 		},
-		{
-			name:     "noto universal regular",
-			fontData: notoUniversalBytes,
-		},
 	} {
-		t.Run(bc.name, func(t *testing.T) {
-			onDiskSize := len(bc.fontData)
-			allocBefore := heapSize()
-			face, _ := font.ParseTTF(bytes.NewReader(bc.fontData))
-			allocAfter := heapSize()
-			additionnalAlloc := allocAfter - allocBefore
-			fmt.Printf("On disk: %v KB, additional memory: %v KB\n", onDiskSize/1024, additionnalAlloc/1024)
-			_ = face.Upem()
-		})
+		onDiskSize := len(bc.fontData)
+		allocBefore := heapSize()
+		face, _ := font.ParseTTF(bytes.NewReader(bc.fontData))
+		allocAfter := heapSize()
+		additionnalAlloc := allocAfter - allocBefore
+		fmt.Printf("%s On disk: %v KB, additional memory: %v KB\n", bc.name, onDiskSize/1024, additionnalAlloc/1024)
+		_ = face.Upem()
 	}
 }
 
