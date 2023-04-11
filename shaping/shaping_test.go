@@ -323,7 +323,7 @@ func BenchmarkFontMetadata(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				ld, _ := loader.NewLoader(reader)
-				_, _ = metadata.Metadata(ld)
+				_ = metadata.Metadata(ld)
 			}
 		})
 	}
