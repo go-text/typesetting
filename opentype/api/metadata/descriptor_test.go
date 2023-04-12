@@ -50,7 +50,7 @@ func Test_isMonospace(t *testing.T) {
 		tu.AssertNoErr(t, err)
 
 		fd := newFontDescriptor(ld)
-		tu.Assert(t, td.Monospace[file] == fd.isMonospace())
+		tu.AssertC(t, td.Monospace[file] == fd.isMonospace(), file)
 	}
 
 	tu.Assert(t, !(&fontDescriptor{}).isMonospace()) // check it does not crash

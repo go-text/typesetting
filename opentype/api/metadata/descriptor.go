@@ -25,6 +25,7 @@ type fontDescriptor struct {
 
 	cmap    api.Cmap // optional
 	metrics tables.Hmtx
+	post    tables.Post
 }
 
 func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
@@ -47,6 +48,9 @@ func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
 
 	raw, _ = ld.RawTable(loader.MustNewTag("name"))
 	out.names, _, _ = tables.ParseName(raw)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("post"))
+	out.post, _, _ = tables.ParsePost(raw)
 
 	raw, _ = ld.RawTable(loader.MustNewTag("maxp"))
 	maxp, _, _ := tables.ParseMaxp(raw)
@@ -93,16 +97,27 @@ func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y
 func (fd *fontDescriptor) isMonospace() bool {
 	// code adapted from fontconfig
 
+	// try the fast shortcuts
+	if fd.post.IsFixedPitch != 0 {
+		return true
+	}
+
 	if fd.cmap == nil || fd.metrics.IsEmpty() {
 		// we can't be sure, so be conservative
 		return false
 	}
 
+	if len(fd.metrics.Metrics) == 1 {
+		return true
+	}
+
+	// directly read the advances in the 'hmtx' table
 	var firstAdvance int
-	iter := fd.cmap.Iter()
-	for iter.Next() {
-		_, glyph := iter.Char()
-		advance := int(fd.metrics.Advance(tables.GlyphID(glyph)))
+	for gid, metric := range fd.metrics.Metrics {
+		if gid == 0 { // ignore the 'unset' glyph, which may be different
+			continue
+		}
+		advance := int(metric.AdvanceWidth)
 		if advance == 0 { // do not count zero as a proper width
 			continue
 		}
