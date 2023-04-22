@@ -146,8 +146,11 @@ type Aspect struct {
 	Stretch Stretch
 }
 
-// use rawAspect and additionalStyle to infer the aspect
-func (fd *fontDescriptor) aspect() Aspect {
+// Aspect returns the [Aspect] of the font,
+// defaulting to regular style.
+func (fd *FontDescriptor) Aspect() Aspect {
+	// use rawAspect and additionalStyle to infer the Aspect
+
 	out := fd.rawAspect() // load the aspect properties ...
 
 	// ... try to fill the missing one with the "style"
@@ -155,7 +158,7 @@ func (fd *fontDescriptor) aspect() Aspect {
 
 	// ... and finally add default to regular values :
 	// StyleNormal, WeightNormal, StretchNormal
-	out.setDefaults()
+	out.SetDefaults()
 
 	return out
 }
@@ -164,7 +167,7 @@ func (fd *fontDescriptor) aspect() Aspect {
 // usually called "style"
 // inferFromStyle scans such a string and fills the missing fields,
 func (as *Aspect) inferFromStyle(additionalStyle string) {
-	additionalStyle = normalizeFamily(additionalStyle)
+	additionalStyle = NormalizeFamily(additionalStyle)
 
 	if as.Style == 0 {
 		if index := stringContainsConst(additionalStyle, styleStrings[:]); index != -1 {
@@ -185,8 +188,8 @@ func (as *Aspect) inferFromStyle(additionalStyle string) {
 	}
 }
 
-// replace unspecified values by the default values: StyleNormal, WeightNormal, StretchNormal
-func (as *Aspect) setDefaults() {
+// SetDefaults replace unspecified values by the default values: StyleNormal, WeightNormal, StretchNormal
+func (as *Aspect) SetDefaults() {
 	if as.Style == 0 {
 		as.Style = StyleNormal
 	}
@@ -200,7 +203,7 @@ func (as *Aspect) setDefaults() {
 	}
 }
 
-func (fd *fontDescriptor) additionalStyle() string {
+func (fd *FontDescriptor) additionalStyle() string {
 	var style string
 	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
 		style = fd.names.Name(namePreferredSubfamily)
@@ -220,7 +223,7 @@ func (fd *fontDescriptor) additionalStyle() string {
 	return style
 }
 
-func (fd *fontDescriptor) rawAspect() Aspect {
+func (fd *FontDescriptor) rawAspect() Aspect {
 	var (
 		style   Style
 		weight  Weight
@@ -273,7 +276,8 @@ func (fd *fontDescriptor) rawAspect() Aspect {
 
 var rp = strings.NewReplacer(" ", "", "\t", "")
 
-func normalizeFamily(s1 string) string { return rp.Replace(strings.ToLower(s1)) }
+// NormalizeFamily removes spaces and lower the given string.
+func NormalizeFamily(family string) string { return rp.Replace(strings.ToLower(family)) }
 
 // returns the index in `constants` of a constant contained in `str`,
 // or -1
