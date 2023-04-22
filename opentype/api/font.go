@@ -204,6 +204,6 @@ type FontID struct {
 	Index uint16
 
 	// For variable fonts, stores 1 + the instance index.
-	// (0 to ignore variations).
+	// It is set to 0 to ignore variations, or for non variable fonts.
 	Instance uint16
 }
