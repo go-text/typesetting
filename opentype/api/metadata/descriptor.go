@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"github.com/go-text/typesetting/opentype/api"
 	"github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -23,7 +22,6 @@ type fontDescriptor struct {
 	names tables.Name
 	head  tables.Head
 
-	cmap    api.Cmap // optional
 	metrics tables.Hmtx
 	post    tables.Post
 }
@@ -41,10 +39,6 @@ func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
 	out.names, _, _ = tables.ParseName(raw)
 
 	out.head, _ = font.LoadHeadTable(ld)
-
-	raw, _ = ld.RawTable(loader.MustNewTag("cmap"))
-	tb, _, _ := tables.ParseCmap(raw)
-	out.cmap, _, _ = api.ProcessCmap(tb)
 
 	raw, _ = ld.RawTable(loader.MustNewTag("name"))
 	out.names, _, _ = tables.ParseName(raw)
@@ -102,7 +96,7 @@ func (fd *fontDescriptor) isMonospace() bool {
 		return true
 	}
 
-	if fd.cmap == nil || fd.metrics.IsEmpty() {
+	if fd.metrics.IsEmpty() {
 		// we can't be sure, so be conservative
 		return false
 	}
