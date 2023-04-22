@@ -15,19 +15,18 @@ const (
 	nameWWSSubfamily       tables.NameID = 22 //
 )
 
-type fontDescriptor struct {
+// FontDescriptor provides access to family and aspect
+type FontDescriptor struct {
 	// these tables are required both in Family
 	// and Aspect
 	os2   *tables.Os2 // optional
 	names tables.Name
 	head  tables.Head
-
-	metrics tables.Hmtx
-	post    tables.Post
 }
 
-func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
-	var out fontDescriptor
+// NewFontDescriptor loads the required tables from [ld].
+func NewFontDescriptor(ld *loader.Loader) *FontDescriptor {
+	var out FontDescriptor
 
 	// load tables, all considered optional
 	raw, _ := ld.RawTable(loader.MustNewTag("OS/2"))
@@ -45,17 +44,11 @@ func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
 	raw, _ = ld.RawTable(loader.MustNewTag("name"))
 	out.names, _, _ = tables.ParseName(raw)
 
-	raw, _ = ld.RawTable(loader.MustNewTag("post"))
-	out.post, _, _ = tables.ParsePost(raw)
-
-	raw, _ = ld.RawTable(loader.MustNewTag("maxp"))
-	maxp, _, _ := tables.ParseMaxp(raw)
-	_, out.metrics, _ = font.LoadHmtx(ld, int(maxp.NumGlyphs))
-
 	return &out
 }
 
-func (fd *fontDescriptor) family() string {
+// Family returns the font family name.
+func (fd *FontDescriptor) Family() string {
 	var family string
 	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
 		family = fd.names.Name(namePreferredFamily)
@@ -74,6 +67,22 @@ func (fd *fontDescriptor) family() string {
 	return family
 }
 
+type fontMetrics struct {
+	metrics tables.Hmtx
+	post    tables.Post
+}
+
+func newFontMetrics(ld *loader.Loader) (out fontMetrics) {
+	raw, _ := ld.RawTable(loader.MustNewTag("post"))
+	out.post, _, _ = tables.ParsePost(raw)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("maxp"))
+	maxp, _, _ := tables.ParseMaxp(raw)
+	_, out.metrics, _ = font.LoadHmtx(ld, int(maxp.NumGlyphs))
+
+	return out
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a
@@ -90,7 +99,7 @@ func abs(x int) int {
 
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
-func (fd *fontDescriptor) isMonospace() bool {
+func (fd *fontMetrics) isMonospace() bool {
 	// code adapted from fontconfig
 
 	// try the fast shortcuts
@@ -144,12 +153,14 @@ type Description struct {
 // Metadata queries the family and the aspect properties of the
 // font loaded under [font]
 func Metadata(font *loader.Loader) Description {
-	descriptor := newFontDescriptor(font)
-
 	var out Description
-	out.Aspect = descriptor.aspect()
-	out.Family = descriptor.family()
-	out.IsMonospace = descriptor.isMonospace()
+
+	descriptor := NewFontDescriptor(font)
+	out.Aspect = descriptor.Aspect()
+	out.Family = descriptor.Family()
+
+	metrics := newFontMetrics(font)
+	out.IsMonospace = metrics.isMonospace()
 
 	return out
 }
