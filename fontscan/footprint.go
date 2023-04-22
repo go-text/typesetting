@@ -1,17 +1,18 @@
 package fontscan
 
 import (
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 
-	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/bitmap"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
-	"github.com/benoitkugler/textlayout/fonts/type1"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/opentype/api"
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
+	"github.com/go-text/typesetting/opentype/loader"
+	"github.com/go-text/typesetting/opentype/tables"
 )
+
+// Location identifies where a font.Face is stored.
+type Location = api.FontID
 
 // footprint is a condensed summary of the main information
 // about a font, serving as a lightweight surrogate
@@ -29,86 +30,33 @@ type footprint struct {
 
 	// Aspect precises the visual characteristics
 	// of the font among a family, like "Bold Italic"
-	Aspect Aspect
-
-	// Format provides the format to be used
-	// to load and create the associated font.Face.
-	Format fontFormat
+	Aspect meta.Aspect
 }
 
-func newFootprintFromDescriptor(fd fonts.FontDescriptor, format fontFormat) (out footprint, err error) {
-	cmap, err := fd.LoadCmap() // load the cmap...
+func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
+	raw, err := ld.RawTable(loader.MustNewTag("cmap"))
+	if err != nil {
+		return footprint{}, err
+	}
+	tb, _, err := tables.ParseCmap(raw)
+	if err != nil {
+		return footprint{}, err
+	}
+	cmap, _, err := api.ProcessCmap(tb)
 	if err != nil {
 		return footprint{}, err
 	}
 	out.Runes = newRuneSetFromCmap(cmap) // ... and build the corresponding rune set
 
-	out.Family = fd.Family() // load the family
-
-	out.Aspect = newAspectFromDescriptor(fd)
-
-	// register the correct format
-	out.Format = format
+	me := meta.NewFontDescriptor(ld)
+	out.Family = meta.NormalizeFamily(me.Family())
+	out.Aspect = me.Aspect()
 
 	return out, nil
 }
 
-// serializeTo serialize the Footprint in binary format,
-// by appending to `dst` and returning the slice
-func (as footprint) serializeTo(dst []byte) []byte {
-	dst = append(dst, serializeString(as.Location.File)...)
-
-	var buffer [4]byte
-	binary.BigEndian.PutUint16(buffer[:], as.Location.Index)
-	binary.BigEndian.PutUint16(buffer[2:], as.Location.Instance)
-	dst = append(dst, buffer[:]...)
-
-	dst = append(dst, serializeString(as.Family)...)
-	dst = append(dst, as.Runes.serialize()...)
-	dst = append(dst, as.Aspect.serialize()...)
-	dst = append(dst, byte(as.Format))
-	return dst
-}
-
-// deserializeFrom reads the binary format produced by serializeTo
-// it returns the number of bytes read from `data`
-func (as *footprint) deserializeFrom(data []byte) (int, error) {
-	n, err := deserializeString(&as.Location.File, data)
-	if err != nil {
-		return 0, err
-	}
-	if len(data) < n+4 {
-		return 0, errors.New("invalid Location (EOF)")
-	}
-	as.Location.Index = binary.BigEndian.Uint16(data[n:])
-	as.Location.Instance = binary.BigEndian.Uint16(data[n+2:])
-	n += 4
-
-	read, err := deserializeString(&as.Family, data[n:])
-	if err != nil {
-		return 0, err
-	}
-	n += read
-	read, err = as.Runes.deserializeFrom(data[n:])
-	if err != nil {
-		return 0, err
-	}
-	n += read
-	read, err = as.Aspect.deserializeFrom(data[n:])
-	if err != nil {
-		return 0, err
-	}
-	n += read
-	if len(data[n:]) < 1 {
-		return 0, errors.New("invalid Format (EOF)")
-	}
-	as.Format = fontFormat(data[n])
-
-	return n + 1, nil
-}
-
 // loadFromDisk assume the footprint location refers to the file system
-func (fp *footprint) loadFromDisk() (font.Face, error) {
+func (fp *footprint) loadFromDisk() (font.Font, error) {
 	location := fp.Location
 
 	file, err := os.Open(location.File)
@@ -116,7 +64,7 @@ func (fp *footprint) loadFromDisk() (font.Face, error) {
 		return nil, err
 	}
 
-	faces, err := fp.Format.Loader()(file)
+	faces, err := font.ParseTTC(file)
 	if err != nil {
 		return nil, err
 	}
@@ -127,43 +75,5 @@ func (fp *footprint) loadFromDisk() (font.Face, error) {
 		return nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(faces))
 	}
 
-	return faces[location.Index], nil
-}
-
-// fontFormat identifies the format of a font file.
-type fontFormat uint8
-
-const (
-	_          fontFormat = iota // unsupported
-	openType                     // .ttf, .ttc, .otf, .otc, .woff
-	pcf                          // Bitmap fonts (.pcf)
-	adobeType1                   // Adobe Type1 fonts (.pfb)
-)
-
-func (ff fontFormat) String() string {
-	switch ff {
-	case openType:
-		return "OpenType"
-	case pcf:
-		return "PCF"
-	case adobeType1:
-		return "Type1"
-	default:
-		return fmt.Sprintf("<format %d>", ff)
-	}
-}
-
-// Loader returns the loader to use to open a font resource with
-// this format.
-func (ff fontFormat) Loader() fonts.FontLoader {
-	switch ff {
-	case openType:
-		return truetype.Load
-	case pcf:
-		return bitmap.Load
-	case adobeType1:
-		return type1.Load
-	default:
-		return nil
-	}
+	return faces[location.Index].Font, nil
 }

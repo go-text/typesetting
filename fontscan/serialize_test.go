@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
 func Test_serializeFootprints(t *testing.T) {
@@ -13,8 +15,7 @@ func Test_serializeFootprints(t *testing.T) {
 		{
 			Family: "a strange one",
 			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			Aspect: Aspect{1, 200, 0.45},
-			Format: openType,
+			Aspect: meta.Aspect{1, 200, 0.45},
 		},
 		{
 			Runes: runeSet{},

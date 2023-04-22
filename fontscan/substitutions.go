@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-text/typesetting/language"
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
 // this file implements the family substitution feature,
@@ -22,7 +23,7 @@ func init() {
 	// replace families keys by their no case no blank version
 	for i, v := range familySubstitution {
 		for i, s := range v.additionalFamilies {
-			v.additionalFamilies[i] = normalizeFamily(s)
+			v.additionalFamilies[i] = meta.NormalizeFamily(s)
 		}
 
 		familySubstitution[i].test = v.test.normalize()
@@ -142,7 +143,7 @@ func (mf familyEquals) test(list familyList) *list.Element {
 }
 
 func (mf familyEquals) normalize() substitutionTest {
-	return familyEquals(normalizeFamily(string(mf)))
+	return familyEquals(meta.NormalizeFamily(string(mf)))
 }
 
 // a family in the list must contain 'mf'
@@ -153,7 +154,7 @@ func (mf familyContains) test(list familyList) *list.Element {
 }
 
 func (mf familyContains) normalize() substitutionTest {
-	return familyContains(normalizeFamily(string(mf)))
+	return familyContains(meta.NormalizeFamily(string(mf)))
 }
 
 // the family list has no "serif", "sans-serif" or "monospace" generic fallback
@@ -186,7 +187,7 @@ func (langAndFamilyEqual) test(list familyList) *list.Element {
 }
 
 func (t langAndFamilyEqual) normalize() substitutionTest {
-	t.family = normalizeFamily(t.family)
+	t.family = meta.NormalizeFamily(t.family)
 	return t
 }
 
@@ -203,7 +204,7 @@ func (langContainsAndFamilyEquals) test(list familyList) *list.Element {
 }
 
 func (t langContainsAndFamilyEquals) normalize() substitutionTest {
-	t.family = normalizeFamily(t.family)
+	t.family = meta.NormalizeFamily(t.family)
 	return t
 }
 
@@ -220,7 +221,7 @@ func (langEqualsAndNoFamily) test(list familyList) *list.Element {
 }
 
 func (t langEqualsAndNoFamily) normalize() substitutionTest {
-	t.family = normalizeFamily(t.family)
+	t.family = meta.NormalizeFamily(t.family)
 	return t
 }
 

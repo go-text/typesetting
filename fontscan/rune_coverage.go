@@ -5,10 +5,10 @@ import (
 	"errors"
 	"math/bits"
 
-	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/go-text/typesetting/opentype/api"
 )
 
-// Rune rserage implementation, inspired by the fontconfig FcCharset type.
+// Rune coverage implementation, inspired by the fontconfig FcCharset type.
 //
 // The internal representation is a slice of `pageSet` pages, where each page is a boolean
 // set of size 256, encoding the last byte of a rune.
@@ -45,7 +45,7 @@ func newRuneSet(runes ...rune) runeSet {
 
 // newRuneSetFromCmap iterates through the given `cmap`
 // to build the corresponding rune set.
-func newRuneSetFromCmap(cmap fonts.Cmap) runeSet {
+func newRuneSetFromCmap(cmap api.Cmap) runeSet {
 	var rs runeSet
 	iter := cmap.Iter()
 	for iter.Next() {

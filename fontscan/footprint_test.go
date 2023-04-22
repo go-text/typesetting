@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
 func TestSerializeDeserialize(t *testing.T) {
@@ -12,8 +14,7 @@ func TestSerializeDeserialize(t *testing.T) {
 		{
 			Family: "a strange one",
 			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			Aspect: Aspect{1, 200, 0.45},
-			Format: openType,
+			Aspect: meta.Aspect{1, 200, 0.45},
 		},
 		{
 			Runes: runeSet{},
@@ -58,23 +59,5 @@ func TestDeserializeInvalid(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error on random input")
 		}
-	}
-}
-
-func TestFormat_Loader(t *testing.T) {
-	tests := []fontFormat{
-		openType, adobeType1, pcf,
-	}
-	for _, ft := range tests {
-		if ft.Loader() == nil {
-			t.Fatalf("missing loader for %d", ft)
-		}
-	}
-
-	if fontFormat(0).Loader() != nil {
-		t.Fatal("unexpected loader")
-	}
-	if fontFormat(0).String() != "<format 0>" {
-		t.Fatal("unexpected representation")
 	}
 }

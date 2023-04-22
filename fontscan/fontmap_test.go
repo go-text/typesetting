@@ -9,28 +9,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/go-text/typesetting/font"
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 )
 
-func TestResolveFace(t *testing.T) {
+func TestResolveFont(t *testing.T) {
 	fm := NewFontMap()
 
-	if fm.ResolveFace(0x20) != nil {
-		t.Fatal("expected no face found in an empty FontMap")
-	}
+	tu.AssertC(t, fm.ResolveFont(0x20) == nil, "expected no face found in an empty FontMap")
 
-	if err := fm.UseSystemFonts(); err != nil {
-		t.Fatal(err)
-	}
+	err := fm.UseSystemFonts()
+	tu.AssertNoErr(t, err)
 
 	var logOutput bytes.Buffer
 	log.Default().SetOutput(&logOutput)
 
-	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: Aspect{Weight: fonts.WeightBold}})
-	foundFace := map[font.Face]bool{}
+	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
+	foundFace := map[font.Font]bool{}
 	for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
-		face := fm.ResolveFace(r)
+		face := fm.ResolveFont(r)
 		if face == nil {
 			t.Fatalf("missing font for rune 0x%X", r)
 		}
@@ -46,7 +44,7 @@ func TestResolveFace(t *testing.T) {
 	existingFamily := fm.database[0].Family
 	fm.SetQuery(Query{Families: []string{existingFamily}})
 	for _, r := range "Hello world" {
-		face := fm.ResolveFace(r)
+		face := fm.ResolveFont(r)
 		if face == nil {
 			t.Fatalf("missing font for rune 0x%X", r)
 		}
@@ -56,23 +54,20 @@ func TestResolveFace(t *testing.T) {
 	}
 }
 
-func BenchmarkResolveFace(b *testing.B) {
+func BenchmarkResolveFont(b *testing.B) {
 	fm := NewFontMap()
 
-	if err := fm.UseSystemFonts(); err != nil {
-		b.Fatal(err)
-	}
+	err := fm.UseSystemFonts()
+	tu.AssertNoErr(b, err)
 
-	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: Aspect{Weight: fonts.WeightBold}})
+	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
-			face := fm.ResolveFace(r)
-			if face == nil {
-				b.Fatalf("missing font for rune 0x%X", r)
-			}
+			font := fm.ResolveFont(r)
+			tu.AssertC(b, font != nil, fmt.Sprintf("missing font for rune 0x%X", r))
 		}
 	}
 }
@@ -80,16 +75,15 @@ func BenchmarkResolveFace(b *testing.B) {
 func BenchmarkSetQuery(b *testing.B) {
 	fm := NewFontMap()
 
-	if err := fm.UseSystemFonts(); err != nil {
-		b.Fatal(err)
-	}
+	err := fm.UseSystemFonts()
+	tu.AssertNoErr(b, err)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		fm.SetQuery(Query{
 			Families: []string{"helvetica", "DejaVu", "monospace"},
-			Aspect:   Aspect{Style: fonts.StyleItalic, Weight: fonts.WeightBold},
+			Aspect:   meta.Aspect{Style: meta.StyleItalic, Weight: meta.WeightBold},
 		})
 	}
 }
@@ -99,40 +93,29 @@ func Test_refreshSystemFontsIndex(t *testing.T) {
 	cachePath := filepath.Join(dir, "fonts.cache")
 
 	_, err := refreshSystemFontsIndex(cachePath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tu.AssertNoErr(t, err)
 
 	ti := time.Now()
 	_, err = refreshSystemFontsIndex(cachePath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tu.AssertNoErr(t, err)
+
 	fmt.Printf("cache refresh in %s\n", time.Since(ti))
 }
 
 func TestInitSystemFonts(t *testing.T) {
 	err := initSystemFonts()
-	if err != nil {
-		t.Fatal(err)
-	}
+	tu.AssertNoErr(t, err)
 
-	if len(systemFonts.flatten()) == 0 {
-		t.Fatal("SystemFonts should not be empty")
-	}
+	tu.AssertC(t, len(systemFonts.flatten()) != 0, "SystemFonts should not be empty")
 }
 
 func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tu.AssertNoErr(t, err)
 	defer file1.Close()
 
 	file2, err := os.Open("../font/testdata/Roboto-Regular.ttf")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tu.AssertNoErr(t, err)
 	defer file2.Close()
 
 	fm := NewFontMap()
@@ -140,39 +123,25 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	if err = fm.AddFont(file1, "Amiri", ""); err != nil {
 		t.Fatal(err)
 	}
-	if len(fm.faces) != 1 {
-		t.Fatalf("unexpected face cache %d", len(fm.faces))
-	}
+	tu.AssertC(t, len(fm.fonts) == 1, fmt.Sprintf("unexpected face cache %d", len(fm.fonts)))
 
 	if err = fm.AddFont(file2, "Roboto", ""); err != nil {
 		t.Fatal(err)
 	}
-	if len(fm.faces) != 2 {
-		t.Fatalf("unexpected face cache %d", len(fm.faces))
-	}
+	tu.AssertC(t, len(fm.fonts) == 2, fmt.Sprintf("unexpected face cache %d", len(fm.fonts)))
 
 	loc1, loc2 := Location{File: "Amiri"}, Location{File: "Roboto"}
-	face1, face2 := fm.faces[loc1], fm.faces[loc2]
-
-	if got := fm.FaceLocation(face1); got != loc1 {
-		t.Fatalf("FaceLocation: expected %v, got %v", loc1, got)
-	}
-	if got := fm.FaceLocation(face2); got != loc2 {
-		t.Fatalf("FaceLocation: expected %v, got %v", loc2, got)
-	}
+	face1, face2 := fm.fonts[loc1], fm.fonts[loc2]
+	tu.Assert(t, fm.FontLocation(face1) == loc1)
+	tu.Assert(t, fm.FontLocation(face2) == loc2)
 
 	// try with an "invalid" face
-	if got := fm.FaceLocation(nil); got != (Location{}) {
-		t.Fatalf("FaceLocation: expected %v, got %v", Location{}, got)
-	}
+	tu.Assert(t, fm.FontLocation(nil) == Location{})
 
 	err = fm.AddFont(file1, "Roboto2", "MyRoboto")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tu.AssertNoErr(t, err)
+
 	fm.SetQuery(Query{Families: []string{"MyRoboto"}})
-	face := fm.ResolveFace(0x20)
-	if loc := fm.FaceLocation(face); loc.File != "Roboto2" {
-		t.Fatalf("unexepected face location %v", loc)
-	}
+	face := fm.ResolveFont(0x20)
+	tu.Assert(t, fm.FontLocation(face).File == "Roboto2")
 }

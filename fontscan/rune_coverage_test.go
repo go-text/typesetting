@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/go-text/typesetting/opentype/api"
 )
 
 func randomRunes() []rune {
@@ -140,12 +140,45 @@ func TestCoverage_isSubset(t *testing.T) {
 	}
 }
 
+// CmapSimple is a map based Cmap implementation.
+type CmapSimple map[rune]api.GID
+
+type cmap0Iter struct {
+	data CmapSimple
+	keys []rune
+	pos  int
+}
+
+func (it *cmap0Iter) Next() bool {
+	return it.pos < len(it.keys)
+}
+
+func (it *cmap0Iter) Char() (rune, api.GID) {
+	r := it.keys[it.pos]
+	it.pos++
+	return r, it.data[r]
+}
+
+func (s CmapSimple) Iter() api.CmapIter {
+	keys := make([]rune, 0, len(s))
+	for k := range s {
+		keys = append(keys, k)
+	}
+	return &cmap0Iter{data: s, keys: keys}
+}
+
+func (s CmapSimple) Lookup(r rune) (api.GID, bool) {
+	v, ok := s[r] // will be 0 if r is not in s
+	return v, ok
+}
+
 func TestNewRuneSetFromCmap(t *testing.T) {
 	tests := []struct {
-		args fonts.Cmap
+		args api.Cmap
 		want runeSet
 	}{
-		{fonts.CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, newRuneSet(0, 1, 2, 0xfff)},
+		{CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, newRuneSet(0, 1, 2, 0xfff)},
+		{CmapSimple{0: 0, 1: 0, 2: 0, 800: 0, 801: 0, 1000: 0}, newRuneSet(0, 1, 2, 800, 801, 1000)},
 	}
 	for _, tt := range tests {
 		if got := newRuneSetFromCmap(tt.args); !reflect.DeepEqual(got, tt.want) {

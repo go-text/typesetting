@@ -7,7 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/opentype/api/font"
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
+	"github.com/go-text/typesetting/opentype/loader"
 )
 
 // this file implement a file path based font lookup
@@ -34,14 +36,14 @@ func (sf scoredPaths) Swap(i int, j int) {
 // expand `family` with the standard substitutions,
 // then loop through the given file names looking for the best match
 func selectFileByFamily(inFamily string, paths []string) []string {
-	inFamily = normalizeFamily(inFamily)
+	inFamily = meta.NormalizeFamily(inFamily)
 	crible := make(familyCrible)
 	crible.fillWithSubstitutions(inFamily)
 
 	var matches scoredPaths
 	for _, filePath := range paths {
 		filename, _ := splitAtDot(filePath)
-		filename = normalizeFamily(filename)
+		filename = meta.NormalizeFamily(filename)
 		for family, score := range crible {
 			// approximate search
 			if strings.Contains(filename, family) {
@@ -62,11 +64,11 @@ var ErrFontNotFound = errors.New("font not found")
 // a matching style.
 // Is no exact match is found, the CSS rules for approximate match are applied
 // the method panic if `paths` is empty
-func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) {
+func selectByAspect(paths []string, aspect meta.Aspect) (*font.Font, Location, error) {
 	// try for an exact match and build the fontset for approximate match
 	var fs fontSet
 
-	aspect.setDefaults()
+	aspect.SetDefaults()
 
 	for _, path := range paths {
 		file, err := os.Open(path)
@@ -74,10 +76,10 @@ func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) 
 			return nil, Location{}, fmt.Errorf("opening font file %s: %s", path, err)
 		}
 
-		descriptors, format := getFontDescriptors(file)
+		loaders, _ := loader.NewLoaders(file)
 
-		for index, descriptor := range descriptors {
-			fontAspect := newAspectFromDescriptor(descriptor)
+		for index, ld := range loaders {
+			fontAspect := meta.NewFontDescriptor(ld).Aspect()
 
 			loc := Location{
 				File:  path,
@@ -86,10 +88,11 @@ func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) 
 			fs = append(fs, footprint{
 				Aspect:   fontAspect,
 				Location: loc,
+				// other fields are ignored
 			})
 
 			if fontAspect == aspect { // exact match, return early
-				faces, err := format.Loader()(file)
+				out, err := font.NewFont(loaders[index])
 				if err != nil {
 					// if an error occur (for instance for unsupported cmaps)
 					// try the next file path
@@ -97,7 +100,7 @@ func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) 
 				}
 
 				file.Close()
-				return faces[index], loc, nil
+				return out, loc, nil
 			}
 		}
 
@@ -111,10 +114,10 @@ func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) 
 	// no exact match
 	matches := fs.retainsBestMatches(allIndices(fs), aspect)
 
-	footprint := fs[matches[0]]
-	face, err := footprint.loadFromDisk()
+	fp := fs[matches[0]]
+	face, err := fp.loadFromDisk()
 
-	return face, footprint.Location, err
+	return face, fp.Location, err
 }
 
 // FindFont looks for a font matching `family` and `aspect` in the
@@ -125,7 +128,7 @@ func selectByAspect(paths []string, aspect Aspect) (font.Face, Location, error) 
 // If `aspect` is empty, it is replaced by a regular style.
 //
 // In the (unlikely) case where no font is found, ErrFontNotFound is returned.
-func FindFont(family string, aspect Aspect) (font.Face, Location, error) {
+func FindFont(family string, aspect meta.Aspect) (*font.Font, Location, error) {
 	directories, err := DefaultFontDirectories()
 	if err != nil {
 		return nil, Location{}, err
