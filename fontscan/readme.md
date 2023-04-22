@@ -1,7 +1,7 @@
 # Description and purpose of the package
 
-This package provides two ways to locate and load a `font.Face`, which is the
-fundamental object needed by `go-text` for shaping and rendering text.
+This package provides two ways to locate and load a `font.Font`, which is the
+fundamental object needed by `go-text` for shaping and text rendering.
 The two methods are quite different in term of use cases, complexity and possible implementation, but they still answer the same general question : _how can I load a font file if I don't know its exact location ?_
 
 ## Use cases
@@ -29,7 +29,7 @@ On the flip side, such renderers startup time is less crucial, so that a slow lo
 
 For the first task, the package provide the
 
-`FindFont(family string, aspect Aspect) (font.Face, error)`
+`FindFont(family string, aspect Aspect) (font.Font, error)`
 
 function, which walk through font directories and search for `family` in filenames.
 Among matched font files, the first font matching `aspect` is returned.
@@ -54,9 +54,9 @@ It is implemented by a list of susbtitutions, each of them having a test and a l
 
 Simplified example : if the list of susbtitutions is
 
-- Test: the family is Arial, Addition: Arimo
-- Test: the family is Arimo, Addition: sans-serif
-- Test: the family is sans-serif, Addition: DejaVu Sans et Verdana
+- Test: the input family is Arial, Addition: Arimo
+- Test: the input family is Arimo, Addition: sans-serif
+- Test: the input family is sans-serif, Addition: DejaVu Sans et Verdana
 
 then,
 
@@ -66,15 +66,16 @@ then,
 To respect the user request, the order of the list is significant (first entries have higher priority).
 
 Both `FindFont` and `FontMap.SetQuery` apply a list of hard-coded subsitutions, extracted from
-fontconfig configurations files.
+Fontconfig configurations files.
 
 ### Style matching
 
 `FindFont` and `FontMap.SetQuery` takes an optionnal argument describing the style of
 the required font (style, weight, stretchiness).
-When no exact is found, the [CSS font selection rules](https://drafts.csswg.org/css-fonts/#font-prop) are applied to returned the closest match.
-As an example, if the user asks for (Italic, ExtraBold) but only (Normal, Bold) and (Oblique, Bold)
-are available, the (Oblique, Bold) would be returned.
+
+When no exact match is found, the [CSS font selection rules](https://drafts.csswg.org/css-fonts/#font-prop) are applied to return the closest match.
+As an example, if the user asks for `(Italic, ExtraBold)` but only `(Normal, Bold)` and `(Oblique, Bold)`
+are available, the `(Oblique, Bold)` would be returned.
 
 ### System font index
 
@@ -88,7 +89,7 @@ current file system state to detect font installation or suppression.
 
 ## Performance overview
 
-Performance is a key goal of the package. This section roughly describes the performance of each matching task, with measures taken on a laptop running under a linux system.
+Performance is a key goal of the package. This section roughly describes the performance of each matching task, with measures taken on a laptop running under a Linux system.
 
 ### Font file name matching
 
@@ -112,8 +113,7 @@ The slower but more complete `FontMap.UseSystemFonts` method uses the second and
 
 ## Possible integration in go-text
 
-I think the two proposed solutions have enough elements in common (font directories, family susbtitution, aspect best match) so that it makes sense to include both
-in go-text.
+I think the two proposed solutions have enough elements in common (font directories, family susbtitution, aspect best match) so that it makes sense to include both in go-text.
 
 However, since it is actually a big addition, we could also only add some parts and keep the remaining parts of fontscan in a third-party repository. Some suggestions :
 

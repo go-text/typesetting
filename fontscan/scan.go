@@ -12,11 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/bitmap"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
-	"github.com/benoitkugler/textlayout/fonts/type1"
-	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/opentype/loader"
 )
 
 // DefaultFontDirectories return the OS-dependent usual directories for
@@ -124,7 +120,9 @@ func ignoreFontFile(name string) bool {
 		strings.HasSuffix(name, ".pfm") || // metrics (binary)
 		strings.HasSuffix(name, ".dir") || // summary
 		strings.HasSuffix(name, ".scale") ||
-		strings.HasSuffix(name, ".alias") {
+		strings.HasSuffix(name, ".alias") ||
+		strings.HasSuffix(name, ".pcf") || strings.HasSuffix(name, ".pcf.gz") || // Bitmap
+		strings.HasSuffix(name, ".pfb") /* Type1 */ {
 		return true
 	}
 
@@ -175,25 +173,7 @@ func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) err
 
 // --------------------- footprint mode -----------------------
 
-// try the different supported loader and returns the list of the fonts
-// contained in `file`, with their format.
-func getFontDescriptors(file font.Resource) ([]fonts.FontDescriptor, fontFormat) {
-	out, err := truetype.ScanFont(file)
-	if err == nil {
-		return out, openType
-	}
-	out, err = type1.ScanFont(file)
-	if err == nil {
-		return out, adobeType1
-	}
-	out, err = bitmap.ScanFont(file)
-	if err == nil {
-		return out, pcf
-	}
-	return nil, 0
-}
-
-// timeStamp is the unix modification time of a font file,
+// timeStamp is the (UnixNano) modification time of a font file,
 // used to trigger or not the scan of a font file
 type timeStamp int64
 
@@ -213,12 +193,10 @@ func (fh *timeStamp) deserialize(src []byte) {
 // systemFontsIndex stores the footprint comming from the file system
 type systemFontsIndex []fileFootprints
 
-// normalize the family names
 func (sfi systemFontsIndex) flatten() fontSet {
 	var out fontSet
 	for _, file := range sfi {
 		for _, fp := range file.footprints {
-			fp.Family = normalizeFamily(fp.Family)
 			out = append(out, fp)
 		}
 	}
@@ -287,10 +265,12 @@ func (fa *footprintScanner) consume(path string, info fs.FileInfo) error {
 		modTime: modTime,
 	}
 
-	fontDescriptors, format := getFontDescriptors(file)
+	// fetch the loaders for the given font file, or nil if is not
+	// an Opentype font.
+	loaders, _ := loader.NewLoaders(file)
 
-	for i, fd := range fontDescriptors {
-		fp, err := newFootprintFromDescriptor(fd, format)
+	for i, ld := range loaders {
+		fp, err := newFootprintFromLoader(ld)
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue
@@ -303,10 +283,10 @@ func (fa *footprintScanner) consume(path string, info fs.FileInfo) error {
 		ff.footprints = append(ff.footprints, fp)
 	}
 
-	// newFootprintFromDescriptor still uses file, do not close earlier
+	// newFootprintFromLoader still uses file, do not close earlier
 	file.Close()
 
-	// if the file is invalid,
+	// if the file is not a valid Opentype file,
 	// we store an empty list of footprints but still adds the entry to the index
 	// so that subsequent calls won't try to open it again
 	fa.dst = append(fa.dst, ff)
@@ -352,9 +332,7 @@ func splitAtDot(filePath string) (name, ext string) {
 func isFontFile(fileName string) bool {
 	_, ext := splitAtDot(fileName)
 	switch ext {
-	case ".ttf", ".ttc", ".otf", ".otc", ".woff", // Opentype
-		".t1", ".pfb", // Type1
-		".pcf.gz", ".pcf": // Bitmap
+	case ".ttf", ".ttc", ".otf", ".otc", ".woff": // Opentype
 		return true
 	default:
 		return false

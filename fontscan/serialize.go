@@ -9,6 +9,8 @@ import (
 	"io"
 	"math"
 	"os"
+
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
 // defines the routines to serialize a font set to
@@ -45,6 +47,78 @@ func deserializeString(s *string, data []byte) (int, error) {
 	}
 	*s = string(data[2 : 2+L])
 	return 2 + L, nil
+}
+
+const aspectSize = 1 + 4 + 4
+
+// serializeTo serialize the Aspect in binary format
+func serializeAspect(as meta.Aspect) []byte {
+	var buffer [aspectSize]byte
+	buffer[0] = byte(as.Style)
+	serializeFloat(float32(as.Weight), buffer[1:])
+	serializeFloat(float32(as.Stretch), buffer[5:])
+	return buffer[:]
+}
+
+// deserializeFrom reads the binary format produced by serializeTo
+// it returns the number of bytes read from `data`
+func deserializeAspectFrom(data []byte, as *meta.Aspect) (int, error) {
+	if len(data) < aspectSize {
+		return 0, errors.New("invalid Aspect (EOF)")
+	}
+	as.Style = meta.Style(data[0])
+	as.Weight = meta.Weight(deserializeFloat(data[1:]))
+	as.Stretch = meta.Stretch(deserializeFloat(data[5:]))
+	return aspectSize, nil
+}
+
+// serializeTo serialize the Footprint in binary format,
+// by appending to `dst` and returning the slice
+func (as footprint) serializeTo(dst []byte) []byte {
+	dst = append(dst, serializeString(as.Location.File)...)
+
+	var buffer [4]byte
+	binary.BigEndian.PutUint16(buffer[:], as.Location.Index)
+	binary.BigEndian.PutUint16(buffer[2:], as.Location.Instance)
+	dst = append(dst, buffer[:]...)
+
+	dst = append(dst, serializeString(as.Family)...)
+	dst = append(dst, as.Runes.serialize()...)
+	dst = append(dst, serializeAspect(as.Aspect)...)
+	return dst
+}
+
+// deserializeFrom reads the binary format produced by serializeTo
+// it returns the number of bytes read from `data`
+func (as *footprint) deserializeFrom(data []byte) (int, error) {
+	n, err := deserializeString(&as.Location.File, data)
+	if err != nil {
+		return 0, err
+	}
+	if len(data) < n+4 {
+		return 0, errors.New("invalid Location (EOF)")
+	}
+	as.Location.Index = binary.BigEndian.Uint16(data[n:])
+	as.Location.Instance = binary.BigEndian.Uint16(data[n+2:])
+	n += 4
+
+	read, err := deserializeString(&as.Family, data[n:])
+	if err != nil {
+		return 0, err
+	}
+	n += read
+	read, err = as.Runes.deserializeFrom(data[n:])
+	if err != nil {
+		return 0, err
+	}
+	n += read
+	read, err = deserializeAspectFrom(data[n:], &as.Aspect)
+	if err != nil {
+		return 0, err
+	}
+	n += read
+
+	return n, nil
 }
 
 // serialize into binary format, appending to `dst` and returning
@@ -99,7 +173,7 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 
 const cacheFormatVersion = 1
 
-// serialize into binary format, compressed with gzop
+// serialize into binary format, compressed with gzip
 func (index systemFontsIndex) serializeTo(w io.Writer) error {
 	// version as uint16 + len as uint32 + somewhat the minimum size for a footprint
 	buffer := make([]byte, 6, 4+len(index)*(aspectSize+1+2))
