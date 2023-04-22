@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/fonts"
+	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
 func (fc familyCrible) families() []string {
@@ -31,7 +31,7 @@ func Test_newFamilyCrible(t *testing.T) {
 
 	for _, tt := range tests {
 		got := make(familyCrible)
-		if got.fillWithSubstitutions(normalizeFamily(tt.family)); !reflect.DeepEqual(got.families(), tt.want) {
+		if got.fillWithSubstitutions(meta.NormalizeFamily(tt.family)); !reflect.DeepEqual(got.families(), tt.want) {
 			t.Errorf("newFamilyCrible() = %v, want %v", got.families(), tt.want)
 		}
 	}
@@ -39,7 +39,7 @@ func Test_newFamilyCrible(t *testing.T) {
 
 func fontsFromFamilies(families ...string) (out fontSet) {
 	for _, family := range families {
-		out = append(out, footprint{Family: normalizeFamily(family)})
+		out = append(out, footprint{Family: meta.NormalizeFamily(family)})
 	}
 	return out
 }
@@ -91,23 +91,23 @@ func BenchmarkNewFamilyCrible(b *testing.B) {
 	}
 }
 
-func fontsetFromStretches(sts ...Stretch) (out fontSet) {
+func fontsetFromStretches(sts ...meta.Stretch) (out fontSet) {
 	for _, stretch := range sts {
-		out = append(out, footprint{Aspect: Aspect{Stretch: stretch}})
+		out = append(out, footprint{Aspect: meta.Aspect{Stretch: stretch}})
 	}
 	return out
 }
 
-func fontsetFromStyles(sts ...Style) (out fontSet) {
+func fontsetFromStyles(sts ...meta.Style) (out fontSet) {
 	for _, style := range sts {
-		out = append(out, footprint{Aspect: Aspect{Style: style}})
+		out = append(out, footprint{Aspect: meta.Aspect{Style: style}})
 	}
 	return out
 }
 
-func fontsetFromWeights(sts ...Weight) (out fontSet) {
+func fontsetFromWeights(sts ...meta.Weight) (out fontSet) {
 	for _, weight := range sts {
-		out = append(out, footprint{Aspect: Aspect{Weight: weight}})
+		out = append(out, footprint{Aspect: meta.Aspect{Weight: weight}})
 	}
 	return out
 }
@@ -116,8 +116,8 @@ func TestFontSet_matchStretch(t *testing.T) {
 	tests := []struct {
 		name string
 		fs   fontSet
-		args Stretch
-		want Stretch
+		args meta.Stretch
+		want meta.Stretch
 	}{
 		{"exact match", fontsetFromStretches(1, 2, 3), 1, 1},
 		{"approximate match narow1", fontsetFromStretches(0.5, 1.1, 3), 0.9, 0.5},
@@ -138,17 +138,17 @@ func TestFontSet_matchStyle(t *testing.T) {
 	tests := []struct {
 		name string
 		fs   fontSet
-		args Style
-		want Style
+		args meta.Style
+		want meta.Style
 	}{
-		{"exact match 1", fontsetFromStyles(fonts.StyleNormal, fonts.StyleOblique, fonts.StyleItalic), fonts.StyleNormal, fonts.StyleNormal},
-		{"exact match 2", fontsetFromStyles(fonts.StyleNormal, fonts.StyleOblique, fonts.StyleItalic), fonts.StyleOblique, fonts.StyleOblique},
-		{"exact match 3", fontsetFromStyles(fonts.StyleNormal, fonts.StyleOblique, fonts.StyleItalic), fonts.StyleItalic, fonts.StyleItalic},
-		{"approximate match oblique", fontsetFromStyles(fonts.StyleNormal, fonts.StyleItalic), fonts.StyleOblique, fonts.StyleItalic},
-		{"approximate match oblique", fontsetFromStyles(fonts.StyleNormal), fonts.StyleOblique, fonts.StyleNormal},
-		{"approximate match italic", fontsetFromStyles(fonts.StyleNormal, fonts.StyleOblique), fonts.StyleItalic, fonts.StyleOblique},
-		{"approximate match italic", fontsetFromStyles(fonts.StyleNormal), fonts.StyleItalic, fonts.StyleNormal},
-		{"approximate match normal", fontsetFromStyles(fonts.StyleOblique, fonts.StyleItalic), fonts.StyleNormal, fonts.StyleOblique},
+		{"exact match 1", fontsetFromStyles(meta.StyleNormal, styleOblique, meta.StyleItalic), meta.StyleNormal, meta.StyleNormal},
+		{"exact match 2", fontsetFromStyles(meta.StyleNormal, styleOblique, meta.StyleItalic), styleOblique, styleOblique},
+		{"exact match 3", fontsetFromStyles(meta.StyleNormal, styleOblique, meta.StyleItalic), meta.StyleItalic, meta.StyleItalic},
+		{"approximate match oblique", fontsetFromStyles(meta.StyleNormal, meta.StyleItalic), styleOblique, meta.StyleItalic},
+		{"approximate match oblique", fontsetFromStyles(meta.StyleNormal), styleOblique, meta.StyleNormal},
+		{"approximate match italic", fontsetFromStyles(meta.StyleNormal, styleOblique), meta.StyleItalic, styleOblique},
+		{"approximate match italic", fontsetFromStyles(meta.StyleNormal), meta.StyleItalic, meta.StyleNormal},
+		{"approximate match normal", fontsetFromStyles(styleOblique, meta.StyleItalic), meta.StyleNormal, styleOblique},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -163,8 +163,8 @@ func TestFontSet_matchWeight(t *testing.T) {
 	tests := []struct {
 		name string
 		fs   fontSet
-		args Weight
-		want Weight
+		args meta.Weight
+		want meta.Weight
 	}{
 		{"exact", fontsetFromWeights(100, 200, 220, 300), 200, 200},
 		{"approximate 430 1", fontsetFromWeights(100, 200, 220, 300, 470, 420), 430, 470},
@@ -184,7 +184,7 @@ func TestFontSet_matchWeight(t *testing.T) {
 	}
 }
 
-func fontsetFromAspects(as ...Aspect) (out fontSet) {
+func fontsetFromAspects(as ...meta.Aspect) (out fontSet) {
 	for _, a := range as {
 		out = append(out, footprint{Aspect: a})
 	}
@@ -192,22 +192,22 @@ func fontsetFromAspects(as ...Aspect) (out fontSet) {
 }
 
 func TestFontSet_selectBestMatch(t *testing.T) {
-	defaultAspect := Aspect{Style: fonts.StyleNormal, Weight: fonts.WeightNormal, Stretch: fonts.StretchNormal}
-	boldAspect := Aspect{Style: fonts.StyleNormal, Weight: fonts.WeightBold, Stretch: fonts.StretchNormal}
-	boldItalicAspect := Aspect{Style: fonts.StyleItalic, Weight: fonts.WeightBold, Stretch: fonts.StretchNormal}
-	narrowAspect := Aspect{Style: fonts.StyleItalic, Weight: fonts.WeightNormal, Stretch: fonts.StretchCondensed}
+	defaultAspect := meta.Aspect{Style: meta.StyleNormal, Weight: meta.WeightNormal, Stretch: meta.StretchNormal}
+	boldAspect := meta.Aspect{Style: meta.StyleNormal, Weight: meta.WeightBold, Stretch: meta.StretchNormal}
+	boldItalicAspect := meta.Aspect{Style: meta.StyleItalic, Weight: meta.WeightBold, Stretch: meta.StretchNormal}
+	narrowAspect := meta.Aspect{Style: meta.StyleItalic, Weight: meta.WeightNormal, Stretch: meta.StretchCondensed}
 
 	tests := []struct {
 		name string
 		fs   fontSet
-		args Aspect
+		args meta.Aspect
 		want footprint
 	}{
 		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), defaultAspect, footprint{Aspect: defaultAspect}},
 		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), boldAspect, footprint{Aspect: boldAspect}},
 		{"exact match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), boldItalicAspect, footprint{Aspect: boldItalicAspect}},
-		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), Aspect{Style: fonts.StyleOblique}, footprint{Aspect: boldItalicAspect}},
-		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect, narrowAspect), Aspect{Stretch: fonts.StretchExtraCondensed}, footprint{Aspect: narrowAspect}},
+		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), meta.Aspect{Style: styleOblique}, footprint{Aspect: boldItalicAspect}},
+		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect, narrowAspect), meta.Aspect{Stretch: meta.StretchExtraCondensed}, footprint{Aspect: narrowAspect}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
