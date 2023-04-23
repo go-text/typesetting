@@ -89,7 +89,7 @@ current file system state to detect font installation or suppression.
 
 ## Performance overview
 
-Performance is a key goal of the package. This section roughly describes the performance of each matching task, with measures taken on a laptop running under a Linux system.
+Performance is a key goal of the package. This section roughly describes the performance of each matching task.
 
 ### Font file name matching
 
@@ -99,7 +99,7 @@ However, the family and style fetched may be a bit inaccurate, and the rune/lang
 
 ### Family and aspect matching
 
-Font files exposes in their content their family and aspect. Reading it requires to open the file and to parse part of its content, adding some overhead.
+Font files expose in their content their family and aspect. Reading it requires to open the file and to parse part of its content, adding some overhead.
 
 ### Rune coverage matching
 
@@ -107,16 +107,6 @@ Lastly, fetching the rune (or even language) coverage of the fonts is even slowe
 
 ### Conclusion
 
-The faster `FindFont` uses the first approach to narrow the set of candidate files, then applies the second to select the best match. The total lookup time varies between 0.03 and 0.15 secs.
+The faster `FindFont` uses the first approach to narrow the set of candidate files, then applies the second to select the best match. On a Linux laptop, the total lookup time is around 0.1 sec
 
-The slower but more complete `FontMap.UseSystemFonts` method uses the second and third approaches, amortizing its cost by caching on the disk the result of the scan. The initial lookup time is around 1 sec.
-
-## Possible integration in go-text
-
-I think the two proposed solutions have enough elements in common (font directories, family susbtitution, aspect best match) so that it makes sense to include both in go-text.
-
-However, since it is actually a big addition, we could also only add some parts and keep the remaining parts of fontscan in a third-party repository. Some suggestions :
-
-- only provide `FindFont`, with no substitutions. It would be very close to what [go-findfont](github.com/flopp/go-findfont) provides; the main additional feature being the possiblity to match font by aspect.
-
-- provide `FindFont` and support for family substitutions. That would make the `FindFont` quite powerful on its own.
+The slower but more complete `FontMap.UseSystemFonts` method uses the second and third approaches, amortizing its cost by caching on the disk the result of the scan. On a Linux laptop, the initial lookup time is around 1 sec.
