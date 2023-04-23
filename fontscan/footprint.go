@@ -56,7 +56,7 @@ func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
 }
 
 // loadFromDisk assume the footprint location refers to the file system
-func (fp *footprint) loadFromDisk() (font.Font, error) {
+func (fp *footprint) loadFromDisk() (font.Face, error) {
 	location := fp.Location
 
 	file, err := os.Open(location.File)
@@ -75,5 +75,5 @@ func (fp *footprint) loadFromDisk() (font.Font, error) {
 		return nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(faces))
 	}
 
-	return faces[location.Index].Font, nil
+	return faces[location.Index], nil
 }

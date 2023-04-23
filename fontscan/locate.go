@@ -117,7 +117,7 @@ func selectByAspect(paths []string, aspect meta.Aspect) (*font.Font, Location, e
 	fp := fs[matches[0]]
 	face, err := fp.loadFromDisk()
 
-	return face, fp.Location, err
+	return face.Font, fp.Location, err
 }
 
 // FindFont looks for a font matching `family` and `aspect` in the
