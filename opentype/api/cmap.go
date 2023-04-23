@@ -540,3 +540,55 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 	}
 	return 0, VariantNotFound
 }
+
+// ---------------------------- efficent rune set support -----------------------------------------
+
+// CmapRuneRanger is implemented by cmaps whose coverage is defined in terms
+// of rune ranges
+type CmapRuneRanger interface {
+	// RuneRanges returns a list of (start, end) rune pairs, both included.
+	RuneRanges() [][2]rune
+}
+
+var (
+	_ CmapRuneRanger = cmap4(nil)
+	_ CmapRuneRanger = (*cmap6or10)(nil)
+	_ CmapRuneRanger = cmap12(nil)
+	_ CmapRuneRanger = cmap13(nil)
+)
+
+func (cm cmap4) RuneRanges() [][2]rune {
+	out := make([][2]rune, 0, len(cm))
+	for _, e := range cm {
+		start, end := rune(e.start), rune(e.end)
+		if L := len(out); L != 0 && out[L-1][1] == start {
+			// grow the previous range
+			out[L-1][1] = end
+		} else {
+			out = append(out, [2]rune{start, end})
+		}
+	}
+	return out
+}
+
+func (cm *cmap6or10) RuneRanges() [][2]rune {
+	return [][2]rune{
+		{cm.firstCode, cm.firstCode + rune(len(cm.entries)) - 1},
+	}
+}
+
+func (cm cmap12) RuneRanges() [][2]rune {
+	out := make([][2]rune, 0, len(cm))
+	for _, e := range cm {
+		start, end := rune(e.StartCharCode), rune(e.EndCharCode)
+		if L := len(out); L != 0 && out[L-1][1] == start {
+			// grow the previous range
+			out[L-1][1] = end
+		} else {
+			out = append(out, [2]rune{start, end})
+		}
+	}
+	return out
+}
+
+func (cm cmap13) RuneRanges() [][2]rune { return cmap12(cm).RuneRanges() }
