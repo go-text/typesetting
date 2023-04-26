@@ -314,8 +314,8 @@ func NewOTTagsFromScriptAndLanguage(script language.Script, language language.La
 			privateUseSubtag = langStr
 		} else {
 			var s int
-			for s = 1; s < len(langStr)-1; s++ { // s index in lang_str
-				if langStr[s-1] == '-' && langStr[s+1] == '-' {
+			for s = 1; s < len(langStr); s++ { // s index in lang_str
+				if s < len(langStr)-1 && langStr[s-1] == '-' && langStr[s+1] == '-' {
 					if langStr[s] == 'x' {
 						privateUseSubtag = langStr[s:]
 						if limit == -1 {
