@@ -128,6 +128,10 @@ func TestOtTagScriptFromLanguage(t *testing.T) {
 	testScriptTagsFromLanguage(t, "dev3", "en-x-hbscdev3", 0)
 	testScriptTagsFromLanguage(t, "dev3", "en-x-hbsc-64657633", 0)
 	testScriptTagsFromLanguage(t, "copt", "en-x-hbotpap0-hbsccopt", 0)
+	testScriptTagsFromLanguage(t, "", "UTF-8", 0)
+
+	// corner cases should not panic
+	testScriptTagsFromLanguage(t, "", "x", 0)
 }
 
 func TestOtTagScriptIndic(t *testing.T) {
