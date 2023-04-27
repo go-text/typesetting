@@ -36,7 +36,6 @@ type familyList struct {
 	*list.List
 }
 
-// panic if `families` is empty
 func newFamilyList(families []string) familyList {
 	var out list.List
 	for _, s := range families {
