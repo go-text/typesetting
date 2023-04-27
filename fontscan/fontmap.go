@@ -101,6 +101,15 @@ var (
 	initSystemFontsOnce sync.Once
 )
 
+func cacheDir() (string, error) {
+	// load an existing index
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("resolving index cache path: %s", err)
+	}
+	return configDir, nil
+}
+
 // initSystemFonts scan the system fonts and update `SystemFonts`.
 // If the returned error is nil, `SystemFonts` is guaranteed to contain
 // at least one valid font.Face.
@@ -112,14 +121,13 @@ func initSystemFonts() error {
 		const cacheFile = "font_index.cache"
 
 		// load an existing index
-		var execPath string
-		execPath, err = os.Executable()
+		var dir string
+		dir, err = cacheDir()
 		if err != nil {
-			err = fmt.Errorf("resolving index cache path: %s", err)
 			return
 		}
 
-		cachePath := filepath.Join(filepath.Dir(execPath), cacheFile)
+		cachePath := filepath.Join(dir, cacheFile)
 
 		systemFonts, err = refreshSystemFontsIndex(cachePath)
 	})
