@@ -109,7 +109,7 @@ func TestInitSystemFonts(t *testing.T) {
 	err := initSystemFonts()
 	tu.AssertNoErr(t, err)
 
-	tu.AssertC(t, len(systemFonts.flatten()) != 0, "SystemFonts should not be empty")
+	tu.AssertC(t, len(systemFonts.flatten()) != 0, "systemFonts should not be empty")
 }
 
 func TestFontMap_AddFont_FaceLocation(t *testing.T) {
