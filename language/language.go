@@ -64,6 +64,36 @@ func (l Language) IsDerivedFrom(root Language) bool { return l.primary() == root
 // It is a shortcut for IsDerivedFrom("und").
 func (l Language) IsUndetermined() bool { return l.IsDerivedFrom("und") }
 
+// SplitExtensionTags splits the language at the extension and private-use subtags, which are
+// marked by a "-<one char>-" pattern.
+// It returns the language before the first pattern, and, if any, the private-use subtag.
+//
+// (l, "") is returned if the language has no extension or private-use tag.
+func (l Language) SplitExtensionTags() (prefix, private Language) {
+	if len(l) >= 2 && l[0] == 'x' && l[1] == '-' { // x-<....> 'fully' private
+		return "", l
+	}
+
+	firstExtension := -1
+	for i := 0; i+3 < len(l); i++ {
+		if l[i] == '-' && l[i+2] == '-' {
+			if firstExtension == -1 { // mark the end of the prefix
+				firstExtension = i
+			}
+
+			if l[i+1] == 'x' { // private-use tag
+				return l[:firstExtension], l[i+1:]
+			}
+			// else keep looking for private sub tags
+		}
+	}
+
+	if firstExtension == -1 {
+		return l, ""
+	}
+	return l[:firstExtension], ""
+}
+
 // LanguageComparison is a three state enum resulting from comparing two languages
 type LanguageComparison uint8
 

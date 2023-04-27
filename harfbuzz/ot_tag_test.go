@@ -11,6 +11,8 @@ import (
 // ported from harfbuzz/test/api/test-ot-tag.c Copyright © 2011  Google, Inc. Behdad Esfahbod
 
 func assertEqualTag(t *testing.T, t1, t2 tables.Tag) {
+	t.Helper()
+
 	if t1 != t2 {
 		t.Fatalf("unexpected %s != %s", t1, t2)
 	}
@@ -21,7 +23,7 @@ func assertEqualTag(t *testing.T, t1, t2 tables.Tag) {
 func testSimpleTags(t *testing.T, s string, script language.Script) {
 	tag := loader.MustNewTag(s)
 
-	tags, _ := NewOTTagsFromScriptAndLanguage(script, "")
+	tags, _ := newOTTagsFromScriptAndLanguage(script, "")
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tags[0], tag)
@@ -36,7 +38,7 @@ func testScriptTagsFromLanguage(t *testing.T, s, langS string, script language.S
 		tag = loader.MustNewTag(s)
 	}
 
-	tags, _ := NewOTTagsFromScriptAndLanguage(script, language.NewLanguage(langS))
+	tags, _ := newOTTagsFromScriptAndLanguage(script, language.NewLanguage(langS))
 	if len(tags) != 0 {
 		assertEqualInt(t, len(tags), 1)
 		assertEqualTag(t, tags[0], tag)
@@ -48,7 +50,7 @@ func testIndicTags(t *testing.T, s1, s2, s3 string, script language.Script) {
 	tag2 := loader.MustNewTag(s2)
 	tag3 := loader.MustNewTag(s3)
 
-	tags, _ := NewOTTagsFromScriptAndLanguage(script, "")
+	tags, _ := newOTTagsFromScriptAndLanguage(script, "")
 
 	assertEqualInt(t, len(tags), 3)
 	assertEqualTag(t, tags[0], tag1)
@@ -62,7 +64,7 @@ func TestOtTagScriptDegenerate(t *testing.T) {
 	/* HIRAGANA and KATAKANA both map to 'kana' */
 	testSimpleTags(t, "kana", language.Katakana)
 
-	tags, _ := NewOTTagsFromScriptAndLanguage(language.Hiragana, "")
+	tags, _ := newOTTagsFromScriptAndLanguage(language.Hiragana, "")
 
 	assertEqualInt(t, len(tags), 1)
 	assertEqualTag(t, tags[0], loader.MustNewTag("kana"))
@@ -152,7 +154,7 @@ func testLanguageTwoWay(t *testing.T, tagS, langS string) {
 	lang := language.NewLanguage(langS)
 	tag := loader.MustNewTag(tagS)
 
-	_, tags := NewOTTagsFromScriptAndLanguage(0, lang)
+	_, tags := newOTTagsFromScriptAndLanguage(0, lang)
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tag, tags[0])
@@ -162,10 +164,12 @@ func testLanguageTwoWay(t *testing.T, tagS, langS string) {
 }
 
 func testTagFromLanguage(t *testing.T, tagS, langS string) {
+	t.Helper()
+
 	lang := language.NewLanguage(langS)
 	tag := loader.MustNewTag(tagS)
 
-	_, tags := NewOTTagsFromScriptAndLanguage(0, lang)
+	_, tags := newOTTagsFromScriptAndLanguage(0, lang)
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tag, tags[0])
@@ -388,7 +392,7 @@ func TestOtTagLanguage(t *testing.T) {
 func testTags(t *testing.T, script language.Script, langS string, expectedScriptCount, expectedLanguageCount int, expected ...string) {
 	lang := language.NewLanguage(langS)
 
-	scriptTags, languageTags := NewOTTagsFromScriptAndLanguage(script, lang)
+	scriptTags, languageTags := newOTTagsFromScriptAndLanguage(script, lang)
 
 	assertEqualInt(t, len(scriptTags), expectedScriptCount)
 	assertEqualInt(t, len(languageTags), expectedLanguageCount)
@@ -419,7 +423,7 @@ func TestOtTagFull(t *testing.T) {
 }
 
 func TestOtTagFromLanguage(t *testing.T) {
-	scs, _ := NewOTTagsFromScriptAndLanguage(language.Tai_Tham, "")
+	scs, _ := newOTTagsFromScriptAndLanguage(language.Tai_Tham, "")
 	if len(scs) != 1 && scs[0] != 1818324577 {
 		t.Fatalf("exected [lana], got %v", scs)
 	}

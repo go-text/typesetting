@@ -101,3 +101,62 @@ func TestLanguage_Compare(t *testing.T) {
 		}
 	}
 }
+
+var extensionTagTags = []struct {
+	l           Language
+	wantPrefix  Language
+	wantPrivate Language
+}{
+	{"und", "und", ""},
+	{"und-syrn", "und-syrn", ""},
+	{"rm-ch-fonipa-sursilv-x-foobar", "rm-ch-fonipa-sursilv", "x-foobar"},
+	{"fa-x-hbotabc-hbot-41686121-zxc", "fa", "x-hbotabc-hbot-41686121-zxc"},
+	{"zh-x-hbotabc-hbot-41686121-zxc", "zh", "x-hbotabc-hbot-41686121-zxc"},
+	{"fa-x-hbot-41686121-hbotabc-zxc", "fa", "x-hbot-41686121-hbotabc-zxc"},
+	{"zh-x-hbot-41686121-hbotabc-zxc", "zh", "x-hbot-41686121-hbotabc-zxc"},
+	{"fa-ir-x-hbotabc-hbot-41686121-zxc", "fa-ir", "x-hbotabc-hbot-41686121-zxc"},
+	{"zh-cn-x-hbotabc-hbot-41686121-zxc", "zh-cn", "x-hbotabc-hbot-41686121-zxc"},
+	{"zh-xy-x-hbotabc-hbot-41686121-zxc", "zh-xy", "x-hbotabc-hbot-41686121-zxc"},
+	{"fa-ir-x-hbot-41686121-hbotabc-zxc", "fa-ir", "x-hbot-41686121-hbotabc-zxc"},
+	{"zh-cn-x-hbot-41686121-hbotabc-zxc", "zh-cn", "x-hbot-41686121-hbotabc-zxc"},
+	{"zh-xy-x-hbot-41686121-hbotabc-zxc", "zh-xy", "x-hbot-41686121-hbotabc-zxc"},
+	{"xyz-xy-x-hbotabc-hbot-41686121-zxc", "xyz-xy", "x-hbotabc-hbot-41686121-zxc"},
+	{"xyz-xy-x-hbot-41686121-hbotabc-zxc", "xyz-xy", "x-hbot-41686121-hbotabc-zxc"},
+	{"x-hbscabc", "", "x-hbscabc"},
+	{"x-hbscdeva", "", "x-hbscdeva"},
+	{"x-hbscdev2", "", "x-hbscdev2"},
+	{"x-hbscdev3", "", "x-hbscdev3"},
+	{"x-hbsc-64657633", "", "x-hbsc-64657633"},
+	{"x-hbotpap0-hbsccopt", "", "x-hbotpap0-hbsccopt"},
+	{"en-x-hbsc", "en", "x-hbsc"},
+	{"en-x-hbsc", "en", "x-hbsc"},
+	{"en-x-hbscabc", "en", "x-hbscabc"},
+	{"en-x-hbscdeva", "en", "x-hbscdeva"},
+	{"en-x-hbscdev2", "en", "x-hbscdev2"},
+	{"en-x-hbscdev3", "en", "x-hbscdev3"},
+	{"en-x-fonipa", "en", "x-fonipa"},
+	// extension tags
+	{"en-a-fonipa", "en", ""},
+	{"en-a-qwe-b-fonipa", "en", ""},
+	{"en-a-qwe-x-fonipa", "en", "x-fonipa"},
+}
+
+func TestLanguage_SplitExtensionTags(t *testing.T) {
+	for _, tt := range extensionTagTags {
+		gotPrefix, gotPrivate := tt.l.SplitExtensionTags()
+		if gotPrefix != tt.wantPrefix {
+			t.Errorf("Language.SplitExtensionTags() gotPrefix = %v, want %v", gotPrefix, tt.wantPrefix)
+		}
+		if gotPrivate != tt.wantPrivate {
+			t.Errorf("Language.SplitExtensionTags() gotPrivate = %v, want %v", gotPrivate, tt.wantPrivate)
+		}
+	}
+}
+
+func Benchmark(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, test := range extensionTagTags {
+			_, _ = test.l.SplitExtensionTags()
+		}
+	}
+}
