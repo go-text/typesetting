@@ -27,8 +27,11 @@ type Language string
 // than letters, numbers and '-'.
 func NewLanguage(language string) Language {
 	out := make([]byte, 0, len(language))
-	for _, b := range language {
-		can := canonMap[b]
+	for _, r := range language {
+		if r >= 0xFF {
+			continue
+		}
+		can := canonMap[r]
 		if can != 0 {
 			out = append(out, can)
 		}

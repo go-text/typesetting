@@ -10,6 +10,13 @@ func TestLanguage(t *testing.T) {
 	fmt.Println(DefaultLanguage())
 }
 
+func TestNonASCIILanguage(t *testing.T) {
+	_ = NewLanguage("Δ") // should not panic
+	if l1, l2 := NewLanguage("aΔ"), NewLanguage("a"); l1 != l2 {
+		t.Fatalf("unexpected handling of non ASCII tags: %s != %s", l1, l2)
+	}
+}
+
 func TestSimpleInheritance(t *testing.T) {
 	l := NewLanguage("en_US_someVariant")
 	if sh := l.SimpleInheritance(); !reflect.DeepEqual(sh, []Language{l, "en-us", "en"}) {
