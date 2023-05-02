@@ -71,7 +71,7 @@ func newOtMapBuilder(tables *font.Font, props SegmentProperties) otMapBuilder {
 
 	/* Fetch script/language indices for GSUB/GPOS.  We need these later to skip
 	* features not available in either table and not waste precious bits for them. */
-	scriptTags, languageTags := NewOTTagsFromScriptAndLanguage(props.Script, props.Language)
+	scriptTags, languageTags := newOTTagsFromScriptAndLanguage(props.Script, props.Language)
 
 	out.scriptIndex[0], out.chosenScript[0], out.foundScript[0] = SelectScript(&tables.GSUB.Layout, scriptTags)
 	out.languageIndex[0], _ = SelectLanguage(&tables.GSUB.Layout, out.scriptIndex[0], languageTags)
