@@ -886,7 +886,7 @@ func TestWrapLine(t *testing.T) {
 				done bool
 				l    LineWrapper
 			)
-			l.Prepare(WrapConfig{}, tc.paragraph, NewSliceIterator(tc.shaped...))
+			l.Prepare(WrapConfig{}, tc.paragraph, NewSliceIterator(tc.shaped), nil)
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
@@ -1487,7 +1487,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs, _ := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped...))
+			outs, _ := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped), nil)
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1611,7 +1611,7 @@ func TestWrappingLatinE2E(t *testing.T) {
 	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out := shaper.Shape(Input{
+	out := []Output{shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -1620,9 +1620,9 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Size:      16 * 72,
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
-	})
+	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out))
+	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out), nil)
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
@@ -1634,7 +1634,7 @@ func TestWrappingTruncation(t *testing.T) {
 	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out := shaper.Shape(Input{
+	out := []Output{shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -1643,9 +1643,9 @@ func TestWrappingTruncation(t *testing.T) {
 		Size:      fixed.I(16),
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
-	})
+	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out))
+	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out), nil)
 	untruncatedCount := len(outs)
 
 	for _, truncator := range []Output{
@@ -1676,7 +1676,7 @@ func TestWrappingTruncation(t *testing.T) {
 				TruncateAfterLines: i,
 				Truncator:          truncator,
 			}
-			newLines, truncated := l.WrapParagraph(wc, 250, textInput, NewSliceIterator(out))
+			newLines, truncated := l.WrapParagraph(wc, 250, textInput, NewSliceIterator(out), nil)
 			lineCount := len(newLines)
 			t.Logf("wrapping with max lines=%d, untruncatedCount=%d", i, untruncatedCount)
 			if i < untruncatedCount {
@@ -1879,7 +1879,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 				Truncator:          trunc,
 				TruncateAfterLines: tc.maxLines,
 				TextContinues:      tc.forceTruncation,
-			}, tc.wrapWidth, inputRunes, NewSliceIterator(outs...))
+			}, tc.wrapWidth, inputRunes, NewSliceIterator(outs), nil)
 			if truncatedRunes != tc.expectedTruncated {
 				t.Errorf("got %d truncated runes when truncation expectation was %d", truncatedRunes, tc.expectedTruncated)
 			}
@@ -2056,27 +2056,39 @@ func BenchmarkWrapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range benchSizes {
 			for _, parts := range size.parts {
-				b.Run(fmt.Sprintf("%drunes-%s-%dparts", size.runes, langInfo.name, parts), func(b *testing.B) {
-					var shaper HarfbuzzShaper
-					out := shaper.Shape(Input{
-						Text:      langInfo.text[:size.runes],
-						RunStart:  0,
-						RunEnd:    size.runes,
-						Direction: langInfo.dir,
-						Face:      langInfo.face,
-						Size:      16 * 72,
-						Script:    langInfo.script,
-						Language:  langInfo.lang,
-					})
-					outs := cutRunInto(out, parts)
-					var l LineWrapper
-					b.ResetTimer()
-					var lines []Line
-					for i := 0; i < b.N; i++ {
-						lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], NewSliceIterator(outs...))
+				for _, buffered := range []bool{false, true} {
+					suffix := ""
+					if !buffered {
+						suffix = "-unbuffered"
 					}
-					_ = lines
-				})
+					b.Run(fmt.Sprintf("%drunes-%s-%dparts"+suffix, size.runes, langInfo.name, parts), func(b *testing.B) {
+						var shaper HarfbuzzShaper
+						out := shaper.Shape(Input{
+							Text:      langInfo.text[:size.runes],
+							RunStart:  0,
+							RunEnd:    size.runes,
+							Direction: langInfo.dir,
+							Face:      langInfo.face,
+							Size:      16 * 72,
+							Script:    langInfo.script,
+							Language:  langInfo.lang,
+						})
+						outs := cutRunInto(out, parts)
+						var l LineWrapper
+						iter := NewSliceIterator(outs)
+						var scratch *WrapBuffer
+						if buffered {
+							scratch = NewWrapBuffer()
+						}
+						b.ResetTimer()
+						lines := make([]Line, 1)
+						for i := 0; i < b.N; i++ {
+							lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], iter, scratch)
+							iter.(*runSlice).Reset(outs)
+						}
+						_ = lines
+					})
+				}
 			}
 		}
 	}
@@ -2089,7 +2101,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	textInput := []rune("happy path")
 	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out := shaper.Shape(Input{
+	out := []Output{shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -2098,12 +2110,15 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 		Size:      16 * 72,
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
-	})
+	})}
 	var l LineWrapper
+	iter := NewSliceIterator(out)
+	scratch := NewWrapBuffer()
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, NewSliceIterator(out))
+		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, iter, scratch)
+		iter.(*runSlice).Reset(out)
 	}
 	_ = outs
 }
