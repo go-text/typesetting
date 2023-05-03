@@ -19,7 +19,7 @@ func FuzzE2E(f *testing.F) {
 	f.Fuzz(func(t *testing.T, input string) {
 		textInput := []rune(input)
 		var shaper HarfbuzzShaper
-		out := shaper.Shape(Input{
+		out := []Output{shaper.Shape(Input{
 			Text:      textInput,
 			RunStart:  0,
 			RunEnd:    len(textInput),
@@ -28,12 +28,12 @@ func FuzzE2E(f *testing.F) {
 			Size:      16 * 72,
 			Script:    language.Arabic,
 			Language:  language.NewLanguage("AR"),
-		})
-		if out.Runes.Count != len(textInput) {
-			t.Errorf("expected %d shaped runes, got %d", len(textInput), out.Runes.Count)
+		})}
+		if out[0].Runes.Count != len(textInput) {
+			t.Errorf("expected %d shaped runes, got %d", len(textInput), out[0].Runes.Count)
 		}
 		var l LineWrapper
-		outs, _ := l.WrapParagraph(WrapConfig{}, 100, textInput, NewSliceIterator(out))
+		outs, _ := l.WrapParagraph(WrapConfig{}, 100, textInput, NewSliceIterator(out), WrapScratch{})
 		totalRunes := 0
 		for _, l := range outs {
 			for _, run := range l {
