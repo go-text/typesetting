@@ -150,11 +150,16 @@ func midPoint(p, q api.SegmentPoint) api.SegmentPoint {
 
 // build the segments from the resolved contour points
 func buildSegments(points []contourPoint) []api.Segment {
+	if len(points) == 0 {
+		return nil
+	}
+
 	var (
 		firstOnCurveValid, firstOffCurveValid, lastOffCurveValid bool
 		firstOnCurve, firstOffCurve, lastOffCurve                api.SegmentPoint
-		out                                                      []api.Segment
 	)
+
+	out := make([]api.Segment, 0, len(points)+2)
 
 	for _, point := range points {
 		p := point.SegmentPoint
