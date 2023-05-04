@@ -438,19 +438,37 @@ func (r *runSlice) Restore() {
 	r.idx = r.savedIdx
 }
 
-// WrapScratch provides reusable buffers to the line wrapping algorithm,
-// avoiding allocations. It is always safe to provide an empty WrapScratch.
-type WrapScratch struct {
-	Lines []Line
-	Line  LineScratch
+// WrapBuffer provides reusable buffers for line wrapping. When using a
+// WrapBuffer, returned line wrapping results will use memory stored within
+// the buffer. This means that the same buffer cannot be reused for another
+// wrapping operation while the wrapped lines are still in use (unless they
+// are deeply copied). If necessary, using a multiple WrapBuffers can work
+// around this restriction.
+type WrapBuffer struct {
+	// lines is a buffer holding lines allocated (primarily) from subregions
+	// of the line field.
+	lines []Line
+	// line is a large buffer of Outputs that is used to build lines.
+	line []Output
+	// lineUsed is the index of the first unused element in line.
+	lineUsed int
+	// lineExhausted indicates whether the previous shaping used all of line.
+	lineExhausted bool
+	// alt is a smaller temporary buffer that holds candidate lines while
+	// they are being built.
+	alt []Output
+	// lineExhausted indicates whether the previous shaping used all of alt.
+	altExhausted bool
 }
 
-type LineScratch struct {
-	// Line is a large buffer of Outputs that is used to build lines.
-	Line []Output
-	// Alt is a smaller temporary buffer that holds candidate lines while
-	// they are being built.
-	Alt []Output
+// NewWrapBuffer returns a WrapBuffer with some pre-allocated storage for
+// small-sized texts.
+func NewWrapBuffer() *WrapBuffer {
+	return &WrapBuffer{
+		lines: make([]Line, 10),
+		line:  make([]Output, 100),
+		alt:   make([]Output, 10),
+	}
 }
 
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
@@ -465,6 +483,9 @@ type LineWrapper struct {
 
 	// breaker provides line-breaking candidates.
 	breaker *breaker
+
+	// scratch holds wrapping algorithm storage buffers for reuse.
+	scratch *WrapBuffer
 
 	// mapper tracks rune->glyphCluster mappings.
 	mapper runMapper
@@ -484,8 +505,11 @@ type LineWrapper struct {
 }
 
 // Prepare initializes the LineWrapper for the given paragraph and shaped text.
-// It must be called prior to invoking WrapNextLine.
-func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunIterator) {
+// It must be called prior to invoking WrapNextLine. The scratch parameter can
+// be used to avoid allocations by allocating wrapped lines from within the buffer.
+// If scratch is non-nil, lines returned by the wrapper are only valid until
+// buffer is reused in a line wrapping operation. See [WrapBuffer] for details.
+func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunIterator, scratch *WrapBuffer) {
 	l.config = config
 	l.truncating = l.config.TruncateAfterLines > 0
 	l.breaker = newBreaker(&l.seg, paragraph)
@@ -494,36 +518,56 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 	l.lineStartRune = 0
 	l.more = true
 	l.mapper.valid = false
+	l.scratch = scratch
+	if l.scratch == nil {
+		l.scratch = NewWrapBuffer()
+	}
+	l.scratch.lineUsed = 0
+	if l.scratch.lineExhausted {
+		l.scratch.lineExhausted = false
+		// Trigger the go slice growth heuristic by appending an element to
+		// the capacity.
+		l.scratch.line = append(l.scratch.line[:cap(l.scratch.line)], Output{})
+	}
+	if l.scratch.altExhausted {
+		l.scratch.altExhausted = false
+		// Trigger the go slice growth heuristic by appending an element to
+		// the capacity.
+		l.scratch.alt = append(l.scratch.alt[:cap(l.scratch.alt)], Output{})
+	}
 }
 
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
 // It is equivalent to iteratively invoking WrapLine with a constant maxWidth.
 // If the config has a non-zero TruncateAfterLines, WrapParagraph will return at most
 // that many lines. The truncated return value is the count of runes truncated from
-// the end of the text. If non-nil, the contents of the provided lines slice will be
-// overwritten with the new lines until it runs out of space, avoiding allocations.
-func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator, scratch WrapScratch) (_ []Line, truncated int) {
-	lines := scratch.Lines[:0]
-	if _, nextRun, ok := runs.Peek(); ok && runs.IsFinal() && nextRun.Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
-		if cap(scratch.Line.Line) > 0 {
-			lines = append(lines, scratch.Line.Line[:1])
-			lines[0][0] = nextRun
-		} else {
-			lines = append(lines, []Output{nextRun})
-		}
-		return lines, 0
+// the end of the text. If non-nil, the provided scratch buffer will be used
+// to store as much of the returned lines as possible. This eliminates allocations,
+// but means that the buffer cannot be reused while the returned lines are in
+// use. Applications must either deep copy or finish processing those lines
+// before reusing the same buffer. See [WrapBuffer] for details.
+func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator, scratch *WrapBuffer) (_ []Line, truncated int) {
+	if scratch == nil {
+		scratch = NewWrapBuffer()
 	}
-	l.Prepare(config, paragraph, runs)
+	scratch.lines = scratch.lines[:0]
+	if _, nextRun, ok := runs.Peek(); ok && runs.IsFinal() && nextRun.Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
+		if cap(scratch.line) > 0 {
+			scratch.lines = append(scratch.lines, scratch.line[:1])
+			scratch.lines[0][0] = nextRun
+		} else {
+			scratch.lines = append(scratch.lines, []Output{nextRun})
+		}
+		return scratch.lines, 0
+	}
+	l.Prepare(config, paragraph, runs, scratch)
 	var done bool
 	for !done {
 		var line Line
-		line, truncated, done = l.WrapNextLine(maxWidth, scratch.Line)
-		if len(line) < cap(scratch.Line.Line) {
-			scratch.Line.Line = scratch.Line.Line[len(line):cap(scratch.Line.Line)]
-		}
-		lines = append(lines, line)
+		line, truncated, done = l.WrapNextLine(maxWidth)
+		scratch.lines = append(scratch.lines, line)
 	}
-	return lines, truncated
+	return scratch.lines, truncated
 }
 
 // nextBreakOption returns the next rune offset at which the line can be broken,
@@ -594,22 +638,20 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, startWidth
 // be wrapped to different widths within the same paragraph. When done is true,
 // subsequent calls to WrapNextLine (without calling Prepare) will return a nil line.
 // The truncated return value is the count of runes truncated from the end of the line,
-// if this line was truncated. If the line parameter is not empty, WrapNextLine will
-// attempt to reuse the buffers it contains to avoid allocating new ones, overwriting
-// the contents of those buffers.
-func (l *LineWrapper) WrapNextLine(maxWidth int, scratch LineScratch) (finalLine Line, truncated int, done bool) {
-	// lineCandidate is filled with runs as we search for valid line breaks. When we find a valid
-	// option, we commit it into bestCandidate and keep looking.
-	lineCandidate := scratch.Line[:0]
-	bestCandidate := scratch.Alt[:0]
-
+// if this line was truncated.
+func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int, done bool) {
+	scratchStart := l.scratch.lineUsed
 	defer func() {
-		if cap(scratch.Line) >= len(finalLine) && len(finalLine) > 0 {
-			// Ensure we return the line using memory provided by the scratch
+		if cap(l.scratch.line)-scratchStart >= len(finalLine) && len(finalLine) > 0 {
+			// Ensure we return the line using memory provided by the l.scratch
 			// type.
-			if &finalLine[0] != &scratch.Line[:1][0] {
-				finalLine = append(scratch.Line[:0], finalLine...)
+			if &finalLine[0] != &l.scratch.line[scratchStart : scratchStart+1][0] {
+				l.scratch.altExhausted = cap(l.scratch.alt) > 0 && &(l.scratch.alt[0:1][0]) != &finalLine[0]
+				finalLine = append(l.scratch.line[scratchStart:scratchStart], finalLine...)
 			}
+			l.scratch.lineUsed += len(finalLine)
+		} else {
+			l.scratch.lineExhausted = true
 		}
 		if len(finalLine) > 0 {
 			finalRun := finalLine[len(finalLine)-1]
@@ -642,8 +684,13 @@ func (l *LineWrapper) WrapNextLine(maxWidth int, scratch LineScratch) (finalLine
 			// Pass empty lines through as empty.
 			nextRun.Runes = Range{Count: l.breaker.totalRunes}
 		}
-		return append(scratch.Line[:0], nextRun), truncated, true
+		return append(l.scratch.line[:0], nextRun), truncated, true
 	}
+
+	// lineCandidate is filled with runs as we search for valid line breaks. When we find a valid
+	// option, we commit it into bestCandidate and keep looking.
+	lineCandidate := l.scratch.line[scratchStart:scratchStart]
+	bestCandidate := l.scratch.alt[:0]
 
 	// lineWidth tracks the width of the lineCandidate.
 	lineWidth := fixed.I(0)
