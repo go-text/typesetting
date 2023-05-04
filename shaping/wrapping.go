@@ -446,9 +446,9 @@ func (r *runSlice) Restore() {
 // are deeply copied). If necessary, using a multiple WrapBuffers can work
 // around this restriction.
 type WrapBuffer struct {
-	// lines is a buffer holding lines allocated (primarily) from subregions
+	// paragraph is a buffer holding paragraph allocated (primarily) from subregions
 	// of the line field.
-	lines []Line
+	paragraph []Line
 	// line is a large buffer of Outputs that is used to build lines.
 	line []Output
 	// lineUsed is the index of the first unused element in line.
@@ -458,22 +458,101 @@ type WrapBuffer struct {
 	// alt is a smaller temporary buffer that holds candidate lines while
 	// they are being built.
 	alt []Output
-	// lineExhausted indicates whether the previous shaping used all of alt.
-	altExhausted bool
+	// best is a slice holding the best known line. When possible, it
+	// is a subslice of line, but if line runs out of capacity it will
+	// be heap allocated.
+	best []Output
+	// bestInLine tracks whether the current best is allocated from within line.
+	bestInLine bool
 }
 
 // NewWrapBuffer returns a WrapBuffer with some pre-allocated storage for
 // small-sized texts.
 func NewWrapBuffer() *WrapBuffer {
 	return &WrapBuffer{
-		lines: make([]Line, 10),
-		line:  make([]Output, 100),
-		alt:   make([]Output, 10),
+		paragraph: make([]Line, 10),
+		line:      make([]Output, 100),
+		alt:       make([]Output, 10),
+	}
+}
+
+func (w *WrapBuffer) reset() {
+	w.paragraph = w.paragraph[:0]
+	w.alt = w.alt[:0]
+	w.line = w.line[:0]
+	w.lineUsed = 0
+	w.best = nil
+	w.bestInLine = false
+	if w.lineExhausted {
+		w.lineExhausted = false
+		// Trigger the go slice growth heuristic by appending an element to
+		// the capacity.
+		w.line = append(w.line[:cap(w.line)], Output{})[:0]
 	}
 }
 
 func (w *WrapBuffer) stats() string {
-	return fmt.Sprintf("lines: %d, line: %d, used: %d, exhausted: %v, alt: %d, exhausted: %v", len(w.lines), len(w.line), w.lineUsed, w.lineExhausted, len(w.alt), w.altExhausted)
+	return fmt.Sprintf("paragraph: %d(%d), line: %d(%d), used: %d, exhausted: %v, alt: %d(%d)", len(w.paragraph), cap(w.paragraph), len(w.line), cap(w.line), w.lineUsed, w.lineExhausted, len(w.alt), cap(w.alt))
+}
+
+// singleRunParagraph is an optimized helper for quickly constructing
+// a []Line containing only a single run.
+func (w *WrapBuffer) singleRunParagraph(run Output) []Line {
+	s := w.line[w.lineUsed : w.lineUsed+1]
+	s[0] = run
+	w.paragraphAppend(s)
+	return w.finalParagraph()
+}
+
+func (w *WrapBuffer) paragraphAppend(line []Output) {
+	w.paragraph = append(w.paragraph, line)
+}
+
+func (w *WrapBuffer) finalParagraph() []Line {
+	return w.paragraph
+}
+
+func (w *WrapBuffer) startLine() {
+	w.alt = w.alt[:0]
+	w.best = nil
+	w.bestInLine = false
+}
+
+// candidateAppend adds the given run to the current line wrapping candidate.
+func (w *WrapBuffer) candidateAppend(run Output) {
+	w.alt = append(w.alt, run)
+}
+
+// markCandidateBest marks that the current line wrapping candidate is the best
+// known line wrapping candidate with the given suffixes. Providing suffixes does
+// not modify the current candidate, but does ensure that the "best" candidate ends
+// with them.
+func (w *WrapBuffer) markCandidateBest(suffixes ...Output) {
+	neededLen := len(w.alt) + len(suffixes)
+	if len(w.line[w.lineUsed:cap(w.line)]) < neededLen {
+		w.lineExhausted = true
+		w.best = make([]Output, neededLen)
+		w.bestInLine = false
+	} else {
+		w.best = w.line[w.lineUsed : w.lineUsed+neededLen]
+		w.bestInLine = true
+	}
+	n := copy(w.best, w.alt)
+	copy(w.best[n:], suffixes)
+}
+
+// hasBest returns whether there is currently a known valid line wrapping candidate
+// for the line.
+func (w *WrapBuffer) hasBest() bool {
+	return len(w.best) > 0
+}
+
+// finalizeBest commits the storage for the current best line and returns it.
+func (w *WrapBuffer) finalizeBest() []Output {
+	if w.bestInLine {
+		w.lineUsed += len(w.best)
+	}
+	return w.best
 }
 
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
@@ -527,19 +606,7 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 	if l.scratch == nil {
 		l.scratch = NewWrapBuffer()
 	}
-	l.scratch.lineUsed = 0
-	if l.scratch.lineExhausted {
-		l.scratch.lineExhausted = false
-		// Trigger the go slice growth heuristic by appending an element to
-		// the capacity.
-		l.scratch.line = append(l.scratch.line[:cap(l.scratch.line)], Output{})
-	}
-	if l.scratch.altExhausted {
-		l.scratch.altExhausted = false
-		// Trigger the go slice growth heuristic by appending an element to
-		// the capacity.
-		l.scratch.alt = append(l.scratch.alt[:cap(l.scratch.alt)], Output{})
-	}
+	l.scratch.reset()
 }
 
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
@@ -554,25 +621,20 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator, scratch *WrapBuffer) (_ []Line, truncated int) {
 	if scratch == nil {
 		scratch = NewWrapBuffer()
+	} else {
+		scratch.reset()
 	}
-	scratch.lines = scratch.lines[:0]
 	if _, nextRun, ok := runs.Peek(); ok && runs.IsFinal() && nextRun.Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
-		if cap(scratch.line) > 0 {
-			scratch.lines = append(scratch.lines, scratch.line[:1])
-			scratch.lines[0][0] = nextRun
-		} else {
-			scratch.lines = append(scratch.lines, []Output{nextRun})
-		}
-		return scratch.lines, 0
+		return scratch.singleRunParagraph(nextRun), 0
 	}
 	l.Prepare(config, paragraph, runs, scratch)
 	var done bool
 	for !done {
 		var line Line
 		line, truncated, done = l.WrapNextLine(maxWidth)
-		scratch.lines = append(scratch.lines, line)
+		scratch.paragraphAppend(line)
 	}
-	return scratch.lines, truncated
+	return scratch.finalParagraph(), truncated
 }
 
 // nextBreakOption returns the next rune offset at which the line can be broken,
@@ -609,13 +671,13 @@ const (
 // fillUntil tries to fill the provided line candidate slice with runs until it reaches a run containing the
 // provided break option. It returns the index of the run containing the option, the new width of the candidate
 // line, the contents of the new candidate line, and a result indicating how to proceed.
-func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, startWidth fixed.Int26_6, lineCandidate []Output) (newWidth fixed.Int26_6, newLineCandidate []Output, status fillResult) {
+func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, startWidth fixed.Int26_6, scratch *WrapBuffer) (newWidth fixed.Int26_6, status fillResult) {
 	currRunIndex, run, more := runs.Peek()
 	for more && option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
 		if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
 			_, _, isMore := runs.Next()
 			if !isMore {
-				return startWidth, lineCandidate, noCandidate
+				return startWidth, noCandidate
 			}
 			currRunIndex, run, more = runs.Peek()
 			continue
@@ -627,15 +689,15 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, startWidth
 		}
 		// While the run being processed doesn't contain the current line breaking
 		// candidate, just append it to the candidate line.
-		lineCandidate = append(lineCandidate, run)
+		scratch.candidateAppend(run)
 		startWidth += run.Advance
 		_, _, isMore := runs.Next()
 		if !isMore {
-			return startWidth, lineCandidate, noRunWithBreak
+			return startWidth, noRunWithBreak
 		}
 		currRunIndex, run, more = runs.Peek()
 	}
-	return startWidth, lineCandidate, newCandidate
+	return startWidth, newCandidate
 }
 
 // WrapNextLine wraps the shaped glyphs of a paragraph to a particular max width.
@@ -645,19 +707,8 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, startWidth
 // The truncated return value is the count of runes truncated from the end of the line,
 // if this line was truncated.
 func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int, done bool) {
-	scratchStart := l.scratch.lineUsed
+	l.scratch.startLine()
 	defer func() {
-		if cap(l.scratch.line)-scratchStart >= len(finalLine) && len(finalLine) > 0 {
-			// Ensure we return the line using memory provided by the l.scratch
-			// type.
-			if &finalLine[0] != &l.scratch.line[scratchStart : scratchStart+1][0] {
-				l.scratch.altExhausted = l.scratch.altExhausted || cap(l.scratch.alt) > 0 && &(l.scratch.alt[0:1][0]) != &finalLine[0]
-				finalLine = append(l.scratch.line[scratchStart:scratchStart], finalLine...)
-			}
-			l.scratch.lineUsed += len(finalLine)
-		} else {
-			l.scratch.lineExhausted = true
-		}
 		if len(finalLine) > 0 {
 			finalRun := finalLine[len(finalLine)-1]
 			l.lineStartRune = finalRun.Runes.Count + finalRun.Runes.Offset
@@ -689,13 +740,10 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 			// Pass empty lines through as empty.
 			nextRun.Runes = Range{Count: l.breaker.totalRunes}
 		}
-		return append(l.scratch.line[:0], nextRun), truncated, true
+		l.scratch.candidateAppend(nextRun)
+		l.scratch.markCandidateBest()
+		return l.scratch.finalizeBest(), truncated, true
 	}
-
-	// lineCandidate is filled with runs as we search for valid line breaks. When we find a valid
-	// option, we commit it into bestCandidate and keep looking.
-	lineCandidate := l.scratch.line[scratchStart:scratchStart]
-	bestCandidate := l.scratch.alt[:0]
 
 	// lineWidth tracks the width of the lineCandidate.
 	lineWidth := fixed.I(0)
@@ -714,19 +762,20 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 
 		option, ok := l.nextBreakOption()
 		if !ok {
-			return bestCandidate, truncated, true
+			return l.scratch.finalizeBest(), truncated, true
 		}
-		lineWidth, lineCandidate, result = l.fillUntil(
+		lineWidth, result = l.fillUntil(
 			l.glyphRuns,
 			option,
 			lineWidth,
-			lineCandidate,
+			l.scratch,
 		)
 
 		if result == noCandidate {
-			return bestCandidate, truncated, true
+			return l.scratch.finalizeBest(), truncated, true
 		} else if result == noRunWithBreak {
-			return lineCandidate, truncated, true
+			l.scratch.markCandidateBest()
+			return l.scratch.finalizeBest(), truncated, true
 		}
 		currRunIndex, run, _ := l.glyphRuns.Peek()
 		l.mapper.mapRun(currRunIndex, run)
@@ -738,22 +787,22 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 		candidateLineWidth := (candidateRun.Advance + lineWidth).Ceil()
 		if candidateLineWidth > maxWidth {
 			// The run doesn't fit on the line.
-			if len(bestCandidate) < 1 {
+			if !l.scratch.hasBest() {
 				if truncating {
-					return bestCandidate, truncated, true
+					return l.scratch.finalizeBest(), truncated, true
 				}
 				// There is no existing candidate that fits, and we have just hit the
 				// first line breaking candidate. Commit this break position as the
 				// best available, even though it doesn't fit.
-				lineCandidate = append(lineCandidate, candidateRun)
-				return lineCandidate, truncated, false
+				l.scratch.markCandidateBest(candidateRun)
+				return l.scratch.finalizeBest(), truncated, false
 			} else {
 				// The line is a valid, shorter wrapping. Return it and mark that
 				// we should reuse the current line break candidate on the next
 				// line.
 				l.isUnused = true
 				l.glyphRuns.Restore()
-				return bestCandidate, truncated, false
+				return l.scratch.finalizeBest(), truncated, false
 			}
 		} else if truncating && candidateLineWidth > truncatedMaxWidth {
 			// The run would not fit if truncated.
@@ -761,46 +810,17 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 			if finalRunRune == l.breaker.totalRunes && !l.config.TextContinues {
 				// The run contains the entire end of the text, so no truncation is
 				// necessary.
-				bestCandidate = commitCandidate(bestCandidate, lineCandidate, candidateRun)
-				return bestCandidate, truncated, true
+				l.scratch.markCandidateBest(candidateRun)
+				return l.scratch.finalizeBest(), truncated, true
 			}
 			// We must truncate the line in order to show it.
-			return bestCandidate, truncated, true
+			return l.scratch.finalizeBest(), truncated, true
 		} else {
 			// The run does fit on the line. Commit this line as the best known
 			// line, but keep lineCandidate unmodified so that later break
 			// options can be attempted to see if a more optimal solution is
 			// available.
-			bestCandidate = commitCandidate(bestCandidate, lineCandidate, candidateRun)
+			l.scratch.markCandidateBest(candidateRun)
 		}
 	}
-}
-
-// commitCandidate efficiently updates destination to contain append(source, newRuns...),
-// returning the resulting slice. This operation only makes sense when destination
-// is not known to contain the elements of source already.
-func commitCandidate(destination, source []Output, newRuns ...Output) []Output {
-	destination = resize(destination, len(source), len(source)+1)
-	destination = destination[:copy(destination, source)]
-	destination = append(destination, newRuns...)
-	return destination
-}
-
-// resize returns input resized to have the provided length and at least the provided
-// capacity. It may copy the data if the provided capacity is greater than the capacity
-// of in. If the provided length is greater than the provided capacity, the capacity will
-// be used as the length.
-func resize(input []Output, length, capacity int) []Output {
-	if length > capacity {
-		length = capacity
-	}
-	out := input
-	if cap(input) < capacity {
-		out = make([]Output, capacity)
-		copy(out, input)
-	}
-	if len(out) != length {
-		out = out[:length]
-	}
-	return out
 }
