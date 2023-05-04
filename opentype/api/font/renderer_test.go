@@ -228,6 +228,23 @@ func TestGlyfSegments1(t *testing.T) {
 	}
 }
 
+func BenchmarkBuildSegments(b *testing.B) {
+	var points []contourPoint
+	font := loadFont(b, "common/Roboto-BoldItalic.ttf")
+	face := Face{Font: font}
+	gid, ok := face.NominalGlyph('&')
+	if !ok {
+		b.Fatal("did not find & in the font")
+	}
+	face.getPointsForGlyph(uint16(gid), 0, &points)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = buildSegments(points)
+	}
+}
+
 func TestGlyfSegments2(t *testing.T) {
 	font := loadFont(t, "common/Roboto-BoldItalic.ttf")
 
