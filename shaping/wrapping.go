@@ -625,15 +625,23 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 	} else {
 		scratch.reset()
 	}
-	if _, nextRun, ok := runs.Peek(); ok && runs.IsFinal() && nextRun.Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
-		return scratch.singleRunParagraph(nextRun), 0
+
+	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
+	runs.Save()
+	_, firstRun, firstOk := runs.Next()
+	if _, _, ok := runs.Peek(); firstOk && !ok && firstRun.Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
+		return scratch.singleRunParagraph(firstRun), 0
 	}
+	runs.Restore()
+
 	l.Prepare(config, paragraph, runs, scratch)
 	var done bool
 	for !done {
 		var line Line
 		line, truncated, done = l.WrapNextLine(maxWidth)
-		scratch.paragraphAppend(line)
+		if line != nil {
+			scratch.paragraphAppend(line)
+		}
 	}
 	return scratch.finalParagraph(), truncated
 }
