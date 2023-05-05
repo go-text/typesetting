@@ -1716,6 +1716,35 @@ func TestWrappingTruncation(t *testing.T) {
 	}
 }
 
+func TestWrapping_oneLine(t *testing.T) {
+	textInput := []rune("Lorem ipsum") // a simple input that fits on one line
+	face := benchEnFace
+	var shaper HarfbuzzShaper
+	out := []Output{shaper.Shape(Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})}
+	iter := NewSliceIterator(out)
+	var l LineWrapper
+
+	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, iter, nil)
+	if len(outs) != 1 {
+		t.Errorf("expected one line, got %d", len(outs))
+	}
+
+	// the run in iter should have been consumed
+	outs, _ = l.WrapParagraph(WrapConfig{}, 250, textInput, iter, nil)
+	if len(outs) != 0 {
+		t.Errorf("expected no line, got %d", len(outs))
+	}
+}
+
 // TestWrappingTruncation checks that the line wrapper's truncation features
 // handle some edge cases.
 func TestWrappingTruncationEdgeCases(t *testing.T) {
