@@ -372,9 +372,6 @@ type RunIterator interface {
 	// Peek returns the same thing Next() would, but does not advance the iterator (so the
 	// next call to Next() will return the same thing).
 	Peek() (index int, run Output, isValid bool)
-	// IsFinal returns whether the Output returned by a subsequent call to Next() or Peek()
-	// is the final output for this iterator.
-	IsFinal() bool
 	// Save marks the current iterator position such that the iterator can return to it later
 	// when Restore() is called. Only one position may be saved at a time, with subsequent
 	// calls to Save() overriding the current value.
@@ -422,11 +419,6 @@ func (r *runSlice) Peek() (int, Output, bool) {
 		return r.idx, next, true
 	}
 	return r.idx, Output{}, false
-}
-
-// IsFinal implements [RunIterator.IsFinal].
-func (r *runSlice) IsFinal() bool {
-	return r.idx == len(r.runs)-1
 }
 
 // Save implements [RunIterator.Save].
@@ -739,12 +731,17 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 			l.more = false
 		}
 	}()
+	l.glyphRuns.Save()
 	if !l.more {
 		return nil, truncated, true
-	} else if _, nextRun, more := l.glyphRuns.Peek(); !more {
+	}
+	_, nextRun, more := l.glyphRuns.Next()
+	if !more {
 		return nil, truncated, true
-	} else if emptyLine := len(nextRun.Glyphs) == 0; emptyLine ||
-		(l.glyphRuns.IsFinal() && nextRun.Advance.Ceil() < maxWidth && !(l.config.TextContinues && l.config.TruncateAfterLines == 1)) {
+	}
+	_, _, moreRuns := l.glyphRuns.Peek()
+	if emptyLine := len(nextRun.Glyphs) == 0; emptyLine ||
+		(!moreRuns && nextRun.Advance.Ceil() < maxWidth && !(l.config.TextContinues && l.config.TruncateAfterLines == 1)) {
 		if emptyLine {
 			// Pass empty lines through as empty.
 			nextRun.Runes = Range{Count: l.breaker.totalRunes}
@@ -753,6 +750,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 		l.scratch.markCandidateBest()
 		return l.scratch.finalizeBest(), truncated, true
 	}
+	l.glyphRuns.Restore()
 
 	// lineWidth tracks the width of the lineCandidate.
 	lineWidth := fixed.I(0)
