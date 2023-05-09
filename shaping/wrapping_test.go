@@ -2081,6 +2081,121 @@ func TestCutRunInto(t *testing.T) {
 	}
 }
 
+func TestWrapBuffer(t *testing.T) {
+	t.Run("new and reset have same state", func(t *testing.T) {
+		b1 := NewWrapBuffer()
+		b2 := NewWrapBuffer()
+		b2.reset()
+		if !reflect.DeepEqual(b1, b2) {
+			t.Errorf("expected new and new+reset buffer to have same fields")
+		}
+	})
+	t.Run("paragraph functions", func(t *testing.T) {
+		b1 := NewWrapBuffer()
+		line := Line{Output{Advance: 10}}
+		for i := 0; i < 5; i++ {
+			maxLines := cap(b1.paragraph)
+			startAddr := &b1.paragraph[0:1][0]
+			b1.reset()
+			for k := 0; k < maxLines; k++ {
+				b1.paragraphAppend(line)
+			}
+			para := b1.finalParagraph()
+			if actAddr := &para[0:1][0]; startAddr != actAddr {
+				t.Errorf("expected paragraph to reuse slice starting at %p, got %p", startAddr, actAddr)
+			}
+		}
+		for i := 0; i < 5; i++ {
+			maxLines := cap(b1.paragraph)
+			startAddr := &b1.paragraph[0:1][0]
+			b1.reset()
+			for k := 0; k < maxLines+1; k++ {
+				b1.paragraphAppend(line)
+			}
+			para := b1.finalParagraph()
+			if actAddr := &para[0:1][0]; startAddr == actAddr {
+				t.Errorf("expected paragraph to enlarge slice starting at %p (changing start addres), but got %p", startAddr, actAddr)
+			}
+		}
+		for i := 0; i < 5; i++ {
+			startAddr := &b1.paragraph[0:1][0]
+			b1.reset()
+			para := b1.singleRunParagraph(line[0])
+			if actAddr := &para[0:1][0]; startAddr != actAddr {
+				t.Errorf("expected singleRunParagraph to reuse slice starting at %p, got %p", startAddr, actAddr)
+			}
+		}
+	})
+	t.Run("line building", func(t *testing.T) {
+		b := NewWrapBuffer()
+		b.startLine()
+		run := Output{Advance: 10}
+		lineLen := 0
+		for i := 0; i < cap(b.line)-1; i++ {
+			b.candidateAppend(run)
+			lineLen++
+			if b.hasBest() {
+				t.Errorf("no best committed, but hasBest() true")
+			}
+		}
+		best := b.finalizeBest()
+		if best != nil {
+			t.Errorf("no best committed, but finalizeBest() returned non-nil %#+v", best)
+		}
+		preCommitAltLen := len(b.alt)
+		b.markCandidateBest(run)
+		if postCommitAltLen := len(b.alt); preCommitAltLen != postCommitAltLen {
+			t.Errorf("modified candidate when committing best, expected len %d, got %d", preCommitAltLen, postCommitAltLen)
+		}
+		if !b.hasBest() {
+			t.Errorf("best committed, but hasBest() false")
+		}
+		preLineUsed := b.lineUsed
+		best = b.finalizeBest()
+		postLineUsed := b.lineUsed
+		if len(best) != lineLen+1 {
+			t.Errorf("expected best candidate to have len %d, got %d", lineLen+1, len(best))
+		}
+		if used := postLineUsed - preLineUsed; used != len(best) {
+			t.Errorf("expected best candidate to use %d capacity of line, used %d", len(best), used)
+		}
+		if b.lineExhausted {
+			t.Errorf("did not expect line to be exhausted yet")
+		}
+		b.startLine()
+		b.candidateAppend(run)
+		b.candidateAppend(run)
+		if b.hasBest() {
+			t.Errorf("no best committed, but hasBest() true")
+		}
+		b.markCandidateBest()
+		if !b.hasBest() {
+			t.Errorf("best committed, but hasBest() false")
+		}
+		preLineUsed = b.lineUsed
+		best = b.finalizeBest()
+		postLineUsed = b.lineUsed
+		if len(best) != 2 {
+			t.Errorf("expected best candidate to have len %d, got %d", 2, len(best))
+		}
+		if used := postLineUsed - preLineUsed; used != 0 {
+			t.Errorf("expected best candidate to use %d capacity of line, used %d", 0, used)
+		}
+		if !b.lineExhausted {
+			t.Errorf("expected line to be exhausted")
+		}
+		preResetCap := cap(b.line)
+		b.reset()
+		postResetCap := cap(b.line)
+		if postResetCap <= preResetCap {
+			t.Errorf("expected exhausted line to expand on reset")
+		}
+		if b.lineExhausted {
+			t.Errorf("expected lineExhausted to clear on reset")
+		}
+	})
+}
+
 func BenchmarkWrapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range benchSizes {
