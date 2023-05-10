@@ -766,9 +766,14 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 	}
 	// If the iterator contains only one run, and that run fits, take the fast path.
 	l.scratch.startLine()
+	truncating := l.config.TruncateAfterLines == 1
 	_, _, moreRuns := l.glyphRuns.Peek()
-	if emptyLine := len(nextRun.Glyphs) == 0; emptyLine ||
-		(!moreRuns && nextRun.Advance.Ceil() < maxWidth && !(l.config.TextContinues && l.config.TruncateAfterLines == 1)) {
+	emptyLine := len(nextRun.Glyphs) == 0
+	if emptyLine ||
+		(!moreRuns && // This is the final run in the iterator.
+			nextRun.Runes.Offset == l.lineStartRune && // We have not already used part of the run.
+			nextRun.Advance.Ceil() < maxWidth && // The run fits in the line.
+			!(l.config.TextContinues && truncating)) {
 		if emptyLine {
 			// Pass empty lines through as empty.
 			nextRun.Runes = Range{Count: l.breaker.totalRunes}
@@ -781,7 +786,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 	l.glyphRuns.Restore()
 
 	config := lineConfig{
-		truncating:        l.config.TruncateAfterLines == 1,
+		truncating:        truncating,
 		maxWidth:          maxWidth,
 		truncatedMaxWidth: maxWidth - l.config.Truncator.Advance.Ceil(),
 	}
@@ -896,33 +901,4 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		l.scratch.markCandidateBest(candidateRun)
 		return fits
 	}
-}
-
-// commitCandidate efficiently updates destination to contain append(source, newRuns...),
-// returning the resulting slice. This operation only makes sense when destination
-// is not known to contain the elements of source already.
-func commitCandidate(destination, source []Output, newRuns ...Output) []Output {
-	destination = resize(destination, len(source), len(source)+1)
-	destination = destination[:copy(destination, source)]
-	destination = append(destination, newRuns...)
-	return destination
-}
-
-// resize returns input resized to have the provided length and at least the provided
-// capacity. It may copy the data if the provided capacity is greater than the capacity
-// of in. If the provided length is greater than the provided capacity, the capacity will
-// be used as the length.
-func resize(input []Output, length, capacity int) []Output {
-	if length > capacity {
-		length = capacity
-	}
-	out := input
-	if cap(input) < capacity {
-		out = make([]Output, capacity)
-		copy(out, input)
-	}
-	if len(out) != length {
-		out = out[:length]
-	}
-	return out
 }

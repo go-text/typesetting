@@ -1628,6 +1628,60 @@ func TestWrappingLatinE2E(t *testing.T) {
 	}
 }
 
+// TestWrappingBidiRegression checks a specific regression discovered within the Gio test suite.
+func TestWrappingBidiRegression(t *testing.T) {
+	textInput := []rune("الحب سماء brown привет fox تمط jumps привет over غير الأحلام")
+	enFace := benchEnFace
+	arFace := benchArFace
+	var shaper HarfbuzzShaper
+
+	ppem := fixed.I(16)
+	maxWidth := 100
+	arLang := language.NewLanguage("AR")
+	inputs := []Input{
+		{RunStart: 0, RunEnd: 10, Script: language.Arabic, Direction: di.DirectionRTL},
+		{RunStart: 10, RunEnd: 16, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 16, RunEnd: 23, Script: language.Cyrillic, Direction: di.DirectionLTR},
+		{RunStart: 23, RunEnd: 26, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 26, RunEnd: 31, Script: language.Arabic, Direction: di.DirectionRTL},
+		{RunStart: 31, RunEnd: 37, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 37, RunEnd: 44, Script: language.Cyrillic, Direction: di.DirectionLTR},
+		{RunStart: 44, RunEnd: 48, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 48, RunEnd: 60, Script: language.Arabic, Direction: di.DirectionRTL},
+	}
+
+	out := make([]Output, len(inputs))
+	for i := range inputs {
+		inputs[i].Text = textInput
+		inputs[i].Size = ppem
+		if inputs[i].Direction == di.DirectionRTL {
+			inputs[i].Face = arFace
+		} else {
+			inputs[i].Face = enFace
+		}
+		// Even though the text sample is mixed, the overall document language is arabic.
+		inputs[i].Language = arLang
+		out[i] = shaper.Shape(inputs[i])
+	}
+	var l LineWrapper
+	lines, truncated := l.WrapParagraph(WrapConfig{}, maxWidth, textInput, NewSliceIterator(out), nil)
+	if truncated != 0 {
+		t.Errorf("did not expect truncation, got truncated=%d", truncated)
+	}
+	totalRunes := 0
+	for lineIdx, line := range lines {
+		for runIdx, run := range line {
+			if run.Runes.Offset != totalRunes {
+				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
+			}
+			totalRunes += run.Runes.Count
+		}
+	}
+	if len(textInput) != totalRunes {
+		t.Errorf("expected %d runes total, got %d", len(textInput), totalRunes)
+	}
+}
+
 // TestWrappingTruncation checks that the line wrapper's truncation features
 // behave as expected.
 func TestWrappingTruncation(t *testing.T) {
