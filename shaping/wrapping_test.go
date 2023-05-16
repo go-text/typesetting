@@ -886,7 +886,7 @@ func TestWrapLine(t *testing.T) {
 				done bool
 				l    LineWrapper
 			)
-			l.Prepare(WrapConfig{}, tc.paragraph, NewSliceIterator(tc.shaped))
+			l.Prepare(WrapConfig{BreakPolicy: Never}, tc.paragraph, NewSliceIterator(tc.shaped))
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
@@ -1487,7 +1487,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs, _ := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped))
+			outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped))
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1568,38 +1568,49 @@ func complexGlyph(cluster, runes, glyphs int) Glyph {
 	}
 }
 
-func TestGetBreakOptions(t *testing.T) {
-	if err := quick.Check(func(runes []rune) bool {
-		breaker := newBreaker(&segmenter.Segmenter{}, runes)
-		var options []breakOption
-		for b, ok := breaker.next(); ok; b, ok = breaker.next() {
-			options = append(options, b)
-		}
-
-		// Ensure breaks are in valid range.
-		for _, o := range options {
-			if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {
-				return false
-			}
-		}
-		// Ensure breaks are sorted.
-		if !sort.SliceIsSorted(options, func(i, j int) bool {
-			return options[i].breakAtRune < options[j].breakAtRune
-		}) {
+func checkOptions(t *testing.T, runes []rune, options []breakOption) bool {
+	t.Helper()
+	// Ensure breaks are in valid range.
+	for _, o := range options {
+		if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {
+			t.Errorf("breakAtRune out of bounds: %d when len(runes)=%d", o.breakAtRune, len(runes))
 			return false
 		}
+	}
+	// Ensure breaks are sorted.
+	if !sort.SliceIsSorted(options, func(i, j int) bool {
+		return options[i].breakAtRune < options[j].breakAtRune
+	}) {
+		t.Errorf("breaks are not sorted: %#+v", options)
+		return false
+	}
 
-		// Ensure breaks are unique.
-		m := make([]bool, len(runes))
-		for _, o := range options {
-			if m[o.breakAtRune] {
-				return false
-			} else {
-				m[o.breakAtRune] = true
-			}
+	// Ensure breaks are unique.
+	m := make([]bool, len(runes))
+	for _, o := range options {
+		if m[o.breakAtRune] {
+			t.Errorf("breaks are not unique: %v is repeated in %#+v", o, m)
+			return false
+		} else {
+			m[o.breakAtRune] = true
 		}
+	}
 
-		return true
+	return true
+}
+
+func TestRawBreakOptions(t *testing.T) {
+	if err := quick.Check(func(runes []rune) bool {
+		breaker := newBreaker(&segmenter.Segmenter{}, runes)
+		var wordOptions []breakOption
+		for b, ok := breaker.nextWordRaw(); ok; b, ok = breaker.nextWordRaw() {
+			wordOptions = append(wordOptions, b)
+		}
+		var graphemeOptions []breakOption
+		for b, ok := breaker.nextGraphemeRaw(); ok; b, ok = breaker.nextGraphemeRaw() {
+			graphemeOptions = append(graphemeOptions, b)
+		}
+		return checkOptions(t, runes, wordOptions) && checkOptions(t, runes, graphemeOptions)
 	}, nil); err != nil {
 		t.Errorf("generated invalid break options: %v", err)
 	}
@@ -1622,7 +1633,7 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out))
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, NewSliceIterator(out))
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
@@ -1691,24 +1702,39 @@ func TestWrappingBidiRegression(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			lines, truncated := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
+			lines, truncated := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
 			if truncated != 0 {
 				t.Errorf("did not expect truncation, got truncated=%d", truncated)
 			}
-			totalRunes := 0
-			for lineIdx, line := range lines {
-				for runIdx, run := range line {
-					if run.Runes.Offset != totalRunes {
-						t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
-					}
-					totalRunes += run.Runes.Count
-				}
-			}
-			if len(tc.text) != totalRunes {
-				t.Errorf("expected %d runes total, got %d", len(tc.text), totalRunes)
-			}
+			checkRuneCounts(t, tc.text, lines, truncated)
 		})
 	}
+}
+
+func checkRuneCounts(t *testing.T, source []rune, lines []Line, truncated int) []int {
+	t.Helper()
+	counts := []int{}
+	totalRunes := 0
+	for lineIdx, line := range lines {
+		lineTotalRunes := 0
+		for runIdx, run := range line {
+			if truncated > 0 && totalRunes == len(source)-truncated && run.Runes.Offset == 0 {
+				// Skip the truncator run.
+				continue
+			}
+			if run.Runes.Offset != totalRunes {
+
+				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
+			}
+			totalRunes += run.Runes.Count
+			lineTotalRunes += run.Runes.Count
+		}
+		counts = append(counts, lineTotalRunes)
+	}
+	if len(source)-truncated != totalRunes {
+		t.Errorf("expected %d runes total, got %d", len(source)-truncated, totalRunes)
+	}
+	return counts
 }
 
 // TestWrappingTruncation checks that the line wrapper's truncation features
@@ -1728,7 +1754,7 @@ func TestWrappingTruncation(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out))
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, NewSliceIterator(out))
 	untruncatedCount := len(outs)
 
 	for _, truncator := range []Output{
@@ -1756,6 +1782,7 @@ func TestWrappingTruncation(t *testing.T) {
 	} {
 		for i := untruncatedCount + 1; i > 0; i-- {
 			wc := WrapConfig{
+				BreakPolicy:        Never,
 				TruncateAfterLines: i,
 				Truncator:          truncator,
 			}
@@ -1816,13 +1843,13 @@ func TestWrapping_oneLine(t *testing.T) {
 	iter := NewSliceIterator(out)
 	var l LineWrapper
 
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, iter)
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, iter)
 	if len(outs) != 1 {
 		t.Errorf("expected one line, got %d", len(outs))
 	}
 
 	// the run in iter should have been consumed
-	outs, _ = l.WrapParagraph(WrapConfig{}, 250, textInput, iter)
+	outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, iter)
 	if len(outs) != 0 {
 		t.Errorf("expected no line, got %d", len(outs))
 	}
@@ -1988,6 +2015,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			}
 			var l LineWrapper
 			lines, truncatedRunes := l.WrapParagraph(WrapConfig{
+				BreakPolicy:        Never,
 				Truncator:          trunc,
 				TruncateAfterLines: tc.maxLines,
 				TextContinues:      tc.forceTruncation,
@@ -2298,6 +2326,392 @@ func TestWrapBuffer(t *testing.T) {
 	})
 }
 
+func TestLineWrapperBreakPolicies(t *testing.T) {
+	type testcase struct {
+		name      string
+		paragraph []rune
+	}
+	for _, tc := range []testcase{
+		{
+			name:      "hello world",
+			paragraph: []rune("hello, world"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := HarfbuzzShaper{}
+			out := s.Shape(Input{
+				Text:      tc.paragraph,
+				RunStart:  0,
+				RunEnd:    len(tc.paragraph),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			textWidth := out.Advance.Ceil()
+			for maxWidth := textWidth; maxWidth > 0; maxWidth -= max(maxWidth/10, 1) {
+				t.Run(fmt.Sprintf("maxWidth%d", maxWidth), func(t *testing.T) {
+					for _, policy := range []LineBreakPolicy{WhenNecessary, Never, Always} {
+						t.Run(policy.String(), func(t *testing.T) {
+							w := LineWrapper{}
+							lines, truncated := w.WrapParagraph(WrapConfig{
+								BreakPolicy: policy,
+							}, maxWidth, tc.paragraph, NewSliceIterator([]Output{out}))
+							checkRuneCounts(t, tc.paragraph, lines, truncated)
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestLineWrapperBreakSpecific(t *testing.T) {
+	type expectation struct {
+		name           string
+		config         WrapConfig
+		runeCounts     []int
+		truncatedCount int
+	}
+	type testcase struct {
+		expectations []expectation
+		// This truncator will be inserted automatically into each expectation's WrapConfig
+		// to avoid redundantly specifying it.
+		truncator []rune
+		maxWidth  int
+		paragraph []rune
+	}
+	for _, tc := range []testcase{
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  80,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{11},
+					truncatedCount: 1,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{11, 1},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{11},
+					truncatedCount: 1,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  80,
+			truncator: []rune("…"),
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{11, 1},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  60,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{8, 4},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  60,
+			truncator: []rune("…"),
+			expectations: []expectation{
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{},
+					truncatedCount: 12,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  44,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{6, 6},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{6, 6},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{},
+					truncatedCount: 12,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  33,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{4, 3, 4, 1},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{4},
+					truncatedCount: 8,
+				},
+				{
+					name:           "WhenNecessary-Truncate2",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 2},
+					runeCounts:     []int{4, 4},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{4, 4, 4},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{4},
+					truncatedCount: 8,
+				},
+				{
+					name:           "Always-Truncate2",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 2},
+					runeCounts:     []int{4, 4},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{0},
+					truncatedCount: 12,
+				},
+				{
+					name:           "Never-Truncate2",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 2},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  9,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  1,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+			},
+		},
+	} {
+		t.Run(fmt.Sprintf("%q-width%d-truncator%q", string(tc.paragraph), tc.maxWidth, string(tc.truncator)), func(t *testing.T) {
+			s := HarfbuzzShaper{}
+			out := s.Shape(Input{
+				Text:      tc.paragraph,
+				RunStart:  0,
+				RunEnd:    len(tc.paragraph),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			shapedTrunc := s.Shape(Input{
+				Text:      tc.truncator,
+				RunStart:  0,
+				RunEnd:    len(tc.truncator),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			w := LineWrapper{}
+			for _, expec := range tc.expectations {
+				t.Run(expec.name, func(t *testing.T) {
+					expec.config.Truncator = shapedTrunc
+					lines, truncated := w.WrapParagraph(expec.config, tc.maxWidth, tc.paragraph, NewSliceIterator([]Output{out}))
+					actualCounts := checkRuneCounts(t, tc.paragraph, lines, truncated)
+					if truncated != expec.truncatedCount {
+						t.Errorf("expected %d truncated runes, got %d", expec.truncatedCount, truncated)
+					}
+					for lineNo, expected := range expec.runeCounts {
+						if len(actualCounts) <= lineNo {
+							t.Errorf("expected %d lines, got %d", len(expec.runeCounts), len(actualCounts))
+							break
+						}
+						actual := actualCounts[lineNo]
+						if actual != expected {
+							t.Errorf("line %d: expected %d runes, got %d", lineNo, expected, actual)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func BenchmarkWrapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range benchSizes {
@@ -2352,7 +2766,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, iter)
+		outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 100, textInput, iter)
 		iter.(*shapedRunSlice).Reset(out)
 	}
 	_ = outs
