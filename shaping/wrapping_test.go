@@ -886,7 +886,7 @@ func TestWrapLine(t *testing.T) {
 				done bool
 				l    LineWrapper
 			)
-			l.Prepare(WrapConfig{}, tc.paragraph, NewSliceIterator(tc.shaped), nil)
+			l.Prepare(WrapConfig{BreakPolicy: Never}, tc.paragraph, NewSliceIterator(tc.shaped), nil)
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
@@ -1487,7 +1487,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs, _ := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped), nil)
+			outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped), nil)
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1572,7 +1572,7 @@ func TestGetBreakOptions(t *testing.T) {
 	if err := quick.Check(func(runes []rune) bool {
 		breaker := newBreaker(&segmenter.Segmenter{}, runes)
 		var options []breakOption
-		for b, ok := breaker.next(); ok; b, ok = breaker.next() {
+		for b, ok := breaker.nextWord(); ok; b, ok = breaker.nextWord() {
 			options = append(options, b)
 		}
 
@@ -1622,7 +1622,7 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out), nil)
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, NewSliceIterator(out), nil)
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
@@ -1691,7 +1691,7 @@ func TestWrappingBidiRegression(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			lines, truncated := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs), nil)
+			lines, truncated := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs), nil)
 			if truncated != 0 {
 				t.Errorf("did not expect truncation, got truncated=%d", truncated)
 			}
@@ -1728,7 +1728,7 @@ func TestWrappingTruncation(t *testing.T) {
 		Language:  language.NewLanguage("EN"),
 	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, NewSliceIterator(out), nil)
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, NewSliceIterator(out), nil)
 	untruncatedCount := len(outs)
 
 	for _, truncator := range []Output{
@@ -1756,6 +1756,7 @@ func TestWrappingTruncation(t *testing.T) {
 	} {
 		for i := untruncatedCount + 1; i > 0; i-- {
 			wc := WrapConfig{
+				BreakPolicy:        Never,
 				TruncateAfterLines: i,
 				Truncator:          truncator,
 			}
@@ -1816,13 +1817,13 @@ func TestWrapping_oneLine(t *testing.T) {
 	iter := NewSliceIterator(out)
 	var l LineWrapper
 
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, iter, nil)
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, iter, nil)
 	if len(outs) != 1 {
 		t.Errorf("expected one line, got %d", len(outs))
 	}
 
 	// the run in iter should have been consumed
-	outs, _ = l.WrapParagraph(WrapConfig{}, 250, textInput, iter, nil)
+	outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, iter, nil)
 	if len(outs) != 0 {
 		t.Errorf("expected no line, got %d", len(outs))
 	}
@@ -1988,6 +1989,7 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			}
 			var l LineWrapper
 			lines, truncatedRunes := l.WrapParagraph(WrapConfig{
+				BreakPolicy:        Never,
 				Truncator:          trunc,
 				TruncateAfterLines: tc.maxLines,
 				TextContinues:      tc.forceTruncation,
@@ -2325,7 +2327,7 @@ func BenchmarkWrapping(b *testing.B) {
 						b.ResetTimer()
 						lines := make([]Line, 1)
 						for i := 0; i < b.N; i++ {
-							lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], iter, scratch)
+							lines, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 100, langInfo.text[:size.runes], iter, scratch)
 							iter.(*runSlice).Reset(outs)
 						}
 						_ = lines
@@ -2359,7 +2361,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, iter, scratch)
+		outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 100, textInput, iter, scratch)
 		iter.(*runSlice).Reset(out)
 	}
 	_ = outs
