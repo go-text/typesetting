@@ -1630,15 +1630,18 @@ func TestWrappingLatinE2E(t *testing.T) {
 
 // TestWrappingBidiRegression checks a specific regression discovered within the Gio test suite.
 func TestWrappingBidiRegression(t *testing.T) {
-	textInput := []rune("الحب سماء brown привет fox تمط jumps привет over غير الأحلام")
-	enFace := benchEnFace
-	arFace := benchArFace
-	var shaper HarfbuzzShaper
-
-	ppem := fixed.I(16)
-	maxWidth := 100
-	arLang := language.NewLanguage("AR")
-	inputs := []Input{
+	type testcase struct {
+		name     string
+		text     []rune
+		inputs   []Output
+		maxWidth int
+	}
+	ltrText := []rune("The quick brown fox jumps over the lazy dog.")
+	ltrTextRuns := []Input{
+		{RunStart: 0, RunEnd: len(ltrText), Script: language.Latin, Direction: di.DirectionLTR},
+	}
+	bidiText := []rune("الحب سماء brown привет fox تمط jumps привет over غير الأحلام")
+	bidiTextRuns := []Input{
 		{RunStart: 0, RunEnd: 10, Script: language.Arabic, Direction: di.DirectionRTL},
 		{RunStart: 10, RunEnd: 16, Script: language.Latin, Direction: di.DirectionLTR},
 		{RunStart: 16, RunEnd: 23, Script: language.Cyrillic, Direction: di.DirectionLTR},
@@ -1649,36 +1652,62 @@ func TestWrappingBidiRegression(t *testing.T) {
 		{RunStart: 44, RunEnd: 48, Script: language.Latin, Direction: di.DirectionLTR},
 		{RunStart: 48, RunEnd: 60, Script: language.Arabic, Direction: di.DirectionRTL},
 	}
+	applyDefaultsAndShape := func(textInput []rune, runs []Input) []Output {
+		enFace := benchEnFace
+		arFace := benchArFace
+		var shaper HarfbuzzShaper
 
-	out := make([]Output, len(inputs))
-	for i := range inputs {
-		inputs[i].Text = textInput
-		inputs[i].Size = ppem
-		if inputs[i].Direction == di.DirectionRTL {
-			inputs[i].Face = arFace
-		} else {
-			inputs[i].Face = enFace
-		}
-		// Even though the text sample is mixed, the overall document language is arabic.
-		inputs[i].Language = arLang
-		out[i] = shaper.Shape(inputs[i])
-	}
-	var l LineWrapper
-	lines, truncated := l.WrapParagraph(WrapConfig{}, maxWidth, textInput, NewSliceIterator(out), nil)
-	if truncated != 0 {
-		t.Errorf("did not expect truncation, got truncated=%d", truncated)
-	}
-	totalRunes := 0
-	for lineIdx, line := range lines {
-		for runIdx, run := range line {
-			if run.Runes.Offset != totalRunes {
-				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
+		ppem := fixed.I(16)
+		arLang := language.NewLanguage("AR")
+
+		out := make([]Output, len(runs))
+		for i := range runs {
+			runs[i].Text = textInput
+			runs[i].Size = ppem
+			if runs[i].Direction == di.DirectionRTL {
+				runs[i].Face = arFace
+			} else {
+				runs[i].Face = enFace
 			}
-			totalRunes += run.Runes.Count
+			// Even though the text sample is mixed, the overall document language is arabic.
+			runs[i].Language = arLang
+			out[i] = shaper.Shape(runs[i])
 		}
+		return out
 	}
-	if len(textInput) != totalRunes {
-		t.Errorf("expected %d runes total, got %d", len(textInput), totalRunes)
+	for _, tc := range []testcase{
+		{
+			name:     "simple ltr",
+			text:     ltrText,
+			inputs:   applyDefaultsAndShape(ltrText, ltrTextRuns),
+			maxWidth: 100,
+		},
+		{
+			name:     "many-run bidi",
+			text:     bidiText,
+			inputs:   applyDefaultsAndShape(bidiText, bidiTextRuns),
+			maxWidth: 100,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var l LineWrapper
+			lines, truncated := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs), nil)
+			if truncated != 0 {
+				t.Errorf("did not expect truncation, got truncated=%d", truncated)
+			}
+			totalRunes := 0
+			for lineIdx, line := range lines {
+				for runIdx, run := range line {
+					if run.Runes.Offset != totalRunes {
+						t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
+					}
+					totalRunes += run.Runes.Count
+				}
+			}
+			if len(tc.text) != totalRunes {
+				t.Errorf("expected %d runes total, got %d", len(tc.text), totalRunes)
+			}
+		})
 	}
 }
 
