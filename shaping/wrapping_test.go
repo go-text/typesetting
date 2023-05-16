@@ -2168,6 +2168,11 @@ func TestWrapBuffer(t *testing.T) {
 	t.Run("new and reset have same state", func(t *testing.T) {
 		b1 := NewWrapBuffer()
 		b2 := NewWrapBuffer()
+		defer func() {
+			if t.Failed() {
+				t.Logf("b1: %s\nb2: %s\n", b1.stats(), b2.stats())
+			}
+		}()
 		b2.reset()
 		if !reflect.DeepEqual(b1, b2) {
 			t.Errorf("expected new and new+reset buffer to have same fields")
@@ -2175,6 +2180,11 @@ func TestWrapBuffer(t *testing.T) {
 	})
 	t.Run("paragraph functions", func(t *testing.T) {
 		b1 := NewWrapBuffer()
+		defer func() {
+			if t.Failed() {
+				t.Logf("b1: %s\n", b1.stats())
+			}
+		}()
 		line := Line{Output{Advance: 10}}
 		for i := 0; i < 5; i++ {
 			maxLines := cap(b1.paragraph)
@@ -2211,6 +2221,11 @@ func TestWrapBuffer(t *testing.T) {
 	})
 	t.Run("line building", func(t *testing.T) {
 		b := NewWrapBuffer()
+		defer func() {
+			if t.Failed() {
+				t.Logf("b: %s\n", b.stats())
+			}
+		}()
 		b.startLine()
 		run := Output{Advance: 10}
 		lineLen := 0
