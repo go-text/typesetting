@@ -279,6 +279,18 @@ type breaker struct {
 	wordSegmenter     *segmenter.LineIterator
 	graphemeSegmenter *segmenter.GraphemeIterator
 	totalRunes        int
+	// unusedWordBreak is a break requested from the breaker in a previous iteration
+	// but which was not chosen as the line ending. Subsequent invocations of
+	// WrapLine should start with this break.
+	unusedWordBreak breakOption
+	// previousWordBreak tracks the previous line breaking candidate, if any. It is
+	// used to identify the range of runes between the previous and current
+	// candidate.
+	previousWordBreak breakOption
+	// isUnusedWord indicates that the unusedBreak field is valid.
+	isUnusedWord        bool
+	unusedGraphemeBreak breakOption
+	isUnusedGrapheme    bool
 }
 
 // newBreaker returns a breaker initialized to break the provided text.
@@ -292,8 +304,8 @@ func newBreaker(seg *segmenter.Segmenter, text []rune) *breaker {
 	return br
 }
 
-// nextWord returns a naive break candidate on a uax#14 boundary which may be invalid.
-func (b *breaker) nextWord() (option breakOption, ok bool) {
+// nextWordRaw returns a naive break candidate on a uax#14 boundary which may be invalid.
+func (b *breaker) nextWordRaw() (option breakOption, ok bool) {
 	if b.wordSegmenter.Next() {
 		currentSegment := b.wordSegmenter.Line()
 		// Note : we dont use penalties for Mandatory Breaks so far,
@@ -307,9 +319,9 @@ func (b *breaker) nextWord() (option breakOption, ok bool) {
 	return breakOption{}, false
 }
 
-// nextGrapheme returns a naive break candidate on a uax#29 boundary which may be invalid.
-func (b *breaker) nextGrapheme() (option breakOption, ok bool) {
-	if b.wordSegmenter.Next() {
+// nextGraphemeRaw returns a naive break candidate on a uax#29 boundary which may be invalid.
+func (b *breaker) nextGraphemeRaw() (option breakOption, ok bool) {
+	if b.graphemeSegmenter.Next() {
 		currentSegment := b.graphemeSegmenter.Grapheme()
 		// Note : we dont use penalties for Mandatory Breaks so far,
 		// we could add it with currentSegment.IsMandatoryBreak
@@ -320,6 +332,63 @@ func (b *breaker) nextGrapheme() (option breakOption, ok bool) {
 	}
 	// Unicode rules impose to always break at the end
 	return breakOption{}, false
+}
+
+// nextWordBreak returns the next rune offset at which the line can be broken
+// on a UAX#14 boundary if any. If it returns false, there are no more candidates.
+func (l *breaker) nextWordBreak() (breakOption, bool) {
+	var option breakOption
+	if l.isUnusedWord {
+		option = l.unusedWordBreak
+		l.isUnusedWord = false
+	} else {
+		var breakOk bool
+		option, breakOk = l.nextWordRaw()
+		if !breakOk {
+			return option, false
+		}
+		l.previousWordBreak = l.unusedWordBreak
+		l.unusedWordBreak = option
+	}
+	return option, true
+}
+
+func (l *breaker) markWordOptionUnused() {
+	l.isUnusedWord = true
+}
+
+// nextGraphemeBreak returns the next grapheme cluster boundary break between
+// the previous and current word boundary, if any. If it returns false, there are no
+// more candidates between the previous and current word boundaries.
+func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
+	for {
+		var (
+			option  breakOption
+			breakOk bool
+		)
+		if l.isUnusedGrapheme {
+			l.isUnusedGrapheme = false
+			option = l.unusedGraphemeBreak
+			breakOk = true
+		} else {
+			option, breakOk = l.nextGraphemeRaw()
+		}
+		if !breakOk {
+			return option, false
+		}
+		if option.breakAtRune <= l.previousWordBreak.breakAtRune {
+			continue
+		}
+		if option.breakAtRune >= l.unusedWordBreak.breakAtRune {
+			// We've walked the grapheme iterator past the end of the line wrapping
+			// candidate, so mark that we may need to re-check this break option
+			// when evaluating the next segment.
+			l.isUnusedGrapheme = true
+			l.unusedGraphemeBreak = option
+			return option, false
+		}
+		return option, true
+	}
 }
 
 // Range indicates the location of a sequence of elements within a longer slice.
@@ -366,6 +435,10 @@ const (
 	// Never means that words will never be broken internally, allowing them to exceed
 	// the specified maxWidth.
 	Never
+	// Always means that lines will always choose to break within words if it means that
+	// more text can fit on the line. This option is usually combined with truncation
+	// to display as much of a body of text as possible before truncating.
+	Always
 )
 
 // WithTruncator returns a copy of WrapConfig with the Truncator field set to the
@@ -609,16 +682,6 @@ type LineWrapper struct {
 
 	// mapper tracks rune->glyphCluster mappings.
 	mapper runMapper
-	// unusedBreak is a break requested from the breaker in a previous iteration
-	// but which was not chosen as the line ending. Subsequent invocations of
-	// WrapLine should start with this break.
-	unusedBreak breakOption
-	// previousBreak tracks the previous line breaking candidate, if any. It is
-	// used to identify the range of runes between the previous and current
-	// candidate.
-	previousBreak breakOption
-	// isUnused indicates that the unusedBreak field is valid.
-	isUnused bool
 	// glyphRuns holds the runs of shaped text being wrapped.
 	glyphRuns RunIterator
 	// lineStartRune is the rune index of the first rune on the next line to
@@ -638,9 +701,6 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 	l.truncating = l.config.TruncateAfterLines > 0
 	l.breaker = newBreaker(&l.seg, paragraph)
 	l.glyphRuns = runs
-	l.isUnused = false
-	l.previousBreak = breakOption{}
-	l.unusedBreak = breakOption{}
 	l.lineStartRune = 0
 	l.more = true
 	l.mapper.valid = false
@@ -685,44 +745,6 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 		}
 	}
 	return scratch.finalParagraph(), truncated
-}
-
-// nextWordBreakOption returns the next rune offset at which the line can be broken
-// on a UAX#14 boundary if any. If it returns false, there are no more candidates.
-func (l *LineWrapper) nextWordBreakOption() (breakOption, bool) {
-	var option breakOption
-	if l.isUnused {
-		option = l.unusedBreak
-		l.isUnused = false
-	} else {
-		var breakOk bool
-		option, breakOk = l.breaker.nextWord()
-		if !breakOk {
-			return option, false
-		}
-		l.previousBreak = l.unusedBreak
-		l.unusedBreak = option
-	}
-	return option, true
-}
-
-// nextGraphemeBreakOption returns the next grapheme cluster boundary break between
-// the previous and current word boundary, if any. If it returns false, there are no
-// more candidates between the previous and current word boundaries.
-func (l *LineWrapper) nextGraphemeBreakOption() (breakOption, bool) {
-	for {
-		option, breakOk := l.breaker.nextGrapheme()
-		if !breakOk {
-			return option, false
-		}
-		if option.breakAtRune < l.previousBreak.breakAtRune {
-			continue
-		}
-		if option.breakAtRune >= l.unusedBreak.breakAtRune {
-			return option, false
-		}
-		return option, true
-	}
 }
 
 type fillResult uint8
@@ -859,17 +881,23 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 // wrapper's scratch [WrapBuffer]. It returns whether the paragraph is finished once it has
 // successfully built a line.
 func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
-	for option, ok := l.nextWordBreakOption(); ok; option, ok = l.nextWordBreakOption() {
+	for option, ok := l.breaker.nextWordBreak(); ok; option, ok = l.breaker.nextWordBreak() {
 		switch l.processBreakOption(option, config) {
 		case breakInvalid, fits:
 			continue
 		case endLine:
 			return true
+		case truncated:
+			if l.config.BreakPolicy != Always {
+				return true
+			}
 		case newLine:
 			// We found a valid line that didn't use this break, so mark that it can be
 			// reused on the next iteration.
-			l.isUnused = true
-			return false
+			l.breaker.markWordOptionUnused()
+			if l.config.BreakPolicy != Always {
+				return false
+			}
 		case cannotFit:
 			if l.config.BreakPolicy == Never {
 				if config.truncating {
@@ -885,11 +913,11 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 		// segment using UAX#29 grapheme clustering here and try
 		// breaking again using only those boundaries to find a viable break in cases
 		// where no UAX#14 breaks were viable above.
-		for option, ok := l.nextGraphemeBreakOption(); ok; option, ok = l.nextGraphemeBreakOption() {
+		for option, ok := l.breaker.nextGraphemeBreak(); ok; option, ok = l.breaker.nextGraphemeBreak() {
 			switch l.processBreakOption(option, config) {
 			case breakInvalid, fits:
 				continue
-			case endLine:
+			case endLine, truncated:
 				return true
 			case newLine:
 				return false
@@ -916,6 +944,9 @@ const (
 	breakInvalid processBreakResult = iota
 	// endLine indicates that the returned best []Output contains a full line terminating the text.
 	endLine
+	// truncated indicates that the returned best []Output contains a truncated line terminating the
+	// text.
+	truncated
 	// newLine indicates that the returned best []Output contains a full line that does not terminate the text.
 	newLine
 	// fits indicates that the text up to the break option fit within the line and that another break
@@ -964,9 +995,10 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 			// The run contains the entire end of the text, so no truncation is
 			// necessary.
 			l.scratch.markCandidateBest(candidateRun)
+			return endLine
 		}
 		// We must truncate the line in order to show it.
-		return endLine
+		return truncated
 	} else {
 		// The run does fit on the line. Commit this line as the best known
 		// line, but keep lineCandidate unmodified so that later break

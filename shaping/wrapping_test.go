@@ -1568,38 +1568,49 @@ func complexGlyph(cluster, runes, glyphs int) Glyph {
 	}
 }
 
-func TestGetBreakOptions(t *testing.T) {
-	if err := quick.Check(func(runes []rune) bool {
-		breaker := newBreaker(&segmenter.Segmenter{}, runes)
-		var options []breakOption
-		for b, ok := breaker.nextWord(); ok; b, ok = breaker.nextWord() {
-			options = append(options, b)
-		}
-
-		// Ensure breaks are in valid range.
-		for _, o := range options {
-			if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {
-				return false
-			}
-		}
-		// Ensure breaks are sorted.
-		if !sort.SliceIsSorted(options, func(i, j int) bool {
-			return options[i].breakAtRune < options[j].breakAtRune
-		}) {
+func checkOptions(t *testing.T, runes []rune, options []breakOption) bool {
+	t.Helper()
+	// Ensure breaks are in valid range.
+	for _, o := range options {
+		if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {
+			t.Errorf("breakAtRune out of bounds: %d when len(runes)=%d", o.breakAtRune, len(runes))
 			return false
 		}
+	}
+	// Ensure breaks are sorted.
+	if !sort.SliceIsSorted(options, func(i, j int) bool {
+		return options[i].breakAtRune < options[j].breakAtRune
+	}) {
+		t.Errorf("breaks are not sorted: %#+v", options)
+		return false
+	}
 
-		// Ensure breaks are unique.
-		m := make([]bool, len(runes))
-		for _, o := range options {
-			if m[o.breakAtRune] {
-				return false
-			} else {
-				m[o.breakAtRune] = true
-			}
+	// Ensure breaks are unique.
+	m := make([]bool, len(runes))
+	for _, o := range options {
+		if m[o.breakAtRune] {
+			t.Errorf("breaks are not unique: %v is repeated in %#+v", o, m)
+			return false
+		} else {
+			m[o.breakAtRune] = true
 		}
+	}
 
-		return true
+	return true
+}
+
+func TestRawBreakOptions(t *testing.T) {
+	if err := quick.Check(func(runes []rune) bool {
+		breaker := newBreaker(&segmenter.Segmenter{}, runes)
+		var wordOptions []breakOption
+		for b, ok := breaker.nextWordRaw(); ok; b, ok = breaker.nextWordRaw() {
+			wordOptions = append(wordOptions, b)
+		}
+		var graphemeOptions []breakOption
+		for b, ok := breaker.nextGraphemeRaw(); ok; b, ok = breaker.nextGraphemeRaw() {
+			graphemeOptions = append(graphemeOptions, b)
+		}
+		return checkOptions(t, runes, wordOptions) && checkOptions(t, runes, graphemeOptions)
 	}, nil); err != nil {
 		t.Errorf("generated invalid break options: %v", err)
 	}
