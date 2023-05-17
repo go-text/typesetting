@@ -1711,20 +1711,25 @@ func TestWrappingBidiRegression(t *testing.T) {
 	}
 }
 
-func checkRuneCounts(t *testing.T, source []rune, lines []Line) {
+func checkRuneCounts(t *testing.T, source []rune, lines []Line) []int {
 	t.Helper()
+	counts := []int{}
 	totalRunes := 0
 	for lineIdx, line := range lines {
+		lineTotalRunes := 0
 		for runIdx, run := range line {
 			if run.Runes.Offset != totalRunes {
 				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
 			}
 			totalRunes += run.Runes.Count
+			lineTotalRunes += run.Runes.Count
 		}
+		counts = append(counts, lineTotalRunes)
 	}
 	if len(source) != totalRunes {
 		t.Errorf("expected %d runes total, got %d", len(source), totalRunes)
 	}
+	return counts
 }
 
 // TestWrappingTruncation checks that the line wrapper's truncation features
@@ -2348,6 +2353,52 @@ func TestLineWrapperBreakPolicies(t *testing.T) {
 						})
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestLineWrapperBreakUltranarrow(t *testing.T) {
+	type testcase struct {
+		name       string
+		config     WrapConfig
+		maxWidth   int
+		paragraph  []rune
+		runeCounts []int
+	}
+	for _, tc := range []testcase{
+		{
+			name:       "hello world",
+			paragraph:  []rune("hello, world"),
+			maxWidth:   9,
+			config:     WrapConfig{BreakPolicy: WhenNecessary},
+			runeCounts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := HarfbuzzShaper{}
+			out := s.Shape(Input{
+				Text:      tc.paragraph,
+				RunStart:  0,
+				RunEnd:    len(tc.paragraph),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			w := LineWrapper{}
+			lines, _ := w.WrapParagraph(tc.config, tc.maxWidth, tc.paragraph, NewSliceIterator([]Output{out}), nil)
+			actualCounts := checkRuneCounts(t, tc.paragraph, lines)
+			for lineNo, expected := range tc.runeCounts {
+				if len(actualCounts) <= lineNo {
+					t.Errorf("expected %d lines, got %d", len(tc.runeCounts), len(actualCounts))
+					break
+				}
+				actual := actualCounts[lineNo]
+				if actual != expected {
+					t.Errorf("line %d: expected %d runes, got %d", lineNo, expected, actual)
+				}
 			}
 		})
 	}

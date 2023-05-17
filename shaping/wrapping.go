@@ -931,8 +931,6 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				l.breaker.markWordOptionUnused()
 				continue
 			case endLine, truncated:
-				// If we found at least one viable line candidate, we aren't using the word break option.
-				l.breaker.markWordOptionUnused()
 				return true
 			case newLine:
 				// If we found at least one viable line candidate, we aren't using the word break option.
@@ -996,7 +994,9 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
-			l.scratch.markCandidateBest(candidateRun)
+			if !config.truncating {
+				l.scratch.markCandidateBest(candidateRun)
+			}
 			return cannotFit
 		} else {
 			l.glyphRuns.Restore()
