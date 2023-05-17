@@ -916,10 +916,6 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				if config.truncating {
 					return true
 				}
-				// There is no existing candidate that fits, and we have just hit the
-				// first line breaking candidate. Commit this break position as the
-				// best available, even though it doesn't fit.
-				l.scratch.markCandidateBest()
 				return false
 			}
 		}
@@ -928,20 +924,24 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 		// where no UAX#14 breaks were viable above.
 		for option, ok := l.breaker.nextGraphemeBreak(); ok; option, ok = l.breaker.nextGraphemeBreak() {
 			switch l.processBreakOption(option, config) {
-			case breakInvalid, fits:
+			case breakInvalid:
+				continue
+			case fits:
+				// If we found at least one viable line candidate, we aren't using the word break option.
+				l.breaker.markWordOptionUnused()
 				continue
 			case endLine, truncated:
+				// If we found at least one viable line candidate, we aren't using the word break option.
+				l.breaker.markWordOptionUnused()
 				return true
 			case newLine:
+				// If we found at least one viable line candidate, we aren't using the word break option.
+				l.breaker.markWordOptionUnused()
 				return false
 			case cannotFit:
 				if config.truncating {
 					return true
 				}
-				// There is no existing candidate that fits, and we have just hit the
-				// first line breaking candidate. Commit this break position as the
-				// best available, even though it doesn't fit.
-				l.scratch.markCandidateBest()
 				return false
 			}
 		}
@@ -996,7 +996,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
-			l.scratch.candidateAppend(candidateRun)
+			l.scratch.markCandidateBest(candidateRun)
 			return cannotFit
 		} else {
 			l.glyphRuns.Restore()
