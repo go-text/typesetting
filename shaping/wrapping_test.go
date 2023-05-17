@@ -1706,19 +1706,24 @@ func TestWrappingBidiRegression(t *testing.T) {
 			if truncated != 0 {
 				t.Errorf("did not expect truncation, got truncated=%d", truncated)
 			}
-			totalRunes := 0
-			for lineIdx, line := range lines {
-				for runIdx, run := range line {
-					if run.Runes.Offset != totalRunes {
-						t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
-					}
-					totalRunes += run.Runes.Count
-				}
-			}
-			if len(tc.text) != totalRunes {
-				t.Errorf("expected %d runes total, got %d", len(tc.text), totalRunes)
-			}
+			checkRuneCounts(t, tc.text, lines)
 		})
+	}
+}
+
+func checkRuneCounts(t *testing.T, source []rune, lines []Line) {
+	t.Helper()
+	totalRunes := 0
+	for lineIdx, line := range lines {
+		for runIdx, run := range line {
+			if run.Runes.Offset != totalRunes {
+				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
+			}
+			totalRunes += run.Runes.Count
+		}
+	}
+	if len(source) != totalRunes {
+		t.Errorf("expected %d runes total, got %d", len(source), totalRunes)
 	}
 }
 
@@ -2305,6 +2310,47 @@ func TestWrapBuffer(t *testing.T) {
 			t.Errorf("expected lineExhausted to clear on reset")
 		}
 	})
+}
+
+func TestLineWrapperBreakPolicies(t *testing.T) {
+	type testcase struct {
+		name      string
+		paragraph []rune
+	}
+	for _, tc := range []testcase{
+		{
+			name:      "hello world",
+			paragraph: []rune("hello, world"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := HarfbuzzShaper{}
+			out := s.Shape(Input{
+				Text:      tc.paragraph,
+				RunStart:  0,
+				RunEnd:    len(tc.paragraph),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			textWidth := out.Advance.Ceil()
+			for maxWidth := textWidth; maxWidth > 0; maxWidth -= max(maxWidth/10, 1) {
+				t.Run(fmt.Sprintf("maxWidth%d", maxWidth), func(t *testing.T) {
+					for _, policy := range []LineBreakPolicy{WhenNecessary, Never, Always} {
+						t.Run(policy.String(), func(t *testing.T) {
+							w := LineWrapper{}
+							lines, _ := w.WrapParagraph(WrapConfig{
+								BreakPolicy: policy,
+							}, maxWidth, tc.paragraph, NewSliceIterator([]Output{out}), nil)
+							checkRuneCounts(t, tc.paragraph, lines)
+						})
+					}
+				})
+			}
+		})
+	}
 }
 
 func BenchmarkWrapping(b *testing.B) {

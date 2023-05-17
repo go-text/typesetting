@@ -430,7 +430,7 @@ type LineBreakPolicy uint8
 
 const (
 	// WhenNecessary means that lines will only be broken within words when the word
-	// cannot fit on the next line by itself.
+	// cannot fit on the next line by itself or would otherwise be truncated.
 	WhenNecessary LineBreakPolicy = iota
 	// Never means that words will never be broken internally, allowing them to exceed
 	// the specified maxWidth.
@@ -440,6 +440,19 @@ const (
 	// to display as much of a body of text as possible before truncating.
 	Always
 )
+
+func (l LineBreakPolicy) String() string {
+	switch l {
+	case WhenNecessary:
+		return "WhenNecessary"
+	case Never:
+		return "Never"
+	case Always:
+		return "Always"
+	default:
+		return "unknown"
+	}
+}
 
 // WithTruncator returns a copy of WrapConfig with the Truncator field set to the
 // result of shaping input with shaper.
@@ -888,7 +901,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 		case endLine:
 			return true
 		case truncated:
-			if l.config.BreakPolicy != Always {
+			if l.config.BreakPolicy == Never {
 				return true
 			}
 		case newLine:
@@ -932,6 +945,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				return false
 			}
 		}
+		return false
 	}
 	return true
 }
