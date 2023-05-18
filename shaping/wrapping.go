@@ -376,7 +376,11 @@ func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
 		if !breakOk {
 			return option, false
 		}
-		if option.breakAtRune <= l.previousWordBreak.breakAtRune {
+		// We don't want to consider the previous word break position in general, as it has already
+		// been tried. The one exception to this is when we're iterating the very first time, in
+		// which case the previousWordBreak will have its zero value and we still want to consider
+		// breaking after the first rune if there's a grapheme cluseter boundary there.
+		if option.breakAtRune <= l.previousWordBreak.breakAtRune && l.previousWordBreak.breakAtRune > 0 {
 			continue
 		}
 		if option.breakAtRune >= l.unusedWordBreak.breakAtRune {

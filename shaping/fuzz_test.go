@@ -77,16 +77,17 @@ func FuzzBreakOptions(f *testing.F) {
 			count := 0
 			for iter := seg.GraphemeIterator(); iter.Next(); {
 				g := iter.Grapheme()
-				if g.Offset == 0 || g.Offset == b.breakAtRune-prevRuneIndex {
+				firstGraphemeInSegment := g.Offset == 0
+				firstGraphemeInText := prevRuneIndex == 0 && firstGraphemeInSegment
+				lastGraphemeInSegment := g.Offset == b.breakAtRune-prevRuneIndex
+				if (!firstGraphemeInText && firstGraphemeInSegment) || lastGraphemeInSegment {
 					continue
 				}
 				count++
 				correctGraphemes = append(correctGraphemes, iter.Grapheme().Offset)
 			}
 			if count > 0 && len(segmentGraphemes) != count {
-				t.Errorf("runes[%d:%d] expected %d graphemes, got %d", prevRuneIndex, b.breakAtRune, count, len(segmentGraphemes))
-			}
-			if t.Failed() {
+				t.Errorf("runes[%d:%d] expected %d graphemes, got %d", prevRuneIndex, b.breakAtRune+1, count, len(segmentGraphemes))
 				t.Errorf("correct graphemes: %v\ngot graphemes: %v", correctGraphemes, segmentGraphemes)
 			}
 			checkOptions(t, segmentRunes, segmentGraphemes)
