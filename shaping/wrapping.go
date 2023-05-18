@@ -383,6 +383,7 @@ func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
 		if option.breakAtRune <= l.previousWordBreak.breakAtRune && l.previousWordBreak.breakAtRune > 0 {
 			continue
 		}
+		l.unusedGraphemeBreak = option
 		isFinalGrapheme := l.unusedWordBreak.breakAtRune == l.totalRunes-1
 		if option.breakAtRune > l.unusedWordBreak.breakAtRune ||
 			(!isFinalGrapheme && option.breakAtRune == l.unusedWordBreak.breakAtRune) {
@@ -392,7 +393,6 @@ func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
 			l.isUnusedGrapheme = true
 			return option, false
 		}
-		l.unusedGraphemeBreak = option
 		return option, true
 	}
 }
