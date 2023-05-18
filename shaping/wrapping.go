@@ -388,11 +388,15 @@ func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
 			// candidate, so mark that we may need to re-check this break option
 			// when evaluating the next segment.
 			l.isUnusedGrapheme = true
-			l.unusedGraphemeBreak = option
 			return option, false
 		}
+		l.unusedGraphemeBreak = option
 		return option, true
 	}
+}
+
+func (l *breaker) markGraphemeOptionUnused() {
+	l.isUnusedGrapheme = true
 }
 
 // Range indicates the location of a sequence of elements within a longer slice.
@@ -908,7 +912,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			if l.config.BreakPolicy == Never {
 				return true
 			}
-		case newLine:
+		case newLineBeforeBreak:
 			// We found a valid line that didn't use this break, so mark that it can be
 			// reused on the next iteration.
 			l.breaker.markWordOptionUnused()
@@ -936,14 +940,18 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				continue
 			case endLine, truncated:
 				return true
-			case newLine:
+			case newLineBeforeBreak:
 				// If we found at least one viable line candidate, we aren't using the word break option.
 				l.breaker.markWordOptionUnused()
+				l.breaker.markGraphemeOptionUnused()
 				return false
 			case cannotFit:
 				if config.truncating {
 					return true
 				}
+				// If no graphemes fit, we should still use one so that the line contains something. Maybe
+				// the next grapheme will fit on the next line.
+				l.scratch.markCandidateBest()
 				return false
 			}
 		}
@@ -963,8 +971,9 @@ const (
 	// truncated indicates that the returned best []Output contains a truncated line terminating the
 	// text.
 	truncated
-	// newLine indicates that the returned best []Output contains a full line that does not terminate the text.
-	newLine
+	// newLineBeforeBreak indicates that the returned best []Output contains a full line that does not terminate the text.
+	// This result indicates that the provided break candidate did not fit on the returned line.
+	newLineBeforeBreak
 	// fits indicates that the text up to the break option fit within the line and that another break
 	// option can be attempted.
 	fits
@@ -977,6 +986,10 @@ const (
 
 // processBreakOption evaluates whether the provided breakOption can fit onto the current line wrapping line.
 func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) processBreakResult {
+	if option.breakAtRune < l.lineStartRune {
+		return breakInvalid
+	}
+
 	l.glyphRuns.Save()
 	result := l.fillUntil(l.glyphRuns, option, l.scratch)
 
@@ -1004,7 +1017,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 			return cannotFit
 		} else {
 			l.glyphRuns.Restore()
-			return newLine
+			return newLineBeforeBreak
 		}
 	} else if config.truncating && candidateLineWidth > config.truncatedMaxWidth {
 		// The run would not fit if truncated.
