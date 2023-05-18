@@ -383,7 +383,9 @@ func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
 		if option.breakAtRune <= l.previousWordBreak.breakAtRune && l.previousWordBreak.breakAtRune > 0 {
 			continue
 		}
-		if option.breakAtRune >= l.unusedWordBreak.breakAtRune {
+		isFinalGrapheme := l.unusedWordBreak.breakAtRune == l.totalRunes-1
+		if option.breakAtRune > l.unusedWordBreak.breakAtRune ||
+			(!isFinalGrapheme && option.breakAtRune == l.unusedWordBreak.breakAtRune) {
 			// We've walked the grapheme iterator past the end of the line wrapping
 			// candidate, so mark that we may need to re-check this break option
 			// when evaluating the next segment.
@@ -914,11 +916,11 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			l.scratch.markCandidateBest()
 			return true
 		case endLine:
-			// Found a valid line ending the text, append the candidate and use it.
+			// Found a valid line ending the text, append the candidateRun and use it.
 			l.scratch.markCandidateBest(candidateRun)
 			return true
 		case truncated:
-			// The candidate does not fit.
+			// The candidateRun does not fit.
 			l.scratch.markCandidateBest()
 			if l.config.BreakPolicy == Never {
 				return true
@@ -933,13 +935,11 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			}
 			// Fall through to try grapheme breaking.
 		case cannotFit:
-			if !config.truncating {
-				l.scratch.markCandidateBest(candidateRun)
-			}
 			if l.config.BreakPolicy == Never {
 				if config.truncating {
 					return true
 				}
+				l.scratch.markCandidateBest(candidateRun)
 				return false
 			}
 			// Fall through to try grapheme breaking.
@@ -956,6 +956,10 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				l.scratch.markCandidateBest(candidateRun)
 				l.breaker.markWordOptionUnused()
 				continue
+			case endIteration:
+				// The iterators are exhausted, use whatever we have.
+				l.scratch.markCandidateBest()
+				return true
 			case endLine:
 				l.scratch.markCandidateBest(candidateRun)
 				return true
@@ -976,6 +980,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				// If no graphemes fit, we should still use one so that the line contains something. Maybe
 				// the next grapheme will fit on the next line.
 				l.scratch.markCandidateBest(candidateRun)
+				l.breaker.markWordOptionUnused()
 				return false
 			}
 		}

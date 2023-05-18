@@ -80,7 +80,9 @@ func FuzzBreakOptions(f *testing.F) {
 				firstGraphemeInSegment := g.Offset == 0
 				firstGraphemeInText := prevRuneIndex == 0 && firstGraphemeInSegment
 				lastGraphemeInSegment := g.Offset == b.breakAtRune-prevRuneIndex
-				if (!firstGraphemeInText && firstGraphemeInSegment) || lastGraphemeInSegment {
+				lastGraphemeInText := len(runes)-1 == g.Offset+prevRuneIndex
+				if (!firstGraphemeInText && firstGraphemeInSegment) ||
+					(!lastGraphemeInText && lastGraphemeInSegment) {
 					continue
 				}
 				count++
