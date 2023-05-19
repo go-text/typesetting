@@ -15,7 +15,7 @@ import (
 
 var _ otComplexShaper = (*complexShaperArabic)(nil)
 
-const flagArabicHasStch = bsfComplex0
+const flagArabicHasStch = bsfShaper0
 
 /* See:
  * https://github.com/harfbuzz/harfbuzz/commit/6e6f82b6f3dde0fc6c3c7d991d9ec6cfff57823d#commitcomment-14248516 */
@@ -181,16 +181,13 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	* work.  However, testing shows that rlig and calt are applied
 	* together for Mongolian in Uniscribe.  As such, we only add a
 	* pause for Arabic, not other scripts.
-	*
-	* A pause after calt is required to make KFGQPC Uthmanic Script HAFS
-	* work correctly.  See https://github.com/harfbuzz/harfbuzz/issues/505
 	 */
 
 	map_.enableFeature(loader.NewTag('s', 't', 'c', 'h'))
 	map_.addGSUBPause(recordStch)
 
-	map_.enableFeature(loader.NewTag('c', 'c', 'm', 'p'))
-	map_.enableFeature(loader.NewTag('l', 'o', 'c', 'l'))
+	map_.enableFeatureExt(loader.NewTag('c', 'c', 'm', 'p'), ffManualZWJ, 1)
+	map_.enableFeatureExt(loader.NewTag('l', 'o', 'c', 'l'), ffManualZWJ, 1)
 
 	map_.addGSUBPause(nil)
 
@@ -200,7 +197,7 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 		if hasFallback {
 			fl = ffHasFallback
 		}
-		map_.addFeatureExt(arabFeat, fl, 1)
+		map_.addFeatureExt(arabFeat, ffManualZWJ|fl, 1)
 		map_.addGSUBPause(nil)
 	}
 
@@ -213,10 +210,15 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	if plan.props.Script == language.Arabic {
 		map_.addGSUBPause(arabicFallbackShape)
 	}
-	/* No pause after rclt.  See 98460779bae19e4d64d29461ff154b3527bf8420. */
-	map_.enableFeatureExt(loader.NewTag('r', 'c', 'l', 't'), ffManualZWJ, 1)
 	map_.enableFeatureExt(loader.NewTag('c', 'a', 'l', 't'), ffManualZWJ, 1)
-	map_.addGSUBPause(nil)
+	/* https://github.com/harfbuzz/harfbuzz/issues/1573 */
+	if !map_.hasFeature(loader.NewTag('r', 'c', 'l', 't')) {
+		map_.addGSUBPause(nil)
+		map_.enableFeatureExt(loader.NewTag('r', 'c', 'l', 't'), ffManualZWJ, 1)
+	}
+
+	map_.enableFeatureExt(loader.NewTag('l', 'i', 'g', 'a'), ffManualZWJ, 1)
+	map_.enableFeatureExt(loader.NewTag('c', 'l', 'i', 'g'), ffManualZWJ, 1)
 
 	/* The spec includes 'cswh'.  Earlier versions of Windows
 	* used to enable this by default, but testing suggests
@@ -227,7 +229,7 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	* to fixup broken glyph sequences.  Oh well...
 	* Test case: U+0643,U+0640,U+0631. */
 	//map_.enable_feature (newTag('c','s','w','h'));
-	map_.enableFeature(loader.NewTag('m', 's', 'e', 't'))
+	map_.enableFeatureExt(loader.NewTag('m', 's', 'e', 't'), ffManualZWJ, 1)
 }
 
 type arabicShapePlan struct {
@@ -287,7 +289,18 @@ func arabicJoining(buffer *Buffer) {
 
 		if entry.prevAction != arabNone && prev != -1 {
 			info[prev].complexAux = entry.prevAction
-			buffer.unsafeToBreak(prev, i+1)
+			buffer.safeToInsertTatweel(prev, i+1)
+		} else {
+			if prev == -1 {
+				if thisType >= joiningTypeR {
+					buffer.unsafeToConcatFromOutbuffer(0, i+1)
+				}
+			} else {
+				if thisType >= joiningTypeR ||
+					(2 <= state && state <= 5) /* States that have a possible prevAction. */ {
+					buffer.unsafeToConcat(prev, i+1)
+				}
+			}
 		}
 
 		info[i].complexAux = entry.currAction
@@ -306,6 +319,9 @@ func arabicJoining(buffer *Buffer) {
 		entry := &arabicStateTable[state][thisType]
 		if entry.prevAction != arabNone && prev != -1 {
 			info[prev].complexAux = entry.prevAction
+			buffer.safeToInsertTatweel(prev, len(buffer.Info))
+		} else if 2 <= state && state <= 5 /* States that have a possible prevAction. */ {
+			buffer.unsafeToConcat(prev, len(buffer.Info))
 		}
 		break
 	}
@@ -337,11 +353,11 @@ func (cs *complexShaperArabic) setupMasks(plan *otShapePlan, buffer *Buffer, _ *
 	cs.plan.setupMasks(buffer, plan.props.Script)
 }
 
-func arabicFallbackShape(plan *otShapePlan, font *Font, buffer *Buffer) {
+func arabicFallbackShape(plan *otShapePlan, font *Font, buffer *Buffer) bool {
 	arabicPlan := plan.shaper.(*complexShaperArabic).plan
 
 	if !arabicPlan.doFallback {
-		return
+		return false
 	}
 
 	fallbackPlan := arabicPlan.fallbackPlan
@@ -351,20 +367,21 @@ func arabicFallbackShape(plan *otShapePlan, font *Font, buffer *Buffer) {
 	}
 
 	fallbackPlan.shape(font, buffer)
+	return true
 }
 
-//  /*
-//   * Stretch feature: "stch".
-//   * See example here:
-//   * https://docs.microsoft.com/en-us/typography/script-development/syriac
-//   * We implement this in a generic way, such that the Arabic subtending
-//   * marks can use it as well.
-//   */
+//
+//  Stretch feature: "stch".
+//  See example here:
+//  https://docs.microsoft.com/en-us/typography/script-development/syriac
+//  We implement this in a generic way, such that the Arabic subtending
+//  marks can use it as well.
+//
 
-func recordStch(plan *otShapePlan, _ *Font, buffer *Buffer) {
+func recordStch(plan *otShapePlan, _ *Font, buffer *Buffer) bool {
 	arabicPlan := plan.shaper.(*complexShaperArabic).plan
 	if !arabicPlan.hasStch {
-		return
+		return false
 	}
 
 	/* 'stch' feature was just applied.  Look for anything that multiplied,
@@ -384,6 +401,8 @@ func recordStch(plan *otShapePlan, _ *Font, buffer *Buffer) {
 			buffer.scratchFlags |= flagArabicHasStch
 		}
 	}
+
+	return false
 }
 
 func inRange(sa uint8) bool {
@@ -535,6 +554,11 @@ var modifierCombiningMarks = [...]rune{
 	0x06E3, /* ARABIC SMALL LOW SEEN */
 	0x06E7, /* ARABIC SMALL HIGH YEH */
 	0x06E8, /* ARABIC SMALL HIGH NOON */
+	0x08CA, /* ARABIC SMALL HIGH FARSI YEH */
+	0x08CB, /* ARABIC SMALL HIGH YEH BARREE WITH TWO DOTS BELOW */
+	0x08CD, /* ARABIC SMALL HIGH ZAH */
+	0x08CE, /* ARABIC LARGE ROUND DOT ABOVE */
+	0x08CF, /* ARABIC LARGE ROUND DOT BELOW */
 	0x08D3, /* ARABIC SMALL LOW WAW */
 	0x08F3, /* ARABIC SMALL HIGH WAW */
 }
@@ -623,14 +647,213 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 	}
 }
 
-/* Features ordered the same as the entries in ucd.ArabicShaping rows,
- * followed by rlig.  Don't change. */
+// Features ordered the same as the entries in [arabicShaping] rows,
+// followed by rlig.  Don't change.
+// We currently support one subtable per lookup, and one lookup
+// per feature.  But we allow duplicate features, so we use that!
 var arabicFallbackFeatures = [...]loader.Tag{
 	loader.NewTag('i', 's', 'o', 'l'),
 	loader.NewTag('f', 'i', 'n', 'a'),
 	loader.NewTag('i', 'n', 'i', 't'),
 	loader.NewTag('m', 'e', 'd', 'i'),
 	loader.NewTag('r', 'l', 'i', 'g'),
+	loader.NewTag('r', 'l', 'i', 'g'),
+	loader.NewTag('r', 'l', 'i', 'g'),
+}
+
+const (
+	firstArabicShape = 0x0621
+	lastArabicShape  = 0x06d3
+)
+
+// arabicShaping defines the shaping for arabic runes. Each entry is indexed by
+// the shape, between 0 and 3:
+//   - 0: isolated
+//   - 1: final
+//   - 2: initial
+//   - 3: medial
+//
+// See also the bounds given by FirstArabicShape and LastArabicShape.
+var arabicShaping = [...][4]uint16{ // required memory: 2 KB
+	{65152, 1569, 1569, 1569},
+	{65153, 65154, 1570, 1570},
+	{65155, 65156, 1571, 1571},
+	{65157, 65158, 1572, 1572},
+	{65159, 65160, 1573, 1573},
+	{65161, 65162, 65163, 65164},
+	{65165, 65166, 1575, 1575},
+	{65167, 65168, 65169, 65170},
+	{65171, 65172, 1577, 1577},
+	{65173, 65174, 65175, 65176},
+	{65177, 65178, 65179, 65180},
+	{65181, 65182, 65183, 65184},
+	{65185, 65186, 65187, 65188},
+	{65189, 65190, 65191, 65192},
+	{65193, 65194, 1583, 1583},
+	{65195, 65196, 1584, 1584},
+	{65197, 65198, 1585, 1585},
+	{65199, 65200, 1586, 1586},
+	{65201, 65202, 65203, 65204},
+	{65205, 65206, 65207, 65208},
+	{65209, 65210, 65211, 65212},
+	{65213, 65214, 65215, 65216},
+	{65217, 65218, 65219, 65220},
+	{65221, 65222, 65223, 65224},
+	{65225, 65226, 65227, 65228},
+	{65229, 65230, 65231, 65232},
+	{1595, 1595, 1595, 1595},
+	{1596, 1596, 1596, 1596},
+	{1597, 1597, 1597, 1597},
+	{1598, 1598, 1598, 1598},
+	{1599, 1599, 1599, 1599},
+	{1600, 1600, 1600, 1600},
+	{65233, 65234, 65235, 65236},
+	{65237, 65238, 65239, 65240},
+	{65241, 65242, 65243, 65244},
+	{65245, 65246, 65247, 65248},
+	{65249, 65250, 65251, 65252},
+	{65253, 65254, 65255, 65256},
+	{65257, 65258, 65259, 65260},
+	{65261, 65262, 1608, 1608},
+	{65263, 65264, 64488, 64489},
+	{65265, 65266, 65267, 65268},
+	{1611, 1611, 1611, 1611},
+	{1612, 1612, 1612, 1612},
+	{1613, 1613, 1613, 1613},
+	{1614, 1614, 1614, 1614},
+	{1615, 1615, 1615, 1615},
+	{1616, 1616, 1616, 1616},
+	{1617, 1617, 1617, 1617},
+	{1618, 1618, 1618, 1618},
+	{1619, 1619, 1619, 1619},
+	{1620, 1620, 1620, 1620},
+	{1621, 1621, 1621, 1621},
+	{1622, 1622, 1622, 1622},
+	{1623, 1623, 1623, 1623},
+	{1624, 1624, 1624, 1624},
+	{1625, 1625, 1625, 1625},
+	{1626, 1626, 1626, 1626},
+	{1627, 1627, 1627, 1627},
+	{1628, 1628, 1628, 1628},
+	{1629, 1629, 1629, 1629},
+	{1630, 1630, 1630, 1630},
+	{1631, 1631, 1631, 1631},
+	{1632, 1632, 1632, 1632},
+	{1633, 1633, 1633, 1633},
+	{1634, 1634, 1634, 1634},
+	{1635, 1635, 1635, 1635},
+	{1636, 1636, 1636, 1636},
+	{1637, 1637, 1637, 1637},
+	{1638, 1638, 1638, 1638},
+	{1639, 1639, 1639, 1639},
+	{1640, 1640, 1640, 1640},
+	{1641, 1641, 1641, 1641},
+	{1642, 1642, 1642, 1642},
+	{1643, 1643, 1643, 1643},
+	{1644, 1644, 1644, 1644},
+	{1645, 1645, 1645, 1645},
+	{1646, 1646, 1646, 1646},
+	{1647, 1647, 1647, 1647},
+	{1648, 1648, 1648, 1648},
+	{64336, 64337, 1649, 1649},
+	{1650, 1650, 1650, 1650},
+	{1651, 1651, 1651, 1651},
+	{1652, 1652, 1652, 1652},
+	{1653, 1653, 1653, 1653},
+	{1654, 1654, 1654, 1654},
+	{64477, 1655, 1655, 1655},
+	{1656, 1656, 1656, 1656},
+	{64358, 64359, 64360, 64361},
+	{64350, 64351, 64352, 64353},
+	{64338, 64339, 64340, 64341},
+	{1660, 1660, 1660, 1660},
+	{1661, 1661, 1661, 1661},
+	{64342, 64343, 64344, 64345},
+	{64354, 64355, 64356, 64357},
+	{64346, 64347, 64348, 64349},
+	{1665, 1665, 1665, 1665},
+	{1666, 1666, 1666, 1666},
+	{64374, 64375, 64376, 64377},
+	{64370, 64371, 64372, 64373},
+	{1669, 1669, 1669, 1669},
+	{64378, 64379, 64380, 64381},
+	{64382, 64383, 64384, 64385},
+	{64392, 64393, 1672, 1672},
+	{1673, 1673, 1673, 1673},
+	{1674, 1674, 1674, 1674},
+	{1675, 1675, 1675, 1675},
+	{64388, 64389, 1676, 1676},
+	{64386, 64387, 1677, 1677},
+	{64390, 64391, 1678, 1678},
+	{1679, 1679, 1679, 1679},
+	{1680, 1680, 1680, 1680},
+	{64396, 64397, 1681, 1681},
+	{1682, 1682, 1682, 1682},
+	{1683, 1683, 1683, 1683},
+	{1684, 1684, 1684, 1684},
+	{1685, 1685, 1685, 1685},
+	{1686, 1686, 1686, 1686},
+	{1687, 1687, 1687, 1687},
+	{64394, 64395, 1688, 1688},
+	{1689, 1689, 1689, 1689},
+	{1690, 1690, 1690, 1690},
+	{1691, 1691, 1691, 1691},
+	{1692, 1692, 1692, 1692},
+	{1693, 1693, 1693, 1693},
+	{1694, 1694, 1694, 1694},
+	{1695, 1695, 1695, 1695},
+	{1696, 1696, 1696, 1696},
+	{1697, 1697, 1697, 1697},
+	{1698, 1698, 1698, 1698},
+	{1699, 1699, 1699, 1699},
+	{64362, 64363, 64364, 64365},
+	{1701, 1701, 1701, 1701},
+	{64366, 64367, 64368, 64369},
+	{1703, 1703, 1703, 1703},
+	{1704, 1704, 1704, 1704},
+	{64398, 64399, 64400, 64401},
+	{1706, 1706, 1706, 1706},
+	{1707, 1707, 1707, 1707},
+	{1708, 1708, 1708, 1708},
+	{64467, 64468, 64469, 64470},
+	{1710, 1710, 1710, 1710},
+	{64402, 64403, 64404, 64405},
+	{1712, 1712, 1712, 1712},
+	{64410, 64411, 64412, 64413},
+	{1714, 1714, 1714, 1714},
+	{64406, 64407, 64408, 64409},
+	{1716, 1716, 1716, 1716},
+	{1717, 1717, 1717, 1717},
+	{1718, 1718, 1718, 1718},
+	{1719, 1719, 1719, 1719},
+	{1720, 1720, 1720, 1720},
+	{1721, 1721, 1721, 1721},
+	{64414, 64415, 1722, 1722},
+	{64416, 64417, 64418, 64419},
+	{1724, 1724, 1724, 1724},
+	{1725, 1725, 1725, 1725},
+	{64426, 64427, 64428, 64429},
+	{1727, 1727, 1727, 1727},
+	{64420, 64421, 1728, 1728},
+	{64422, 64423, 64424, 64425},
+	{1730, 1730, 1730, 1730},
+	{1731, 1731, 1731, 1731},
+	{1732, 1732, 1732, 1732},
+	{64480, 64481, 1733, 1733},
+	{64473, 64474, 1734, 1734},
+	{64471, 64472, 1735, 1735},
+	{64475, 64476, 1736, 1736},
+	{64482, 64483, 1737, 1737},
+	{1738, 1738, 1738, 1738},
+	{64478, 64479, 1739, 1739},
+	{64508, 64509, 64510, 64511},
+	{1741, 1741, 1741, 1741},
+	{1742, 1742, 1742, 1742},
+	{1743, 1743, 1743, 1743},
+	{64484, 64485, 64486, 64487},
+	{1745, 1745, 1745, 1745},
+	{64430, 64431, 1746, 1746},
+	{64432, 64433, 1747, 1747},
 }
 
 // used to sort both array at the same time
@@ -649,8 +872,8 @@ func arabicFallbackSynthesizeLookupSingle(ft *Font, featureIndex int) *lookupGSU
 	var glyphs, substitutes []gID
 
 	// populate arrays
-	for u := rune(ucd.FirstArabicShape); u <= ucd.LastArabicShape; u++ {
-		s := rune(ucd.ArabicShaping[u-ucd.FirstArabicShape][featureIndex])
+	for u := rune(firstArabicShape); u <= lastArabicShape; u++ {
+		s := rune(arabicShaping[u-firstArabicShape][featureIndex])
 		uGlyph, hasU := ft.face.NominalGlyph(u)
 		sGlyph, hasS := ft.face.NominalGlyph(s)
 
@@ -692,16 +915,16 @@ func (a glyphsIndirections) Swap(i, j int) {
 }
 func (a glyphsIndirections) Less(i, j int) bool { return a.glyphs[i] < a.glyphs[j] }
 
-func arabicFallbackSynthesizeLookupLigature(ft *Font) *lookupGSUB {
+func arabicFallbackSynthesizeLookupLigature(ft *Font, ligatureTable []arabicTableEntry, lookupFlags uint16) *lookupGSUB {
 	var (
 		firstGlyphs            []gID
 		firstGlyphsIndirection []int // original index into ArabicLigatures
 	)
 
-	/* Populate arrays */
+	// Populate arrays
 
 	// sort out the first-glyphs
-	for firstGlyphIdx, lig := range ucd.ArabicLigatures {
+	for firstGlyphIdx, lig := range ligatureTable {
 		firstGlyph, ok := ft.face.NominalGlyph(lig.First)
 		if !ok {
 			continue
@@ -721,25 +944,39 @@ func arabicFallbackSynthesizeLookupLigature(ft *Font) *lookupGSUB {
 
 	// now that the first-glyphs are sorted, walk again, populate ligatures.
 	for _, firstGlyphIdx := range firstGlyphsIndirection {
-		ligs := ucd.ArabicLigatures[firstGlyphIdx].Ligatures
+		ligs := ligatureTable[firstGlyphIdx].Ligatures
 		var ligatureSet tables.LigatureSet
 		for _, v := range ligs {
-			secondU, ligatureU := v[0], v[1]
-			secondGlyph, hasSecond := ft.face.NominalGlyph(secondU)
+			ligatureU := v.ligature
 			ligatureGlyph, hasLigature := ft.face.NominalGlyph(ligatureU)
-			if secondU == 0 || !hasSecond || !hasLigature {
+			if !hasLigature {
 				continue
 			}
+
+			components := v.components
+			var componentGIDs []gID
+			for _, componentU := range components {
+				componentGlyph, hasComponent := ft.face.NominalGlyph(componentU)
+				if !hasComponent {
+					break
+				}
+				componentGIDs = append(componentGIDs, gID(componentGlyph))
+			}
+
+			if len(components) != len(componentGIDs) {
+				continue
+			}
+
 			ligatureSet.Ligatures = append(ligatureSet.Ligatures, tables.Ligature{
 				LigatureGlyph:     gID(ligatureGlyph),
-				ComponentGlyphIDs: []uint16{uint16(secondGlyph)}, // ligatures are 2-component
+				ComponentGlyphIDs: componentGIDs, // ligatures are 2-component
 			})
 		}
 		out.LigatureSets = append(out.LigatureSets, ligatureSet)
 	}
 
 	return &lookupGSUB{
-		LookupOptions: font.LookupOptions{Flag: otIgnoreMarks},
+		LookupOptions: font.LookupOptions{Flag: lookupFlags},
 		Subtables: []tables.GSUBLookup{
 			out,
 		},
@@ -747,10 +984,18 @@ func arabicFallbackSynthesizeLookupLigature(ft *Font) *lookupGSUB {
 }
 
 func arabicFallbackSynthesizeLookup(font *Font, featureIndex int) *lookupGSUB {
-	if featureIndex < 4 {
+	switch featureIndex {
+	case 0, 1, 2, 3:
 		return arabicFallbackSynthesizeLookupSingle(font, featureIndex)
+	case 4:
+		return arabicFallbackSynthesizeLookupLigature(font, arabicLigature3Table[:], otIgnoreMarks)
+	case 5:
+		return arabicFallbackSynthesizeLookupLigature(font, arabicLigatureTable[:], otIgnoreMarks)
+	case 6:
+		return arabicFallbackSynthesizeLookupLigature(font, arabicLigatureMarkTable[:], 0)
+	default:
+		panic("unexpected arabic fallback feature index")
 	}
-	return arabicFallbackSynthesizeLookupLigature(font)
 }
 
 const arabicFallbackMaxLookups = 5

@@ -231,7 +231,7 @@ func (f *Face) HorizontalAdvance(gid GID) float32 {
 		return float32(advance)
 	}
 	if f.hvar != nil {
-		return float32(advance) + getAdvanceVar(f.hvar, gID(gid), f.Coords)
+		return float32(advance) + getAdvanceDeltaUnscaled(f.hvar, gID(gid), f.Coords)
 	}
 	return f.getGlyphAdvanceVar(gID(gid), false)
 }
@@ -248,7 +248,7 @@ func (f *Face) VerticalAdvance(gid GID) float32 {
 		return -float32(advance)
 	}
 	if f.vvar != nil {
-		return -float32(advance) - getAdvanceVar(f.vvar, gID(gid), f.Coords)
+		return -float32(advance) - getAdvanceDeltaUnscaled(f.vvar, gID(gid), f.Coords)
 	}
 	return -f.getGlyphAdvanceVar(gID(gid), true)
 }
@@ -269,7 +269,7 @@ func (f *Face) getVerticalSideBearing(glyph gID) int16 {
 		return sideBearing
 	}
 	if f.vvar != nil {
-		return sideBearing + int16(getSideBearingVar(f.vvar, glyph, f.Coords))
+		return sideBearing + int16(getLsbDeltaUnscaled(f.vvar, glyph, f.Coords))
 	}
 	return f.getGlyphSideBearingVar(glyph, true)
 }

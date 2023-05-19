@@ -27,9 +27,9 @@ import (
 // 195c05df9925c7c4a4982a286ef9c416b2cde3af
 
 // debugMode is only used in test:
-//   - 0 : nothing
-//   - 1 : only the main steps are printed
-//   - 2 : details informations are printed
+//   - 0 : do nothing
+//   - 1 : only print the main steps of the shaping
+//   - 2 : print detailed information
 const debugMode = 0
 
 type (
@@ -67,7 +67,7 @@ func getHorizontalDirection(script language.Script) Direction {
 		return RightToLeft
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/1000 */
-	case language.Old_Hungarian, language.Old_Italic, language.Runic:
+	case language.Old_Hungarian, language.Old_Italic, language.Runic, language.Tifinagh:
 		return 0
 	}
 
@@ -153,6 +153,21 @@ const (
 	// not be inserted in the rendering of incorrect
 	// character sequences (such at <0905 093E>).
 	DoNotinsertDottedCircle
+
+	// Flag indicating that the [Buffer.Shape()] call and its variants
+	// should perform various verification processes on the results
+	// of the shaping operation on the buffer.
+	verify
+
+	// Flag indicating that the [GlyphUnsafeToConcat]
+	// glyph-flag should be produced by the shaper. By default
+	// it will not be produced since it incurs a cost.
+	ProduceUnsafeToConcat
+
+	// Flag indicating that the [GlyphSafeToInsertTatweel]
+	// glyph-flag should be produced by the shaper. By default
+	// it will not be produced.
+	ProduceSafeToInsertTatweel
 )
 
 // ClusterLevel allows selecting more fine-grained Cluster handling.

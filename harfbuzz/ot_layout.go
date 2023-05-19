@@ -367,11 +367,12 @@ func glyphInfoSubstituted(info *GlyphInfo) bool {
 	return (info.glyphProps & substituted) != 0
 }
 
-func clearSubstitutionFlags(_ *otShapePlan, _ *Font, buffer *Buffer) {
+func clearSubstitutionFlags(_ *otShapePlan, _ *Font, buffer *Buffer) bool {
 	info := buffer.Info
 	for i := range info {
 		info[i].glyphProps &= ^substituted
 	}
+	return false
 }
 
 func reverseGraphemes(b *Buffer) {

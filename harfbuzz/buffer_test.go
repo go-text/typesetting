@@ -241,9 +241,6 @@ const (
  **/
 
 func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph GID, positionFuzz int32) int {
-	//    if (buffer.content_type != reference.content_type && buffer.len && reference.len){
-	// 	 return HB_BUFFER_DIFF_FLAG_CONTENT_TYPE_MISMATCH;}
-
 	result := bufferDiffFlagEqual
 	contains := dottedcircleGlyph != ^GID(0)
 
@@ -280,7 +277,7 @@ func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph GID, positionFuzz i
 		if bufInfo[i].Cluster != refInfo[i].Cluster {
 			result |= HB_BUFFER_DIFF_FLAG_CLUSTER_MISMATCH
 		}
-		if (bufInfo[i].Mask & ^refInfo[i].Mask & glyphFlagDefined) != 0 {
+		if (bufInfo[i].Mask^refInfo[i].Mask)&glyphFlagDefined != 0 {
 			result |= HB_BUFFER_DIFF_FLAG_GLYPH_FLAGS_MISMATCH
 		}
 		if contains && refInfo[i].Glyph == dottedcircleGlyph {

@@ -12,7 +12,9 @@ func TestMyanmarProperties(t *testing.T) {
 		4141: {26, 6},
 	}
 	for u, exp := range expecteds {
-		gotCat, gotPos := computeMyanmarProperties(u)
+		type_ := indicGetCategories(u)
+		gotCat := uint8(type_ & 0xFF)
+		gotPos := uint8(type_ >> 8)
 		if exp[0] != gotCat || exp[1] != gotPos {
 			t.Fatalf("for rune %d, expected %v, got [%d, %d]", u, exp, gotCat, gotPos)
 		}

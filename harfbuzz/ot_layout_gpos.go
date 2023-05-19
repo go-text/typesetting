@@ -149,7 +149,7 @@ func (c *otApplyContext) applyGPOS(table tables.GPOSLookup) bool {
 	case tables.PairPos:
 		skippyIter := &c.iterInput
 		skippyIter.reset(buffer.idx, 1)
-		if !skippyIter.next() {
+		if ok, _ := skippyIter.next(); !ok {
 			return false
 		}
 		switch inner := data.Data.(type) {
@@ -312,7 +312,7 @@ func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) 
 
 	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
-	if !skippyIter.prev() {
+	if ok, _ := skippyIter.prev(); !ok {
 		return false
 	}
 
@@ -482,7 +482,7 @@ func (c *otApplyContext) applyGPOSMarkToBase(data tables.MarkBasePos, markIndex 
 	skippyIter.reset(buffer.idx, 1)
 	skippyIter.matcher.lookupProps = uint32(otIgnoreMarks)
 	for {
-		if !skippyIter.prev() {
+		if ok, _ := skippyIter.prev(); !ok {
 			return false
 		}
 		// We only want to attach to the first of a MultipleSubst sequence.
@@ -517,7 +517,7 @@ func (c *otApplyContext) applyGPOSMarkToLigature(data tables.MarkLigPos, markInd
 	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
 	skippyIter.matcher.lookupProps = uint32(otIgnoreMarks)
-	if !skippyIter.prev() {
+	if ok, _ := skippyIter.prev(); !ok {
 		return false
 	}
 
@@ -557,7 +557,7 @@ func (c *otApplyContext) applyGPOSMarkToMark(data tables.MarkMarkPos, mark1Index
 	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
 	skippyIter.matcher.lookupProps = c.lookupProps &^ uint32(ignoreFlags)
-	if !skippyIter.prev() {
+	if ok, _ := skippyIter.prev(); !ok {
 		return false
 	}
 

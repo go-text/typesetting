@@ -27,6 +27,32 @@ type Font struct {
 	Ptem float32
 
 	// Horizontal and vertical scale of the font.
+	//
+	// The font scale is a number related to, but not the same as,
+	// font size. Typically the client establishes a scale factor
+	// to be used between the two. For example, 64, or 256, which
+	// would be the fractional-precision part of the font scale.
+	// This is necessary because [Position] values are integer
+	// types and you need to leave room for fractional values
+	// in there.
+	//
+	// For example, to set the font size to 20, with 64
+	// levels of fractional precision you would use a scale of
+	// 20 * 64.
+	//
+	// In the example above, even what font size 20 means is up to
+	// you. It might be 20 pixels, or 20 points, or 20 millimeters.
+	// HarfBuzz does not care about that. You can set the point
+	// size of the font using [Ptem], and the pixel
+	// size using [Face.Ppem]
+	//
+	// The choice of scale is yours but needs to be consistent between
+	// what you set here, and what you expect out of [Position]
+	// as well has draw / paint API output values.
+	//
+	// Fonts default to a scale equal to the UPEM value of their face.
+	// A font with this setting is sometimes called an "unscaled" font.
+	//
 	// The resulting positions are computed with: fontUnit * Scale / faceUpem,
 	// where faceUpem is given by the face.
 	//

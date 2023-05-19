@@ -29,14 +29,6 @@ func (b *Buffer) Shape(font *Font, features []Feature) {
 	shapePlan.execute(font, b, features)
 }
 
-type shaperKind uint8
-
-const (
-	skFallback shaperKind = iota
-	skOpentype
-	skGraphite
-)
-
 // Shape plans are an internal mechanism. Each plan contains state
 // describing how HarfBuzz will shape a particular text segment, based on
 // the combination of segment properties and the capabilities in the
@@ -92,8 +84,7 @@ func (plan shapePlan) userFeaturesMatch(other shapePlan) bool {
 }
 
 func (plan shapePlan) equal(other shapePlan) bool {
-	return plan.props == other.props &&
-		plan.userFeaturesMatch(other) && plan.shaper.kind() == other.shaper.kind()
+	return plan.props == other.props && plan.userFeaturesMatch(other)
 }
 
 // Constructs a shaping plan for a combination of @face, @userFeatures, @props,

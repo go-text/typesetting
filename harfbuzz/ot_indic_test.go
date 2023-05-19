@@ -15,7 +15,8 @@ func TestGetIndicCategories(t *testing.T) {
 }
 
 func TestComputeIndicProperties(t *testing.T) {
-	cat, pos := computeIndicProperties(2901)
+	type_ := indicGetCategories(2901)
+	cat, pos := uint8(type_&0xFF), uint8(type_>>8)
 	if cat != 3 || pos != 6 {
 		t.Fatalf("expected 3,6 for rune 2901, got %d, %d", cat, pos)
 	}

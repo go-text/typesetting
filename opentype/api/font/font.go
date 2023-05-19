@@ -57,6 +57,7 @@ type Font struct {
 	Trak tables.Trak
 	Ankr tables.Ankr
 	Feat tables.Feat
+	Ltag tables.Ltag
 	Morx Morx
 	Kern Kernx
 	Kerx Kernx
@@ -215,6 +216,9 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 
 	raw, _ = ld.RawTable(loader.MustNewTag("feat"))
 	out.Feat, _, _ = tables.ParseFeat(raw)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("ltag"))
+	out.Ltag, _, _ = tables.ParseLtag(raw)
 
 	return &out, nil
 }

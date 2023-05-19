@@ -51,6 +51,10 @@ func bfindLanguage(lang string) int {
 
 func subtagMatches(langStr string, subtag string) bool {
 	LS := len(subtag)
+	if len(langStr) < LS {
+		return false
+	}
+
 	for {
 		s := strings.Index(langStr, subtag)
 		if s == -1 {
