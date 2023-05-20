@@ -19,8 +19,8 @@ jobs:
     
     - name: Build without tests
       run: go build ./...
-      if: ${{ runner.go-version == '1.14.x' }}
+      if: ${{ matrix.go-version == '1.14.x' }}
 
     - name: Test
       run: go test ./...
-      if: ${{ runner.go-version != '1.14.x' }}
+      if: ${{ matrix.go-version != '1.14.x' }}
