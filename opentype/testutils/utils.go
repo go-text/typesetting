@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Unlicense OR BSD-3-Clause
+//go:build go1.16
+// +build go1.16
 
 package testutils
 
