@@ -63,6 +63,7 @@ func FuzzBreakOptions(f *testing.F) {
 			prevRuneIndex := 0
 			if len(wordOptions) > 0 {
 				prevRuneIndex = wordOptions[len(wordOptions)-1].breakAtRune
+				prevRuneIndex++
 			}
 			segmentRunes := runes[prevRuneIndex : b.breakAtRune+1]
 			segmentGraphemes := []breakOption{}
@@ -78,12 +79,9 @@ func FuzzBreakOptions(f *testing.F) {
 			for iter := seg.GraphemeIterator(); iter.Next(); {
 				g := iter.Grapheme()
 				breakAt := g.Offset + len(g.Text) - 1
-				firstGraphemeInSegment := breakAt == 0
+				firstGraphemeInSegment := g.Offset == 0
 				firstGraphemeInText := prevRuneIndex == 0 && firstGraphemeInSegment
-				lastGraphemeInSegment := breakAt == b.breakAtRune-prevRuneIndex
-				lastGraphemeInText := len(runes)-1 == breakAt+prevRuneIndex
-				if (!firstGraphemeInText && firstGraphemeInSegment) ||
-					(!lastGraphemeInText && lastGraphemeInSegment) {
+				if !firstGraphemeInText && firstGraphemeInSegment {
 					continue
 				}
 				count++

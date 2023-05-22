@@ -384,9 +384,7 @@ func (l *breaker) nextGraphemeBreak() (breakOption, bool) {
 			continue
 		}
 		l.unusedGraphemeBreak = option
-		isFinalGrapheme := l.unusedWordBreak.breakAtRune == l.totalRunes-1
-		if option.breakAtRune > l.unusedWordBreak.breakAtRune ||
-			(!isFinalGrapheme && option.breakAtRune == l.unusedWordBreak.breakAtRune) {
+		if option.breakAtRune > l.unusedWordBreak.breakAtRune {
 			// We've walked the grapheme iterator past the end of the line wrapping
 			// candidate, so mark that we may need to re-check this break option
 			// when evaluating the next segment.

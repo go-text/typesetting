@@ -2368,11 +2368,18 @@ func TestLineWrapperBreakUltranarrow(t *testing.T) {
 	}
 	for _, tc := range []testcase{
 		{
-			name:       "hello world",
+			name:       "hello world (narrow)",
 			paragraph:  []rune("hello, world"),
 			maxWidth:   9,
 			config:     WrapConfig{BreakPolicy: WhenNecessary},
 			runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+		},
+		{
+			name:       "hello world (ultranarrow)",
+			paragraph:  []rune("hello, world"),
+			maxWidth:   1,
+			config:     WrapConfig{BreakPolicy: WhenNecessary},
+			runeCounts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
