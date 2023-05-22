@@ -2317,7 +2317,7 @@ func BenchmarkWrapping(b *testing.B) {
 					lines := make([]Line, 1)
 					for i := 0; i < b.N; i++ {
 						lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], iter)
-						iter.(*runSlice).Reset(outs)
+						iter.(*shapedRunSlice).Reset(outs)
 					}
 					_ = lines
 				})
@@ -2349,7 +2349,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	var outs []Line
 	for i := 0; i < b.N; i++ {
 		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, iter)
-		iter.(*runSlice).Reset(out)
+		iter.(*shapedRunSlice).Reset(out)
 	}
 	_ = outs
 }

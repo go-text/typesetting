@@ -365,9 +365,10 @@ func (r *runMapper) mapRun(runIdx int, run Output) {
 
 // RunIterator defines a type that can incrementally provide shaped text.
 type RunIterator interface {
-	// Next returns the next logical run index, shaped run, and true if there are more runs,
-	// then it advances the iterator to the next element.
-	// Otherwise it returns an undefined index, an empty Output, and false.
+	// Next returns the next run in the iterator, if any. If there is a next run,
+	// its index, content, and true will be returned, and the iterator will advance
+	// to the following element. Otherwise Next returns an undefined index, an empty
+	// Output, and false.
 	Next() (index int, run Output, isValid bool)
 	// Peek returns the same thing Next() would, but does not advance the iterator (so the
 	// next call to Next() will return the same thing).
@@ -380,31 +381,31 @@ type RunIterator interface {
 	Restore()
 }
 
-// runSlice is a [RunIterator] built from already-shaped text.
-type runSlice struct {
+// shapedRunSlice is a [RunIterator] built from already-shaped text.
+type shapedRunSlice struct {
 	runs     []Output
 	idx      int
 	savedIdx int
 }
 
-var _ RunIterator = (*runSlice)(nil)
+var _ RunIterator = (*shapedRunSlice)(nil)
 
 // NewSliceIterator returns a [RunIterator] backed by an already-shaped slice of [Output]s.
 func NewSliceIterator(outs []Output) RunIterator {
-	return &runSlice{
+	return &shapedRunSlice{
 		runs: outs,
 	}
 }
 
 // Reset configures the runSlice for reuse with the given shaped text.
-func (r *runSlice) Reset(outs []Output) {
+func (r *shapedRunSlice) Reset(outs []Output) {
 	r.runs = outs
 	r.idx = 0
 	r.savedIdx = 0
 }
 
 // Next implements [RunIterator.Next].
-func (r *runSlice) Next() (int, Output, bool) {
+func (r *shapedRunSlice) Next() (int, Output, bool) {
 	idx, run, ok := r.Peek()
 	if ok {
 		r.idx++
@@ -413,21 +414,21 @@ func (r *runSlice) Next() (int, Output, bool) {
 }
 
 // Peek implements [RunIterator.Peek].
-func (r *runSlice) Peek() (int, Output, bool) {
-	if r.idx < len(r.runs) {
-		next := r.runs[r.idx]
-		return r.idx, next, true
+func (r *shapedRunSlice) Peek() (int, Output, bool) {
+	if r.idx >= len(r.runs) {
+		return r.idx, Output{}, false
 	}
-	return r.idx, Output{}, false
+	next := r.runs[r.idx]
+	return r.idx, next, true
 }
 
 // Save implements [RunIterator.Save].
-func (r *runSlice) Save() {
+func (r *shapedRunSlice) Save() {
 	r.savedIdx = r.idx
 }
 
 // Restore implements [RunIterator.Restore].
-func (r *runSlice) Restore() {
+func (r *shapedRunSlice) Restore() {
 	r.idx = r.savedIdx
 }
 
@@ -624,12 +625,17 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
 	l.ensureScratch()
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
-	runs.Save()
-	_, firstRun, firstOk := runs.Next()
-	if _, _, ok := runs.Peek(); firstOk && !ok && firstRun.Advance.Ceil() < maxWidth && !(config.TextContinues && config.TruncateAfterLines == 1) {
-		return l.scratch.singleRunParagraph(firstRun), 0
+	if !(config.TextContinues && config.TruncateAfterLines == 1) {
+		runs.Save()
+		_, firstRun, hasFirst := runs.Next()
+		_, _, hasSecond := runs.Peek()
+		if hasFirst && !hasSecond {
+			if firstRun.Advance.Ceil() < maxWidth {
+				return l.scratch.singleRunParagraph(firstRun), 0
+			}
+		}
+		runs.Restore()
 	}
-	runs.Restore()
 
 	l.Prepare(config, paragraph, runs)
 	var done bool
@@ -754,33 +760,34 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 			l.more = false
 		}
 	}()
-	// Save current iterator state so we can peek ahead.
-	l.glyphRuns.Save()
 	// If the iterator is empty, return early.
-	_, nextRun, more := l.glyphRuns.Next()
-	if !more {
+	_, firstRun, hasFirst := l.glyphRuns.Peek()
+	if !hasFirst {
 		return nil, 0, true
 	}
-	// If the iterator contains only one run, and that run fits, take the fast path.
 	l.scratch.startLine()
 	truncating := l.config.TruncateAfterLines == 1
-	_, _, moreRuns := l.glyphRuns.Peek()
-	emptyLine := len(nextRun.Glyphs) == 0
-	if emptyLine ||
-		(!moreRuns && // This is the final run in the iterator.
-			nextRun.Runes.Offset == l.lineStartRune && // We have not already used part of the run.
-			nextRun.Advance.Ceil() < maxWidth && // The run fits in the line.
-			!(l.config.TextContinues && truncating)) {
-		if emptyLine {
-			// Pass empty lines through as empty.
-			nextRun.Runes = Range{Count: l.breaker.totalRunes}
+
+	// If we're not truncating, the iterator contains only one run, and that run fits, take the fast path.
+	if !(l.config.TextContinues && truncating) && firstRun.Runes.Offset == l.lineStartRune && firstRun.Advance.Ceil() < maxWidth {
+		// Save current iterator state so we can peek ahead.
+		l.glyphRuns.Save()
+		// Advance beyond firstRun, which we already know from the Peek() above.
+		_, _, _ = l.glyphRuns.Next()
+		_, _, hasSecond := l.glyphRuns.Peek()
+		emptyLine := len(firstRun.Glyphs) == 0
+		if emptyLine || !hasSecond {
+			if emptyLine {
+				// Pass empty lines through as empty.
+				firstRun.Runes = Range{Count: l.breaker.totalRunes}
+			}
+			l.scratch.candidateAppend(firstRun)
+			l.scratch.markCandidateBest()
+			return l.scratch.finalizeBest(), 0, true
 		}
-		l.scratch.candidateAppend(nextRun)
-		l.scratch.markCandidateBest()
-		return l.scratch.finalizeBest(), 0, true
+		// Restore iterator state in preparation for real line wrapping algorithm.
+		l.glyphRuns.Restore()
 	}
-	// Restore iterator state in preparation for real line wrapping algorithm.
-	l.glyphRuns.Restore()
 
 	config := lineConfig{
 		truncating:        truncating,
