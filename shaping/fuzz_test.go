@@ -33,7 +33,7 @@ func FuzzE2E(f *testing.F) {
 			t.Errorf("expected %d shaped runes, got %d", len(textInput), out[0].Runes.Count)
 		}
 		var l LineWrapper
-		outs, _ := l.WrapParagraph(WrapConfig{}, 100, textInput, NewSliceIterator(out), nil)
+		outs, _ := l.WrapParagraph(WrapConfig{}, 100, textInput, NewSliceIterator(out))
 		totalRunes := 0
 		for _, l := range outs {
 			for _, run := range l {
