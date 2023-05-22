@@ -2166,8 +2166,10 @@ func TestCutRunInto(t *testing.T) {
 
 func TestWrapBuffer(t *testing.T) {
 	t.Run("new and reset have same state", func(t *testing.T) {
-		b1 := NewWrapBuffer()
-		b2 := NewWrapBuffer()
+		b1 := wrapBuffer{}
+		b1.reset()
+		b2 := wrapBuffer{}
+		b2.reset()
 		defer func() {
 			if t.Failed() {
 				t.Logf("b1: %s\nb2: %s\n", b1.stats(), b2.stats())
@@ -2179,7 +2181,8 @@ func TestWrapBuffer(t *testing.T) {
 		}
 	})
 	t.Run("paragraph functions", func(t *testing.T) {
-		b1 := NewWrapBuffer()
+		b1 := wrapBuffer{}
+		b1.reset()
 		defer func() {
 			if t.Failed() {
 				t.Logf("b1: %s\n", b1.stats())
@@ -2220,7 +2223,8 @@ func TestWrapBuffer(t *testing.T) {
 		}
 	})
 	t.Run("line building", func(t *testing.T) {
-		b := NewWrapBuffer()
+		b := wrapBuffer{}
+		b.reset()
 		defer func() {
 			if t.Failed() {
 				t.Logf("b: %s\n", b.stats())
