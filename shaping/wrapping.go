@@ -461,20 +461,19 @@ type wrapBuffer struct {
 	bestInLine bool
 }
 
-// NewWrapBuffer returns a WrapBuffer with some pre-allocated storage for
-// small-sized texts.
-func NewWrapBuffer() *wrapBuffer {
-	return &wrapBuffer{
-		paragraph: make([]Line, 0, 10),
-		line:      make([]Output, 0, 100),
-		alt:       make([]Output, 0, 10),
-	}
-}
-
 func (w *wrapBuffer) reset() {
+	if cap(w.paragraph) < 10 {
+		w.paragraph = make([]Line, 0, 10)
+	}
 	w.paragraph = w.paragraph[:0]
+	if cap(w.alt) < 10 {
+		w.alt = make([]Output, 0, 10)
+	}
 	w.alt = w.alt[:0]
 	w.altAdvance = 0
+	if cap(w.line) < 100 {
+		w.line = make([]Output, 0, 100)
+	}
 	w.line = w.line[:0]
 	w.lineUsed = 0
 	w.best = nil
@@ -572,7 +571,7 @@ type LineWrapper struct {
 	breaker *breaker
 
 	// scratch holds wrapping algorithm storage buffers for reuse.
-	scratch *wrapBuffer
+	scratch wrapBuffer
 
 	// mapper tracks rune->glyphCluster mappings.
 	mapper runMapper
@@ -591,16 +590,6 @@ type LineWrapper struct {
 	more bool
 }
 
-// ensureScratch makes sure that there is an allocated scratch buffer ready for
-// use by this wrapper.
-func (l *LineWrapper) ensureScratch() {
-	if l.scratch == nil {
-		l.scratch = NewWrapBuffer()
-	} else {
-		l.scratch.reset()
-	}
-}
-
 // Prepare initializes the LineWrapper for the given paragraph and shaped text.
 // It must be called prior to invoking WrapNextLine. Prepare invalidates any
 // lines previously returned by this wrapper.
@@ -613,7 +602,7 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 	l.lineStartRune = 0
 	l.more = true
 	l.mapper.valid = false
-	l.ensureScratch()
+	l.scratch.reset()
 }
 
 // WrapParagraph wraps the paragraph's shaped glyphs to a constant maxWidth.
@@ -623,7 +612,7 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 // the end of the text. The returned lines are only valid until the next call to
 // [*LineWrapper.WrapParagraph] or [*LineWrapper.Prepare].
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
-	l.ensureScratch()
+	l.scratch.reset()
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
 	if !(config.TextContinues && config.TruncateAfterLines == 1) {
 		runs.Save()
@@ -683,7 +672,7 @@ const (
 // fillUntil tries to fill the provided line candidate slice with runs until it reaches a run containing the
 // provided break option. It returns the index of the run containing the option, the new width of the candidate
 // line, the contents of the new candidate line, and a result indicating how to proceed.
-func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, scratch *wrapBuffer) (status fillResult) {
+func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) (status fillResult) {
 	currRunIndex, run, more := runs.Peek()
 	for more && option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
 		if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
@@ -701,7 +690,7 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption, scratch *w
 		}
 		// While the run being processed doesn't contain the current line breaking
 		// candidate, just append it to the candidate line.
-		scratch.candidateAppend(run)
+		l.scratch.candidateAppend(run)
 		_, _, isMore := runs.Next()
 		if !isMore {
 			return noRunWithBreak
@@ -851,7 +840,7 @@ const (
 // processBreakOption evaluates whether the provided breakOption can fit onto the current line wrapping line.
 func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) processBreakResult {
 	l.glyphRuns.Save()
-	result := l.fillUntil(l.glyphRuns, option, l.scratch)
+	result := l.fillUntil(l.glyphRuns, option)
 
 	if result == noCandidate {
 		return endLine
