@@ -250,6 +250,31 @@ func preprocessTextVowelConstraints(buffer *Buffer) {
 				outputWithDottedCircle(buffer)
 			}
 		}
+	case language.Khojki:
+		for buffer.idx = 0; buffer.idx+1 < count; {
+			matched := false
+			switch buffer.cur(0).codepoint {
+			case 0x11200:
+				switch buffer.cur(1).codepoint {
+				case 0x1122C, 0x11231, 0x11233:
+					matched = true
+				}
+			case 0x11206:
+				matched = 0x1122C == buffer.cur(1).codepoint
+			case 0x1122C:
+				switch buffer.cur(1).codepoint {
+				case 0x11230, 0x11231:
+					matched = true
+				}
+			case 0x11240:
+				matched = 0x1122E == buffer.cur(1).codepoint
+			}
+
+			buffer.nextGlyph()
+			if matched {
+				outputWithDottedCircle(buffer)
+			}
+		}
 	case language.Khudawadi:
 		for buffer.idx = 0; buffer.idx+1 < count; {
 			matched := false
