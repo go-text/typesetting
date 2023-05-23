@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
-	ucd "github.com/go-text/typesetting/unicodedata"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-use.cc Copyright © 2015  Mozilla Foundation. Google, Inc. Jonathan Kew, Behdad Esfahbod
@@ -116,7 +115,7 @@ func (cs *complexShaperUSE) dataCreate(plan *otShapePlan) {
 
 	usePlan.rphfMask = plan.map_.getMask1(loader.NewTag('r', 'p', 'h', 'f'))
 
-	if ucd.HasArabicJoining(plan.props.Script) {
+	if hasArabicJoining(plan.props.Script) {
 		pl := newArabicPlan(plan)
 		usePlan.arabicPlan = &pl
 	}

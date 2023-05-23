@@ -8,7 +8,6 @@ import (
 	"github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
-	ucd "github.com/go-text/typesetting/unicodedata"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic.cc, hb-ot-shape-complex-arabic-fallback.hh Copyright © 2010,2012  Google, Inc. Behdad Esfahbod
@@ -44,6 +43,22 @@ func isWord(genCat generalCategory) bool {
  * Joining types:
  */
 
+// arabicJoining is a property used to shape Arabic runes.
+// See the table arabicJoinings.
+type arabicJoining byte
+
+const (
+	ajU          arabicJoining = 'U' // Un-joining, e.g. Full Stop
+	ajR          arabicJoining = 'R' // Right-joining, e.g. Arabic Letter Dal
+	ajAlaph      arabicJoining = 'a' // Alaph group (included in kind R)
+	ajDalathRish arabicJoining = 'd' // Dalat Rish group (included in kind R)
+	ajD          arabicJoining = 'D' // Dual-joining, e.g. Arabic Letter Ain
+	ajC          arabicJoining = 'C' // Join-Causing, e.g. Tatweel, ZWJ
+	ajL          arabicJoining = 'L' // Left-joining, i.e. fictional
+	ajT          arabicJoining = 'T' // Transparent, e.g. Arabic Fatha
+	ajG          arabicJoining = 'G' // Ignored, e.g. LRE, RLE, ZWNBSP
+)
+
 // index into arabicStateTable
 const (
 	joiningTypeU = iota
@@ -58,23 +73,23 @@ const (
 )
 
 func getJoiningType(u rune, genCat generalCategory) uint8 {
-	if jType, ok := ucd.ArabicJoinings[u]; ok {
+	if jType, ok := arabicJoinings[u]; ok {
 		switch jType {
-		case ucd.U:
+		case ajU:
 			return joiningTypeU
-		case ucd.L:
+		case ajL:
 			return joiningTypeL
-		case ucd.R:
+		case ajR:
 			return joiningTypeR
-		case ucd.D:
+		case ajD:
 			return joiningTypeD
-		case ucd.Alaph:
+		case ajAlaph:
 			return joiningGroupAlaph
-		case ucd.DalathRish:
+		case ajDalathRish:
 			return joiningGroupDalathRish
-		case ucd.T:
+		case ajT:
 			return joiningTypeT
-		case ucd.C:
+		case ajC:
 			return joiningTypeC
 		}
 	}
@@ -260,7 +275,7 @@ func (cs *complexShaperArabic) dataCreate(plan *otShapePlan) {
 	cs.plan = newArabicPlan(plan)
 }
 
-func arabicJoining(buffer *Buffer) {
+func applyArabicJoining(buffer *Buffer) {
 	info := buffer.Info
 	prev, state := -1, uint16(0)
 
@@ -338,7 +353,7 @@ func mongolianVariationSelectors(buffer *Buffer) {
 }
 
 func (arabicPlan arabicShapePlan) setupMasks(buffer *Buffer, script language.Script) {
-	arabicJoining(buffer)
+	applyArabicJoining(buffer)
 	if script == language.Mongolian {
 		mongolianVariationSelectors(buffer)
 	}
@@ -661,201 +676,6 @@ var arabicFallbackFeatures = [...]loader.Tag{
 	loader.NewTag('r', 'l', 'i', 'g'),
 }
 
-const (
-	firstArabicShape = 0x0621
-	lastArabicShape  = 0x06d3
-)
-
-// arabicShaping defines the shaping for arabic runes. Each entry is indexed by
-// the shape, between 0 and 3:
-//   - 0: isolated
-//   - 1: final
-//   - 2: initial
-//   - 3: medial
-//
-// See also the bounds given by FirstArabicShape and LastArabicShape.
-var arabicShaping = [...][4]uint16{ // required memory: 2 KB
-	{65152, 1569, 1569, 1569},
-	{65153, 65154, 1570, 1570},
-	{65155, 65156, 1571, 1571},
-	{65157, 65158, 1572, 1572},
-	{65159, 65160, 1573, 1573},
-	{65161, 65162, 65163, 65164},
-	{65165, 65166, 1575, 1575},
-	{65167, 65168, 65169, 65170},
-	{65171, 65172, 1577, 1577},
-	{65173, 65174, 65175, 65176},
-	{65177, 65178, 65179, 65180},
-	{65181, 65182, 65183, 65184},
-	{65185, 65186, 65187, 65188},
-	{65189, 65190, 65191, 65192},
-	{65193, 65194, 1583, 1583},
-	{65195, 65196, 1584, 1584},
-	{65197, 65198, 1585, 1585},
-	{65199, 65200, 1586, 1586},
-	{65201, 65202, 65203, 65204},
-	{65205, 65206, 65207, 65208},
-	{65209, 65210, 65211, 65212},
-	{65213, 65214, 65215, 65216},
-	{65217, 65218, 65219, 65220},
-	{65221, 65222, 65223, 65224},
-	{65225, 65226, 65227, 65228},
-	{65229, 65230, 65231, 65232},
-	{1595, 1595, 1595, 1595},
-	{1596, 1596, 1596, 1596},
-	{1597, 1597, 1597, 1597},
-	{1598, 1598, 1598, 1598},
-	{1599, 1599, 1599, 1599},
-	{1600, 1600, 1600, 1600},
-	{65233, 65234, 65235, 65236},
-	{65237, 65238, 65239, 65240},
-	{65241, 65242, 65243, 65244},
-	{65245, 65246, 65247, 65248},
-	{65249, 65250, 65251, 65252},
-	{65253, 65254, 65255, 65256},
-	{65257, 65258, 65259, 65260},
-	{65261, 65262, 1608, 1608},
-	{65263, 65264, 64488, 64489},
-	{65265, 65266, 65267, 65268},
-	{1611, 1611, 1611, 1611},
-	{1612, 1612, 1612, 1612},
-	{1613, 1613, 1613, 1613},
-	{1614, 1614, 1614, 1614},
-	{1615, 1615, 1615, 1615},
-	{1616, 1616, 1616, 1616},
-	{1617, 1617, 1617, 1617},
-	{1618, 1618, 1618, 1618},
-	{1619, 1619, 1619, 1619},
-	{1620, 1620, 1620, 1620},
-	{1621, 1621, 1621, 1621},
-	{1622, 1622, 1622, 1622},
-	{1623, 1623, 1623, 1623},
-	{1624, 1624, 1624, 1624},
-	{1625, 1625, 1625, 1625},
-	{1626, 1626, 1626, 1626},
-	{1627, 1627, 1627, 1627},
-	{1628, 1628, 1628, 1628},
-	{1629, 1629, 1629, 1629},
-	{1630, 1630, 1630, 1630},
-	{1631, 1631, 1631, 1631},
-	{1632, 1632, 1632, 1632},
-	{1633, 1633, 1633, 1633},
-	{1634, 1634, 1634, 1634},
-	{1635, 1635, 1635, 1635},
-	{1636, 1636, 1636, 1636},
-	{1637, 1637, 1637, 1637},
-	{1638, 1638, 1638, 1638},
-	{1639, 1639, 1639, 1639},
-	{1640, 1640, 1640, 1640},
-	{1641, 1641, 1641, 1641},
-	{1642, 1642, 1642, 1642},
-	{1643, 1643, 1643, 1643},
-	{1644, 1644, 1644, 1644},
-	{1645, 1645, 1645, 1645},
-	{1646, 1646, 1646, 1646},
-	{1647, 1647, 1647, 1647},
-	{1648, 1648, 1648, 1648},
-	{64336, 64337, 1649, 1649},
-	{1650, 1650, 1650, 1650},
-	{1651, 1651, 1651, 1651},
-	{1652, 1652, 1652, 1652},
-	{1653, 1653, 1653, 1653},
-	{1654, 1654, 1654, 1654},
-	{64477, 1655, 1655, 1655},
-	{1656, 1656, 1656, 1656},
-	{64358, 64359, 64360, 64361},
-	{64350, 64351, 64352, 64353},
-	{64338, 64339, 64340, 64341},
-	{1660, 1660, 1660, 1660},
-	{1661, 1661, 1661, 1661},
-	{64342, 64343, 64344, 64345},
-	{64354, 64355, 64356, 64357},
-	{64346, 64347, 64348, 64349},
-	{1665, 1665, 1665, 1665},
-	{1666, 1666, 1666, 1666},
-	{64374, 64375, 64376, 64377},
-	{64370, 64371, 64372, 64373},
-	{1669, 1669, 1669, 1669},
-	{64378, 64379, 64380, 64381},
-	{64382, 64383, 64384, 64385},
-	{64392, 64393, 1672, 1672},
-	{1673, 1673, 1673, 1673},
-	{1674, 1674, 1674, 1674},
-	{1675, 1675, 1675, 1675},
-	{64388, 64389, 1676, 1676},
-	{64386, 64387, 1677, 1677},
-	{64390, 64391, 1678, 1678},
-	{1679, 1679, 1679, 1679},
-	{1680, 1680, 1680, 1680},
-	{64396, 64397, 1681, 1681},
-	{1682, 1682, 1682, 1682},
-	{1683, 1683, 1683, 1683},
-	{1684, 1684, 1684, 1684},
-	{1685, 1685, 1685, 1685},
-	{1686, 1686, 1686, 1686},
-	{1687, 1687, 1687, 1687},
-	{64394, 64395, 1688, 1688},
-	{1689, 1689, 1689, 1689},
-	{1690, 1690, 1690, 1690},
-	{1691, 1691, 1691, 1691},
-	{1692, 1692, 1692, 1692},
-	{1693, 1693, 1693, 1693},
-	{1694, 1694, 1694, 1694},
-	{1695, 1695, 1695, 1695},
-	{1696, 1696, 1696, 1696},
-	{1697, 1697, 1697, 1697},
-	{1698, 1698, 1698, 1698},
-	{1699, 1699, 1699, 1699},
-	{64362, 64363, 64364, 64365},
-	{1701, 1701, 1701, 1701},
-	{64366, 64367, 64368, 64369},
-	{1703, 1703, 1703, 1703},
-	{1704, 1704, 1704, 1704},
-	{64398, 64399, 64400, 64401},
-	{1706, 1706, 1706, 1706},
-	{1707, 1707, 1707, 1707},
-	{1708, 1708, 1708, 1708},
-	{64467, 64468, 64469, 64470},
-	{1710, 1710, 1710, 1710},
-	{64402, 64403, 64404, 64405},
-	{1712, 1712, 1712, 1712},
-	{64410, 64411, 64412, 64413},
-	{1714, 1714, 1714, 1714},
-	{64406, 64407, 64408, 64409},
-	{1716, 1716, 1716, 1716},
-	{1717, 1717, 1717, 1717},
-	{1718, 1718, 1718, 1718},
-	{1719, 1719, 1719, 1719},
-	{1720, 1720, 1720, 1720},
-	{1721, 1721, 1721, 1721},
-	{64414, 64415, 1722, 1722},
-	{64416, 64417, 64418, 64419},
-	{1724, 1724, 1724, 1724},
-	{1725, 1725, 1725, 1725},
-	{64426, 64427, 64428, 64429},
-	{1727, 1727, 1727, 1727},
-	{64420, 64421, 1728, 1728},
-	{64422, 64423, 64424, 64425},
-	{1730, 1730, 1730, 1730},
-	{1731, 1731, 1731, 1731},
-	{1732, 1732, 1732, 1732},
-	{64480, 64481, 1733, 1733},
-	{64473, 64474, 1734, 1734},
-	{64471, 64472, 1735, 1735},
-	{64475, 64476, 1736, 1736},
-	{64482, 64483, 1737, 1737},
-	{1738, 1738, 1738, 1738},
-	{64478, 64479, 1739, 1739},
-	{64508, 64509, 64510, 64511},
-	{1741, 1741, 1741, 1741},
-	{1742, 1742, 1742, 1742},
-	{1743, 1743, 1743, 1743},
-	{64484, 64485, 64486, 64487},
-	{1745, 1745, 1745, 1745},
-	{64430, 64431, 1746, 1746},
-	{64432, 64433, 1747, 1747},
-}
-
 // used to sort both array at the same time
 type jointGlyphs struct {
 	glyphs, substitutes []gID
@@ -998,7 +818,7 @@ func arabicFallbackSynthesizeLookup(font *Font, featureIndex int) *lookupGSUB {
 	}
 }
 
-const arabicFallbackMaxLookups = 5
+const arabicFallbackMaxLookups = len(arabicFallbackFeatures)
 
 type arabicFallbackPlan struct {
 	accelArray [arabicFallbackMaxLookups]otLayoutLookupAccelerator

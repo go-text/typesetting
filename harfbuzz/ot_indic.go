@@ -16,6 +16,32 @@ import (
 //   - when `true`, Uniscribe behavior is reproduced
 var UniscribeBugCompatible = false
 
+// Keep in sync with the code generator.
+const (
+	posStart = iota
+
+	posRaToBecomeReph
+	posPreM
+	posPreC
+
+	posBaseC
+	posAfterMain
+
+	posAboveC
+
+	posBeforeSub
+	posBelowC
+	posAfterSub
+
+	posBeforePost
+	posPostC
+	posAfterPost
+
+	posSmvd
+
+	posEnd
+)
+
 var _ otComplexShaper = (*complexShaperIndic)(nil)
 
 // Indic shaper.
