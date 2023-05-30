@@ -23,14 +23,12 @@ import (
 )
 
 // based on upstream commit 449c4296a11a8b3d3882d4a4d6705281f5ff52e5
-// pending the change for Unicode 14 that are not merged yet, starting at
-// 195c05df9925c7c4a4982a286ef9c416b2cde3af
 
 // debugMode is only used in test:
 //   - 0 : do nothing
 //   - 1 : only print the main steps of the shaping
 //   - 2 : print detailed information
-const debugMode = 0
+const debugMode = 2
 
 type (
 	GID = api.GID

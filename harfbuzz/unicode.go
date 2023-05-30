@@ -3,7 +3,7 @@ package harfbuzz
 import (
 	"unicode"
 
-	"github.com/go-text/typesetting/unicodedata"
+	ucd "github.com/go-text/typesetting/unicodedata"
 )
 
 // uni exposes some lookup functions for Unicode properties.
@@ -47,36 +47,36 @@ const (
 
 // correspondance with *unicode.RangeTable classes
 var generalCategories = [...]*unicode.RangeTable{
-	control:            unicode.Cc,
-	format:             unicode.Cf,
+	control:            ucd.Cc,
+	format:             ucd.Cf,
 	unassigned:         nil,
-	privateUse:         unicode.Co,
-	surrogate:          unicode.Cs,
-	lowercaseLetter:    unicode.Ll,
-	modifierLetter:     unicode.Lm,
-	otherLetter:        unicode.Lo,
-	titlecaseLetter:    unicode.Lt,
-	uppercaseLetter:    unicode.Lu,
-	spacingMark:        unicode.Mc,
-	enclosingMark:      unicode.Me,
-	nonSpacingMark:     unicode.Mn,
-	decimalNumber:      unicode.Nd,
-	letterNumber:       unicode.Nl,
-	otherNumber:        unicode.No,
-	connectPunctuation: unicode.Pc,
-	dashPunctuation:    unicode.Pd,
-	closePunctuation:   unicode.Pe,
-	finalPunctuation:   unicode.Pf,
-	initialPunctuation: unicode.Pi,
-	otherPunctuation:   unicode.Po,
-	openPunctuation:    unicode.Ps,
-	currencySymbol:     unicode.Sc,
-	modifierSymbol:     unicode.Sk,
-	mathSymbol:         unicode.Sm,
-	otherSymbol:        unicode.So,
-	lineSeparator:      unicode.Zl,
-	paragraphSeparator: unicode.Zp,
-	spaceSeparator:     unicode.Zs,
+	privateUse:         ucd.Co,
+	surrogate:          ucd.Cs,
+	lowercaseLetter:    ucd.Ll,
+	modifierLetter:     ucd.Lm,
+	otherLetter:        ucd.Lo,
+	titlecaseLetter:    ucd.Lt,
+	uppercaseLetter:    ucd.Lu,
+	spacingMark:        ucd.Mc,
+	enclosingMark:      ucd.Me,
+	nonSpacingMark:     ucd.Mn,
+	decimalNumber:      ucd.Nd,
+	letterNumber:       ucd.Nl,
+	otherNumber:        ucd.No,
+	connectPunctuation: ucd.Pc,
+	dashPunctuation:    ucd.Pd,
+	closePunctuation:   ucd.Pe,
+	finalPunctuation:   ucd.Pf,
+	initialPunctuation: ucd.Pi,
+	otherPunctuation:   ucd.Po,
+	openPunctuation:    ucd.Ps,
+	currencySymbol:     ucd.Sc,
+	modifierSymbol:     ucd.Sk,
+	mathSymbol:         ucd.Sm,
+	otherSymbol:        ucd.So,
+	lineSeparator:      ucd.Zl,
+	paragraphSeparator: ucd.Zp,
+	spaceSeparator:     ucd.Zs,
 }
 
 func (g generalCategory) isMark() bool {
@@ -299,7 +299,7 @@ func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
 	if u == 0x0F39 {
 		return 127
 	}
-	return modifiedCombiningClass[unicodedata.LookupCombiningClass(u)]
+	return modifiedCombiningClass[ucd.LookupCombiningClass(u)]
 }
 
 // IsDefaultIgnorable returns `true` for
@@ -366,13 +366,13 @@ func (unicodeFuncs) generalCategory(ch rune) generalCategory {
 }
 
 func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
-	return unicode.Is(unicodedata.Extended_Pictographic, ch)
+	return unicode.Is(ucd.Extended_Pictographic, ch)
 }
 
 // returns the mirroring Glyph code point (for bi-directional
 // replacement) of a code point, or itself
 func (unicodeFuncs) mirroring(ch rune) rune {
-	out, _ := unicodedata.LookupMirrorChar(ch)
+	out, _ := ucd.LookupMirrorChar(ch)
 	return out
 }
 
@@ -444,8 +444,8 @@ func (unicodeFuncs) isVariationSelector(r rune) bool {
 	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }
 
-func (unicodeFuncs) decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
-func (unicodeFuncs) compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
+func (unicodeFuncs) decompose(ab rune) (a, b rune, ok bool) { return ucd.Decompose(ab) }
+func (unicodeFuncs) compose(a, b rune) (rune, bool)         { return ucd.Compose(a, b) }
 
 /* Prepare */
 

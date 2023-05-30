@@ -75,6 +75,7 @@ func newGPOSApplicable(table tables.GPOSLookup) applicable {
 }
 
 func (ap applicable) apply(c *otApplyContext) bool {
+	fmt.Println("mayHave", c.buffer.cur(0).Glyph, ap.digest.mayHave(gID(c.buffer.cur(0).Glyph)))
 	return ap.digest.mayHave(gID(c.buffer.cur(0).Glyph)) && ap.objApply(c)
 }
 
@@ -541,11 +542,11 @@ func (c *otApplyContext) contextApplyLookup(input []uint16, lookupRecord []table
 func (c *otApplyContext) chainContextApplyLookup(backtrack, input, lookahead []uint16,
 	lookupRecord []tables.SequenceLookupRecord, lookupContexts [3]matcherFunc,
 ) bool {
-	endIndex := c.buffer.idx
 	var matchPositions [maxContextLength]int
 
 	hasMatch, matchEnd, _ := c.matchInput(input, lookupContexts[1], &matchPositions)
-	if !(hasMatch && endIndex == matchEnd) {
+	endIndex := matchEnd
+	if !(hasMatch && endIndex != 0) {
 		c.buffer.unsafeToConcat(c.buffer.idx, endIndex)
 		return false
 	}
@@ -756,11 +757,11 @@ func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc,
 
 // `count` and `matchPositions` include the first glyph
 func (c *otApplyContext) ligateInput(count int, matchPositions [maxContextLength]int,
-	matchLength int, ligGlyph gID, totalComponentCount uint8,
+	matchEnd int, ligGlyph gID, totalComponentCount uint8,
 ) {
 	buffer := c.buffer
 
-	buffer.mergeClusters(buffer.idx, buffer.idx+matchLength)
+	buffer.mergeClusters(buffer.idx, matchEnd)
 
 	/* - If a base and one or more marks ligate, consider that as a base, NOT
 	*   ligature, such that all following marks can still attach to it.

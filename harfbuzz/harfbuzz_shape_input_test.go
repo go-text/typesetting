@@ -176,6 +176,8 @@ func newTestInput(t testing.TB, options string) testInput {
 		so.clusterLevel = ClusterLevel(l)
 		return nil
 	})
+	flags.BoolVar(&so.unsafeToConcat, "unsafe-to-concat", false, "Produce unsafe-to-concat glyph flag")
+	flags.BoolVar(&so.safeToInsertTatweel, "safe-to-insert-tatweel", false, "Produce safe-to-insert-tatweel glyph flag")
 
 	fo := newFontOptions()
 
@@ -235,6 +237,8 @@ type shapeOpts struct {
 	eot                       bool
 	preserveDefaultIgnorables bool
 	removeDefaultIgnorables   bool
+	unsafeToConcat            bool
+	safeToInsertTatweel       bool
 }
 
 func (opts *shapeOpts) parseDirection(s string) error {

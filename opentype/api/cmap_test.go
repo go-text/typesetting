@@ -52,7 +52,7 @@ func TestCmap(t *testing.T) {
 		fp := readFontFile(t, filename)
 		cmapT, _, err := tables.ParseCmap(readTable(t, fp, "cmap"))
 		tu.AssertNoErr(t, err)
-		cmap, _, err := ProcessCmap(cmapT)
+		cmap, _, err := ProcessCmap(cmapT, tables.FPNone)
 		tu.AssertNoErr(t, err)
 		tu.Assert(t, cmap != nil)
 		tu.Assert(t, loopThroughCmap(cmap) > 0)
@@ -64,7 +64,7 @@ func TestCmap(t *testing.T) {
 
 		cmapT, _, err := tables.ParseCmap(table)
 		tu.AssertNoErr(t, err)
-		cmap, _, err := ProcessCmap(cmapT)
+		cmap, _, err := ProcessCmap(cmapT, tables.FPNone)
 		tu.AssertNoErr(t, err)
 		tu.Assert(t, cmap != nil)
 		tu.Assert(t, loopThroughCmap(cmap) > 0)
@@ -114,7 +114,7 @@ func TestBestEncoding(t *testing.T) {
 	tu.AssertNoErr(t, err)
 
 	tu.Assert(t, len(cmaps.Records) == 3)
-	cmap, _, err := ProcessCmap(cmaps)
+	cmap, _, err := ProcessCmap(cmaps, tables.FPNone)
 	tu.AssertNoErr(t, err)
 
 	_, ok := cmap.Lookup(0x2026)
@@ -128,7 +128,7 @@ func TestCmap12(t *testing.T) {
 	cmaps, _, err := tables.ParseCmap(readTable(t, font, "cmap"))
 	tu.AssertNoErr(t, err)
 
-	cmap, _, err := ProcessCmap(cmaps)
+	cmap, _, err := ProcessCmap(cmaps, tables.FPNone)
 	tu.AssertNoErr(t, err)
 
 	runes := [...]rune{
@@ -149,7 +149,7 @@ func TestCmap14(t *testing.T) {
 	cmaps, _, err := tables.ParseCmap(readTable(t, font, "cmap"))
 	tu.AssertNoErr(t, err)
 
-	_, uv, err := ProcessCmap(cmaps)
+	_, uv, err := ProcessCmap(cmaps, tables.FPNone)
 	tu.AssertNoErr(t, err)
 
 	gid, flag := uv.GetGlyphVariant(33446, 917761)

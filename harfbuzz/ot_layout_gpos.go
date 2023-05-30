@@ -459,7 +459,7 @@ func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyph
 		return false
 	}
 
-	buffer.unsafeToBreak(glyphPos, buffer.idx)
+	buffer.unsafeToBreak(glyphPos, buffer.idx+1)
 	markX, markY := c.getAnchor(markAnchor, buffer.cur(0).Glyph)
 	baseX, baseY := c.getAnchor(glyphAnchor, buffer.Info[glyphPos].Glyph)
 

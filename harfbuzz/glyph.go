@@ -191,7 +191,7 @@ type GlyphInfo struct {
 
 // String returns a simple description of the glyph of the form Glyph=Cluster(mask)
 func (info GlyphInfo) String() string {
-	return fmt.Sprintf("%d=%d(%d)", info.Glyph, info.Cluster, info.Mask)
+	return fmt.Sprintf("%d=%d(0x%x)", info.Glyph, info.Cluster, info.Mask&glyphFlagDefined)
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {

@@ -598,7 +598,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 	i := start
 	for cc := uint8(220); cc <= 230; cc += 10 {
 		if debugMode >= 1 {
-			fmt.Printf("ARABIC - Looking for %d's starting at %d\n", cc, i)
+			fmt.Printf("ARABIC - Looking for combining class %d's starting at %d\n", cc, i)
 		}
 		for i < end && info[i].getModifiedCombiningClass() < cc {
 			i++
@@ -667,10 +667,10 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 // We currently support one subtable per lookup, and one lookup
 // per feature.  But we allow duplicate features, so we use that!
 var arabicFallbackFeatures = [...]loader.Tag{
-	loader.NewTag('i', 's', 'o', 'l'),
-	loader.NewTag('f', 'i', 'n', 'a'),
 	loader.NewTag('i', 'n', 'i', 't'),
 	loader.NewTag('m', 'e', 'd', 'i'),
+	loader.NewTag('f', 'i', 'n', 'a'),
+	loader.NewTag('i', 's', 'o', 'l'),
 	loader.NewTag('r', 'l', 'i', 'g'),
 	loader.NewTag('r', 'l', 'i', 'g'),
 	loader.NewTag('r', 'l', 'i', 'g'),
@@ -857,6 +857,7 @@ func (fbPlan *arabicFallbackPlan) initUnicode(plan *otShapePlan, font *Font) boo
 	var j int
 	for i, feat := range arabicFallbackFeatures {
 		fbPlan.maskArray[j] = plan.map_.getMask1(feat)
+		fmt.Println(feat, uint(feat), "->", fbPlan.maskArray[j])
 		if fbPlan.maskArray[j] != 0 {
 			lk := arabicFallbackSynthesizeLookup(font, i)
 			if lk != nil {

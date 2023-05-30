@@ -113,7 +113,7 @@ func newShapePlan(font *Font, props SegmentProperties,
 // the given `font` and `features`.
 func (sp *shapePlan) execute(font *Font, buffer *Buffer, features []Feature) {
 	if debugMode >= 1 {
-		fmt.Printf("EXECUTE shape plan %p features:%v shaper:%T\n", sp, features, sp.shaper)
+		fmt.Printf("EXECUTE shape plan %p features:%v shaper:%T\n", sp, features, sp.shaper.plan.shaper)
 	}
 
 	sp.shaper.shape(font, buffer, features)

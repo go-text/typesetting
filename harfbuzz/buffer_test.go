@@ -184,46 +184,35 @@ func TestBuffer(t *testing.T) {
  * Comparing buffers.
  */
 
-/**
- *
- * Flags from comparing two #hb_buffer_t's.
- *
- * Buffer with different #hb_buffer_content_type_t cannot be meaningfully
- * compared in any further detail.
- *
- * For buffers with differing length, the per-glyph comparison is not
- * attempted, though we do still scan reference buffer for dotted circle and
- * `.notdef` glyphs.
- *
- * If the buffers have the same length, we compare them glyph-by-glyph and
- * report which aspect(s) of the glyph info/position are different.
- *
- * Since: 1.5.0
- */
+// Flags from comparing two buffers.
+//
+// For buffers with differing length, the per-glyph comparison is not
+// attempted, though we do still scan reference buffer for dotted circle and
+// `.notdef` glyphs.
+//
+// If the buffers have the same length, we compare them glyph-by-glyph and
+// report which aspect(s) of the glyph info/position are different.
 const (
-	bufferDiffFlagEqual = 0x0000
-
-	// /* Buffers with different content_type cannot be meaningfully compared
-	//  * in any further detail. */
-	// HB_BUFFER_DIFF_FLAG_CONTENT_TYPE_MISMATCH	= 0x0001
 
 	/* For buffers with differing length, the per-glyph comparison is not
 	 * attempted, though we do still scan reference for dottedcircle / .notdef
 	 * glyphs. */
-	HB_BUFFER_DIFF_FLAG_LENGTH_MISMATCH = 0x0002
+	bdfLengthMismatch = 1 << iota
 
 	/* We want to know if dottedcircle / .notdef glyphs are present in the
 	 * reference, as we may not care so much about other differences in this
 	 * case. */
-	HB_BUFFER_DIFF_FLAG_NOTDEF_PRESENT        = 0x0004
-	HB_BUFFER_DIFF_FLAG_DOTTED_CIRCLE_PRESENT = 0x0008
+	bdfNotdefPresent
+	bdfDottedCirclePresent
 
 	/* If the buffers have the same length, we compare them glyph-by-glyph
 	 * and report which aspect(s) of the glyph info/position are different. */
-	HB_BUFFER_DIFF_FLAG_CODEPOINT_MISMATCH   = 0x0010
-	HB_BUFFER_DIFF_FLAG_CLUSTER_MISMATCH     = 0x0020
-	HB_BUFFER_DIFF_FLAG_GLYPH_FLAGS_MISMATCH = 0x0040
-	HB_BUFFER_DIFF_FLAG_POSITION_MISMATCH    = 0x0080
+	bdfCodepointMismatch
+	bdfClusterMismatch
+	bdfGlyphFlagsMismatch
+	bdfPositionMismatch
+
+	bufferDiffFlagEqual = 0x0000
 )
 
 /**
@@ -233,8 +222,8 @@ const (
  * @dottedcircleGlyph: glyph id of U+25CC DOTTED CIRCLE, or (hb_codepont_t) -1.
  * @positionFuzz: allowed absolute difference in position values.
  *
- * If dottedcircleGlyph is (hb_codepoint_t) -1 then #HB_BUFFER_DIFF_FLAG_DOTTED_CIRCLE_PRESENT
- * and #HB_BUFFER_DIFF_FLAG_NOTDEF_PRESENT are never returned.  This should be used by most
+ * If dottedcircleGlyph is (hb_codepoint_t) -1 then #bdfDottedCirclePresent
+ * and #bdfNotdefPresent are never returned.  This should be used by most
  * callers if just comparing two buffers is needed.
  *
  * Since: 1.5.0
@@ -254,13 +243,13 @@ func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph GID, positionFuzz i
 		info := reference.Info
 		for i := 0; i < count; i++ {
 			if contains && info[i].Glyph == dottedcircleGlyph {
-				result |= HB_BUFFER_DIFF_FLAG_DOTTED_CIRCLE_PRESENT
+				result |= bdfDottedCirclePresent
 			}
 			if contains && info[i].Glyph == 0 {
-				result |= HB_BUFFER_DIFF_FLAG_NOTDEF_PRESENT
+				result |= bdfNotdefPresent
 			}
 		}
-		result |= HB_BUFFER_DIFF_FLAG_LENGTH_MISMATCH
+		result |= bdfLengthMismatch
 		return result
 	}
 
@@ -272,19 +261,19 @@ func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph GID, positionFuzz i
 	refInfo := reference.Info
 	for i := 0; i < count; i++ {
 		if bufInfo[i].codepoint != refInfo[i].codepoint {
-			result |= HB_BUFFER_DIFF_FLAG_CODEPOINT_MISMATCH
+			result |= bdfCodepointMismatch
 		}
 		if bufInfo[i].Cluster != refInfo[i].Cluster {
-			result |= HB_BUFFER_DIFF_FLAG_CLUSTER_MISMATCH
+			result |= bdfClusterMismatch
 		}
 		if (bufInfo[i].Mask^refInfo[i].Mask)&glyphFlagDefined != 0 {
-			result |= HB_BUFFER_DIFF_FLAG_GLYPH_FLAGS_MISMATCH
+			result |= bdfGlyphFlagsMismatch
 		}
 		if contains && refInfo[i].Glyph == dottedcircleGlyph {
-			result |= HB_BUFFER_DIFF_FLAG_DOTTED_CIRCLE_PRESENT
+			result |= bdfDottedCirclePresent
 		}
 		if contains && refInfo[i].Glyph == 0 {
-			result |= HB_BUFFER_DIFF_FLAG_NOTDEF_PRESENT
+			result |= bdfNotdefPresent
 		}
 	}
 
@@ -303,7 +292,7 @@ func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph GID, positionFuzz i
 			isDifferent(bufPos[i].YAdvance, refPos[i].YAdvance) ||
 			isDifferent(bufPos[i].XOffset, refPos[i].XOffset) ||
 			isDifferent(bufPos[i].YOffset, refPos[i].YOffset) {
-			result |= HB_BUFFER_DIFF_FLAG_POSITION_MISMATCH
+			result |= bdfPositionMismatch
 			break
 		}
 	}

@@ -554,6 +554,10 @@ func (c *otContext) substituteBeforePosition() {
 		fallbackMarkPositionRecategorizeMarks(buffer)
 	}
 
+	if debugMode >= 2 {
+		fmt.Println("BEFORE SUBSTITUTE:", c.buffer.Info)
+	}
+
 	// substitutePan : glyph fields are now set up ...
 	// ... apply complex substitution from font
 
@@ -583,7 +587,7 @@ func (c *otContext) substituteAfterPosition() {
 	hideDefaultIgnorables(c.buffer, c.font)
 
 	if debugMode >= 1 {
-		fmt.Printf("POSTPROCESS glyphs start (%T)\n", c.plan.shaper)
+		fmt.Println("POSTPROCESS glyphs start")
 	}
 	c.plan.shaper.postprocessGlyphs(c.plan, c.buffer, c.font)
 	if debugMode >= 1 {
@@ -801,7 +805,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	c.buffer.ensureNativeDirection()
 
 	if debugMode >= 1 {
-		fmt.Printf("PREPROCESS text start (complex shaper %T)\n", c.plan.shaper)
+		fmt.Printf("PREPROCESS text start\n")
 	}
 	c.plan.shaper.preprocessText(c.plan, c.buffer, c.font)
 	if debugMode >= 1 {

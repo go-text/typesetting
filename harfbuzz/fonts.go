@@ -168,8 +168,14 @@ func (f *Font) GlyphHAdvance(glyph GID) Position {
 // Fetches the advance for a glyph ID in the font,
 // for vertical text segments.
 func (f *Font) getGlyphVAdvance(glyph GID) Position {
-	adv := f.face.VerticalAdvance(glyph)
-	return f.emScalefY(adv)
+	if f.face.HasVerticalMetrics() {
+		adv := f.face.VerticalAdvance(glyph)
+		return f.emScalefY(adv)
+	} else {
+		fontExtents := f.fontHExtentsWithFallback()
+		advance := Position(-(fontExtents.Ascender - fontExtents.Descender))
+		return advance
+	}
 }
 
 // Subtracts the origin coordinates from an (X,Y) point coordinate,
@@ -264,6 +270,19 @@ func (f *Font) getGlyphContourPointForOrigin(glyph GID, pointIndex uint16, direc
 	return x, y, ok
 }
 
+func (f *Font) fontHExtentsWithFallback() api.FontExtents {
+	extents, ok := f.face.FontHExtents()
+	extents.Ascender = float32(f.emScalefY(extents.Ascender))
+	extents.Descender = float32(f.emScalefY(extents.Descender))
+	extents.LineGap = float32(f.emScalefY(extents.LineGap))
+	if !ok {
+		extents.Ascender = float32(f.YScale) * 0.8
+		extents.Descender = extents.Ascender - float32(f.YScale)
+		extents.LineGap = 0
+	}
+	return extents
+}
+
 // ExtentsForDirection fetches the extents for a font in a text segment of the
 // specified direction, applying the scaling.
 //
@@ -275,15 +294,7 @@ func (f *Font) ExtentsForDirection(direction Direction) api.FontExtents {
 		ok      bool
 	)
 	if direction.isHorizontal() {
-		extents, ok = f.face.FontHExtents()
-		extents.Ascender = float32(f.emScalefY(extents.Ascender))
-		extents.Descender = float32(f.emScalefY(extents.Descender))
-		extents.LineGap = float32(f.emScalefY(extents.LineGap))
-		if !ok {
-			extents.Ascender = float32(f.YScale) * 0.8
-			extents.Descender = extents.Ascender - float32(f.YScale)
-			extents.LineGap = 0
-		}
+		return f.fontHExtentsWithFallback()
 	} else {
 		extents, ok = f.face.FontVExtents()
 		extents.Ascender = float32(f.emScalefX(extents.Ascender))

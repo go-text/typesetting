@@ -242,6 +242,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 
 		if debugMode >= 1 {
 			fmt.Printf("\tMAP - adding feature %s (%d) for stage %v\n", info.Tag, info.Tag, info.stage)
+			fmt.Println("mask1", map_.shift, map_.mask)
 		}
 
 		m.features = append(m.features, map_)
@@ -524,8 +525,12 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			}
 
 			if debugMode >= 1 {
-				fmt.Println("\t\tLookup end")
-				fmt.Println(c.buffer.Info)
+				fmt.Print("\t\tLookup end : ")
+				if proxy.tableIndex == 0 {
+					fmt.Println(c.buffer.Info)
+				} else {
+					fmt.Println(c.buffer.Pos)
+				}
 			}
 
 		}

@@ -241,6 +241,11 @@ func (f *Face) isVar() bool {
 	return len(f.Coords) != 0 && len(f.Coords) == len(f.Font.fvar)
 }
 
+// HasVerticalMetrics returns true if a the 'vmtx' table is present.
+// If not, client should avoid calls to [VerticalAdvance], which will returns a
+// defaut value.
+func (f *Font) HasVerticalMetrics() bool { return !f.vmtx.IsEmpty() }
+
 func (f *Face) VerticalAdvance(gid GID) float32 {
 	// return the opposite of the advance from the font
 	advance := f.getBaseAdvance(gID(gid), f.vmtx)
@@ -288,8 +293,16 @@ func (f *Face) GlyphVOrigin(glyph GID) (x, y int32, found bool) {
 	}
 
 	if extents, ok := f.getExtentsFromGlyf(gID(glyph)); ok {
-		tsb := f.getVerticalSideBearing(gID(glyph))
-		y = int32(extents.YBearing) + int32(tsb)
+		if f.HasVerticalMetrics() {
+			tsb := f.getVerticalSideBearing(gID(glyph))
+			y = int32(extents.YBearing) + int32(tsb)
+			return x, y, true
+		}
+
+		fontExtents, _ := f.FontHExtents()
+		advance := fontExtents.Ascender - fontExtents.Descender
+		diff := advance - -extents.Height
+		y = int32(extents.YBearing + (diff / 2))
 		return x, y, true
 	}
 
