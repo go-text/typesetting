@@ -896,6 +896,13 @@ func TestWrapLine(t *testing.T) {
 				if done != expected.done {
 					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
 				}
+
+				if expected.done { // check WrapNextLine is now a no-op
+					line, _, done = l.WrapNextLine(200)
+					if line != nil || !done {
+						t.Errorf("expect nil output for WrapNextLine, got %p and %v", line, done)
+					}
+				}
 			}
 		})
 	}
@@ -1723,7 +1730,6 @@ func checkRuneCounts(t *testing.T, source []rune, lines []Line, truncated int) [
 				continue
 			}
 			if run.Runes.Offset != totalRunes {
-
 				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
 			}
 			totalRunes += run.Runes.Count
