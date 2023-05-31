@@ -879,6 +879,18 @@ func TestWrapLine(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:      "simple fast-path",
+			shaped:    []Output{shapedText1},
+			paragraph: []rune(text1),
+			maxWidth:  200,
+			expected: []expected{
+				{
+					line: Line{shapedText1},
+					done: true,
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
