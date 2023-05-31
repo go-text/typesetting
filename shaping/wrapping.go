@@ -1,7 +1,6 @@
 package shaping
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/go-text/typesetting/di"
@@ -614,9 +613,6 @@ func (w *wrapBuffer) reset() {
 	}
 }
 
-func (w *wrapBuffer) stats() string {
-	return fmt.Sprintf("paragraph: %d(%d), line: %d(%d), used: %d, exhausted: %v, alt: %d(%d)", len(w.paragraph), cap(w.paragraph), len(w.line), cap(w.line), w.lineUsed, w.lineExhausted, len(w.alt), cap(w.alt))
-}
 
 // singleRunParagraph is an optimized helper for quickly constructing
 // a []Line containing only a single run.

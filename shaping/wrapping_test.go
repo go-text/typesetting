@@ -2198,6 +2198,10 @@ func TestCutRunInto(t *testing.T) {
 	}
 }
 
+func (w *wrapBuffer) stats() string {
+	return fmt.Sprintf("paragraph: %d(%d), line: %d(%d), used: %d, exhausted: %v, alt: %d(%d)", len(w.paragraph), cap(w.paragraph), len(w.line), cap(w.line), w.lineUsed, w.lineExhausted, len(w.alt), cap(w.alt))
+}
+
 func TestWrapBuffer(t *testing.T) {
 	t.Run("new and reset have same state", func(t *testing.T) {
 		b1 := wrapBuffer{}
