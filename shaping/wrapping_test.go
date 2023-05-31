@@ -2389,6 +2389,39 @@ func TestLineWrapperBreakPolicies(t *testing.T) {
 	}
 }
 
+// Checks that grapheme break in ligature are properly
+// avoided
+func TestGraphemeBreakLigature(t *testing.T) {
+	const text1 = "il est affable"
+	gls := append(
+		glyphs(0, 7),        // simple 1:1 mapping
+		ligatureGlyph(8, 2), // ligature
+		simpleGlyph(10),     // a
+		simpleGlyph(11),     // b
+		simpleGlyph(12),     // l
+		simpleGlyph(13),     // e
+	)
+	shapedText1 = Output{
+		Advance: fixed.I(10 * len(gls)),
+		Runes:   Range{Count: len([]rune(text1))},
+		Glyphs:  gls,
+		LineBounds: Bounds{
+			Ascent:  fixed.I(10),
+			Descent: fixed.I(5),
+			// No line gap.
+		},
+		GlyphBounds: Bounds{
+			Ascent: fixed.I(10),
+			// No glyphs descend.
+		},
+	}
+	var w LineWrapper
+	lines, _ := w.WrapParagraph(WrapConfig{BreakPolicy: Always}, 90, []rune(text1), NewSliceIterator([]Output{shapedText1}))
+	if L := lines[0][0].Runes.Count; L != 10 {
+		t.Errorf("invalid break with ligature %d", L)
+	}
+}
+
 func TestLineWrapperBreakSpecific(t *testing.T) {
 	type expectation struct {
 		name           string
