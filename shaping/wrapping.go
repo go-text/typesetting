@@ -613,7 +613,6 @@ func (w *wrapBuffer) reset() {
 	}
 }
 
-
 // singleRunParagraph is an optimized helper for quickly constructing
 // a []Line containing only a single run.
 func (w *wrapBuffer) singleRunParagraph(run Output) []Line {
@@ -881,10 +880,6 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 		case fits:
 			l.scratch.markCandidateBest(candidateRun)
 			continue
-		case endIteration:
-			// The iterators are exhausted, use whatever we have.
-			l.scratch.markCandidateBest()
-			return true
 		case endLine:
 			// Found a valid line ending the text, append the candidateRun and use it.
 			l.scratch.markCandidateBest(candidateRun)
@@ -926,10 +921,6 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				l.scratch.markCandidateBest(candidateRun)
 				l.breaker.markWordOptionUnused()
 				continue
-			case endIteration:
-				// The iterators are exhausted, use whatever we have.
-				l.scratch.markCandidateBest()
-				return true
 			case endLine:
 				l.scratch.markCandidateBest(candidateRun)
 				return true
@@ -967,10 +958,6 @@ const (
 	// breakInvalid indicates that the provided break candidate is incompatible with the shaped
 	// text and should be skipped.
 	breakInvalid processBreakResult = iota
-	// endIteration indicates that there are no more possible runs in the iterators, but none of
-	// them are valid. The scratch buffer's candidate is filled with whatever text was read from
-	// the iterators before they ended.
-	endIteration
 	// endLine indicates that the candidate fits on the line and terminates the text.
 	endLine
 	// truncated indicates that the candidate does not fit on the line and that truncation needs to
