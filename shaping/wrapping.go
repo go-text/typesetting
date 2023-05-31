@@ -759,30 +759,15 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 	return l.scratch.finalParagraph(), truncated
 }
 
-type fillResult uint8
-
-const (
-	// noCandidate indicates that it is not possible to compose a new line candidate using the provided
-	// breakOption, so the best known line should be used instead.
-	noCandidate fillResult = iota
-	// noRunWithBreak indicates that none of the runs available to the line wrapper contain the break
-	// option, so the returned candidate is the best option.
-	noRunWithBreak
-	// newCandidate indicates that the returned line candidate is valid.
-	newCandidate
-)
-
-// fillUntil tries to fill the provided line candidate slice with runs until it reaches a run containing the
-// provided break option. It returns the index of the run containing the option, the new width of the candidate
-// line, the contents of the new candidate line, and a result indicating how to proceed.
-func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) (status fillResult) {
+// fillUntil tries to fill the line candidate slice with runs until it reaches a run containing the
+// provided break option.
+func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) {
 	currRunIndex, run, more := runs.Peek()
 	for more && option.breakAtRune >= run.Runes.Count+run.Runes.Offset {
 		if l.lineStartRune >= run.Runes.Offset+run.Runes.Count {
-			_, _, isMore := runs.Next()
-			if !isMore {
-				return noCandidate
-			}
+			// Consume the run we peeked (which we know is valid)
+			_, _, _ = runs.Next()
+
 			currRunIndex, run, more = runs.Peek()
 			continue
 		} else if l.lineStartRune > run.Runes.Offset {
@@ -794,13 +779,11 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) (status fi
 		// While the run being processed doesn't contain the current line breaking
 		// candidate, just append it to the candidate line.
 		l.scratch.candidateAppend(run)
-		_, _, isMore := runs.Next()
-		if !isMore {
-			return noRunWithBreak
-		}
+		// Consume the run we peeked (which we know is valid)
+		_, _, _ = runs.Next()
+
 		currRunIndex, run, more = runs.Peek()
 	}
-	return newCandidate
 }
 
 // lineConfig tracks settings for line wrapping a single line of text.
@@ -1017,11 +1000,8 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	}
 
 	l.glyphRuns.Save()
-	result := l.fillUntil(l.glyphRuns, option)
 
-	if result == noCandidate || result == noRunWithBreak {
-		return endIteration, Output{}
-	}
+	l.fillUntil(l.glyphRuns, option)
 
 	currRunIndex, run, _ := l.glyphRuns.Peek()
 	l.mapper.mapRun(currRunIndex, run)
