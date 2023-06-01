@@ -1726,6 +1726,16 @@ func TestWrappingBidiRegression(t *testing.T) {
 		{Text: bidiText2, RunStart: 121, RunEnd: 122, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
 		{Text: bidiText2, RunStart: 122, RunEnd: 125, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
 	}
+	truncator := (&HarfbuzzShaper{}).Shape(Input{
+		Text:      []rune("…"),
+		RunStart:  0,
+		RunEnd:    len([]rune("…")),
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})
 	shapeInputs := func(inputs []Input) []Output {
 		var shaper HarfbuzzShaper
 		out := make([]Output, len(inputs))
@@ -1776,14 +1786,24 @@ func TestWrappingBidiRegression(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, policy := range []LineBreakPolicy{Always, Never, WhenNecessary} {
-				t.Run(policy.String(), func(t *testing.T) {
-					var l LineWrapper
-					lines, truncated := l.WrapParagraph(WrapConfig{BreakPolicy: policy}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
-					if truncated != 0 {
-						t.Errorf("did not expect truncation, got truncated=%d", truncated)
-					}
-					checkRuneCounts(t, tc.text, lines, truncated)
-				})
+				for _, truncation := range []bool{true, false} {
+					t.Run(fmt.Sprintf("graphemeBreak=%s_truncate=%v", policy, truncation), func(t *testing.T) {
+						var l LineWrapper
+						truncateAfter := 0
+						if truncation {
+							truncateAfter = 1
+						}
+						lines, truncated := l.WrapParagraph(WrapConfig{
+							BreakPolicy:        policy,
+							TruncateAfterLines: truncateAfter,
+							Truncator:          truncator,
+						}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
+						if truncated != 0 && !truncation {
+							t.Errorf("did not expect truncation, got truncated=%d", truncated)
+						}
+						checkRuneCounts(t, tc.text, lines, truncated)
+					})
+				}
 			}
 		})
 	}
