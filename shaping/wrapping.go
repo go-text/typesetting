@@ -978,12 +978,19 @@ const (
 
 // processBreakOption evaluates whether the provided breakOption can fit onto the current line wrapping line.
 func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) (processBreakResult, Output) {
+	// Discard break options on previous lines.
 	if option.breakAtRune < l.lineStartRune {
+		return breakInvalid, Output{}
+	}
+	// Discard break options that are before the run under consideration.
+	_, run, _ := l.glyphRuns.Peek()
+	if option.breakAtRune < run.Runes.Offset {
 		return breakInvalid, Output{}
 	}
 
 	l.glyphRuns.Save()
 
+	// Fill candidate line with runs until the run containing the break option.
 	l.fillUntil(l.glyphRuns, option)
 
 	currRunIndex, run, _ := l.glyphRuns.Peek()
