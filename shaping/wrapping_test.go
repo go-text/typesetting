@@ -2121,12 +2121,74 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 	}
 }
 
-/*
-TODO: specific truncation text cases like:
+// TestTruncationWithBreaking tests cases of interest involving both text truncation and
+// line breaking policies.
+func TestTruncationWithBreaking(t *testing.T) {
+	inputText := []rune("Fortunately, there's another way to build streams that is nearly API-compatible with the current approach. You can model them as computational Directed Acyclic Graphs and build a structure of nodes and edges that process values. Nodes essentially run a function on their input edges and propagate the results to their output edges. Edges act as the synchronization primitive in this scheme, ensuring that nodes are able to execute safely in parallel with one another.")
+	inputRun := Input{
+		Text:      inputText,
+		RunStart:  0,
+		RunEnd:    len(inputText),
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	truncatorRun := Input{
+		Text:      []rune("…"),
+		RunStart:  0,
+		RunEnd:    1,
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	var shaper HarfbuzzShaper
+	output := shaper.Shape(inputRun)
+	truncator := shaper.Shape(truncatorRun)
+	type testcase struct {
+		name      string
+		width     int
+		truncated int
+		policy    LineBreakPolicy
+	}
 
-- text fits exactly if truncator is not used
-- no text fits, so only truncator should be used
-*/
+	for _, tc := range []testcase{
+		{
+			name:      "Never",
+			width:     936,
+			policy:    Never,
+			truncated: 341,
+		},
+		{
+			name:      "WhenNecessary",
+			width:     936,
+			policy:    WhenNecessary,
+			truncated: 341,
+		},
+		{
+			name:      "Always",
+			width:     936,
+			policy:    Always,
+			truncated: 341,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var wrapper LineWrapper
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{
+				BreakPolicy:        tc.policy,
+				TruncateAfterLines: 1,
+				Truncator:          truncator,
+			}, tc.width, inputText, NewSliceIterator([]Output{output}))
+			if truncated != tc.truncated {
+				t.Errorf("expected %d truncated runes, got %d (total %d)", tc.truncated, truncated, len(inputText))
+			}
+			checkRuneCounts(t, inputText, lines, truncated)
+		})
+	}
+}
 
 func BenchmarkMapping(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
