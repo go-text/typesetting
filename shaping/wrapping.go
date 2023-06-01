@@ -886,7 +886,9 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			return true
 		case truncated:
 			// The candidateRun does not fit.
-			l.scratch.markCandidateBest()
+			if !l.scratch.hasBest() {
+				l.scratch.markCandidateBest()
+			}
 			if l.config.BreakPolicy == Never {
 				return true
 			}
