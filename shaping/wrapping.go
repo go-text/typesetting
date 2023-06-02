@@ -922,10 +922,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			if l.config.BreakPolicy == Never {
 				return true
 			}
-			// Fall through to try grapheme breaking, ensuring that the grapheme breaking has access to
-			// all runs we already tried in the iterator.
-			l.glyphRuns.Restore()
-			l.scratch.candidateRestore()
+			// Fall through to try grapheme breaking.
 		case newLineBeforeBreak:
 			l.glyphRuns.Restore()
 			// We found a valid line that didn't use this break, so mark that it can be
@@ -943,11 +940,12 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				l.scratch.markCandidateBest(candidateRun)
 				return false
 			}
-			// Fall through to try grapheme breaking, ensuring that the grapheme breaking has access to
-			// all runs we already tried in the iterator.
-			l.glyphRuns.Restore()
-			l.scratch.candidateRestore()
+			// Fall through to try grapheme breaking.
 		}
+		// Ensure that the grapheme breaking has access to
+		// all runs we already tried in the iterator.
+		l.glyphRuns.Restore()
+		l.scratch.candidateRestore()
 		// segment using UAX#29 grapheme clustering here and try
 		// breaking again using only those boundaries to find a viable break in cases
 		// where no UAX#14 breaks were viable above.
