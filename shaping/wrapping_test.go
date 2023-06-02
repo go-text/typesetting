@@ -2210,6 +2210,79 @@ func TestTruncationWithBreaking(t *testing.T) {
 	}
 }
 
+func TestGraphemeBreakingRegression(t *testing.T) {
+	bidiText2 := []rune("renنيتذدagلaaiua.ئPocttأior رادرs")
+	inputRuns := []Input{
+		{Text: bidiText2, RunStart: 0, RunEnd: 3, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 3, RunEnd: 8, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 8, RunEnd: 10, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 10, RunEnd: 11, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 11, RunEnd: 16, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 16, RunEnd: 18, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 18, RunEnd: 23, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 23, RunEnd: 24, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 24, RunEnd: 27, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 27, RunEnd: 32, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 32, RunEnd: 33, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+	}
+	var shaper HarfbuzzShaper
+	shaped := []Output{}
+	for _, run := range inputRuns {
+		shaped = append(shaped, shaper.Shape(run))
+	}
+	var wrapper LineWrapper
+	maxWidth := 0
+	for _, run := range shaped {
+		maxWidth += run.Advance.Ceil()
+	}
+	// Wrap at increasingly unreasonable widths, checking for sane wrapping decisions.
+	for maxWidth := maxWidth; maxWidth > 0; maxWidth-- {
+		t.Run(fmt.Sprintf("maxWidth=%d", maxWidth), func(t *testing.T) {
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(shaped))
+			checkRuneCounts(t, bidiText2, lines, truncated)
+
+			for i, baseLine := range lines[:len(lines)-1] {
+				nextLine := lines[i+1]
+				baseAdv := fixed.Int26_6(0)
+				for _, run := range baseLine {
+					baseAdv += run.Advance
+				}
+				nextAdv := fixed.Int26_6(0)
+				for _, run := range nextLine {
+					nextAdv += run.Advance
+				}
+				if total := (baseAdv + nextAdv).Ceil(); total <= maxWidth {
+					t.Errorf("lines[%d] and lines[%d] could have fit on the same line (total width %d)", i, i+1, total)
+				}
+			}
+
+			if maxWidth == 1 {
+				// Check that every grapheme cluster was wrapped properly to its own line.
+				seg := segmenter.Segmenter{}
+				seg.Init(bidiText2)
+				iter := seg.GraphemeIterator()
+				lengths := []int{}
+				for iter.Next() {
+					cluster := iter.Grapheme()
+					lengths = append(lengths, len(cluster.Text))
+				}
+				if len(lengths) != len(lines) {
+					t.Errorf("got %d lines but there are %d grapheme clusters", len(lines), len(lengths))
+				}
+				for lineNum, line := range lines {
+					totalRunes := 0
+					for _, run := range line {
+						totalRunes += run.Runes.Count
+					}
+					if totalRunes != lengths[lineNum] {
+						t.Errorf("lines[%d] has %d runes, but grapheme cluster at index %d has %d", lineNum, totalRunes, lineNum, lengths[lineNum])
+					}
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkMapping(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
 	for _, langInfo := range benchLangs {
