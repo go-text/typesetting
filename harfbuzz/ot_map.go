@@ -242,7 +242,6 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 
 		if debugMode >= 1 {
 			fmt.Printf("\tMAP - adding feature %s (%d) for stage %v\n", info.Tag, info.Tag, info.stage)
-			fmt.Println("mask1", map_.shift, map_.mask)
 		}
 
 		m.features = append(m.features, map_)

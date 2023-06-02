@@ -113,7 +113,6 @@ var arabicFeatures = [...]loader.Tag{
 	loader.NewTag('m', 'e', 'd', 'i'),
 	loader.NewTag('m', 'e', 'd', '2'),
 	loader.NewTag('i', 'n', 'i', 't'),
-	0,
 }
 
 /* Same order as the feature array */
@@ -857,7 +856,6 @@ func (fbPlan *arabicFallbackPlan) initUnicode(plan *otShapePlan, font *Font) boo
 	var j int
 	for i, feat := range arabicFallbackFeatures {
 		fbPlan.maskArray[j] = plan.map_.getMask1(feat)
-		fmt.Println(feat, uint(feat), "->", fbPlan.maskArray[j])
 		if fbPlan.maskArray[j] != 0 {
 			lk := arabicFallbackSynthesizeLookup(font, i)
 			if lk != nil {

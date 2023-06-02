@@ -75,7 +75,6 @@ func newGPOSApplicable(table tables.GPOSLookup) applicable {
 }
 
 func (ap applicable) apply(c *otApplyContext) bool {
-	fmt.Println("mayHave", c.buffer.cur(0).Glyph, ap.digest.mayHave(gID(c.buffer.cur(0).Glyph)))
 	return ap.digest.mayHave(gID(c.buffer.cur(0).Glyph)) && ap.objApply(c)
 }
 
@@ -142,6 +141,14 @@ type otApplyContextMatcher struct {
 	syllable    uint8
 }
 
+func (m *otApplyContextMatcher) setSyllable(syllable uint8) {
+	if m.perSyllable {
+		m.syllable = syllable
+	} else {
+		m.syllable = 0
+	}
+}
+
 func (m otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData []uint16) uint8 {
 	if info.Mask&m.mask == 0 || (m.syllable != 0 && m.syllable != info.syllable) {
 		return no
@@ -198,7 +205,7 @@ func (it *skippingIterator) init(c *otApplyContext, contextMatch bool) {
 	}
 	// Per syllable matching is only for GSUB.
 	it.matcher.perSyllable = c.tableIndex == 0 && c.perSyllable
-	it.matcher.syllable = 0
+	it.matcher.setSyllable(0)
 }
 
 func (it *skippingIterator) setMatchFunc(matchFunc matcherFunc, glyphData []uint16) {
@@ -212,9 +219,9 @@ func (it *skippingIterator) reset(startIndex, numItems int) {
 	it.numItems = numItems
 	it.end = len(it.c.buffer.Info)
 	if startIndex == it.c.buffer.idx {
-		it.matcher.syllable = it.c.buffer.cur(0).syllable
+		it.matcher.setSyllable(it.c.buffer.cur(0).syllable)
 	} else {
-		it.matcher.syllable = 0
+		it.matcher.setSyllable(0)
 	}
 }
 

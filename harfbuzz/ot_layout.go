@@ -1,8 +1,6 @@
 package harfbuzz
 
 import (
-	"fmt"
-
 	"github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -76,11 +74,9 @@ func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 	buffer := c.buffer
 	for buffer.idx < len(buffer.Info) {
 		applied := false
-		fmt.Println("APPLYFORWARD", buffer.cur(0).Glyph, buffer.cur(0).Mask, c.lookupMask)
 		if accel.digest.mayHave(gID(buffer.cur(0).Glyph)) &&
 			(buffer.cur(0).Mask&c.lookupMask) != 0 &&
 			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
-			fmt.Println("accel.apply")
 			applied = accel.apply(c)
 		}
 
