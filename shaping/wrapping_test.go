@@ -1682,15 +1682,75 @@ func TestWrappingBidiRegression(t *testing.T) {
 		{RunStart: 44, RunEnd: 48, Script: language.Latin, Direction: di.DirectionLTR},
 		{RunStart: 48, RunEnd: 60, Script: language.Arabic, Direction: di.DirectionRTL},
 	}
+	bidiText2 := []rune("د عرمثال dstي met لم aqل جدmوpمg lرe dرd  لو عل ميrةsdiduntut lab renنيتذدagلaaiua.ئPocttأior رادرsاي mيrbلmnonaيdتد ماةعcلخ.")
+	bidiTextRuns2 := []Input{
+		{Text: bidiText2, RunStart: 0, RunEnd: 9, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 9, RunEnd: 12, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 12, RunEnd: 14, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 14, RunEnd: 17, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 17, RunEnd: 21, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 21, RunEnd: 23, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 23, RunEnd: 27, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 27, RunEnd: 28, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 28, RunEnd: 29, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 29, RunEnd: 30, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 30, RunEnd: 31, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 31, RunEnd: 34, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 34, RunEnd: 35, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 35, RunEnd: 38, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 38, RunEnd: 39, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 39, RunEnd: 40, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 40, RunEnd: 50, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 50, RunEnd: 51, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 51, RunEnd: 52, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 52, RunEnd: 69, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 69, RunEnd: 74, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 74, RunEnd: 76, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 76, RunEnd: 77, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 77, RunEnd: 82, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 82, RunEnd: 84, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 84, RunEnd: 89, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 89, RunEnd: 90, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 90, RunEnd: 93, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 93, RunEnd: 98, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 98, RunEnd: 99, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 99, RunEnd: 102, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 102, RunEnd: 103, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 103, RunEnd: 104, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 104, RunEnd: 106, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 106, RunEnd: 107, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 107, RunEnd: 112, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 112, RunEnd: 113, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 113, RunEnd: 114, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 114, RunEnd: 121, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 121, RunEnd: 122, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 122, RunEnd: 125, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+	}
+	truncator := (&HarfbuzzShaper{}).Shape(Input{
+		Text:      []rune("…"),
+		RunStart:  0,
+		RunEnd:    len([]rune("…")),
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})
+	shapeInputs := func(inputs []Input) []Output {
+		var shaper HarfbuzzShaper
+		out := make([]Output, len(inputs))
+		for i, input := range inputs {
+			out[i] = shaper.Shape(input)
+		}
+		return out
+	}
 	applyDefaultsAndShape := func(textInput []rune, runs []Input) []Output {
 		enFace := benchEnFace
 		arFace := benchArFace
-		var shaper HarfbuzzShaper
 
 		ppem := fixed.I(16)
 		arLang := language.NewLanguage("AR")
 
-		out := make([]Output, len(runs))
 		for i := range runs {
 			runs[i].Text = textInput
 			runs[i].Size = ppem
@@ -1701,9 +1761,8 @@ func TestWrappingBidiRegression(t *testing.T) {
 			}
 			// Even though the text sample is mixed, the overall document language is arabic.
 			runs[i].Language = arLang
-			out[i] = shaper.Shape(runs[i])
 		}
-		return out
+		return shapeInputs(runs)
 	}
 	for _, tc := range []testcase{
 		{
@@ -1718,14 +1777,34 @@ func TestWrappingBidiRegression(t *testing.T) {
 			inputs:   applyDefaultsAndShape(bidiText, bidiTextRuns),
 			maxWidth: 100,
 		},
+		{
+			name:     "complex bidi",
+			text:     bidiText2,
+			inputs:   shapeInputs(bidiTextRuns2),
+			maxWidth: 200,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var l LineWrapper
-			lines, truncated := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
-			if truncated != 0 {
-				t.Errorf("did not expect truncation, got truncated=%d", truncated)
+			for _, policy := range []LineBreakPolicy{Always, Never, WhenNecessary} {
+				for _, truncation := range []bool{true, false} {
+					t.Run(fmt.Sprintf("graphemeBreak=%s_truncate=%v", policy, truncation), func(t *testing.T) {
+						var l LineWrapper
+						truncateAfter := 0
+						if truncation {
+							truncateAfter = 1
+						}
+						lines, truncated := l.WrapParagraph(WrapConfig{
+							BreakPolicy:        policy,
+							TruncateAfterLines: truncateAfter,
+							Truncator:          truncator,
+						}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
+						if truncated != 0 && !truncation {
+							t.Errorf("did not expect truncation, got truncated=%d", truncated)
+						}
+						checkRuneCounts(t, tc.text, lines, truncated)
+					})
+				}
 			}
-			checkRuneCounts(t, tc.text, lines, truncated)
 		})
 	}
 }
@@ -1734,6 +1813,7 @@ func checkRuneCounts(t *testing.T, source []rune, lines []Line, truncated int) [
 	t.Helper()
 	counts := []int{}
 	totalRunes := 0
+	alreadyFailed := t.Failed()
 	for lineIdx, line := range lines {
 		lineTotalRunes := 0
 		for runIdx, run := range line {
@@ -1742,7 +1822,17 @@ func checkRuneCounts(t *testing.T, source []rune, lines []Line, truncated int) [
 				continue
 			}
 			if run.Runes.Offset != totalRunes {
-				t.Errorf("lines[%d][%d].Runes.Offset=%d, expected %d", lineIdx, runIdx, run.Runes.Offset, totalRunes)
+				if !alreadyFailed {
+					for i := 0; i <= lineIdx; i++ {
+						line := lines[i]
+						for k := 0; (i < lineIdx && k < len(line)) || (i == lineIdx && k < runIdx); k++ {
+							run := line[k]
+							t.Errorf("lines[%d][%d].Runes.Offset=%d, Count=%d", i, k, run.Runes.Offset, run.Runes.Count)
+						}
+					}
+					alreadyFailed = true
+				}
+				t.Errorf("lines[%d][%d].Runes.Offset=%d, Count=%d, expected Offset %d", lineIdx, runIdx, run.Runes.Offset, run.Runes.Count, totalRunes)
 			}
 			totalRunes += run.Runes.Count
 			lineTotalRunes += run.Runes.Count
@@ -2051,12 +2141,147 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 	}
 }
 
-/*
-TODO: specific truncation text cases like:
+// TestTruncationWithBreaking tests cases of interest involving both text truncation and
+// line breaking policies.
+func TestTruncationWithBreaking(t *testing.T) {
+	inputText := []rune("Fortunately, there's another way to build streams that is nearly API-compatible with the current approach. You can model them as computational Directed Acyclic Graphs and build a structure of nodes and edges that process values. Nodes essentially run a function on their input edges and propagate the results to their output edges. Edges act as the synchronization primitive in this scheme, ensuring that nodes are able to execute safely in parallel with one another.")
+	inputRun := Input{
+		Text:      inputText,
+		RunStart:  0,
+		RunEnd:    len(inputText),
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	truncatorRun := Input{
+		Text:      []rune("…"),
+		RunStart:  0,
+		RunEnd:    1,
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	var shaper HarfbuzzShaper
+	output := shaper.Shape(inputRun)
+	truncator := shaper.Shape(truncatorRun)
+	type testcase struct {
+		name      string
+		width     int
+		truncated int
+		policy    LineBreakPolicy
+	}
 
-- text fits exactly if truncator is not used
-- no text fits, so only truncator should be used
-*/
+	for _, tc := range []testcase{
+		{
+			name:      "Never",
+			width:     936,
+			policy:    Never,
+			truncated: 341,
+		},
+		{
+			name:      "WhenNecessary",
+			width:     936,
+			policy:    WhenNecessary,
+			truncated: 341,
+		},
+		{
+			name:      "Always",
+			width:     936,
+			policy:    Always,
+			truncated: 341,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var wrapper LineWrapper
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{
+				BreakPolicy:        tc.policy,
+				TruncateAfterLines: 1,
+				Truncator:          truncator,
+			}, tc.width, inputText, NewSliceIterator([]Output{output}))
+			if truncated != tc.truncated {
+				t.Errorf("expected %d truncated runes, got %d (total %d)", tc.truncated, truncated, len(inputText))
+			}
+			checkRuneCounts(t, inputText, lines, truncated)
+		})
+	}
+}
+
+func TestGraphemeBreakingRegression(t *testing.T) {
+	bidiText2 := []rune("renنيتذدagلaaiua.ئPocttأior رادرs")
+	inputRuns := []Input{
+		{Text: bidiText2, RunStart: 0, RunEnd: 3, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 3, RunEnd: 8, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 8, RunEnd: 10, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 10, RunEnd: 11, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 11, RunEnd: 16, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 16, RunEnd: 18, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 18, RunEnd: 23, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 23, RunEnd: 24, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 24, RunEnd: 27, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 27, RunEnd: 32, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 32, RunEnd: 33, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+	}
+	var shaper HarfbuzzShaper
+	shaped := []Output{}
+	for _, run := range inputRuns {
+		shaped = append(shaped, shaper.Shape(run))
+	}
+	var wrapper LineWrapper
+	maxWidth := 0
+	for _, run := range shaped {
+		maxWidth += run.Advance.Ceil()
+	}
+	// Wrap at increasingly unreasonable widths, checking for sane wrapping decisions.
+	for maxWidth := maxWidth; maxWidth > 0; maxWidth-- {
+		t.Run(fmt.Sprintf("maxWidth=%d", maxWidth), func(t *testing.T) {
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(shaped))
+			checkRuneCounts(t, bidiText2, lines, truncated)
+
+			for i, baseLine := range lines[:len(lines)-1] {
+				nextLine := lines[i+1]
+				baseAdv := fixed.Int26_6(0)
+				for _, run := range baseLine {
+					baseAdv += run.Advance
+				}
+				nextAdv := fixed.Int26_6(0)
+				for _, run := range nextLine {
+					nextAdv += run.Advance
+				}
+				if total := (baseAdv + nextAdv).Ceil(); total <= maxWidth {
+					t.Errorf("lines[%d] and lines[%d] could have fit on the same line (total width %d)", i, i+1, total)
+				}
+			}
+
+			if maxWidth == 1 {
+				// Check that every grapheme cluster was wrapped properly to its own line.
+				seg := segmenter.Segmenter{}
+				seg.Init(bidiText2)
+				iter := seg.GraphemeIterator()
+				lengths := []int{}
+				for iter.Next() {
+					cluster := iter.Grapheme()
+					lengths = append(lengths, len(cluster.Text))
+				}
+				if len(lengths) != len(lines) {
+					t.Errorf("got %d lines but there are %d grapheme clusters", len(lines), len(lengths))
+				}
+				for lineNum, line := range lines {
+					totalRunes := 0
+					for _, run := range line {
+						totalRunes += run.Runes.Count
+					}
+					if totalRunes != lengths[lineNum] {
+						t.Errorf("lines[%d] has %d runes, but grapheme cluster at index %d has %d", lineNum, totalRunes, lineNum, lengths[lineNum])
+					}
+				}
+			}
+		})
+	}
+}
 
 func BenchmarkMapping(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
