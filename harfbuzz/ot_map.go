@@ -253,12 +253,12 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 
 	// collect lookup indices for features
 	for tableIndex, table := range tables {
+		// Collect lookup indices for features
 		stageIndex := 0
 		lastNumLookups := 0
 		for stage := 0; stage < mb.currentStage[tableIndex]; stage++ {
 			if requiredFeatureIndex[tableIndex] != NoFeatureIndex &&
 				requiredFeatureStage[tableIndex] == stage {
-
 				const emptyTag = 0x20202020 // ("    ")
 				m.addLookups(table, tableIndex, requiredFeatureIndex[tableIndex],
 					key[tableIndex], globalBitMask, true, true, false, false, emptyTag)
@@ -295,7 +295,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 						ls[j].autoZWJ = ls[j].autoZWJ && ls[i].autoZWJ
 					}
 				}
-				m.lookups[tableIndex] = m.lookups[tableIndex][:j+1]
+				m.lookups[tableIndex] = ls[:j+1]
 			}
 
 			lastNumLookups = len(m.lookups[tableIndex])

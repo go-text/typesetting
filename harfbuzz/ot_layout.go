@@ -235,11 +235,11 @@ func FindFeatureForLang(table *font.Layout, scriptIndex, languageIndex int, feat
 // Fetches the tag of a requested feature index in the given layout table,
 // underneath the specified script and language. Returns -1 if no feature is requested.
 func getRequiredFeature(g *font.Layout, scriptIndex, languageIndex int) (uint16, tables.Tag) {
-	if scriptIndex == NoScriptIndex || languageIndex == DefaultLanguageIndex {
+	if scriptIndex == NoScriptIndex {
 		return NoFeatureIndex, 0
 	}
 
-	l := g.Scripts[scriptIndex].LangSys[languageIndex]
+	l := g.Scripts[scriptIndex].GetLangSys(uint16(languageIndex))
 	if l.RequiredFeatureIndex == 0xFFFF {
 		return NoFeatureIndex, 0
 	}
