@@ -140,7 +140,7 @@ func (sc Script) GetLangSys(index uint16) LangSys {
 		if sc.DefaultLangSys != nil {
 			return *sc.DefaultLangSys
 		}
-		return LangSys{}
+		return LangSys{RequiredFeatureIndex: 0xFFFF}
 	}
 	return sc.LangSys[index]
 }
