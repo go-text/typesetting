@@ -93,17 +93,17 @@ const (
 	// [GlyphUnsafeToBreak] or when hyphenation or other text transformation
 	// happens at line-break position, in the following way:
 	// 	1. Iterate back from the line-break position until the first cluster start position that is
-	// 	NOT unsafe-to-concat,
-	//	2. shape the segment from there till the end of line,
-	//	3. check whether the resulting glyph-run also is clear of the unsafe-to-concat at its start-of-text position;
-	//  if it is, just splice it into place and the line is shaped; If not, move on to a position further
-	//  back that is clear of unsafe-to-concat and retry from there, and repeat.
+	// 		NOT unsafe-to-concat,
+	// 	2. Shape the segment from there till the end of line,
+	// 	3. Check whether the resulting glyph-run also is clear of the unsafe-to-concat at its start-of-text position;
+	// 		if it is, just splice it into place and the line is shaped; If not, move on to a position further
+	// 		back that is clear of unsafe-to-concat and retry from there, and repeat.
 	// At the start of next line a similar algorithm can be implemented. That is:
-	//	1. Iterate forward from the line-break position until the first cluster start position that is NOT unsafe-to-concat,
-	//	2. shape the segment from beginning of the line to that position,
-	//	3. check whether the resulting glyph-run also is clear of the unsafe-to-concat at its end-of-text position;
-	//	if it is, just splice it into place and the beginning is shaped; If not, move on to a position further forward that is clear
-	// 	of unsafe-to-concat and retry up to there, and repeat.
+	// 	1. Iterate forward from the line-break position until the first cluster start position that is NOT unsafe-to-concat,
+	// 	2. Shape the segment from beginning of the line to that position,
+	// 	3. Check whether the resulting glyph-run also is clear of the unsafe-to-concat at its end-of-text position;
+	// 		if it is, just splice it into place and the beginning is shaped; If not, move on to a position further forward that is clear
+	// 	 	of unsafe-to-concat and retry up to there, and repeat.
 	// A slight complication will arise in the implementation of the algorithm above, because while our buffer API has a way to
 	// return flags for position corresponding to start-of-text, there is currently no position
 	// corresponding to end-of-text.  This limitation can be alleviated by shaping more text than needed

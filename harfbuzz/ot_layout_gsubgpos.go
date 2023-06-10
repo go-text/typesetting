@@ -353,6 +353,9 @@ type otApplyContext struct {
 	perSyllable     bool
 	newSyllables    uint8 // 0xFF for undefined
 	random          bool
+
+	lastBase      int // GPOS uses
+	lastBaseUntil int // GPOS uses
 }
 
 func newOtApplyContext(tableIndex uint8, font *Font, buffer *Buffer) otApplyContext {
@@ -372,7 +375,7 @@ func newOtApplyContext(tableIndex uint8, font *Font, buffer *Buffer) otApplyCont
 	out.autoZWJ = true
 	out.randomState = 1
 	out.newSyllables = 0xFF
-
+	out.lastBase = -1
 	out.initIters()
 	return out
 }
@@ -516,7 +519,7 @@ func (c *otApplyContext) applyRuleSet(ruleSet tables.SequenceRuleSet, match matc
 func (c *otApplyContext) applyChainRuleSet(ruleSet tables.ChainedClassSequenceRuleSet, match [3]matcherFunc) bool {
 	for i, rule := range ruleSet.ChainedSeqRules {
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Println("APPLY - chain rule number", i)
 		}
 
@@ -929,7 +932,7 @@ func (c *otApplyContext) applyLookup(count int, matchPositions *[maxContextLengt
 			break
 		}
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("\t\tAPPLY nested lookup %d\n", lk.LookupListIndex)
 		}
 

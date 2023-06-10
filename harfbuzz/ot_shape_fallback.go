@@ -355,7 +355,7 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 
 // adjusts width of various spaces.
 func fallbackSpaces(font *Font, buffer *Buffer) {
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("POSITION - applying fallback spaces")
 	}
 	info := buffer.Info

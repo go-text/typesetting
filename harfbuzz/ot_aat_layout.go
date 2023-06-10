@@ -530,7 +530,7 @@ func (c *aatApplyContext) applyMorx(chain font.MorxChain) {
 			reverse = subtable.Coverage&Backwards != 0 != c.buffer.Props.Direction.isBackward()
 		}
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("MORX - start chainsubtable %d\n", i)
 		}
 
@@ -544,7 +544,7 @@ func (c *aatApplyContext) applyMorx(chain font.MorxChain) {
 			c.buffer.Reverse()
 		}
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("MORX - end chainsubtable %d\n", i)
 			fmt.Println(c.buffer.Info)
 		}
@@ -553,7 +553,7 @@ func (c *aatApplyContext) applyMorx(chain font.MorxChain) {
 }
 
 func (c *aatApplyContext) applyMorxSubtable(subtable font.MorxSubtable) bool {
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Printf("\tMORX subtable %T\n", subtable.Data)
 	}
 	switch data := subtable.Data.(type) {
@@ -657,7 +657,7 @@ func (s stateTableDriver) drive(c driverContext, ac *aatApplyContext) {
 			class = s.machine.GetClass(s.buffer.Info[s.buffer.idx].Glyph)
 		}
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("\t\tState machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
 		}
 
@@ -719,7 +719,7 @@ func (s stateTableDriver) drive(c driverContext, ac *aatApplyContext) {
 
 		state = nextState
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("\t\tState machine - new state %d\n", state)
 		}
 
@@ -939,7 +939,7 @@ func (driverContextLigature) isActionable(_ stateTableDriver, entry tables.AATSt
 func (dc *driverContextLigature) transition(driver stateTableDriver, entry tables.AATStateEntry) {
 	buffer := driver.buffer
 
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Printf("\tLigature - Ligature transition at %d\n", buffer.idx)
 	}
 
@@ -952,7 +952,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry table
 		dc.matchPositions[dc.matchLength%len(dc.matchPositions)] = len(buffer.outInfo)
 		dc.matchLength++
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("\tLigature - Set component at %d\n", len(buffer.outInfo))
 		}
 
@@ -960,7 +960,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry table
 
 	if dc.isActionable(driver, entry) {
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("\tLigature - Perform action with %d\n", dc.matchLength)
 		}
 
@@ -983,14 +983,14 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry table
 		for do := true; do; do = action&tables.MLActionLast == 0 {
 			if cursor == 0 {
 				/* Stack underflow.  Clear the stack. */
-				if debugMode >= 2 {
+				if debugMode {
 					fmt.Println("\tLigature - Stack underflow")
 				}
 				dc.matchLength = 0
 				break
 			}
 
-			if debugMode >= 2 {
+			if debugMode {
 				fmt.Printf("\tLigature - Moving to stack position %d\n", cursor-1)
 			}
 
@@ -1014,7 +1014,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry table
 			componentData := dc.table.Components[componentIdx]
 			ligatureIdx += int(componentData)
 
-			if debugMode >= 2 {
+			if debugMode {
 				fmt.Printf("\tLigature - Action store %d last %d\n", action&tables.MLActionStore, action&tables.MLActionLast)
 			}
 
@@ -1024,7 +1024,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry table
 				}
 				lig := dc.table.Ligatures[ligatureIdx]
 
-				if debugMode >= 2 {
+				if debugMode {
 					fmt.Printf("\tLigature - Produced ligature %d\n", lig)
 				}
 
@@ -1034,7 +1034,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry table
 				/* Now go and delete all subsequent components. */
 				for dc.matchLength-1 > cursor {
 
-					if debugMode >= 2 {
+					if debugMode {
 						fmt.Println("\tLigature - Skipping ligature component")
 					}
 
@@ -1330,7 +1330,7 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx) {
 		}
 		reverse = st.IsBackwards() != c.buffer.Props.Direction.isBackward()
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("AAT kerx : start subtable %d\n", i)
 		}
 
@@ -1362,7 +1362,7 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx) {
 			c.buffer.Reverse()
 		}
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("AAT kerx : end subtable %d\n", i)
 			fmt.Println(c.buffer.Pos)
 		}
@@ -1371,7 +1371,7 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx) {
 }
 
 func (c *aatApplyContext) applyKerxSubtable(st font.KernSubtable) bool {
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Printf("\tKERNX table %T\n", st.Data)
 	}
 	switch data := st.Data.(type) {

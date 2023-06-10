@@ -554,7 +554,7 @@ func (c *otContext) substituteBeforePosition() {
 		fallbackMarkPositionRecategorizeMarks(buffer)
 	}
 
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Println("BEFORE SUBSTITUTE:", c.buffer.Info)
 	}
 
@@ -586,11 +586,11 @@ func (c *otContext) substituteAfterPosition() {
 
 	hideDefaultIgnorables(c.buffer, c.font)
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("POSTPROCESS glyphs start")
 	}
 	c.plan.shaper.postprocessGlyphs(c.plan, c.buffer, c.font)
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("POSTPROCESS glyphs end ")
 	}
 }
@@ -694,7 +694,7 @@ func (c *otContext) position() {
 
 	c.positionDefault()
 
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Println("AFTER DEFAULT POSITION", c.buffer.Pos)
 	}
 
@@ -798,29 +798,29 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 
 	c.buffer.formClusters()
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("FORMING CLUSTER :", c.buffer.Info)
 	}
 
 	c.buffer.ensureNativeDirection()
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Printf("PREPROCESS text start\n")
 	}
 	c.plan.shaper.preprocessText(c.plan, c.buffer, c.font)
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("PREPROCESS text end:", c.buffer.Info)
 	}
 
 	c.substituteBeforePosition() // apply GSUB
 
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Println("AFTER SUBSTITUTE", c.buffer.Info)
 	}
 
 	c.position()
 
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Println("AFTER POSITION", c.buffer.Pos)
 	}
 

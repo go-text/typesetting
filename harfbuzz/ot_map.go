@@ -76,11 +76,11 @@ func newOtMapBuilder(tables *font.Font, props SegmentProperties) otMapBuilder {
 	* features not available in either table and not waste precious bits for them. */
 	scriptTags, languageTags := newOTTagsFromScriptAndLanguage(props.Script, props.Language)
 
-	out.scriptIndex[0], out.chosenScript[0], out.foundScript[0] = SelectScript(&tables.GSUB.Layout, scriptTags)
-	out.languageIndex[0], _ = SelectLanguage(&tables.GSUB.Layout, out.scriptIndex[0], languageTags)
+	out.scriptIndex[0], out.chosenScript[0], out.foundScript[0] = selectScript(&tables.GSUB.Layout, scriptTags)
+	out.languageIndex[0], _ = selectLanguage(&tables.GSUB.Layout, out.scriptIndex[0], languageTags)
 
-	out.scriptIndex[1], out.chosenScript[1], out.foundScript[1] = SelectScript(&tables.GPOS.Layout, scriptTags)
-	out.languageIndex[1], _ = SelectLanguage(&tables.GPOS.Layout, out.scriptIndex[1], languageTags)
+	out.scriptIndex[1], out.chosenScript[1], out.foundScript[1] = selectScript(&tables.GPOS.Layout, scriptTags)
+	out.languageIndex[1], _ = selectLanguage(&tables.GPOS.Layout, out.scriptIndex[1], languageTags)
 
 	return out
 }
@@ -206,7 +206,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 			if requiredFeatureTag[tableIndex] == info.Tag {
 				requiredFeatureStage[tableIndex] = info.stage[tableIndex]
 			}
-			featureIndex[tableIndex] = FindFeatureForLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], info.Tag)
+			featureIndex[tableIndex] = findFeatureForLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], info.Tag)
 			found = found || featureIndex[tableIndex] != NoFeatureIndex
 		}
 		if !found && (info.flags&ffGlobalSearch) != 0 {
@@ -240,7 +240,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 		map_.mask1 = (1 << map_.shift) & map_.mask
 		map_.needsFallback = !found
 
-		if debugMode >= 1 {
+		if debugMode {
 			fmt.Printf("\tMAP - adding feature %s (%d) for stage %v\n", info.Tag, info.Tag, info.stage)
 		}
 
@@ -316,7 +316,7 @@ func (mb *otMapBuilder) hasFeature(tag loader.Tag) bool {
 	tables := [2]*font.Layout{&mb.tables.GSUB.Layout, &mb.tables.GPOS.Layout}
 
 	for tableIndex, table := range tables {
-		if FindFeatureForLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], tag) != NoFeatureIndex {
+		if findFeatureForLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], tag) != NoFeatureIndex {
 			return true
 		}
 	}
@@ -456,28 +456,28 @@ func (m *otMap) addLookups(table *font.Layout, tableIndex int, featureIndex uint
 
 // apply the GSUB table
 func (m *otMap) substitute(plan *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("SUBSTITUTE - start table GSUB")
 	}
 
 	proxy := otProxy{otProxyMeta: proxyGSUB, accels: font.gsubAccels}
 	m.apply(proxy, plan, font, buffer)
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("SUBSTITUTE - end table GSUB")
 	}
 }
 
 // apply the GPOS table
 func (m *otMap) position(plan *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("POSITION - start table GPOS")
 	}
 
 	proxy := otProxy{otProxyMeta: proxyGPOS, accels: font.gposAccels}
 	m.apply(proxy, plan, font, buffer)
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("POSITION - end table GPOS")
 	}
 }
@@ -490,7 +490,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 
 	for stageI, stage := range m.stages[tableIndex] {
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("\tAPPLY - stage %d\n", stageI)
 		}
 
@@ -498,7 +498,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			lookup := m.lookups[tableIndex][i]
 			lookupIndex := lookup.index
 
-			if debugMode >= 1 {
+			if debugMode {
 				fmt.Printf("\t\tLookup %d start\n", lookupIndex)
 			}
 
@@ -523,7 +523,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 				c.applyString(proxy.otProxyMeta, accel)
 			}
 
-			if debugMode >= 1 {
+			if debugMode {
 				fmt.Print("\t\tLookup end : ")
 				if proxy.tableIndex == 0 {
 					fmt.Println(c.buffer.Info)
@@ -535,7 +535,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 		}
 
 		if stage.pauseFunc != nil {
-			if debugMode >= 1 {
+			if debugMode {
 				fmt.Println("\t\tExecuting pause function")
 			}
 

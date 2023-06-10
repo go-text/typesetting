@@ -34,10 +34,9 @@ func TestDebug(t *testing.T) {
 	// when debugging
 	// t.Skip()
 
-	dir := "harfbuzz_reference/in-house/tests"
-	testString := `../fonts/df768b9c257e0c9c35786c47cae15c46571d56be.ttf;;U+0633,U+064F,U+0644,U+064E,U+0651,U+0627,U+0651,U+0650,U+0645,U+062A,U+06CC;[uni06CC.fina=10+1655|uni062A.medi=9+868|uni0645.init=8+1098|uni0650=2@148,0+0|uni0651=2@187,736+0|uni064E=2@883,1259+0|uni0651=2@922,736+0|uni06440627.fina=2+1470|uni064F=0@629,-10+0|uni0633.init=0+1585]
-	`
-	testD := newTestData(t, dir, testString)
+	// dir := "harfbuzz_reference/in-house/tests"
+	testString := `fonts/AdobeBlank2.ttf;--no-glyph-names --no-positions;U+1F1E6,U+1F1E8;[1=0|1=0]`
+	testD := newTestData(t, ".", testString)
 	out := runShapingTest(t, testD, true)
 	fmt.Println(out)
 }
@@ -85,7 +84,7 @@ func (b *Buffer) serialize(font *Font, opt formatOpts) string {
 
 		if opt.showFlags {
 			if mask := glyph.Mask & glyphFlagDefined; mask != 0 {
-				fmt.Fprintf(gs, "#%b", mask)
+				fmt.Fprintf(gs, "#%d", mask)
 			}
 		}
 
@@ -298,6 +297,8 @@ func skipInvalidFontIndex(t *testing.T, ft api.FontID) bool {
 // skipVerify should be true when debugging, to reduce stdout clutter
 // it returns the serialized output
 func runShapingTest(t *testing.T, test testData, skipVerify bool) string {
+	t.Helper()
+
 	if skipInvalidFontIndex(t, test.input.fontOpts.fontRef) {
 		return ""
 	}

@@ -136,7 +136,7 @@ func (c *otApplyContext) applyGSUB(table tables.GSUBLookup) bool {
 		return false
 	}
 
-	if debugMode >= 2 {
+	if debugMode {
 		fmt.Printf("\tAPPLY - type %T at index %d\n", table, c.buffer.idx)
 	}
 
@@ -191,12 +191,13 @@ func (c *otApplyContext) applyGSUB(table tables.GSUBLookup) bool {
 			return false // no chaining to this type
 		}
 		lB, lL := len(data.BacktrackCoverages), len(data.LookaheadCoverages)
+
 		hasMatch, startIndex := c.matchBacktrack(get1N(&c.indices, 0, lB), matchCoverage(data.BacktrackCoverages))
 		if !hasMatch {
 			return false
 		}
 
-		hasMatch, endIndex := c.matchLookahead(get1N(&c.indices, 0, lL), matchCoverage(data.LookaheadCoverages), 1)
+		hasMatch, endIndex := c.matchLookahead(get1N(&c.indices, 0, lL), matchCoverage(data.LookaheadCoverages), c.buffer.idx+1)
 		if !hasMatch {
 			return false
 		}

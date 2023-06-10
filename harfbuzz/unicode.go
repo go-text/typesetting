@@ -449,18 +449,15 @@ func (unicodeFuncs) compose(a, b rune) (rune, bool)         { return ucd.Compose
 
 /* Prepare */
 
-func isRegionalIndicator(r rune) bool {
-	return 0x1F1E6 <= r && r <= 0x1F1F
-}
+func isRegionalIndicator(r rune) bool { return 0x1F1E6 <= r && r <= 0x1F1FF }
 
-/* Implement enough of Unicode Graphemes here that shaping
- * in reverse-direction wouldn't break graphemes.  Namely,
- * we mark all marks and ZWJ and ZWJ,Extended_Pictographic
- * sequences as continuations.  The foreach_grapheme()
- * macro uses this bit.
- *
- * https://www.unicode.org/reports/tr29/#Regex_Definitions
- */
+// Implement enough of Unicode Graphemes here that shaping
+// in reverse-direction wouldn't break graphemes.  Namely,
+// we mark all marks and ZWJ and ZWJ,Extended_Pictographic
+// sequences as continuations.  The foreach_grapheme()
+// macro uses this bit.
+//
+// https://www.unicode.org/reports/tr29/#Regex_Definitions
 func (b *Buffer) setUnicodeProps() {
 	info := b.Info
 	for i := 0; i < len(info); i++ {
@@ -486,7 +483,7 @@ func (b *Buffer) setUnicodeProps() {
 			}
 		} else if (0xFF9E <= r && r <= 0xFF9F) || (0xE0020 <= r && r <= 0xE007F) {
 			// Or part of the Other_Grapheme_Extend that is not marks.
-			// As of Unicode 11 that is just:
+			// As of Unicode 15 that is just:
 			//
 			// 200C          ; Other_Grapheme_Extend # Cf       ZERO WIDTH NON-JOINER
 			// FF9E..FF9F    ; Other_Grapheme_Extend # Lm   [2] HALFWIDTH KATAKANA VOICED SOUND MARK..HALFWIDTH KATAKANA SEMI-VOICED SOUND MARK
@@ -498,7 +495,6 @@ func (b *Buffer) setUnicodeProps() {
 			// https://github.com/harfbuzz/harfbuzz/issues/1556
 			// Katakana ones were requested:
 			// https://github.com/harfbuzz/harfbuzz/issues/3844
-			//
 			info[i].setContinuation()
 		}
 	}

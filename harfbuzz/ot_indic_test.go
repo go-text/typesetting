@@ -14,6 +14,12 @@ func TestIndicGetCategories(t *testing.T) {
 		0x103B: {myaSM_ex_MY, posEnd},
 		0x17D0: {khmSM_ex_Xgroup, posEnd},
 		0x17E0: {myaSM_ex_GB, posBaseC},
+		// myanmar
+		4100: {indSM_ex_Ra, posBaseC},
+		4123: {indSM_ex_Ra, posBaseC},
+		4141: {myaSM_ex_VAbv, posAboveC},
+		4153: {indSM_ex_H, posEnd},
+		4157: {myaSM_ex_MW, posEnd},
 	}
 	for u, exp := range expecteds {
 		got := indicGetCategories(u)

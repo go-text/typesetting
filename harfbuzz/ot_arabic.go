@@ -492,7 +492,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 			}
 			i++ // Don't touch i again.
 
-			if debugMode >= 1 {
+			if debugMode {
 				fmt.Printf("ARABIC - step %d: stretch at (%d,%d,%d)\n", step+1, context, start, end)
 				fmt.Printf("ARABIC - rest of word:    count=%d width %d\n", start-context, wTotal)
 				fmt.Printf("ARABIC - fixed tiles:     count=%d width=%d\n", nFixed, wFixed)
@@ -520,7 +520,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 
 			if step == MEASURE {
 				extraGlyphsNeeded += nCopies * nRepeating
-				if debugMode >= 1 {
+				if debugMode {
 					fmt.Printf("ARABIC - will add extra %d copies of repeating tiles\n", nCopies)
 				}
 			} else {
@@ -534,7 +534,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 						repeat += nCopies
 					}
 
-					if debugMode >= 1 {
+					if debugMode {
 						fmt.Printf("ARABIC - appending %d copies of glyph %d; j=%d\n", repeat, info[k-1].codepoint, j)
 					}
 					for n := 0; n < repeat; n++ {
@@ -590,19 +590,19 @@ func infoIsMcm(info *GlyphInfo) bool {
 func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, start, end int) {
 	info := buffer.Info
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Printf("ARABIC - Reordering marks from %d to %d\n", start, end)
 	}
 
 	i := start
 	for cc := uint8(220); cc <= 230; cc += 10 {
-		if debugMode >= 1 {
+		if debugMode {
 			fmt.Printf("ARABIC - Looking for combining class %d's starting at %d\n", cc, i)
 		}
 		for i < end && info[i].getModifiedCombiningClass() < cc {
 			i++
 		}
-		if debugMode >= 1 {
+		if debugMode {
 			fmt.Printf("ARABIC - Looking for %d's stopped at %d\n", cc, i)
 		}
 
@@ -623,7 +623,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 			continue
 		}
 
-		if debugMode >= 1 {
+		if debugMode {
 			fmt.Printf("ARABIC - Found %d's from %d to %d", cc, i, j)
 			// shift it!
 			fmt.Printf("ARABIC - Shifting %d's: %d %d", cc, i, j)

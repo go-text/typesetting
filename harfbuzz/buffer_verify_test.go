@@ -106,7 +106,7 @@ func (b *Buffer) verifyUnsafeToBreak(textBuffer *Buffer, font *Font, features []
 			return fmt.Errorf("unexpected %d >= %d", textStart, textEnd)
 		}
 
-		if debugMode >= 1 {
+		if debugMode {
 			fmt.Println()
 			fmt.Printf("VERIFY SAFE TO BREAK : start %d end %d text start %d end %d\n", start, end, textStart, textEnd)
 			fmt.Println()

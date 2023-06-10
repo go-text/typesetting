@@ -723,7 +723,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 				}
 				if info[j].complexCategory != indSM_ex_H && j > i {
 					/* Move Halant to after last consonant. */
-					if debugMode >= 2 {
+					if debugMode {
 						fmt.Printf("INDIC - halant: switching glyph %d to %d (and shifting between)", i, j)
 					}
 					t := info[i]
@@ -792,7 +792,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 
 		/* Sit tight, rock 'n roll! */
 
-		if debugMode >= 2 {
+		if debugMode {
 			fmt.Printf("INDIC - post-base: sorting between glyph %d and %d\n", start, end)
 		}
 
@@ -1018,7 +1018,7 @@ func (indicPlan *indicShapePlan) initialReorderingSyllableIndic(font *Font, buff
 }
 
 func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font, buffer *Buffer) bool {
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("INDIC - start reordering indic initial")
 	}
 
@@ -1031,7 +1031,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font,
 		cs.plan.initialReorderingSyllableIndic(font, buffer, start, end)
 	}
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("INDIC - end reordering indic initial")
 	}
 
@@ -1212,7 +1212,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 						base--
 					}
 
-					if debugMode >= 2 {
+					if debugMode {
 						fmt.Printf("INDIC - matras: switching glyph %d to %d (and shifting between)", oldPos, newPos)
 					}
 
@@ -1379,7 +1379,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 	reph_move:
 		{
 
-			if debugMode >= 2 {
+			if debugMode {
 				fmt.Printf("INDIC - reph: switching glyph %d to %d (and shifting between)", start, newRephPos)
 			}
 
@@ -1444,7 +1444,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 						oldPos := i
 						buffer.mergeClusters(newPos, oldPos+1)
 
-						if debugMode >= 2 {
+						if debugMode {
 							fmt.Printf("INDIC - pre-base: switching glyph %d to %d (and shifting between)", oldPos, newPos)
 						}
 
@@ -1492,7 +1492,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 		return false
 	}
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("INDIC - start reordering indic final")
 	}
 
@@ -1501,7 +1501,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 		indicPlan.finalReorderingSyllableIndic(plan, buffer, start, end)
 	}
 
-	if debugMode >= 1 {
+	if debugMode {
 		fmt.Println("INDIC - end reordering indic final")
 	}
 

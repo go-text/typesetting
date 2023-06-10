@@ -168,7 +168,7 @@ func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 			info[i].complexAux = posPreC
 			continue
 		}
-		if info[i].complexCategory < myaSM_ex_VPre /* Left matra */ {
+		if info[i].complexCategory == myaSM_ex_VPre /* Left matra */ {
 			info[i].complexAux = posPreM
 			continue
 		}
@@ -238,8 +238,8 @@ func reorderSyllableMyanmar(buffer *Buffer, start, end int) {
 }
 
 func reorderMyanmar(_ *otShapePlan, font *Font, buffer *Buffer) bool {
-	if debugMode >= 1 {
-		fmt.Println("MYANMAR - start reordering myanmar")
+	if debugMode {
+		fmt.Println("MYANMAR - start reordering myanmar", buffer.Info)
 	}
 
 	ret := syllabicInsertDottedCircles(font, buffer, myanmarBrokenCluster, myaSM_ex_DOTTEDCIRCLE, -1, -1)
@@ -249,8 +249,8 @@ func reorderMyanmar(_ *otShapePlan, font *Font, buffer *Buffer) bool {
 		reorderSyllableMyanmar(buffer, start, end)
 	}
 
-	if debugMode >= 1 {
-		fmt.Println("MYANMAR - end reordering myanmar")
+	if debugMode {
+		fmt.Println("MYANMAR - end reordering myanmar", buffer.Info)
 	}
 
 	return ret
