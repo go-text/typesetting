@@ -879,6 +879,18 @@ func TestWrapLine(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:      "simple fast-path",
+			shaped:    []Output{shapedText1},
+			paragraph: []rune(text1),
+			maxWidth:  200,
+			expected: []expected{
+				{
+					line: Line{shapedText1},
+					done: true,
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
@@ -886,7 +898,7 @@ func TestWrapLine(t *testing.T) {
 				done bool
 				l    LineWrapper
 			)
-			l.Prepare(WrapConfig{}, tc.paragraph, tc.shaped...)
+			l.Prepare(WrapConfig{BreakPolicy: Never}, tc.paragraph, NewSliceIterator(tc.shaped))
 			// Iterate every line declared in the test case expectations. This
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
@@ -895,6 +907,13 @@ func TestWrapLine(t *testing.T) {
 				compareLines(t, lineNumber, expected.line, line)
 				if done != expected.done {
 					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
+				}
+
+				if expected.done { // check WrapNextLine is now a no-op
+					line, _, done = l.WrapNextLine(200)
+					if line != nil || !done {
+						t.Errorf("expect nil output for WrapNextLine, got %p and %v", line, done)
+					}
 				}
 			}
 		})
@@ -1487,7 +1506,7 @@ func TestLineWrap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var l LineWrapper
-			outs, _ := l.WrapParagraph(WrapConfig{}, tc.maxWidth, tc.paragraph, tc.shaped...)
+			outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, tc.maxWidth, tc.paragraph, NewSliceIterator(tc.shaped))
 
 			if len(tc.expected) != len(outs) {
 				t.Errorf("expected %d lines, got %d", len(tc.expected), len(outs))
@@ -1568,38 +1587,49 @@ func complexGlyph(cluster, runes, glyphs int) Glyph {
 	}
 }
 
-func TestGetBreakOptions(t *testing.T) {
-	if err := quick.Check(func(runes []rune) bool {
-		breaker := newBreaker(&segmenter.Segmenter{}, runes)
-		var options []breakOption
-		for b, ok := breaker.next(); ok; b, ok = breaker.next() {
-			options = append(options, b)
-		}
-
-		// Ensure breaks are in valid range.
-		for _, o := range options {
-			if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {
-				return false
-			}
-		}
-		// Ensure breaks are sorted.
-		if !sort.SliceIsSorted(options, func(i, j int) bool {
-			return options[i].breakAtRune < options[j].breakAtRune
-		}) {
+func checkOptions(t *testing.T, runes []rune, options []breakOption) bool {
+	t.Helper()
+	// Ensure breaks are in valid range.
+	for _, o := range options {
+		if o.breakAtRune < 0 || o.breakAtRune > len(runes)-1 {
+			t.Errorf("breakAtRune out of bounds: %d when len(runes)=%d", o.breakAtRune, len(runes))
 			return false
 		}
+	}
+	// Ensure breaks are sorted.
+	if !sort.SliceIsSorted(options, func(i, j int) bool {
+		return options[i].breakAtRune < options[j].breakAtRune
+	}) {
+		t.Errorf("breaks are not sorted: %#+v", options)
+		return false
+	}
 
-		// Ensure breaks are unique.
-		m := make([]bool, len(runes))
-		for _, o := range options {
-			if m[o.breakAtRune] {
-				return false
-			} else {
-				m[o.breakAtRune] = true
-			}
+	// Ensure breaks are unique.
+	m := make([]bool, len(runes))
+	for _, o := range options {
+		if m[o.breakAtRune] {
+			t.Errorf("breaks are not unique: %v is repeated in %#+v", o, m)
+			return false
+		} else {
+			m[o.breakAtRune] = true
 		}
+	}
 
-		return true
+	return true
+}
+
+func TestRawBreakOptions(t *testing.T) {
+	if err := quick.Check(func(runes []rune) bool {
+		breaker := newBreaker(&segmenter.Segmenter{}, runes)
+		var wordOptions []breakOption
+		for b, ok := breaker.nextWordRaw(); ok; b, ok = breaker.nextWordRaw() {
+			wordOptions = append(wordOptions, b)
+		}
+		var graphemeOptions []breakOption
+		for b, ok := breaker.nextGraphemeRaw(); ok; b, ok = breaker.nextGraphemeRaw() {
+			graphemeOptions = append(graphemeOptions, b)
+		}
+		return checkOptions(t, runes, wordOptions) && checkOptions(t, runes, graphemeOptions)
 	}, nil); err != nil {
 		t.Errorf("generated invalid break options: %v", err)
 	}
@@ -1611,7 +1641,7 @@ func TestWrappingLatinE2E(t *testing.T) {
 	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out := shaper.Shape(Input{
+	out := []Output{shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -1620,12 +1650,199 @@ func TestWrappingLatinE2E(t *testing.T) {
 		Size:      16 * 72,
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
-	})
+	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, NewSliceIterator(out))
 	if len(outs) < 3 {
 		t.Errorf("expected %d lines, got %d", 3, len(outs))
 	}
+}
+
+// TestWrappingBidiRegression checks a specific regression discovered within the Gio test suite.
+func TestWrappingBidiRegression(t *testing.T) {
+	type testcase struct {
+		name     string
+		text     []rune
+		inputs   []Output
+		maxWidth int
+	}
+	ltrText := []rune("The quick brown fox jumps over the lazy dog.")
+	ltrTextRuns := []Input{
+		{RunStart: 0, RunEnd: len(ltrText), Script: language.Latin, Direction: di.DirectionLTR},
+	}
+	bidiText := []rune("الحب سماء brown привет fox تمط jumps привет over غير الأحلام")
+	bidiTextRuns := []Input{
+		{RunStart: 0, RunEnd: 10, Script: language.Arabic, Direction: di.DirectionRTL},
+		{RunStart: 10, RunEnd: 16, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 16, RunEnd: 23, Script: language.Cyrillic, Direction: di.DirectionLTR},
+		{RunStart: 23, RunEnd: 26, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 26, RunEnd: 31, Script: language.Arabic, Direction: di.DirectionRTL},
+		{RunStart: 31, RunEnd: 37, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 37, RunEnd: 44, Script: language.Cyrillic, Direction: di.DirectionLTR},
+		{RunStart: 44, RunEnd: 48, Script: language.Latin, Direction: di.DirectionLTR},
+		{RunStart: 48, RunEnd: 60, Script: language.Arabic, Direction: di.DirectionRTL},
+	}
+	bidiText2 := []rune("د عرمثال dstي met لم aqل جدmوpمg lرe dرd  لو عل ميrةsdiduntut lab renنيتذدagلaaiua.ئPocttأior رادرsاي mيrbلmnonaيdتد ماةعcلخ.")
+	bidiTextRuns2 := []Input{
+		{Text: bidiText2, RunStart: 0, RunEnd: 9, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 9, RunEnd: 12, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 12, RunEnd: 14, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 14, RunEnd: 17, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 17, RunEnd: 21, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 21, RunEnd: 23, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 23, RunEnd: 27, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 27, RunEnd: 28, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 28, RunEnd: 29, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 29, RunEnd: 30, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 30, RunEnd: 31, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 31, RunEnd: 34, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 34, RunEnd: 35, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 35, RunEnd: 38, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 38, RunEnd: 39, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 39, RunEnd: 40, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 40, RunEnd: 50, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 50, RunEnd: 51, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 51, RunEnd: 52, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 52, RunEnd: 69, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 69, RunEnd: 74, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 74, RunEnd: 76, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 76, RunEnd: 77, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 77, RunEnd: 82, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 82, RunEnd: 84, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 84, RunEnd: 89, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 89, RunEnd: 90, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 90, RunEnd: 93, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 93, RunEnd: 98, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 98, RunEnd: 99, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 99, RunEnd: 102, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 102, RunEnd: 103, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 103, RunEnd: 104, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 104, RunEnd: 106, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 106, RunEnd: 107, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 107, RunEnd: 112, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 112, RunEnd: 113, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 113, RunEnd: 114, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 114, RunEnd: 121, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 121, RunEnd: 122, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 122, RunEnd: 125, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+	}
+	truncator := (&HarfbuzzShaper{}).Shape(Input{
+		Text:      []rune("…"),
+		RunStart:  0,
+		RunEnd:    len([]rune("…")),
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})
+	shapeInputs := func(inputs []Input) []Output {
+		var shaper HarfbuzzShaper
+		out := make([]Output, len(inputs))
+		for i, input := range inputs {
+			out[i] = shaper.Shape(input)
+		}
+		return out
+	}
+	applyDefaultsAndShape := func(textInput []rune, runs []Input) []Output {
+		enFace := benchEnFace
+		arFace := benchArFace
+
+		ppem := fixed.I(16)
+		arLang := language.NewLanguage("AR")
+
+		for i := range runs {
+			runs[i].Text = textInput
+			runs[i].Size = ppem
+			if runs[i].Direction == di.DirectionRTL {
+				runs[i].Face = arFace
+			} else {
+				runs[i].Face = enFace
+			}
+			// Even though the text sample is mixed, the overall document language is arabic.
+			runs[i].Language = arLang
+		}
+		return shapeInputs(runs)
+	}
+	for _, tc := range []testcase{
+		{
+			name:     "simple ltr",
+			text:     ltrText,
+			inputs:   applyDefaultsAndShape(ltrText, ltrTextRuns),
+			maxWidth: 100,
+		},
+		{
+			name:     "many-run bidi",
+			text:     bidiText,
+			inputs:   applyDefaultsAndShape(bidiText, bidiTextRuns),
+			maxWidth: 100,
+		},
+		{
+			name:     "complex bidi",
+			text:     bidiText2,
+			inputs:   shapeInputs(bidiTextRuns2),
+			maxWidth: 200,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, policy := range []LineBreakPolicy{Always, Never, WhenNecessary} {
+				for _, truncation := range []bool{true, false} {
+					t.Run(fmt.Sprintf("graphemeBreak=%s_truncate=%v", policy, truncation), func(t *testing.T) {
+						var l LineWrapper
+						truncateAfter := 0
+						if truncation {
+							truncateAfter = 1
+						}
+						lines, truncated := l.WrapParagraph(WrapConfig{
+							BreakPolicy:        policy,
+							TruncateAfterLines: truncateAfter,
+							Truncator:          truncator,
+						}, tc.maxWidth, tc.text, NewSliceIterator(tc.inputs))
+						if truncated != 0 && !truncation {
+							t.Errorf("did not expect truncation, got truncated=%d", truncated)
+						}
+						checkRuneCounts(t, tc.text, lines, truncated)
+					})
+				}
+			}
+		})
+	}
+}
+
+func checkRuneCounts(t *testing.T, source []rune, lines []Line, truncated int) []int {
+	t.Helper()
+	counts := []int{}
+	totalRunes := 0
+	alreadyFailed := t.Failed()
+	for lineIdx, line := range lines {
+		lineTotalRunes := 0
+		for runIdx, run := range line {
+			if truncated > 0 && totalRunes == len(source)-truncated && run.Runes.Offset == 0 {
+				// Skip the truncator run.
+				continue
+			}
+			if run.Runes.Offset != totalRunes {
+				if !alreadyFailed {
+					for i := 0; i <= lineIdx; i++ {
+						line := lines[i]
+						for k := 0; (i < lineIdx && k < len(line)) || (i == lineIdx && k < runIdx); k++ {
+							run := line[k]
+							t.Errorf("lines[%d][%d].Runes.Offset=%d, Count=%d", i, k, run.Runes.Offset, run.Runes.Count)
+						}
+					}
+					alreadyFailed = true
+				}
+				t.Errorf("lines[%d][%d].Runes.Offset=%d, Count=%d, expected Offset %d", lineIdx, runIdx, run.Runes.Offset, run.Runes.Count, totalRunes)
+			}
+			totalRunes += run.Runes.Count
+			lineTotalRunes += run.Runes.Count
+		}
+		counts = append(counts, lineTotalRunes)
+	}
+	if len(source)-truncated != totalRunes {
+		t.Errorf("expected %d runes total, got %d", len(source)-truncated, totalRunes)
+	}
+	return counts
 }
 
 // TestWrappingTruncation checks that the line wrapper's truncation features
@@ -1634,7 +1851,7 @@ func TestWrappingTruncation(t *testing.T) {
 	textInput := []rune("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out := shaper.Shape(Input{
+	out := []Output{shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -1643,9 +1860,9 @@ func TestWrappingTruncation(t *testing.T) {
 		Size:      fixed.I(16),
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
-	})
+	})}
 	var l LineWrapper
-	outs, _ := l.WrapParagraph(WrapConfig{}, 250, textInput, out)
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, NewSliceIterator(out))
 	untruncatedCount := len(outs)
 
 	for _, truncator := range []Output{
@@ -1673,10 +1890,11 @@ func TestWrappingTruncation(t *testing.T) {
 	} {
 		for i := untruncatedCount + 1; i > 0; i-- {
 			wc := WrapConfig{
+				BreakPolicy:        Never,
 				TruncateAfterLines: i,
 				Truncator:          truncator,
 			}
-			newLines, truncated := l.WrapParagraph(wc, 250, textInput, out)
+			newLines, truncated := l.WrapParagraph(wc, 250, textInput, NewSliceIterator(out))
 			lineCount := len(newLines)
 			t.Logf("wrapping with max lines=%d, untruncatedCount=%d", i, untruncatedCount)
 			if i < untruncatedCount {
@@ -1713,6 +1931,35 @@ func TestWrappingTruncation(t *testing.T) {
 				t.Errorf("expected %d runes total, got %d output and %d truncated", len(textInput), runeCount, truncated)
 			}
 		}
+	}
+}
+
+func TestWrapping_oneLine(t *testing.T) {
+	textInput := []rune("Lorem ipsum") // a simple input that fits on one line
+	face := benchEnFace
+	var shaper HarfbuzzShaper
+	out := []Output{shaper.Shape(Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})}
+	iter := NewSliceIterator(out)
+	var l LineWrapper
+
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, iter)
+	if len(outs) != 1 {
+		t.Errorf("expected one line, got %d", len(outs))
+	}
+
+	// the run in iter should have been consumed
+	outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 250, textInput, iter)
+	if len(outs) != 0 {
+		t.Errorf("expected no line, got %d", len(outs))
 	}
 }
 
@@ -1876,10 +2123,11 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			}
 			var l LineWrapper
 			lines, truncatedRunes := l.WrapParagraph(WrapConfig{
+				BreakPolicy:        Never,
 				Truncator:          trunc,
 				TruncateAfterLines: tc.maxLines,
 				TextContinues:      tc.forceTruncation,
-			}, tc.wrapWidth, inputRunes, outs...)
+			}, tc.wrapWidth, inputRunes, NewSliceIterator(outs))
 			if truncatedRunes != tc.expectedTruncated {
 				t.Errorf("got %d truncated runes when truncation expectation was %d", truncatedRunes, tc.expectedTruncated)
 			}
@@ -1893,12 +2141,147 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 	}
 }
 
-/*
-TODO: specific truncation text cases like:
+// TestTruncationWithBreaking tests cases of interest involving both text truncation and
+// line breaking policies.
+func TestTruncationWithBreaking(t *testing.T) {
+	inputText := []rune("Fortunately, there's another way to build streams that is nearly API-compatible with the current approach. You can model them as computational Directed Acyclic Graphs and build a structure of nodes and edges that process values. Nodes essentially run a function on their input edges and propagate the results to their output edges. Edges act as the synchronization primitive in this scheme, ensuring that nodes are able to execute safely in parallel with one another.")
+	inputRun := Input{
+		Text:      inputText,
+		RunStart:  0,
+		RunEnd:    len(inputText),
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	truncatorRun := Input{
+		Text:      []rune("…"),
+		RunStart:  0,
+		RunEnd:    1,
+		Direction: di.DirectionLTR,
+		Face:      benchEnFace,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	var shaper HarfbuzzShaper
+	output := shaper.Shape(inputRun)
+	truncator := shaper.Shape(truncatorRun)
+	type testcase struct {
+		name      string
+		width     int
+		truncated int
+		policy    LineBreakPolicy
+	}
 
-- text fits exactly if truncator is not used
-- no text fits, so only truncator should be used
-*/
+	for _, tc := range []testcase{
+		{
+			name:      "Never",
+			width:     936,
+			policy:    Never,
+			truncated: 341,
+		},
+		{
+			name:      "WhenNecessary",
+			width:     936,
+			policy:    WhenNecessary,
+			truncated: 341,
+		},
+		{
+			name:      "Always",
+			width:     936,
+			policy:    Always,
+			truncated: 341,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var wrapper LineWrapper
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{
+				BreakPolicy:        tc.policy,
+				TruncateAfterLines: 1,
+				Truncator:          truncator,
+			}, tc.width, inputText, NewSliceIterator([]Output{output}))
+			if truncated != tc.truncated {
+				t.Errorf("expected %d truncated runes, got %d (total %d)", tc.truncated, truncated, len(inputText))
+			}
+			checkRuneCounts(t, inputText, lines, truncated)
+		})
+	}
+}
+
+func TestGraphemeBreakingRegression(t *testing.T) {
+	bidiText2 := []rune("renنيتذدagلaaiua.ئPocttأior رادرs")
+	inputRuns := []Input{
+		{Text: bidiText2, RunStart: 0, RunEnd: 3, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 3, RunEnd: 8, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 8, RunEnd: 10, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 10, RunEnd: 11, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 11, RunEnd: 16, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 16, RunEnd: 18, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 18, RunEnd: 23, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 23, RunEnd: 24, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 24, RunEnd: 27, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+		{Text: bidiText2, RunStart: 27, RunEnd: 32, Direction: 0x1, Face: benchEnFace, Size: 896, Script: language.Arabic, Language: "en"},
+		{Text: bidiText2, RunStart: 32, RunEnd: 33, Direction: 0x0, Face: benchEnFace, Size: 896, Script: language.Latin, Language: "en"},
+	}
+	var shaper HarfbuzzShaper
+	shaped := []Output{}
+	for _, run := range inputRuns {
+		shaped = append(shaped, shaper.Shape(run))
+	}
+	var wrapper LineWrapper
+	maxWidth := 0
+	for _, run := range shaped {
+		maxWidth += run.Advance.Ceil()
+	}
+	// Wrap at increasingly unreasonable widths, checking for sane wrapping decisions.
+	for maxWidth := maxWidth; maxWidth > 0; maxWidth-- {
+		t.Run(fmt.Sprintf("maxWidth=%d", maxWidth), func(t *testing.T) {
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(shaped))
+			checkRuneCounts(t, bidiText2, lines, truncated)
+
+			for i, baseLine := range lines[:len(lines)-1] {
+				nextLine := lines[i+1]
+				baseAdv := fixed.Int26_6(0)
+				for _, run := range baseLine {
+					baseAdv += run.Advance
+				}
+				nextAdv := fixed.Int26_6(0)
+				for _, run := range nextLine {
+					nextAdv += run.Advance
+				}
+				if total := (baseAdv + nextAdv).Ceil(); total <= maxWidth {
+					t.Errorf("lines[%d] and lines[%d] could have fit on the same line (total width %d)", i, i+1, total)
+				}
+			}
+
+			if maxWidth == 1 {
+				// Check that every grapheme cluster was wrapped properly to its own line.
+				seg := segmenter.Segmenter{}
+				seg.Init(bidiText2)
+				iter := seg.GraphemeIterator()
+				lengths := []int{}
+				for iter.Next() {
+					cluster := iter.Grapheme()
+					lengths = append(lengths, len(cluster.Text))
+				}
+				if len(lengths) != len(lines) {
+					t.Errorf("got %d lines but there are %d grapheme clusters", len(lines), len(lengths))
+				}
+				for lineNum, line := range lines {
+					totalRunes := 0
+					for _, run := range line {
+						totalRunes += run.Runes.Count
+					}
+					if totalRunes != lengths[lineNum] {
+						t.Errorf("lines[%d] has %d runes, but grapheme cluster at index %d has %d", lineNum, totalRunes, lineNum, lengths[lineNum])
+					}
+				}
+			}
+		})
+	}
+}
 
 func BenchmarkMapping(b *testing.B) {
 	type wrapfunc func(di.Direction, Range, []Glyph, []glyphIndex) []glyphIndex
@@ -2052,6 +2435,563 @@ func TestCutRunInto(t *testing.T) {
 	}
 }
 
+func (w *wrapBuffer) stats() string {
+	return fmt.Sprintf("paragraph: %d(%d), line: %d(%d), used: %d, exhausted: %v, alt: %d(%d)", len(w.paragraph), cap(w.paragraph), len(w.line), cap(w.line), w.lineUsed, w.lineExhausted, len(w.alt), cap(w.alt))
+}
+
+func TestWrapBuffer(t *testing.T) {
+	t.Run("new and reset have same state", func(t *testing.T) {
+		b1 := wrapBuffer{}
+		b1.reset()
+		b2 := wrapBuffer{}
+		b2.reset()
+		defer func() {
+			if t.Failed() {
+				t.Logf("b1: %s\nb2: %s\n", b1.stats(), b2.stats())
+			}
+		}()
+		b2.reset()
+		if !reflect.DeepEqual(b1, b2) {
+			t.Errorf("expected new and new+reset buffer to have same fields")
+		}
+	})
+	t.Run("paragraph functions", func(t *testing.T) {
+		b1 := wrapBuffer{}
+		b1.reset()
+		defer func() {
+			if t.Failed() {
+				t.Logf("b1: %s\n", b1.stats())
+			}
+		}()
+		line := Line{Output{Advance: 10}}
+		for i := 0; i < 5; i++ {
+			maxLines := cap(b1.paragraph)
+			startAddr := &b1.paragraph[0:1][0]
+			b1.reset()
+			for k := 0; k < maxLines; k++ {
+				b1.paragraphAppend(line)
+			}
+			para := b1.finalParagraph()
+			if actAddr := &para[0:1][0]; startAddr != actAddr {
+				t.Errorf("expected paragraph to reuse slice starting at %p, got %p", startAddr, actAddr)
+			}
+		}
+		for i := 0; i < 5; i++ {
+			maxLines := cap(b1.paragraph)
+			startAddr := &b1.paragraph[0:1][0]
+			b1.reset()
+			for k := 0; k < maxLines+1; k++ {
+				b1.paragraphAppend(line)
+			}
+			para := b1.finalParagraph()
+			if actAddr := &para[0:1][0]; startAddr == actAddr {
+				t.Errorf("expected paragraph to enlarge slice starting at %p (changing start addres), but got %p", startAddr, actAddr)
+			}
+		}
+		for i := 0; i < 5; i++ {
+			startAddr := &b1.paragraph[0:1][0]
+			b1.reset()
+			para := b1.singleRunParagraph(line[0])
+			if actAddr := &para[0:1][0]; startAddr != actAddr {
+				t.Errorf("expected singleRunParagraph to reuse slice starting at %p, got %p", startAddr, actAddr)
+			}
+		}
+	})
+	t.Run("line building", func(t *testing.T) {
+		b := wrapBuffer{}
+		b.reset()
+		defer func() {
+			if t.Failed() {
+				t.Logf("b: %s\n", b.stats())
+			}
+		}()
+		b.startLine()
+		run := Output{Advance: 10}
+		lineLen := 0
+		for i := 0; i < cap(b.line)-1; i++ {
+			b.candidateAppend(run)
+			lineLen++
+			if b.hasBest() {
+				t.Errorf("no best committed, but hasBest() true")
+			}
+		}
+		best := b.finalizeBest()
+		if best != nil {
+			t.Errorf("no best committed, but finalizeBest() returned non-nil %#+v", best)
+		}
+		preCommitAltLen := len(b.alt)
+		b.markCandidateBest(run)
+		if postCommitAltLen := len(b.alt); preCommitAltLen != postCommitAltLen {
+			t.Errorf("modified candidate when committing best, expected len %d, got %d", preCommitAltLen, postCommitAltLen)
+		}
+		if !b.hasBest() {
+			t.Errorf("best committed, but hasBest() false")
+		}
+		preLineUsed := b.lineUsed
+		best = b.finalizeBest()
+		postLineUsed := b.lineUsed
+		if len(best) != lineLen+1 {
+			t.Errorf("expected best candidate to have len %d, got %d", lineLen+1, len(best))
+		}
+		if used := postLineUsed - preLineUsed; used != len(best) {
+			t.Errorf("expected best candidate to use %d capacity of line, used %d", len(best), used)
+		}
+		if b.lineExhausted {
+			t.Errorf("did not expect line to be exhausted yet")
+		}
+		b.startLine()
+		b.candidateAppend(run)
+		b.candidateAppend(run)
+		if b.hasBest() {
+			t.Errorf("no best committed, but hasBest() true")
+		}
+		b.markCandidateBest()
+		if !b.hasBest() {
+			t.Errorf("best committed, but hasBest() false")
+		}
+		preLineUsed = b.lineUsed
+		best = b.finalizeBest()
+		postLineUsed = b.lineUsed
+		if len(best) != 2 {
+			t.Errorf("expected best candidate to have len %d, got %d", 2, len(best))
+		}
+		if used := postLineUsed - preLineUsed; used != 0 {
+			t.Errorf("expected best candidate to use %d capacity of line, used %d", 0, used)
+		}
+		if !b.lineExhausted {
+			t.Errorf("expected line to be exhausted")
+		}
+		preResetCap := cap(b.line)
+		b.reset()
+		postResetCap := cap(b.line)
+		if postResetCap <= preResetCap {
+			t.Errorf("expected exhausted line to expand on reset")
+		}
+		if b.lineExhausted {
+			t.Errorf("expected lineExhausted to clear on reset")
+		}
+	})
+}
+
+func TestLineWrapperBreakPolicies(t *testing.T) {
+	type testcase struct {
+		name      string
+		paragraph []rune
+	}
+	for _, tc := range []testcase{
+		{
+			name:      "hello world",
+			paragraph: []rune("hello, world"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := HarfbuzzShaper{}
+			out := s.Shape(Input{
+				Text:      tc.paragraph,
+				RunStart:  0,
+				RunEnd:    len(tc.paragraph),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			textWidth := out.Advance.Ceil()
+			for maxWidth := textWidth; maxWidth > 0; maxWidth -= max(maxWidth/10, 1) {
+				t.Run(fmt.Sprintf("maxWidth%d", maxWidth), func(t *testing.T) {
+					for _, policy := range []LineBreakPolicy{WhenNecessary, Never, Always} {
+						t.Run(policy.String(), func(t *testing.T) {
+							w := LineWrapper{}
+							lines, truncated := w.WrapParagraph(WrapConfig{
+								BreakPolicy: policy,
+							}, maxWidth, tc.paragraph, NewSliceIterator([]Output{out}))
+							checkRuneCounts(t, tc.paragraph, lines, truncated)
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+// Checks that grapheme break in ligature are properly
+// avoided
+func TestGraphemeBreakLigature(t *testing.T) {
+	const text1 = "il est affable"
+	gls := append(
+		glyphs(0, 7),        // simple 1:1 mapping
+		ligatureGlyph(8, 2), // ligature
+		simpleGlyph(10),     // a
+		simpleGlyph(11),     // b
+		simpleGlyph(12),     // l
+		simpleGlyph(13),     // e
+	)
+	shapedText1 = Output{
+		Advance: fixed.I(10 * len(gls)),
+		Runes:   Range{Count: len([]rune(text1))},
+		Glyphs:  gls,
+		LineBounds: Bounds{
+			Ascent:  fixed.I(10),
+			Descent: fixed.I(5),
+			// No line gap.
+		},
+		GlyphBounds: Bounds{
+			Ascent: fixed.I(10),
+			// No glyphs descend.
+		},
+	}
+	var w LineWrapper
+	lines, _ := w.WrapParagraph(WrapConfig{BreakPolicy: Always}, 90, []rune(text1), NewSliceIterator([]Output{shapedText1}))
+	if L := lines[0][0].Runes.Count; L != 10 {
+		t.Errorf("invalid break with ligature %d", L)
+	}
+}
+
+func TestLineWrapperBreakSpecific(t *testing.T) {
+	type expectation struct {
+		name           string
+		config         WrapConfig
+		runeCounts     []int
+		truncatedCount int
+	}
+	type testcase struct {
+		expectations []expectation
+		// This truncator will be inserted automatically into each expectation's WrapConfig
+		// to avoid redundantly specifying it.
+		truncator []rune
+		maxWidth  int
+		paragraph []rune
+	}
+	for _, tc := range []testcase{
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  80,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{11},
+					truncatedCount: 1,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{11, 1},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{11},
+					truncatedCount: 1,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  80,
+			truncator: []rune("…"),
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{11, 1},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  60,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{8, 4},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{8},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  60,
+			truncator: []rune("…"),
+			expectations: []expectation{
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{},
+					truncatedCount: 12,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  44,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{6, 6},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{6, 6},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{6},
+					truncatedCount: 6,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{},
+					truncatedCount: 12,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  33,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{4, 3, 4, 1},
+				},
+				{
+					name:           "WhenNecessary-Truncate",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
+					runeCounts:     []int{4},
+					truncatedCount: 8,
+				},
+				{
+					name:           "WhenNecessary-Truncate2",
+					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 2},
+					runeCounts:     []int{4, 4},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{4, 4, 4},
+				},
+				{
+					name:           "Always-Truncate",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
+					runeCounts:     []int{4},
+					truncatedCount: 8,
+				},
+				{
+					name:           "Always-Truncate2",
+					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 2},
+					runeCounts:     []int{4, 4},
+					truncatedCount: 4,
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+				{
+					name:           "Never-Truncate",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
+					runeCounts:     []int{0},
+					truncatedCount: 12,
+				},
+				{
+					name:           "Never-Truncate2",
+					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 2},
+					runeCounts:     []int{7},
+					truncatedCount: 5,
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  9,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+			},
+		},
+		{
+			paragraph: []rune("hello, world"),
+			maxWidth:  1,
+			expectations: []expectation{
+				{
+					name:       "WhenNecessary",
+					config:     WrapConfig{BreakPolicy: WhenNecessary},
+					runeCounts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Always",
+					config:     WrapConfig{BreakPolicy: Always},
+					runeCounts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				{
+					name:       "Never",
+					config:     WrapConfig{BreakPolicy: Never},
+					runeCounts: []int{7, 5},
+				},
+			},
+		},
+	} {
+		t.Run(fmt.Sprintf("%q-width%d-truncator%q", string(tc.paragraph), tc.maxWidth, string(tc.truncator)), func(t *testing.T) {
+			s := HarfbuzzShaper{}
+			out := s.Shape(Input{
+				Text:      tc.paragraph,
+				RunStart:  0,
+				RunEnd:    len(tc.paragraph),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			shapedTrunc := s.Shape(Input{
+				Text:      tc.truncator,
+				RunStart:  0,
+				RunEnd:    len(tc.truncator),
+				Direction: di.DirectionLTR,
+				Face:      benchEnFace,
+				Size:      fixed.I(16),
+				Script:    language.Latin,
+				Language:  language.NewLanguage("EN"),
+			})
+			w := LineWrapper{}
+			for _, expec := range tc.expectations {
+				t.Run(expec.name, func(t *testing.T) {
+					expec.config.Truncator = shapedTrunc
+					lines, truncated := w.WrapParagraph(expec.config, tc.maxWidth, tc.paragraph, NewSliceIterator([]Output{out}))
+					actualCounts := checkRuneCounts(t, tc.paragraph, lines, truncated)
+					if truncated != expec.truncatedCount {
+						t.Errorf("expected %d truncated runes, got %d", expec.truncatedCount, truncated)
+					}
+					for lineNo, expected := range expec.runeCounts {
+						if len(actualCounts) <= lineNo {
+							t.Errorf("expected %d lines, got %d", len(expec.runeCounts), len(actualCounts))
+							break
+						}
+						actual := actualCounts[lineNo]
+						if actual != expected {
+							t.Errorf("line %d: expected %d runes, got %d", lineNo, expected, actual)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func BenchmarkWrapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range benchSizes {
@@ -2070,10 +3010,12 @@ func BenchmarkWrapping(b *testing.B) {
 					})
 					outs := cutRunInto(out, parts)
 					var l LineWrapper
+					iter := NewSliceIterator(outs)
 					b.ResetTimer()
-					var lines []Line
+					lines := make([]Line, 1)
 					for i := 0; i < b.N; i++ {
-						lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], outs...)
+						lines, _ = l.WrapParagraph(WrapConfig{}, 100, langInfo.text[:size.runes], iter)
+						iter.(*shapedRunSlice).Reset(outs)
 					}
 					_ = lines
 				})
@@ -2089,7 +3031,7 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 	textInput := []rune("happy path")
 	face := benchEnFace
 	var shaper HarfbuzzShaper
-	out := shaper.Shape(Input{
+	out := []Output{shaper.Shape(Input{
 		Text:      textInput,
 		RunStart:  0,
 		RunEnd:    len(textInput),
@@ -2098,12 +3040,14 @@ func BenchmarkWrappingHappyPath(b *testing.B) {
 		Size:      16 * 72,
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
-	})
+	})}
 	var l LineWrapper
+	iter := NewSliceIterator(out)
 	b.ResetTimer()
 	var outs []Line
 	for i := 0; i < b.N; i++ {
-		outs, _ = l.WrapParagraph(WrapConfig{}, 100, textInput, out)
+		outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, 100, textInput, iter)
+		iter.(*shapedRunSlice).Reset(out)
 	}
 	_ = outs
 }
