@@ -22,7 +22,7 @@ import (
 	"github.com/go-text/typesetting/opentype/tables"
 )
 
-// based on upstream commit 449c4296a11a8b3d3882d4a4d6705281f5ff52e5
+// based on upstream commit 5d543d64222c6ce45332d0c188790f90691ef112
 
 // debugMode is only used in test: if true, it prints detailed information
 // about shaping
