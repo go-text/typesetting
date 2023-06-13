@@ -12,8 +12,10 @@ import (
 	"github.com/go-text/typesetting/opentype/api"
 )
 
-var errEmptySbixTable = errors.New("empty 'sbix' table")
-var errEmptyBitmapTable = errors.New("empty bitmap table")
+var (
+	errEmptySbixTable   = errors.New("empty 'sbix' table")
+	errEmptyBitmapTable = errors.New("empty bitmap table")
+)
 
 // GlyphData returns the glyph content for [gid], or nil if
 // not found.
@@ -97,6 +99,11 @@ func (bt bitmap) glyphData(gid gID, xPpem, yPpem uint16) (api.GlyphBitmap, error
 		out.Format = api.PNG
 	case 2, 5:
 		out.Format = api.BlackAndWhite
+		// ensure data length
+		L := out.Width * out.Height // in bits
+		if len(out.Data)*8 < L {
+			return api.GlyphBitmap{}, fmt.Errorf("EOF in glyph bitmap: expected %d, got %d", L, len(out.Data)*8)
+		}
 	default:
 		return api.GlyphBitmap{}, fmt.Errorf("unsupported format %d in bitmap table", subtable.imageFormat)
 	}
