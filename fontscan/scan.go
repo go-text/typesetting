@@ -45,6 +45,11 @@ func DefaultFontDirectories() ([]string, error) {
 			"/System/Library/Assets/com_apple_MobileAsset_Font4",
 			"/System/Library/Assets/com_apple_MobileAsset_Font5",
 		}
+	case "openbsd", "freebsd":
+		dirs = []string{
+			"/usr/X11R6/lib/X11/fonts",
+			"/usr/local/share/fonts",
+		}
 	case "linux":
 		dirs = []string{
 			"/usr/share/fonts",
