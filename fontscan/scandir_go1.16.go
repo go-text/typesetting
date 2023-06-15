@@ -1,5 +1,5 @@
-//go:build go1.16 && never
-// +build go1.16,never
+//go:build go1.16
+// +build go1.16
 
 package fontscan
 

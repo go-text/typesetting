@@ -1,5 +1,5 @@
-//go:build !go1.16 || go1.16
-// +build !go1.16 go1.16
+//go:build !go1.16
+// +build !go1.16
 
 package fontscan
 
@@ -79,8 +79,37 @@ func (e dirEntryAdapter) Info() (os.FileInfo, error) {
 	return e.FileInfo, nil
 }
 
+// Type copies the constants from modern Go's fs package and uses them to provide a file's
+// Type.
+// https://cs.opensource.google/go/go/+/refs/tags/go1.20.5:src/io/fs/fs.go;l=239
 func (e dirEntryAdapter) Type() os.FileMode {
-	return e.FileInfo.Mode().Type()
+	// The defined file mode bits are the most significant bits of the FileMode.
+	// The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
+	// The values of these bits should be considered part of the public API and
+	// may be used in wire protocols or disk representations: they must not be
+	// changed, although new bits might be added.
+	const (
+		// The single letters are the abbreviations
+		// used by the String method's formatting.
+		ModeDir        os.FileMode = 1 << (32 - 1 - iota) // d: is a directory
+		ModeAppend                                        // a: append-only
+		ModeExclusive                                     // l: exclusive use
+		ModeTemporary                                     // T: temporary file; Plan 9 only
+		ModeSymlink                                       // L: symbolic link
+		ModeDevice                                        // D: device file
+		ModeNamedPipe                                     // p: named pipe (FIFO)
+		ModeSocket                                        // S: Unix domain socket
+		ModeSetuid                                        // u: setuid
+		ModeSetgid                                        // g: setgid
+		ModeCharDevice                                    // c: Unix character device, when ModeDevice is set
+		ModeSticky                                        // t: sticky
+		ModeIrregular                                     // ?: non-regular file; nothing else is known about this file
+
+		// Mask for the type bits. For regular files, none will be set.
+		ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
+	)
+
+	return e.FileInfo.Mode() & ModeType
 }
 
 // readDir re-implements os.ReadDir (Go 1.16+) using only Go 1.14's stdlib.
