@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/go-text/typesetting/opentype/loader"
@@ -67,6 +68,13 @@ func DefaultFontDirectories() ([]string, error) {
 				dirs = append(dirs, filepath.Join(dataPath, "fonts"))
 			}
 		}
+
+		fcDirs, err := parseFcConfig(fcRootConfig)
+		if err != nil {
+			log.Printf("unable to process fontconfig config file: %s", err)
+		} else {
+			dirs = append(dirs, fcDirs...)
+		}
 	case "android":
 		dirs = []string{
 			"/system/fonts",
@@ -82,9 +90,21 @@ func DefaultFontDirectories() ([]string, error) {
 		return nil, fmt.Errorf("unsupported plaform %s", runtime.GOOS)
 	}
 
-	var validDirs []string
+	var (
+		validDirs []string
+		seen      = map[string]bool{}
+	)
 	for _, dir := range dirs {
 		dir = expandUser(dir)
+		dir, err := filepath.Abs(dir)
+		if err != nil {
+			continue
+		}
+
+		if seen[dir] {
+			continue
+		}
+		seen[dir] = true
 
 		info, err := os.Stat(dir)
 		if err != nil { // ignore the non existent directory
@@ -98,6 +118,8 @@ func DefaultFontDirectories() ([]string, error) {
 
 		validDirs = append(validDirs, dir)
 	}
+	sort.Strings(validDirs)
+
 	if len(validDirs) == 0 {
 		return nil, errors.New("no font directory found")
 	}
