@@ -11,10 +11,79 @@ import (
 	"strings"
 )
 
-// Support for a (very limited) subset of the Linux fontconfig config file format
-// See https://www.freedesktop.org/wiki/Software/fontconfig/ for reference
+// fcVars captures the environment configuration that determines how fontconfig resolves configuration
+// files. It can be populated from the environment by [fcVarsFromEnv], but is decoupled from the environment
+// for ease of testing.
+type fcVars struct {
+	// xdgDataHome is the location of the user's data files, extracted from $XDG_DATA_HOME.
+	xdgDataHome string
+	// xdgDataHome is the location of the user's config files, extracted from $XDG_CONFIG_HOME.
+	xdgConfigHome string
+	// userHome is the home directory of the current user, resolved from $HOME.
+	userHome string
+	// configFile is the name of the configuration file, extracted from $FONTCONFIG_FILE.
+	configFile string
+	// paths is the list of configuration paths, extracted from $FONTCONFIG_PATH
+	paths []string
+	// sysroot is the root directory of the fontconfig system logically. It is prepended
+	// to all other paths, and is usually empty.
+	sysroot string
+}
 
-const fcRootConfig = "/etc/fonts/fonts.conf"
+func fcVarsFromEnv() fcVars {
+	home := os.Getenv("HOME")
+	return fcVars{
+		xdgDataHome:   getEnvWithDefault("XDG_DATA_HOME", filepath.Join(home, ".local", "share")),
+		xdgConfigHome: getEnvWithDefault("XDG_CONFIG_HOME", filepath.Join(home, ".config")),
+		configFile:    getEnvWithDefault("FONTCONFIG_FILE", "fonts.conf"),
+		paths:         filepath.SplitList(getEnvWithDefault("$FONTCONFIG_PATH", "/etc/fonts")),
+		sysroot:       os.Getenv("FONTCONFIG_SYSROOT"),
+		userHome:      home,
+	}
+}
+
+// resolveRoot returns the path of the root fontconfig file according to the fcVars.
+func (f fcVars) resolveRoot() string {
+	return f.resolvePath(f.configFile)
+}
+
+// resolvePath applies fontconfig's heuristics for finding a path referenced within its config.
+func (f fcVars) resolvePath(path string) string {
+	hasSysroot := len(f.sysroot) > 0
+	if filepath.IsAbs(path) {
+		if hasSysroot && !strings.HasPrefix(path, f.sysroot) {
+			path = filepath.Join(f.sysroot, path)
+		}
+		return path
+	}
+	if strings.HasPrefix(path, "~") {
+		path = filepath.Join(f.userHome, strings.TrimPrefix(path, "~"))
+		if hasSysroot {
+			path = filepath.Join(f.sysroot, path)
+		}
+		return path
+	}
+	for _, p := range f.paths {
+		candidate := filepath.Join(p, path)
+		if hasSysroot {
+			candidate = filepath.Join(f.sysroot, candidate)
+		}
+		if _, err := os.Stat(candidate); err != nil {
+			continue
+		}
+		return candidate
+	}
+	log.Printf("fontconfig referenced path %q, but it could not be resolved to a real path", path)
+	return ""
+}
+
+func getEnvWithDefault(envVar string, defaultVal string) string {
+	val, ok := os.LookupEnv(envVar)
+	if !ok {
+		return defaultVal
+	}
+	return val
+}
 
 const (
 	_ = iota
@@ -54,7 +123,9 @@ func (directive *fcDirective) UnmarshalXML(d *xml.Decoder, start xml.StartElemen
 // parseFcFile opens and process a FontConfig config file,
 // returning the font directories to scan and the (optionnal)
 // supplementary config files (or directories) to include.
-func parseFcFile(file, currentWorkingDir string) (fontDirs, includes []string, _ error) {
+// The file parameter is expected to already be resolved by
+// resolvePath().
+func (fc fcVars) parseFcFile(file, currentWorkingDir string) (fontDirs, includes []string, _ error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening fontconfig config file: %s", err)
@@ -70,7 +141,6 @@ func parseFcFile(file, currentWorkingDir string) (fontDirs, includes []string, _
 	}
 
 	// post-process : handle "prefix" attr and use absolute path
-	xdg := os.Getenv("XDG_DATA_HOME")
 	for _, item := range config.Fontconfig {
 		switch item.kind {
 		case fcDir:
@@ -81,30 +151,27 @@ func parseFcFile(file, currentWorkingDir string) (fontDirs, includes []string, _
 			case "relative":
 				dir = filepath.Join(filepath.Dir(file), dir)
 			case "xdg":
-				dir = filepath.Join(xdg, dir)
+				dir = filepath.Join(fc.xdgDataHome, dir)
 			}
 			fontDirs = append(fontDirs, dir)
 		case fcInclude:
 			include := item.include.Include
 			if item.include.Prefix == "xdg" {
-				include = filepath.Join(xdg, include)
-			} else {
-				// handle implicit relative dirs
-				if strings.HasPrefix(include, "~") {
-					include = expandUser(include)
-				} else if !filepath.IsAbs(include) {
-					include = filepath.Join(filepath.Dir(file), include)
-				}
+				include = filepath.Join(fc.xdgConfigHome, include)
 			}
-			includes = append(includes, include)
+			include = fc.resolvePath(include)
+			if len(include) > 0 {
+				includes = append(includes, include)
+			}
 		}
 	}
 	return
 }
 
 // parseFcDir processes all the files in [dir] matching the [09]*.conf pattern
-// seen is updated with the processed fontconfig files
-func parseFcDir(dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
+// seen is updated with the processed fontconfig files. The dir parameter is
+// expected to already be resolved by resolvePath.
+func (fc fcVars) parseFcDir(dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
 	entries, err := readDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading fontconfig config directory: %s", err)
@@ -119,7 +186,7 @@ func parseFcDir(dir, currentWorkingDir string, seen map[string]bool) (fontDirs, 
 			if '0' <= c && c <= '9' {
 				file := filepath.Join(dir, name)
 				seen[file] = true
-				fds, incs, err := parseFcFile(file, currentWorkingDir)
+				fds, incs, err := fc.parseFcFile(file, currentWorkingDir)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -134,8 +201,9 @@ func parseFcDir(dir, currentWorkingDir string, seen map[string]bool) (fontDirs, 
 
 // parseFcConfig recursively parses the fontconfig config file at [rootConfig]
 // and its includes, returning the font directories to scan
-func parseFcConfig(rootConfig string) ([]string, error) {
-	seen := map[string]bool{rootConfig: true}
+func (fc fcVars) parseFcConfig() ([]string, error) {
+	root := fc.resolveRoot()
+	seen := map[string]bool{root: true}
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -143,7 +211,7 @@ func parseFcConfig(rootConfig string) ([]string, error) {
 	}
 
 	// includes is a queue
-	dirs, includes, err := parseFcFile(rootConfig, cwd)
+	dirs, includes, err := fc.parseFcFile(root, cwd)
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +230,9 @@ func parseFcConfig(rootConfig string) ([]string, error) {
 
 		var newDirs, newIncludes []string
 		if fi.IsDir() {
-			newDirs, newIncludes, err = parseFcDir(include, cwd, seen)
+			newDirs, newIncludes, err = fc.parseFcDir(include, cwd, seen)
 		} else {
-			newDirs, newIncludes, err = parseFcFile(include, cwd)
+			newDirs, newIncludes, err = fc.parseFcFile(include, cwd)
 		}
 		if err != nil {
 			return nil, err
