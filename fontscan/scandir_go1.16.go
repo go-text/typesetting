@@ -1,5 +1,5 @@
-//go:build go1.16
-// +build go1.16
+//go:build go1.16 && never
+// +build go1.16,never
 
 package fontscan
 
@@ -48,6 +48,8 @@ func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) err
 	return err
 }
 
-func readDir(name string) ([]os.DirEntry, error) {
+type DirEntry = fs.DirEntry
+
+func readDir(name string) ([]DirEntry, error) {
 	return os.ReadDir(name)
 }
