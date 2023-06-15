@@ -46,3 +46,17 @@ func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) err
 
 	return err
 }
+
+// readDir re-implements os.ReadDir (Go 1.16+) using only Go 1.14's stdlib.
+func readDir(name string) ([]os.DirEntry, error) {
+	d, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+	entries, err := d.ReadDir(0)
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
