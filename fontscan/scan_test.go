@@ -113,6 +113,8 @@ func TestScanIncrementalUpdate(t *testing.T) {
 		t.Fatalf("unexpected font set: %v", fontset)
 	}
 
+	time.Sleep(time.Millisecond * 10)
+
 	// test adding a new file
 	copyFile(t, filepath.Join("..", "font", "testdata", "Roboto-Regular.ttf"), filepath.Join(dir, "font2.ttf"))
 
@@ -121,6 +123,8 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	if len(fontset2) != 2 {
 		t.Fatalf("unexpected font set: %v", fontset)
 	}
+
+	time.Sleep(time.Millisecond * 10)
 
 	// test updating an existing file
 	copyFile(t, filepath.Join("..", "font", "testdata", "Roboto-Regular.ttf"), filepath.Join(dir, "font1.ttf"))
@@ -133,6 +137,8 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	if family := fontset3.flatten()[0].Family; family != "roboto" {
 		t.Fatalf("unexpected family %s", family)
 	}
+
+	time.Sleep(time.Millisecond * 10)
 
 	incremental, err := scanFontFootprints(fontset2, dir)
 	tu.AssertNoErr(t, err)
