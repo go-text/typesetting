@@ -105,7 +105,7 @@ func parseFcFile(file, currentWorkingDir string) (fontDirs, includes []string, _
 // parseFcDir processes all the files in [dir] matching the [09]*.conf pattern
 // seen is updated with the processed fontconfig files
 func parseFcDir(dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
-	entries, err := os.ReadDir(dir)
+	entries, err := readDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading fontconfig config directory: %s", err)
 	}
