@@ -47,3 +47,7 @@ func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) err
 
 	return err
 }
+
+func readDir(name string) ([]os.DirEntry, error) {
+	return os.ReadDir(name)
+}
