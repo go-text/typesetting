@@ -67,8 +67,8 @@ func DefaultFontDirectories() ([]string, error) {
 				dirs = append(dirs, filepath.Join(dataPath, "fonts"))
 			}
 		}
-
-		fcDirs, err := parseFcConfig(fcRootConfig)
+		fc := fcVarsFromEnv()
+		fcDirs, err := fc.parseFcConfig()
 		if err != nil {
 			log.Printf("unable to process fontconfig config file: %s", err)
 		} else {
