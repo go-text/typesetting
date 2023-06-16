@@ -15,9 +15,10 @@ import (
 func Test_serializeFootprints(t *testing.T) {
 	input := []footprint{
 		{
-			Family: "a strange one",
-			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			Aspect: meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
+			Family:      "a strange one",
+			Runes:       newRuneSet(1, 0, 2, 0x789, 0xfffee),
+			Aspect:      meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
+			IsMonospace: true,
 		},
 		{
 			Runes: runeSet{},
