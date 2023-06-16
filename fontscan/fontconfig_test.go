@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 
 	tu "github.com/go-text/typesetting/opentype/testutils"
@@ -32,16 +33,24 @@ func TestParseFontconfig(t *testing.T) {
 	tu.Assert(t, len(includes) == 2)
 
 	dirs, err = fc.parseFcConfig()
+	for i, s := range dirs {
+		dirs[i] = filepath.ToSlash(s)
+	}
+	sort.Strings(dirs)
 	tu.AssertNoErr(t, err)
 	expected := []string{
 		"/usr/share/fonts",
 		"/usr/local/share/fonts",
-		filepath.Clean("/xdgData/fonts"),
-		filepath.Clean("~/.fonts"),
+		"/xdgData/fonts",
+		"~/.fonts",
 		"my_Custom_Font_Dir",
 		filepath.Join(cwd, "fontconfig_test/conf.d/relative_font_dir"),
 		filepath.Join(cwd, "cwd_font_dir"),
 	}
+	for i, s := range expected {
+		expected[i] = filepath.ToSlash(s)
+	}
+	sort.Strings(expected)
 	if !reflect.DeepEqual(expected, dirs) {
 		t.Errorf("expected %q\ngot %q", expected, dirs)
 	}
