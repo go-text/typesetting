@@ -554,18 +554,6 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 // Handle legacy font with remap
 // TODO: the Iter() method does not include the additional mapping
 
-func symbolPuaMap(r rune) rune {
-	if r <= 0x00FF {
-		/* For symbol-encoded OpenType fonts, we duplicate the
-		 * U+F000..F0FF range at U+0000..U+00FF.  That's what
-		 * Windows seems to do, and that's hinted about at:
-		 * https://docs.microsoft.com/en-us/typography/opentype/spec/recom
-		 * under "Non-Standard (Symbol) Fonts". */
-		return 0xF000 + r
-	}
-	return 0
-}
-
 type remaperSymbol struct {
 	Cmap
 }
