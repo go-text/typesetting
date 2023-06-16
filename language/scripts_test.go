@@ -11,8 +11,9 @@ func TestParseScript(t *testing.T) {
 		want    Script
 		wantErr bool
 	}{
-		{"xxxxx", 0, true},
+		{"xxx", 0, true},
 		{"bamu", Bamum, false},
+		{"bamu_to_long", Bamum, false},
 		{"cyrl", Cyrillic, false},
 		{"samr", Samaritan, false},
 	}
