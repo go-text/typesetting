@@ -25,6 +25,8 @@ func oldTagFromScript(script language.Script) tables.Tag {
 	switch script {
 	case 0:
 		return tagDefaultScript
+	case language.Mathematical_notation:
+		return loader.NewTag('m', 'a', 't', 'h')
 
 	/* KATAKANA and HIRAGANA both map to 'kana' */
 	case language.Hiragana:

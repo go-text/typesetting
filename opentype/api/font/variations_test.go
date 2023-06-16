@@ -97,7 +97,7 @@ func TestAdvanceHVar(t *testing.T) {
 	}
 	tu.Assert(t, font.hvar != nil)
 	for i, exp := range exps {
-		got := getAdvanceVar(font.hvar, tables.GlyphID(i), coords)
+		got := getAdvanceDeltaUnscaled(font.hvar, tables.GlyphID(i), coords)
 		tu.Assert(t, exp == got)
 	}
 }

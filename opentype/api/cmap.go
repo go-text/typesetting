@@ -36,7 +36,8 @@ func (c cmapID) key() uint32 { return uint32(c.platform)<<16 | uint32(c.encoding
 // ProcessCmap sanitize the given 'cmap' subtable, and select the best encoding
 // when several subtables are given.
 // When present, the variation selectors are returned.
-func ProcessCmap(cmap tables.Cmap) (Cmap, UnicodeVariations, error) {
+// [os2FontPage] is used for legacy arabic fonts.
+func ProcessCmap(cmap tables.Cmap, os2FontPage tables.FontPage) (Cmap, UnicodeVariations, error) {
 	var (
 		candidateIds []cmapID
 		candidates   []Cmap
@@ -84,7 +85,16 @@ func ProcessCmap(cmap tables.Cmap) (Cmap, UnicodeVariations, error) {
 
 	// Prefer symbol if available.
 	if index := findSubtable(cmapID{tables.PlatformMicrosoft, tables.PEMicrosoftSymbolCs}, candidateIds); index != -1 {
-		return candidates[index], uv, nil
+		cm := candidates[index]
+		switch os2FontPage {
+		case tables.FPNone:
+			cm = remaperSymbol{cm}
+		case tables.FPSimpArabic:
+			cm = remaperPUASimp{cm}
+		case tables.FPTradArabic:
+			cm = remaperPUATrad{cm}
+		}
+		return cm, uv, nil
 	}
 
 	/* 32-bit subtables. */
@@ -539,4 +549,64 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 		}
 	}
 	return 0, VariantNotFound
+}
+
+// Handle legacy font with remap
+// TODO: the Iter() method does not include the additional mapping
+
+type remaperSymbol struct {
+	Cmap
+}
+
+func (rs remaperSymbol) Lookup(r rune) (GID, bool) {
+	// try without map first
+	if g, ok := rs.Cmap.Lookup(r); ok {
+		return g, true
+	}
+
+	if r <= 0x00FF {
+		/* For symbol-encoded OpenType fonts, we duplicate the
+		 * U+F000..F0FF range at U+0000..U+00FF.  That's what
+		 * Windows seems to do, and that's hinted about at:
+		 * https://docs.microsoft.com/en-us/typography/opentype/spec/recom
+		 * under "Non-Standard (Symbol) Fonts". */
+		mapped := 0xF000 + r
+		return rs.Lookup(mapped)
+	}
+
+	return 0, false
+}
+
+type remaperPUASimp struct {
+	Cmap
+}
+
+func (rs remaperPUASimp) Lookup(r rune) (GID, bool) {
+	// try without map first
+	if g, ok := rs.Cmap.Lookup(r); ok {
+		return g, true
+	}
+
+	if mapped := arabicPUASimpMap(r); mapped != 0 {
+		return rs.Lookup(mapped)
+	}
+
+	return 0, false
+}
+
+type remaperPUATrad struct {
+	Cmap
+}
+
+func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
+	// try without map first
+	if g, ok := rs.Cmap.Lookup(r); ok {
+		return g, true
+	}
+
+	if mapped := arabicPUATradMap(r); mapped != 0 {
+		return rs.Lookup(mapped)
+	}
+
+	return 0, false
 }
