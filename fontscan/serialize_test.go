@@ -36,6 +36,21 @@ func Test_serializeFootprints(t *testing.T) {
 	}
 }
 
+// Test_serializeEmpty ensures that serializing an empty index is safe.
+func Test_serializeEmpty(t *testing.T) {
+	input := []footprint{}
+	dump := serializeFootprintsTo(input, nil)
+
+	got, err := deserializeFootprints(dump)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(input) != len(got) {
+		t.Errorf("expected %d footprints, got %d", len(input), len(got))
+	}
+}
+
 func assertFontsetEquals(expected, got []footprint) error {
 	if len(expected) != len(got) {
 		return fmt.Errorf("invalid length: expected %d, got %d", len(expected), len(got))
