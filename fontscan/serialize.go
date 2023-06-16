@@ -72,51 +72,65 @@ func deserializeAspectFrom(data []byte, as *meta.Aspect) (int, error) {
 	return aspectSize, nil
 }
 
+func serializeBool(b bool) byte {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // serializeTo serialize the Footprint in binary format,
 // by appending to `dst` and returning the slice
-func (as footprint) serializeTo(dst []byte) []byte {
-	dst = append(dst, serializeString(as.Location.File)...)
+func (fp footprint) serializeTo(dst []byte) []byte {
+	dst = append(dst, serializeString(fp.Location.File)...)
 
 	var buffer [4]byte
-	binary.BigEndian.PutUint16(buffer[:], as.Location.Index)
-	binary.BigEndian.PutUint16(buffer[2:], as.Location.Instance)
+	binary.BigEndian.PutUint16(buffer[:], fp.Location.Index)
+	binary.BigEndian.PutUint16(buffer[2:], fp.Location.Instance)
 	dst = append(dst, buffer[:]...)
 
-	dst = append(dst, serializeString(as.Family)...)
-	dst = append(dst, as.Runes.serialize()...)
-	dst = append(dst, serializeAspect(as.Aspect)...)
+	dst = append(dst, serializeString(fp.Family)...)
+	dst = append(dst, fp.Runes.serialize()...)
+	dst = append(dst, serializeAspect(fp.Aspect)...)
+	dst = append(dst, serializeBool(fp.IsMonospace))
+
 	return dst
 }
 
 // deserializeFrom reads the binary format produced by serializeTo
 // it returns the number of bytes read from `data`
-func (as *footprint) deserializeFrom(data []byte) (int, error) {
-	n, err := deserializeString(&as.Location.File, data)
+func (fp *footprint) deserializeFrom(data []byte) (int, error) {
+	n, err := deserializeString(&fp.Location.File, data)
 	if err != nil {
 		return 0, err
 	}
 	if len(data) < n+4 {
 		return 0, errors.New("invalid Location (EOF)")
 	}
-	as.Location.Index = binary.BigEndian.Uint16(data[n:])
-	as.Location.Instance = binary.BigEndian.Uint16(data[n+2:])
+	fp.Location.Index = binary.BigEndian.Uint16(data[n:])
+	fp.Location.Instance = binary.BigEndian.Uint16(data[n+2:])
 	n += 4
 
-	read, err := deserializeString(&as.Family, data[n:])
+	read, err := deserializeString(&fp.Family, data[n:])
 	if err != nil {
 		return 0, err
 	}
 	n += read
-	read, err = as.Runes.deserializeFrom(data[n:])
+	read, err = fp.Runes.deserializeFrom(data[n:])
 	if err != nil {
 		return 0, err
 	}
 	n += read
-	read, err = deserializeAspectFrom(data[n:], &as.Aspect)
+	read, err = deserializeAspectFrom(data[n:], &fp.Aspect)
 	if err != nil {
 		return 0, err
 	}
 	n += read
+	if len(data) < n+1 {
+		return 0, errors.New("invalid IsMonospace (EOF)")
+	}
+	fp.IsMonospace = data[n] == 1
+	n += 1
 
 	return n, nil
 }

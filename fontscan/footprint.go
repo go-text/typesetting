@@ -31,6 +31,9 @@ type footprint struct {
 	// Aspect precises the visual characteristics
 	// of the font among a family, like "Bold Italic"
 	Aspect meta.Aspect
+
+	// IsMonospace is the glyph of the font have constant width
+	IsMonospace bool
 }
 
 func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
@@ -48,9 +51,10 @@ func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
 	}
 	out.Runes = newRuneSetFromCmap(cmap) // ... and build the corresponding rune set
 
-	me := meta.NewFontDescriptor(ld)
-	out.Family = meta.NormalizeFamily(me.Family())
-	out.Aspect = me.Aspect()
+	desc := meta.Metadata(ld)
+	out.Family = meta.NormalizeFamily(desc.Family)
+	out.Aspect = desc.Aspect
+	out.IsMonospace = desc.IsMonospace
 
 	return out, nil
 }
