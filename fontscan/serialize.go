@@ -187,10 +187,17 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 
 const cacheFormatVersion = 1
 
+func max(i, j int) int {
+	if i > j {
+		return i
+	}
+	return j
+}
+
 // serialize into binary format, compressed with gzip
 func (index systemFontsIndex) serializeTo(w io.Writer) error {
 	// version as uint16 + len as uint32 + somewhat the minimum size for a footprint
-	buffer := make([]byte, 6, 4+len(index)*(aspectSize+1+2))
+	buffer := make([]byte, 6, max(6, 4+len(index)*(aspectSize+1+2)))
 	binary.BigEndian.PutUint16(buffer[:], cacheFormatVersion)
 	binary.BigEndian.PutUint32(buffer[2:], uint32(len(index)))
 
