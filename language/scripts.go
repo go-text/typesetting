@@ -12,8 +12,9 @@ import (
 type Script uint32
 
 // ParseScript simply converts a 4 bytes string into its binary encoding.
+// If [script] is longer, only its 4 first bytes are used.
 func ParseScript(script string) (Script, error) {
-	if len(script) != 4 {
+	if len(script) < 4 {
 		return 0, fmt.Errorf("invalid script string: %s", script)
 	}
 	return Script(binary.BigEndian.Uint32([]byte(script))), nil
