@@ -4,18 +4,7 @@ import (
 	"reflect"
 	"testing"
 	"unicode"
-
-	"github.com/go-text/typesetting/language"
 )
-
-func TestHasArabicJoining(t *testing.T) {
-	if !HasArabicJoining(language.Arabic) {
-		t.Fatal()
-	}
-	if HasArabicJoining(language.Linear_A) {
-		t.Fatal()
-	}
-}
 
 func TestUnicodeNormalization(t *testing.T) {
 	assertCompose := func(a, b rune, okExp bool, abExp rune) {

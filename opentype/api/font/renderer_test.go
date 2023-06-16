@@ -554,7 +554,7 @@ func TestEblcGlyph(t *testing.T) {
 		cmapT, _, err := tables.ParseCmap(readTable(t, ld, "cmap"))
 		tu.AssertNoErr(t, err)
 
-		cmap, _, err := api.ProcessCmap(cmapT)
+		cmap, _, err := api.ProcessCmap(cmapT, tables.FPNone)
 		tu.AssertNoErr(t, err)
 
 		runes := runess[i]

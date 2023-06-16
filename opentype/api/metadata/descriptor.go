@@ -33,8 +33,10 @@ func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
 
 	// load tables, all considered optional
 	raw, _ := ld.RawTable(loader.MustNewTag("OS/2"))
+	fp := tables.FPNone
 	if os2, _, err := tables.ParseOs2(raw); err != nil {
 		out.os2 = &os2
+		fp = os2.FontPage()
 	}
 
 	raw, _ = ld.RawTable(loader.MustNewTag("name"))
@@ -44,7 +46,7 @@ func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
 
 	raw, _ = ld.RawTable(loader.MustNewTag("cmap"))
 	tb, _, _ := tables.ParseCmap(raw)
-	out.cmap, _, _ = api.ProcessCmap(tb)
+	out.cmap, _, _ = api.ProcessCmap(tb, fp)
 
 	raw, _ = ld.RawTable(loader.MustNewTag("name"))
 	out.names, _, _ = tables.ParseName(raw)
