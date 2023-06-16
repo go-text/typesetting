@@ -13,9 +13,9 @@ func TestParseFontconfig(t *testing.T) {
 	cwd, err := os.Getwd()
 	tu.AssertNoErr(t, err)
 	fc := fcVars{
-		xdgDataHome:   "/xdgData",
-		xdgConfigHome: "/xdgConfig",
-		userHome:      "/home/me",
+		xdgDataHome:   filepath.Clean("/xdgData"),
+		xdgConfigHome: filepath.Clean("/xdgConfig"),
+		userHome:      filepath.Clean("/home/me"),
 		configFile:    "fonts.conf",
 		paths:         []string{filepath.Join(cwd, "fontconfig_test")},
 		sysroot:       "",
@@ -36,8 +36,8 @@ func TestParseFontconfig(t *testing.T) {
 	expected := []string{
 		"/usr/share/fonts",
 		"/usr/local/share/fonts",
-		"/xdgData/fonts",
-		"~/.fonts",
+		filepath.Clean("/xdgData/fonts"),
+		filepath.Clean("~/.fonts"),
 		"my_Custom_Font_Dir",
 		filepath.Join(cwd, "fontconfig_test/conf.d/relative_font_dir"),
 		filepath.Join(cwd, "cwd_font_dir"),
