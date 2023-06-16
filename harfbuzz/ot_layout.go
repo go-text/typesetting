@@ -356,13 +356,6 @@ func otLayoutPositionFinishOffsets(_ *Font, buffer *Buffer) {
 	positionFinishOffsetsGPOS(buffer)
 }
 
-func clearSyllables(_ *otShapePlan, _ *Font, buffer *Buffer) {
-	info := buffer.Info
-	for i := range info {
-		info[i].syllable = 0
-	}
-}
-
 func glyphInfoSubstituted(info *GlyphInfo) bool {
 	return (info.glyphProps & substituted) != 0
 }

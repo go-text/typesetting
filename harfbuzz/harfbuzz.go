@@ -150,11 +150,6 @@ const (
 	// character sequences (such at <0905 093E>).
 	DoNotinsertDottedCircle
 
-	// Flag indicating that the [Buffer.Shape()] call and its variants
-	// should perform various verification processes on the results
-	// of the shaping operation on the buffer.
-	verify
-
 	// Flag indicating that the [GlyphUnsafeToConcat]
 	// glyph-flag should be produced by the shaper. By default
 	// it will not be produced since it incurs a cost.

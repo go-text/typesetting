@@ -248,7 +248,7 @@ func isAboveBaseMark(x rune) bool {
 	u := x & ^0x0080
 	return 0x0E34 <= u && u <= 0x0E37 ||
 		0x0E47 <= u && u <= 0x0E4E ||
-		0x0E31 == u ||
+		u == 0x0E31 ||
 		u == 0x0E3B
 }
 

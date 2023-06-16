@@ -131,14 +131,6 @@ func (cs *complexShaperKhmer) setupMasks(_ *otShapePlan, buffer *Buffer, _ *Font
 	}
 }
 
-/* Note: This enum is duplicated in the -machine.rl source file.
- * Not sure how to avoid duplication. */
-const (
-	otRobatic = 20
-	otXgroup  = 21
-	otYgroup  = 22
-)
-
 func setKhmerProperties(info *GlyphInfo) {
 	u := info.codepoint
 	type_ := indicGetCategories(u)

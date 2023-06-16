@@ -46,7 +46,7 @@ func (a aatFeatureEvent) isLess(b aatFeatureEvent) bool {
 	} else {
 		if !a.start && b.start {
 			return true
-		} else if !a.start && b.start {
+		} else if a.start && !b.start {
 			return false
 		}
 		return a.feature.isLess(b.feature)

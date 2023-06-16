@@ -225,13 +225,6 @@ func (it *skippingIterator) reset(startIndex, numItems int) {
 	}
 }
 
-func (it *skippingIterator) reject() {
-	it.numItems++
-	if len(it.matchGlyphDataArray) != 0 {
-		it.matchGlyphDataStart--
-	}
-}
-
 func (it *skippingIterator) maySkip(info *GlyphInfo) uint8 { return it.matcher.maySkip(it.c, info) }
 
 type matchRes uint8
@@ -387,16 +380,6 @@ func (c *otApplyContext) initIters() {
 
 func (c *otApplyContext) setLookupMask(mask GlyphMask) {
 	c.lookupMask = mask
-	c.initIters()
-}
-
-func (c *otApplyContext) setAutoZWNJ(autoZwnj bool) {
-	c.autoZWNJ = autoZwnj
-	c.initIters()
-}
-
-func (c *otApplyContext) setAutoZWJ(autoZwj bool) {
-	c.autoZWJ = autoZwj
 	c.initIters()
 }
 
