@@ -32,7 +32,7 @@ func TestShapeExpected(t *testing.T) {
 func TestDebug(t *testing.T) {
 	// This test is a shortcut to inspect one specific test
 	// when debugging
-	// t.Skip()
+	t.Skip()
 
 	// dir := "harfbuzz_reference/in-house/tests"
 	testString := `fonts/AdobeBlank2.ttf;--no-glyph-names --no-positions;U+1F1E6,U+1F1E8;[1=0|1=0]`
