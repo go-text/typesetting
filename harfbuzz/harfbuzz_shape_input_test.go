@@ -173,7 +173,6 @@ func newTestInput(t testing.TB, options string) testInput {
 
 	fo := newFontOptions()
 
-	flags.StringVar(&fo.fontRef.File, "font-file", "", "Set font file-name")
 	fontRefIndex := flags.Int("face-index", 0, "Set face index (default: 0)")
 	flags.Func("font-size", "Font size", fo.parseFontSize)
 	flags.Func("font-ppem", "Set x,y pixels per EM (default: 0; disabled)", fo.parseFontPpem)
