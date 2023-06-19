@@ -45,21 +45,14 @@ func DefaultFontDirectories() ([]string, error) {
 			"/System/Library/Assets/com_apple_MobileAsset_Font4",
 			"/System/Library/Assets/com_apple_MobileAsset_Font5",
 		}
-	case "openbsd", "freebsd":
+	case "linux", "openbsd", "freebsd":
 		dirs = []string{
 			"/usr/X11R6/lib/X11/fonts",
 			"/usr/local/share/fonts",
-		}
-	case "linux":
-		dirs = []string{
 			"/usr/share/fonts",
 			"/usr/share/texmf/fonts/opentype/public",
-		}
-
-		if dataPath := os.Getenv("XDG_DATA_HOME"); dataPath != "" {
-			dirs = append(dirs, "~/.fonts/", filepath.Join(dataPath, "fonts"))
-		} else {
-			dirs = append(dirs, "~/.fonts/", "~/.local/share/fonts/")
+			"~/.fonts/",
+			filepath.Join(getEnvWithDefault("XDG_DATA_HOME", "~/.local/share"), "fonts"),
 		}
 
 		if dataPaths := os.Getenv("XDG_DATA_DIRS"); dataPaths != "" {
