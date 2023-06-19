@@ -78,9 +78,9 @@ func NewFontMap() *FontMap {
 // per font map.
 // The first call of this method trigger a rather long scan.
 // A per-application on-disk cache is used to speed up subsequent initialisations.
-func (fm *FontMap) UseSystemFonts() error {
+func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	// safe for concurrent use; subsequent calls are no-ops
-	err := initSystemFonts()
+	err := initSystemFonts(cacheDir)
 	if err != nil {
 		return err
 	}
@@ -101,9 +101,12 @@ var (
 	initSystemFontsOnce sync.Once
 )
 
-func cacheDir() (string, error) {
+func cacheDir(userProvided string) (string, error) {
+	if userProvided != "" {
+		return userProvided, nil
+	}
 	// load an existing index
-	configDir, err := os.UserConfigDir()
+	configDir, err := os.UserCacheDir()
 	if err != nil {
 		return "", fmt.Errorf("resolving index cache path: %s", err)
 	}
@@ -114,7 +117,7 @@ func cacheDir() (string, error) {
 // If the returned error is nil, `SystemFonts` is guaranteed to contain
 // at least one valid font.Face.
 // It is protected by sync.Once, and is then safe to use by multiple goroutines.
-func initSystemFonts() error {
+func initSystemFonts(userCacheDir string) error {
 	var err error
 
 	initSystemFontsOnce.Do(func() {
@@ -122,7 +125,7 @@ func initSystemFonts() error {
 
 		// load an existing index
 		var dir string
-		dir, err = cacheDir()
+		dir, err = cacheDir(userCacheDir)
 		if err != nil {
 			return
 		}

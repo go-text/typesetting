@@ -22,7 +22,7 @@ func TestResolveFont(t *testing.T) {
 
 	tu.AssertC(t, fm.ResolveFace(0x20) == nil, "expected no face found in an empty FontMap")
 
-	err := fm.UseSystemFonts()
+	err := fm.UseSystemFonts(t.TempDir())
 	tu.AssertNoErr(t, err)
 
 	var logOutput bytes.Buffer
@@ -60,7 +60,7 @@ func TestResolveFont(t *testing.T) {
 func BenchmarkResolveFont(b *testing.B) {
 	fm := NewFontMap()
 
-	err := fm.UseSystemFonts()
+	err := fm.UseSystemFonts(b.TempDir())
 	tu.AssertNoErr(b, err)
 
 	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
@@ -78,7 +78,7 @@ func BenchmarkResolveFont(b *testing.B) {
 func BenchmarkSetQuery(b *testing.B) {
 	fm := NewFontMap()
 
-	err := fm.UseSystemFonts()
+	err := fm.UseSystemFonts(b.TempDir())
 	tu.AssertNoErr(b, err)
 
 	b.ResetTimer()
@@ -106,7 +106,7 @@ func Test_refreshSystemFontsIndex(t *testing.T) {
 }
 
 func TestInitSystemFonts(t *testing.T) {
-	err := initSystemFonts()
+	err := initSystemFonts(t.TempDir())
 	tu.AssertNoErr(t, err)
 
 	tu.AssertC(t, len(systemFonts.flatten()) != 0, "systemFonts should not be empty")
