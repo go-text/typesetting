@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/opentype/api"
+	"github.com/go-text/typesetting/opentype/api/metadata"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -57,6 +58,14 @@ func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
 	out.IsMonospace = desc.IsMonospace
 
 	return out, nil
+}
+
+func (fp *footprint) metadata() metadata.Description {
+	return metadata.Description{
+		Family:      fp.Family,
+		Aspect:      fp.Aspect,
+		IsMonospace: fp.IsMonospace,
+	}
 }
 
 // loadFromDisk assume the footprint location refers to the file system
