@@ -4,8 +4,8 @@
 package fontscan
 
 import (
-	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -15,7 +15,8 @@ import (
 func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) error {
 	walkFn := func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return fmt.Errorf("error walking font directories: %s", err)
+			log.Printf("error walking font directory %q: %v", path, err)
+			return filepath.SkipDir
 		}
 
 		if d.IsDir() { // keep going
