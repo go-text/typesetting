@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/go-text/typesetting/font"
@@ -84,6 +85,11 @@ func NewFontMap() *FontMap {
 // per font map.
 // The first call of this method trigger a rather long scan.
 // A per-application on-disk cache is used to speed up subsequent initialisations.
+// Callers can provide an appropriate directory path within which this cache may be
+// stored.
+//
+// NOTE: On Android, callers *must* provide a writable path manually, as it cannot
+// be inferred without access to the Java runtime environment of the application.
 func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	// safe for concurrent use; subsequent calls are no-ops
 	err := initSystemFonts(cacheDir)
@@ -112,6 +118,12 @@ func cacheDir(userProvided string) (string, error) {
 		return userProvided, nil
 	}
 	// load an existing index
+	if runtime.GOOS == "android" {
+		// There is no stable way to infer the proper place to store the cache
+		// with access to the Java runtime for the application. Rather than
+		// clutter our API with that, require the caller to provide a path.
+		return "", fmt.Errorf("user must provide cache directory on android")
+	}
 	configDir, err := os.UserCacheDir()
 	if err != nil {
 		return "", fmt.Errorf("resolving index cache path: %s", err)
@@ -149,6 +161,7 @@ func refreshSystemFontsIndex(cachePath string) (systemFontsIndex, error) {
 	if err != nil {
 		return nil, fmt.Errorf("searching font directories: %s", err)
 	}
+	log.Printf("using system font dirs %q", fontDirectories)
 
 	currentIndex, _ := deserializeIndexFile(cachePath)
 	// if an error occured (the cache file does not exists or is invalid), we start from scratch
