@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/opentype/api/metadata"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
 )
@@ -321,7 +320,7 @@ type candidates struct {
 }
 
 // returns nil if not candidates supports the rune `r`
-func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, metadata.Description) {
+func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, meta.Description) {
 	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range candidates {
 		// check the coverage
@@ -340,7 +339,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, metadata
 		}
 	}
 
-	return nil, metadata.Description{}
+	return nil, meta.Description{}
 }
 
 // ResolveFace select a font based on the current query (see `SetQuery`),
@@ -357,7 +356,7 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 // The function will return nil if the underlying font database is empty,
 // or if the file system is broken; otherwise the returned [font.Font] is always valid.
 // The returned metadata describes the selected face.
-func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, metadata.Description) {
+func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) {
 	// in many case, the same font will support a lot of runes
 	// thus, as an optimisation, we register the last used footprint and start
 	// to check if it supports `r`
@@ -412,7 +411,7 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, metadata.Descripti
 	// and AddFont also check for valid font files, meaning that
 	// a valid FontMap should always contain a valid face,
 	// and this should never happen in pratice
-	return nil, metadata.Description{}
+	return nil, meta.Description{}
 }
 
 func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
