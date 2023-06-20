@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path/filepath"
 
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
@@ -284,6 +285,10 @@ func deserializeIndexFile(cachePath string) (systemFontsIndex, error) {
 }
 
 func (index systemFontsIndex) serializeToFile(cachePath string) error {
+	dir, _ := filepath.Split(cachePath)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("unable to create system font cache dir %q: %w", dir, err)
+	}
 	f, err := os.Create(cachePath)
 	if err != nil {
 		return err
