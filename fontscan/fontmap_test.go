@@ -42,7 +42,7 @@ func TestResolveFont(t *testing.T) {
 	fmt.Println(len(foundFace), "faces used")
 
 	if logOutput.Len() != 0 {
-		t.Fatalf("unexpected logs %s", logOutput.String())
+		t.Fatalf("unexpected logs\n%s", logOutput.String())
 	}
 
 	logOutput.Reset()
@@ -55,7 +55,7 @@ func TestResolveFont(t *testing.T) {
 		}
 	}
 	if logOutput.Len() != 0 {
-		t.Fatalf("unexpected logs %s", logOutput.String())
+		t.Fatalf("unexpected logs\n%s", logOutput.String())
 	}
 }
 
