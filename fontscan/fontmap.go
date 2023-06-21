@@ -53,8 +53,13 @@ type FontMap struct {
 	metaCache map[font.Font]cacheEntry
 
 	// the database to query, either loaded from an index
-	// or populated with the UseSystemFonts and AddFont method
+	// or populated with the [UseSystemFonts], [AddFont], and/or [AddFace] method.
 	database fontSet
+
+	// manualLoads tracks indices into database that were inserted manually, rather than
+	// discovered by traversing the filesystem. These faces should be tried if no substitions
+	// are able to match the query.
+	manualLoads []int
 
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
@@ -244,12 +249,28 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 	if len(addedFonts) == 0 {
 		return fmt.Errorf("empty font resource %s", fileID)
 	}
+	dbStartlen := len(fm.database)
+	for i := dbStartlen; i < dbStartlen+len(addedFonts); i++ {
+		fm.manualLoads = append(fm.manualLoads, i)
+	}
 
 	fm.database = append(fm.database, addedFonts...)
 
 	fm.buildCandidates()
 
 	return nil
+}
+
+// [AddFace] inserts an already-loaded font.Face into the FontMap. The caller
+// is responsible for ensuring that [md] is accurate for the face.
+func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
+	fp := newFootprintFromFont(face.Font, md)
+	fm.cache(fp, face)
+
+	fm.manualLoads = append(fm.manualLoads, len(fm.database))
+	fm.database = append(fm.database, fp)
+
+	fm.buildCandidates()
 }
 
 func (fm *FontMap) cache(fp footprint, face font.Face) {
@@ -281,25 +302,32 @@ func (fm *FontMap) SetQuery(query Query) {
 	fm.buildCandidates()
 }
 
-func (cd *candidates) resetWithSize(L int) {
-	if cap(cd.withFallback) < L { // reallocate
-		cd.withFallback = make([][]int, L)
-		cd.withoutFallback = make([]int, L)
+func (cd *candidates) resetWithSize(candidateSize, manualSize int) {
+	if cap(cd.withFallback) < candidateSize { // reallocate
+		cd.withFallback = make([][]int, candidateSize)
+		cd.withoutFallback = make([]int, candidateSize)
+	}
+	if cap(cd.manual) < manualSize {
+		cd.manual = make([]int, manualSize)
 	}
 	// only reslice
-	cd.withFallback = cd.withFallback[0:L]
-	cd.withoutFallback = cd.withoutFallback[0:L]
+	cd.withFallback = cd.withFallback[0:candidateSize]
+	cd.withoutFallback = cd.withoutFallback[0:candidateSize]
+	cd.manual = cd.manual[0:manualSize]
 
 	// reset to "zero" values
 	for i := range cd.withoutFallback {
 		cd.withFallback[i] = nil
 		cd.withoutFallback[i] = -1
 	}
+	for i := range cd.manual {
+		cd.manual[i] = -1
+	}
 }
 
 func (fm *FontMap) buildCandidates() {
 	fm.lastFootprintIndex = -1
-	fm.candidates.resetWithSize(len(fm.query.Families))
+	fm.candidates.resetWithSize(len(fm.query.Families), len(fm.manualLoads))
 
 	selectFootprints := func(systemFallback bool) {
 		for familyIndex, family := range fm.query.Families {
@@ -323,13 +351,18 @@ func (fm *FontMap) buildCandidates() {
 
 	selectFootprints(false)
 	selectFootprints(true)
+
+	copy(fm.candidates.manual, fm.manualLoads)
+	fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
 }
 
 // candidates is a cache storing the indices into FontMap.database of footprints matching a Query
-// the two slices has the same length: the number of family in the query
 type candidates struct {
+	// the two fallback slices have the same length: the number of family in the query
 	withFallback    [][]int // for each queried family
 	withoutFallback []int   // for each queried family, only one footprint is selected
+
+	manual []int // manually inserted faces to be tried if the other candidates fail.
 }
 
 // returns nil if not candidates supports the rune `r`
@@ -390,6 +423,17 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 	// if no family has matched so far, try again with system fallback
 	for _, footprintIndexList := range fm.candidates.withFallback {
 		if face, _ := fm.resolveForRune(footprintIndexList, r); face != nil {
+			return face
+		}
+	}
+
+	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
+	// and rune coverage.
+	for _, footprintIndex := range fm.candidates.manual {
+		if footprintIndex == -1 {
+			continue
+		}
+		if face, _ := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
 			return face
 		}
 	}
