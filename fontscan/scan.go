@@ -18,7 +18,7 @@ import (
 // DefaultFontDirectories return the OS-dependent usual directories for
 // fonts, or an error if no one exists.
 // These are the directories used by `FindFont` and `FontMap.UseSystemFonts` to locate fonts.
-func DefaultFontDirectories() ([]string, error) {
+func DefaultFontDirectories(logger *log.Logger) ([]string, error) {
 	var dirs []string
 	switch runtime.GOOS {
 	case "windows":
@@ -61,9 +61,9 @@ func DefaultFontDirectories() ([]string, error) {
 			}
 		}
 		fc := fcVarsFromEnv()
-		fcDirs, err := fc.parseFcConfig()
+		fcDirs, err := fc.parseFcConfig(logger)
 		if err != nil {
-			log.Printf("unable to process fontconfig config file: %s", err)
+			logger.Printf("unable to process fontconfig config file: %s", err)
 		} else {
 			dirs = append(dirs, fcDirs...)
 		}
@@ -104,7 +104,7 @@ func DefaultFontDirectories() ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			log.Println("font dir is not a directory", dir)
+			logger.Println("font dir is not a directory", dir)
 			continue
 		}
 
@@ -282,14 +282,14 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 // `currentIndex` may be passed to avoid scanning font files that are
 // already present in `currentIndex` and up to date, and directly duplicating
 // the footprint in `currentIndex`
-func scanFontFootprints(currentIndex systemFontsIndex, dirs ...string) (systemFontsIndex, error) {
+func scanFontFootprints(logger *log.Logger, currentIndex systemFontsIndex, dirs ...string) (systemFontsIndex, error) {
 	// keep track of visited dirs to avoid double inclusions,
 	// for instance with symbolic links
 	visited := make(map[string]bool)
 
 	accu := newFootprintAccumulator(currentIndex)
 	for _, dir := range dirs {
-		err := scanDirectory(dir, visited, &accu)
+		err := scanDirectory(logger, dir, visited, &accu)
 		if err != nil {
 			return nil, err
 		}
@@ -329,12 +329,12 @@ func (fns *fileNameScanner) consume(path string, _ os.FileInfo) error {
 
 // returns a list of file path looking like font files
 // no font loading is performed by this function
-func scanFontFiles(dirs ...string) ([]string, error) {
+func scanFontFiles(logger *log.Logger, dirs ...string) ([]string, error) {
 	visited := make(map[string]bool)
 
 	var dst fileNameScanner
 	for _, dir := range dirs {
-		err := scanDirectory(dir, visited, &dst)
+		err := scanDirectory(logger, dir, visited, &dst)
 		if err != nil {
 			return nil, err
 		}

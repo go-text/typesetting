@@ -1,6 +1,8 @@
 package fontscan
 
 import (
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,18 +23,19 @@ func TestParseFontconfig(t *testing.T) {
 		paths:         []string{filepath.Join(cwd, "fontconfig_test")},
 		sysroot:       "",
 	}
+	logger := log.New(io.Discard, "", 0)
 
-	dirs, includes, err := fc.parseFcFile("fontconfig_test/fonts.conf", cwd)
+	dirs, includes, err := fc.parseFcFile(logger, "fontconfig_test/fonts.conf", cwd)
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(dirs) == 4)
 	tu.Assert(t, len(includes) == 1)
 
-	dirs, includes, err = fc.parseFcDir("fontconfig_test/conf.d", cwd, map[string]bool{})
+	dirs, includes, err = fc.parseFcDir(logger, "fontconfig_test/conf.d", cwd, map[string]bool{})
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(dirs) == 1)
 	tu.Assert(t, len(includes) == 2)
 
-	dirs, err = fc.parseFcConfig()
+	dirs, err = fc.parseFcConfig(logger)
 	for i, s := range dirs {
 		dirs[i] = filepath.ToSlash(s)
 	}
@@ -66,6 +69,7 @@ func TestParseFontconfigErrors(t *testing.T) {
 		sysroot:       "",
 	}
 
-	_, _, err := fc.parseFcFile("fontconfig_test/invalid.conf", "")
+	logger := log.New(io.Discard, "", 0)
+	_, _, err := fc.parseFcFile(logger, "fontconfig_test/invalid.conf", "")
 	tu.Assert(t, err != nil)
 }

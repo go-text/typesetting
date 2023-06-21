@@ -47,6 +47,7 @@ type cacheEntry struct {
 // A lightweight alternative is provided by the [FindFont] function, which only uses
 // file paths to select a font.
 type FontMap struct {
+	logger *log.Logger
 	// cache of already loaded faces
 	faces map[Location]cacheEntry
 
@@ -68,11 +69,15 @@ type FontMap struct {
 	lastFootprintIndex int
 }
 
-// NewFontMap return a new font map,
-// which should be filled with the `UseSystemFonts`
-// or `AddFont` methods.
-func NewFontMap() *FontMap {
+// NewFontMap return a new font map, which should be filled with the `UseSystemFonts`
+// or `AddFont` methods. The provided logger will be used to record non-fatal errors
+// encountered during font loading. If logger is nil, log.Default() is used.
+func NewFontMap(logger *log.Logger) *FontMap {
+	if logger == nil {
+		logger = log.Default()
+	}
 	return &FontMap{
+		logger:             logger,
 		faces:              make(map[Location]cacheEntry),
 		cribleBuffer:       make(familyCrible),
 		lastFootprintIndex: -1,
@@ -91,7 +96,7 @@ func NewFontMap() *FontMap {
 // be inferred without access to the Java runtime environment of the application.
 func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	// safe for concurrent use; subsequent calls are no-ops
-	err := initSystemFonts(cacheDir)
+	err := initSystemFonts(fm.logger, cacheDir)
 	if err != nil {
 		return err
 	}
@@ -134,7 +139,7 @@ func cacheDir(userProvided string) (string, error) {
 // If the returned error is nil, `SystemFonts` is guaranteed to contain
 // at least one valid font.Face.
 // It is protected by sync.Once, and is then safe to use by multiple goroutines.
-func initSystemFonts(userCacheDir string) error {
+func initSystemFonts(logger *log.Logger, userCacheDir string) error {
 	var err error
 
 	initSystemFontsOnce.Do(func() {
@@ -149,23 +154,23 @@ func initSystemFonts(userCacheDir string) error {
 
 		cachePath := filepath.Join(dir, cacheFile)
 
-		systemFonts, err = refreshSystemFontsIndex(cachePath)
+		systemFonts, err = refreshSystemFontsIndex(logger, cachePath)
 	})
 
 	return err
 }
 
-func refreshSystemFontsIndex(cachePath string) (systemFontsIndex, error) {
-	fontDirectories, err := DefaultFontDirectories()
+func refreshSystemFontsIndex(logger *log.Logger, cachePath string) (systemFontsIndex, error) {
+	fontDirectories, err := DefaultFontDirectories(logger)
 	if err != nil {
 		return nil, fmt.Errorf("searching font directories: %s", err)
 	}
-	log.Printf("using system font dirs %q", fontDirectories)
+	logger.Printf("using system font dirs %q", fontDirectories)
 
 	currentIndex, _ := deserializeIndexFile(cachePath)
 	// if an error occured (the cache file does not exists or is invalid), we start from scratch
 
-	updatedIndex, err := scanFontFootprints(currentIndex, fontDirectories...)
+	updatedIndex, err := scanFontFootprints(logger, currentIndex, fontDirectories...)
 	if err != nil {
 		return nil, fmt.Errorf("scanning system fonts: %s", err)
 	}
@@ -328,7 +333,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, meta.Des
 			// try to use the font
 			face, err := fm.loadFont(fp)
 			if err != nil { // very unlikely; try an other family
-				log.Println(err)
+				fm.logger.Println(err)
 				continue
 			}
 
@@ -370,7 +375,7 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) 
 			}
 
 			// very unlikely; warn and keep going
-			log.Println(err)
+			fm.logger.Println(err)
 		}
 	}
 
@@ -393,7 +398,7 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) 
 
 	// this is very very unlikely, since the substitution
 	// always add a default generic family
-	log.Printf("No font matched for %v -> returning arbitrary face", fm.query.Families)
+	fm.logger.Printf("No font matched for %v -> returning arbitrary face", fm.query.Families)
 
 	// return an arbitrary face
 	for _, face := range fm.faces {

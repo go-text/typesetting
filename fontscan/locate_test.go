@@ -2,6 +2,8 @@ package fontscan
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"testing"
 	"time"
 
@@ -13,13 +15,14 @@ func Test_FindFont(t *testing.T) {
 		"arial", "times", "deja vu",
 	} {
 		ti := time.Now()
-		_, loc, err := FindFont(family, meta.Aspect{})
+		logger := log.New(io.Discard, "", 0)
+		_, loc, err := FindFont(logger, family, meta.Aspect{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		fmt.Println("found", loc.File, "in", time.Since(ti))
 
-		_, loc, err = FindFont(family, meta.Aspect{Style: meta.StyleItalic})
+		_, loc, err = FindFont(logger, family, meta.Aspect{Style: meta.StyleItalic})
 		if err != nil {
 			t.Fatal(err)
 		}
