@@ -133,15 +133,15 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	if err = fm.AddFont(file1, "Amiri", ""); err != nil {
 		t.Fatal(err)
 	}
-	tu.AssertC(t, len(fm.faces) == 1, fmt.Sprintf("unexpected face cache %d", len(fm.faces)))
+	tu.AssertC(t, len(fm.faceCache) == 1, fmt.Sprintf("unexpected face cache %d", len(fm.faceCache)))
 
 	if err = fm.AddFont(file2, "Roboto", ""); err != nil {
 		t.Fatal(err)
 	}
-	tu.AssertC(t, len(fm.faces) == 2, fmt.Sprintf("unexpected face cache %d", len(fm.faces)))
+	tu.AssertC(t, len(fm.faceCache) == 2, fmt.Sprintf("unexpected face cache %d", len(fm.faceCache)))
 
 	loc1, loc2 := Location{File: "Amiri"}, Location{File: "Roboto"}
-	face1, face2 := fm.faces[loc1], fm.faces[loc2]
+	face1, face2 := fm.faceCache[loc1], fm.faceCache[loc2]
 	tu.Assert(t, fm.FontLocation(face1.Font) == loc1)
 	tu.Assert(t, fm.FontLocation(face2.Font) == loc2)
 
