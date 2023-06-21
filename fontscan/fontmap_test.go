@@ -28,6 +28,8 @@ func TestResolveFont(t *testing.T) {
 	err := fm.UseSystemFonts(t.TempDir())
 	tu.AssertNoErr(t, err)
 
+	logOutput.Reset()
+
 	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
 	foundFace := map[font.Face]bool{}
 	for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
