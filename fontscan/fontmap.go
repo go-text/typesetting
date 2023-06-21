@@ -398,7 +398,7 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) 
 
 	// this is very very unlikely, since the substitution
 	// always add a default generic family
-	fm.logger.Printf("No font matched for %v -> returning arbitrary face", fm.query.Families)
+	fm.logger.Printf("No font matched for %v and rune %U (%c) -> returning arbitrary face", fm.query.Families, r, r)
 
 	// return an arbitrary face
 	for _, face := range fm.faces {
