@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
+	"log"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -118,12 +120,13 @@ func TestDeserializeInvalid(t *testing.T) {
 }
 
 func TestSerializeSystemFonts(t *testing.T) {
-	directories, err := DefaultFontDirectories()
+	logger := log.New(io.Discard, "", 0)
+	directories, err := DefaultFontDirectories(logger)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fontset, err := scanFontFootprints(nil, directories...)
+	fontset, err := scanFontFootprints(logger, nil, directories...)
 	if err != nil {
 		t.Fatal(err)
 	}

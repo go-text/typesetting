@@ -3,6 +3,7 @@ package fontscan
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,15 +19,14 @@ import (
 var _ shaping.Fontmap = (*FontMap)(nil)
 
 func TestResolveFont(t *testing.T) {
-	fm := NewFontMap()
+	var logOutput bytes.Buffer
+	logger := log.New(&logOutput, "", 0)
+	fm := NewFontMap(logger)
 
 	tu.AssertC(t, fm.ResolveFace(0x20) == nil, "expected no face found in an empty FontMap")
 
 	err := fm.UseSystemFonts(t.TempDir())
 	tu.AssertNoErr(t, err)
-
-	var logOutput bytes.Buffer
-	log.Default().SetOutput(&logOutput)
 
 	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
 	foundFace := map[font.Face]bool{}
@@ -58,7 +58,8 @@ func TestResolveFont(t *testing.T) {
 }
 
 func BenchmarkResolveFont(b *testing.B) {
-	fm := NewFontMap()
+	logger := log.New(io.Discard, "", 0)
+	fm := NewFontMap(logger)
 
 	err := fm.UseSystemFonts(b.TempDir())
 	tu.AssertNoErr(b, err)
@@ -76,7 +77,8 @@ func BenchmarkResolveFont(b *testing.B) {
 }
 
 func BenchmarkSetQuery(b *testing.B) {
-	fm := NewFontMap()
+	logger := log.New(io.Discard, "", 0)
+	fm := NewFontMap(logger)
 
 	err := fm.UseSystemFonts(b.TempDir())
 	tu.AssertNoErr(b, err)
@@ -95,18 +97,20 @@ func Test_refreshSystemFontsIndex(t *testing.T) {
 	dir := t.TempDir()
 	cachePath := filepath.Join(dir, "fonts.cache")
 
-	_, err := refreshSystemFontsIndex(cachePath)
+	logger := log.New(io.Discard, "", 0)
+	_, err := refreshSystemFontsIndex(logger, cachePath)
 	tu.AssertNoErr(t, err)
 
 	ti := time.Now()
-	_, err = refreshSystemFontsIndex(cachePath)
+	_, err = refreshSystemFontsIndex(logger, cachePath)
 	tu.AssertNoErr(t, err)
 
 	fmt.Printf("cache refresh in %s\n", time.Since(ti))
 }
 
 func TestInitSystemFonts(t *testing.T) {
-	err := initSystemFonts(t.TempDir())
+	logger := log.New(io.Discard, "", 0)
+	err := initSystemFonts(logger, t.TempDir())
 	tu.AssertNoErr(t, err)
 
 	tu.AssertC(t, len(systemFonts.flatten()) != 0, "systemFonts should not be empty")
@@ -121,7 +125,8 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	defer file2.Close()
 
-	fm := NewFontMap()
+	logger := log.New(io.Discard, "", 0)
+	fm := NewFontMap(logger)
 
 	if err = fm.AddFont(file1, "Amiri", ""); err != nil {
 		t.Fatal(err)

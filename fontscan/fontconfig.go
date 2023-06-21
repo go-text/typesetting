@@ -43,12 +43,12 @@ func fcVarsFromEnv() fcVars {
 }
 
 // resolveRoot returns the path of the root fontconfig file according to the fcVars.
-func (f fcVars) resolveRoot() string {
-	return f.resolvePath(f.configFile)
+func (f fcVars) resolveRoot(logger *log.Logger) string {
+	return f.resolvePath(logger, f.configFile)
 }
 
 // resolvePath applies fontconfig's heuristics for finding a path referenced within its config.
-func (f fcVars) resolvePath(path string) string {
+func (f fcVars) resolvePath(logger *log.Logger, path string) string {
 	hasSysroot := len(f.sysroot) > 0
 	if filepath.IsAbs(path) {
 		if hasSysroot && !strings.HasPrefix(path, f.sysroot) {
@@ -73,7 +73,7 @@ func (f fcVars) resolvePath(path string) string {
 		}
 		return candidate
 	}
-	log.Printf("fontconfig referenced path %q, but it could not be resolved to a real path", path)
+	logger.Printf("fontconfig referenced path %q, but it could not be resolved to a real path", path)
 	return ""
 }
 
@@ -125,7 +125,7 @@ func (directive *fcDirective) UnmarshalXML(d *xml.Decoder, start xml.StartElemen
 // supplementary config files (or directories) to include.
 // The file parameter is expected to already be resolved by
 // resolvePath().
-func (fc fcVars) parseFcFile(file, currentWorkingDir string) (fontDirs, includes []string, _ error) {
+func (fc fcVars) parseFcFile(logger *log.Logger, file, currentWorkingDir string) (fontDirs, includes []string, _ error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening fontconfig config file: %s", err)
@@ -159,7 +159,7 @@ func (fc fcVars) parseFcFile(file, currentWorkingDir string) (fontDirs, includes
 			if item.include.Prefix == "xdg" {
 				include = filepath.Join(fc.xdgConfigHome, include)
 			}
-			include = fc.resolvePath(include)
+			include = fc.resolvePath(logger, include)
 			if len(include) > 0 {
 				includes = append(includes, include)
 			}
@@ -171,7 +171,7 @@ func (fc fcVars) parseFcFile(file, currentWorkingDir string) (fontDirs, includes
 // parseFcDir processes all the files in [dir] matching the [09]*.conf pattern
 // seen is updated with the processed fontconfig files. The dir parameter is
 // expected to already be resolved by resolvePath.
-func (fc fcVars) parseFcDir(dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
+func (fc fcVars) parseFcDir(logger *log.Logger, dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
 	entries, err := readDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading fontconfig config directory: %s", err)
@@ -186,7 +186,7 @@ func (fc fcVars) parseFcDir(dir, currentWorkingDir string, seen map[string]bool)
 			if '0' <= c && c <= '9' {
 				file := filepath.Join(dir, name)
 				seen[file] = true
-				fds, incs, err := fc.parseFcFile(file, currentWorkingDir)
+				fds, incs, err := fc.parseFcFile(logger, file, currentWorkingDir)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -201,8 +201,8 @@ func (fc fcVars) parseFcDir(dir, currentWorkingDir string, seen map[string]bool)
 
 // parseFcConfig recursively parses the fontconfig config file at [rootConfig]
 // and its includes, returning the font directories to scan
-func (fc fcVars) parseFcConfig() ([]string, error) {
-	root := fc.resolveRoot()
+func (fc fcVars) parseFcConfig(logger *log.Logger) ([]string, error) {
+	root := fc.resolveRoot(logger)
 	seen := map[string]bool{root: true}
 
 	cwd, err := os.Getwd()
@@ -211,7 +211,7 @@ func (fc fcVars) parseFcConfig() ([]string, error) {
 	}
 
 	// includes is a queue
-	dirs, includes, err := fc.parseFcFile(root, cwd)
+	dirs, includes, err := fc.parseFcFile(logger, root, cwd)
 	if err != nil {
 		return nil, err
 	}
@@ -224,15 +224,15 @@ func (fc fcVars) parseFcConfig() ([]string, error) {
 
 		fi, err := os.Stat(include)
 		if err != nil { // gracefully ignore broken includes
-			log.Printf("missing fontconfig include %s: skipping", include)
+			logger.Printf("missing fontconfig include %s: skipping", include)
 			continue
 		}
 
 		var newDirs, newIncludes []string
 		if fi.IsDir() {
-			newDirs, newIncludes, err = fc.parseFcDir(include, cwd, seen)
+			newDirs, newIncludes, err = fc.parseFcDir(logger, include, cwd, seen)
 		} else {
-			newDirs, newIncludes, err = fc.parseFcFile(include, cwd)
+			newDirs, newIncludes, err = fc.parseFcFile(logger, include, cwd)
 		}
 		if err != nil {
 			return nil, err

@@ -11,10 +11,10 @@ import (
 
 // recursively walk through the given directory, scanning font files and calling dst.consume
 // for each valid file found.
-func scanDirectory(dir string, visited map[string]bool, dst fontFileHandler) error {
+func scanDirectory(logger *log.Logger, dir string, visited map[string]bool, dst fontFileHandler) error {
 	walkFn := func(path string, d os.FileInfo, err error) error {
 		if err != nil {
-			log.Printf("error walking font directory %q: %v", path, err)
+			logger.Printf("error walking font directory %q: %v", path, err)
 			return filepath.SkipDir
 		}
 
