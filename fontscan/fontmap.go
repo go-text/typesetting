@@ -74,7 +74,7 @@ type FontMap struct {
 // encountered during font loading. If logger is nil, log.Default() is used.
 func NewFontMap(logger *log.Logger) *FontMap {
 	if logger == nil {
-		logger = log.Default()
+		logger = log.New(log.Writer(), "fontscan", log.Flags())
 	}
 	return &FontMap{
 		logger:             logger,
