@@ -48,8 +48,9 @@ type cacheEntry struct {
 // file paths to select a font.
 type FontMap struct {
 	logger *log.Logger
-	// cache of already loaded faces
-	faces map[Location]cacheEntry
+	// cache of already loaded faceCache
+	faceCache     map[Location]cacheEntry
+	locationCache map[font.Font]Location
 
 	// the database to query, either loaded from an index
 	// or populated with the UseSystemFonts and AddFont method
@@ -78,7 +79,8 @@ func NewFontMap(logger *log.Logger) *FontMap {
 	}
 	return &FontMap{
 		logger:             logger,
-		faces:              make(map[Location]cacheEntry),
+		faceCache:          make(map[Location]cacheEntry),
+		locationCache:      make(map[font.Font]Location),
 		cribleBuffer:       make(familyCrible),
 		lastFootprintIndex: -1,
 	}
@@ -236,7 +238,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 		}
 
 		addedFonts = append(addedFonts, fp)
-		fm.faces[fp.Location] = cacheEntry{Face: faces[i], Description: fp.metadata()}
+		fm.cache(fp, faces[i])
 	}
 
 	if len(addedFonts) == 0 {
@@ -250,17 +252,17 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 	return nil
 }
 
+func (fm *FontMap) cache(fp footprint, face font.Face) {
+	fm.faceCache[fp.Location] = cacheEntry{Face: face, Description: fp.metadata()}
+	fm.locationCache[face.Font] = fp.Location
+}
+
 // FontLocation look for the given font among the loaded font map fonts
 // to find its origin.
 // FontLocation should only be called for faces returned by `ResolveFace`,
 // otherwise the returned Location will be empty.
 func (fm *FontMap) FontLocation(ft font.Font) Location {
-	for location, cachedFace := range fm.faces {
-		if cachedFace.Font == ft {
-			return location
-		}
-	}
-	return Location{}
+	return fm.locationCache[ft]
 }
 
 // SetQuery set the families and aspect required, influencing subsequent
@@ -352,16 +354,6 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, meta.Des
 // The function will return nil if the underlying font database is empty,
 // or if the file system is broken; otherwise the returned [font.Font] is always valid.
 func (fm *FontMap) ResolveFace(r rune) font.Face {
-	face, _ := fm.ResolveFaceAndMetadata(r)
-	return face
-}
-
-// ResolveFaceAndMetadata select a font based on the current query (see `SetQuery`),
-// and supporting the given rune, applying CSS font selection rules.
-// The function will return nil if the underlying font database is empty,
-// or if the file system is broken; otherwise the returned [font.Font] is always valid.
-// The returned metadata describes the selected face.
-func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) {
 	// in many case, the same font will support a lot of runes
 	// thus, as an optimisation, we register the last used footprint and start
 	// to check if it supports `r`
@@ -371,7 +363,7 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) 
 			// try to use the font
 			face, err := fm.loadFont(fp)
 			if err == nil {
-				return face, fp.metadata()
+				return face
 			}
 
 			// very unlikely; warn and keep going
@@ -384,15 +376,15 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) 
 		if footprintIndex == -1 {
 			continue
 		}
-		if face, md := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
-			return face, md
+		if face, _ := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
+			return face
 		}
 	}
 
 	// if no family has matched so far, try again with system fallback
 	for _, footprintIndexList := range fm.candidates.withFallback {
-		if face, md := fm.resolveForRune(footprintIndexList, r); face != nil {
-			return face, md
+		if face, _ := fm.resolveForRune(footprintIndexList, r); face != nil {
+			return face
 		}
 	}
 
@@ -401,26 +393,33 @@ func (fm *FontMap) ResolveFaceAndMetadata(r rune) (font.Face, meta.Description) 
 	fm.logger.Printf("No font matched for %v and rune %U (%c) -> returning arbitrary face", fm.query.Families, r, r)
 
 	// return an arbitrary face
-	for _, face := range fm.faces {
-		return face.Face, face.Description
+	for _, face := range fm.faceCache {
+		return face.Face
 	}
 	for _, fp := range fm.database {
 		face, err := fm.loadFont(fp)
 		if err != nil { // very unlikely
 			continue
 		}
-		return face, fp.metadata()
+		return face
 	}
 
 	// refreshSystemFontsIndex makes sure at least one face is valid
 	// and AddFont also check for valid font files, meaning that
 	// a valid FontMap should always contain a valid face,
 	// and this should never happen in pratice
-	return nil, meta.Description{}
+	return nil
+}
+
+// Metadata returns a description of the provided font. If the font was not
+// previously returned from this FontMap by a call to ResolveFace, the zero
+// value will be returned instead.
+func (fm *FontMap) Metadata(face font.Font) meta.Description {
+	return fm.faceCache[fm.locationCache[face]].Description
 }
 
 func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
-	if face, hasCached := fm.faces[fp.Location]; hasCached {
+	if face, hasCached := fm.faceCache[fp.Location]; hasCached {
 		return face.Face, nil
 	}
 
@@ -432,7 +431,7 @@ func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
 	}
 
 	// add the face to the cache
-	fm.faces[fp.Location] = cacheEntry{Face: face, Description: fp.metadata()}
+	fm.cache(fp, face)
 
 	return face, nil
 }
