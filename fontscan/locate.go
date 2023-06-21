@@ -3,6 +3,7 @@ package fontscan
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -128,13 +129,13 @@ func selectByAspect(paths []string, aspect meta.Aspect) (*font.Font, Location, e
 // If `aspect` is empty, it is replaced by a regular style.
 //
 // In the (unlikely) case where no font is found, ErrFontNotFound is returned.
-func FindFont(family string, aspect meta.Aspect) (*font.Font, Location, error) {
-	directories, err := DefaultFontDirectories()
+func FindFont(logger *log.Logger, family string, aspect meta.Aspect) (*font.Font, Location, error) {
+	directories, err := DefaultFontDirectories(logger)
 	if err != nil {
 		return nil, Location{}, err
 	}
 
-	paths, err := scanFontFiles(directories...)
+	paths, err := scanFontFiles(logger, directories...)
 	if err != nil {
 		return nil, Location{}, err
 	}

@@ -3,6 +3,7 @@ package fontscan
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +13,8 @@ import (
 )
 
 func TestDefaultDirs(t *testing.T) {
-	dirs, err := DefaultFontDirectories()
+	logger := log.New(io.Discard, "", 0)
+	dirs, err := DefaultFontDirectories(logger)
 	tu.AssertNoErr(t, err)
 	fmt.Printf("Valid font directories:\n%v\n", dirs)
 }
@@ -20,10 +22,11 @@ func TestDefaultDirs(t *testing.T) {
 func TestScanFontFiles(t *testing.T) {
 	ti := time.Now()
 
-	directories, err := DefaultFontDirectories()
+	logger := log.New(io.Discard, "", 0)
+	directories, err := DefaultFontDirectories(logger)
 	tu.AssertNoErr(t, err)
 
-	fontpaths, err := scanFontFiles(directories...)
+	fontpaths, err := scanFontFiles(logger, directories...)
 	tu.AssertNoErr(t, err)
 
 	fmt.Printf("Found %d fonts in %s\n", len(fontpaths), time.Since(ti))
@@ -32,10 +35,11 @@ func TestScanFontFiles(t *testing.T) {
 func TestScanFontFootprints(t *testing.T) {
 	ti := time.Now()
 
-	directories, err := DefaultFontDirectories()
+	logger := log.New(io.Discard, "", 0)
+	directories, err := DefaultFontDirectories(logger)
 	tu.AssertNoErr(t, err)
 
-	fontset, err := scanFontFootprints(nil, directories...)
+	fontset, err := scanFontFootprints(logger, nil, directories...)
 	tu.AssertNoErr(t, err)
 
 	// Show some basic stats
@@ -52,27 +56,29 @@ func TestScanFontFootprints(t *testing.T) {
 }
 
 func BenchmarkScanFonts(b *testing.B) {
-	directories, err := DefaultFontDirectories()
+	logger := log.New(io.Discard, "", 0)
+	directories, err := DefaultFontDirectories(logger)
 	tu.AssertNoErr(b, err)
 
 	for i := 0; i < b.N; i++ {
-		_, _ = scanFontFootprints(nil, directories...)
+		_, _ = scanFontFootprints(logger, nil, directories...)
 	}
 }
 
 func TestScanIncrementalNoOp(t *testing.T) {
 	ti := time.Now()
 
-	directories, err := DefaultFontDirectories()
+	logger := log.New(io.Discard, "", 0)
+	directories, err := DefaultFontDirectories(logger)
 	tu.AssertNoErr(t, err)
 
 	// first scan
-	fontset, err := scanFontFootprints(nil, directories...)
+	fontset, err := scanFontFootprints(logger, nil, directories...)
 	tu.AssertNoErr(t, err)
 	fmt.Printf("Initial scan time: %s\n", time.Since(ti))
 
 	ti = time.Now()
-	incremental, err := scanFontFootprints(fontset, directories...)
+	incremental, err := scanFontFootprints(logger, fontset, directories...)
 	tu.AssertNoErr(t, err)
 	fmt.Printf("Second scan time: %s\n", time.Since(ti))
 
@@ -107,7 +113,8 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	copyFile(t, filepath.Join("..", "font", "testdata", "Amiri-Regular.ttf"), filepath.Join(dir, "font1.ttf"))
 
 	// first scan
-	fontset, err := scanFontFootprints(nil, dir)
+	logger := log.New(io.Discard, "", 0)
+	fontset, err := scanFontFootprints(logger, nil, dir)
 	tu.AssertNoErr(t, err)
 	if len(fontset) != 1 {
 		t.Fatalf("unexpected font set: %v", fontset)
@@ -118,7 +125,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	// test adding a new file
 	copyFile(t, filepath.Join("..", "font", "testdata", "Roboto-Regular.ttf"), filepath.Join(dir, "font2.ttf"))
 
-	fontset2, err := scanFontFootprints(fontset, dir)
+	fontset2, err := scanFontFootprints(logger, fontset, dir)
 	tu.AssertNoErr(t, err)
 	if len(fontset2) != 2 {
 		t.Fatalf("unexpected font set: %v", fontset)
@@ -129,7 +136,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	// test updating an existing file
 	copyFile(t, filepath.Join("..", "font", "testdata", "Roboto-Regular.ttf"), filepath.Join(dir, "font1.ttf"))
 
-	fontset3, err := scanFontFootprints(nil, dir)
+	fontset3, err := scanFontFootprints(logger, nil, dir)
 	tu.AssertNoErr(t, err)
 	if len(fontset3) != 2 {
 		t.Fatalf("unexpected font set: %v", fontset)
@@ -140,7 +147,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 10)
 
-	incremental, err := scanFontFootprints(fontset2, dir)
+	incremental, err := scanFontFootprints(logger, fontset2, dir)
 	tu.AssertNoErr(t, err)
 	if err = assertFontsetEquals(fontset3.flatten(), incremental.flatten()); err != nil {
 		t.Fatalf("incremental scan not consistent with initial scan: %s", err)
@@ -150,7 +157,7 @@ func TestScanIncrementalUpdate(t *testing.T) {
 	if err = os.Remove(filepath.Join(dir, "font1.ttf")); err != nil {
 		t.Fatal(err)
 	}
-	fontset4, err := scanFontFootprints(fontset3, dir)
+	fontset4, err := scanFontFootprints(logger, fontset3, dir)
 	tu.AssertNoErr(t, err)
 	if len(fontset4) != 1 {
 		t.Fatalf("unexpected font set: %v", fontset)
