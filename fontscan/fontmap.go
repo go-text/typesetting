@@ -14,7 +14,7 @@ import (
 )
 
 type cacheEntry struct {
-	font.Face
+	Location
 	meta.Description
 }
 
@@ -48,9 +48,9 @@ type cacheEntry struct {
 // file paths to select a font.
 type FontMap struct {
 	logger *log.Logger
-	// cache of already loaded faceCache
-	faceCache     map[Location]cacheEntry
-	locationCache map[font.Font]Location
+	// caches of already loaded faceCache : the two maps are updated conjointly
+	faceCache map[Location]font.Face
+	metaCache map[font.Font]cacheEntry
 
 	// the database to query, either loaded from an index
 	// or populated with the UseSystemFonts and AddFont method
@@ -79,8 +79,8 @@ func NewFontMap(logger *log.Logger) *FontMap {
 	}
 	return &FontMap{
 		logger:             logger,
-		faceCache:          make(map[Location]cacheEntry),
-		locationCache:      make(map[font.Font]Location),
+		faceCache:          make(map[Location]font.Face),
+		metaCache:          make(map[font.Font]cacheEntry),
 		cribleBuffer:       make(familyCrible),
 		lastFootprintIndex: -1,
 	}
@@ -253,16 +253,22 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 }
 
 func (fm *FontMap) cache(fp footprint, face font.Face) {
-	fm.faceCache[fp.Location] = cacheEntry{Face: face, Description: fp.metadata()}
-	fm.locationCache[face.Font] = fp.Location
+	fm.faceCache[fp.Location] = face
+	fm.metaCache[face.Font] = cacheEntry{fp.Location, fp.metadata()}
 }
 
-// FontLocation look for the given font among the loaded font map fonts
-// to find its origin.
-// FontLocation should only be called for faces returned by `ResolveFace`,
-// otherwise the returned Location will be empty.
+// FontLocation returns the origin of the provided font. If the font was not
+// previously returned from this FontMap by a call to ResolveFace, the zero
+// value will be returned instead.
 func (fm *FontMap) FontLocation(ft font.Font) Location {
-	return fm.locationCache[ft]
+	return fm.metaCache[ft].Location
+}
+
+// FontMetadata returns a description of the provided font. If the font was not
+// previously returned from this FontMap by a call to ResolveFace, the zero
+// value will be returned instead.
+func (fm *FontMap) FontMetadata(ft font.Font) meta.Description {
+	return fm.metaCache[ft].Description
 }
 
 // SetQuery set the families and aspect required, influencing subsequent
@@ -394,7 +400,7 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 
 	// return an arbitrary face
 	for _, face := range fm.faceCache {
-		return face.Face
+		return face
 	}
 	for _, fp := range fm.database {
 		face, err := fm.loadFont(fp)
@@ -411,16 +417,9 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 	return nil
 }
 
-// Metadata returns a description of the provided font. If the font was not
-// previously returned from this FontMap by a call to ResolveFace, the zero
-// value will be returned instead.
-func (fm *FontMap) Metadata(face font.Font) meta.Description {
-	return fm.faceCache[fm.locationCache[face]].Description
-}
-
 func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
 	if face, hasCached := fm.faceCache[fp.Location]; hasCached {
-		return face.Face, nil
+		return face, nil
 	}
 
 	// since user provided fonts are added to `fonts`
