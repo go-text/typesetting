@@ -79,14 +79,6 @@ func readTestFile(t testing.TB, filename string) (out []testData) {
 			// we do not support fallback shaper
 			continue
 		}
-		// fails since the FT and Harfbuzz implementations of GlyphVOrigin differ
-		// we prefer to match Harfbuzz implementation, so we replace
-		// these tests with a copy, using Harfbuzz font funcs
-		if line == "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf;--direction=t --font-funcs=ft;U+300C;[uni300C.vert=0@-512,-578+0,-1024]" {
-			line = "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf;--direction=t --font-funcs=ot;U+300C;[uni300C.vert=0@-512,-189+0,-1024]"
-		} else if line == "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf;--direction=t --font-funcs=ft;U+0041,U+0042;[gid1=0@-654,-2128+0,-2789|gid2=1@-665,-2125+0,-2789]" {
-			line = "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf;--direction=t --font-funcs=ot;U+0041,U+0042;[gid1=0@-654,-1468+0,-2048|gid2=1@-665,-1462+0,-2048]"
-		}
 
 		out = append(out, newTestData(t, dir, line))
 	}
@@ -178,6 +170,8 @@ func newTestInput(t testing.TB, options string) testInput {
 		so.clusterLevel = ClusterLevel(l)
 		return nil
 	})
+	flags.BoolVar(&so.unsafeToConcat, "unsafe-to-concat", false, "Produce unsafe-to-concat glyph flag")
+	flags.BoolVar(&so.safeToInsertTatweel, "safe-to-insert-tatweel", false, "Produce safe-to-insert-tatweel glyph flag")
 
 	fo := newFontOptions()
 
@@ -237,6 +231,8 @@ type shapeOpts struct {
 	eot                       bool
 	preserveDefaultIgnorables bool
 	removeDefaultIgnorables   bool
+	unsafeToConcat            bool
+	safeToInsertTatweel       bool
 }
 
 func (opts *shapeOpts) parseDirection(s string) error {

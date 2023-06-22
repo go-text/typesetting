@@ -11,7 +11,7 @@ func TestOTFeature(t *testing.T) {
 
 	cv01 := loader.NewTag('c', 'v', '0', '1')
 
-	featureIndex := FindFeatureForLang(&face.GSUB.Layout, 0, DefaultLanguageIndex, cv01)
+	featureIndex := findFeatureForLang(&face.GSUB.Layout, 0, DefaultLanguageIndex, cv01)
 	if featureIndex == NoFeatureIndex {
 		t.Fatal("failed to find feature index")
 	}
