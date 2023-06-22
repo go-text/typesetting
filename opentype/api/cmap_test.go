@@ -166,7 +166,7 @@ func TestRuneRanges(t *testing.T) {
 		fp := readFontFile(t, filename)
 		cmapT, _, err := tables.ParseCmap(readTable(t, fp, "cmap"))
 		tu.AssertNoErr(t, err)
-		cmap, _, err := ProcessCmap(cmapT)
+		cmap, _, err := ProcessCmap(cmapT, tables.FPNone)
 		tu.AssertNoErr(t, err)
 		tu.Assert(t, cmap != nil)
 
