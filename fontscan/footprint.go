@@ -36,6 +36,15 @@ type footprint struct {
 	IsMonospace bool
 }
 
+func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
+	out.Runes = newRuneSetFromCmap(f.Cmap)
+	out.Family = meta.NormalizeFamily(md.Family)
+	out.Aspect = md.Aspect
+	out.IsMonospace = md.IsMonospace
+	out.Location.File = fmt.Sprintf("%v", md)
+	return out
+}
+
 func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
 	raw, err := ld.RawTable(loader.MustNewTag("cmap"))
 	if err != nil {
