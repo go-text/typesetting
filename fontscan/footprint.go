@@ -45,7 +45,14 @@ func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
 	if err != nil {
 		return footprint{}, err
 	}
-	cmap, _, err := api.ProcessCmap(tb)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("OS/2"))
+	fp := tables.FPNone
+	if os2, _, err := tables.ParseOs2(raw); err != nil {
+		fp = os2.FontPage()
+	}
+
+	cmap, _, err := api.ProcessCmap(tb, fp)
 	if err != nil {
 		return footprint{}, err
 	}
