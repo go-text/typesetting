@@ -15,7 +15,9 @@ import (
 
 type cacheEntry struct {
 	Location
-	meta.Description
+
+	Family string
+	meta.Aspect
 }
 
 // The family substitution algorithm is copied from fontconfig
@@ -265,7 +267,7 @@ func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 
 func (fm *FontMap) cache(fp footprint, face font.Face) {
 	fm.faceCache[fp.Location] = face
-	fm.metaCache[face.Font] = cacheEntry{fp.Location, fp.metadata()}
+	fm.metaCache[face.Font] = cacheEntry{fp.Location, fp.Family, fp.Aspect}
 }
 
 // FontLocation returns the origin of the provided font. If the font was not
@@ -278,8 +280,9 @@ func (fm *FontMap) FontLocation(ft font.Font) Location {
 // FontMetadata returns a description of the provided font. If the font was not
 // previously returned from this FontMap by a call to ResolveFace, the zero
 // value will be returned instead.
-func (fm *FontMap) FontMetadata(ft font.Font) meta.Description {
-	return fm.metaCache[ft].Description
+func (fm *FontMap) FontMetadata(ft font.Font) (family string, aspect meta.Aspect) {
+	item := fm.metaCache[ft]
+	return item.Family, item.Aspect
 }
 
 // SetQuery set the families and aspect required, influencing subsequent
@@ -351,7 +354,7 @@ type candidates struct {
 }
 
 // returns nil if not candidates supports the rune `r`
-func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, meta.Description) {
+func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range candidates {
 		// check the coverage
@@ -366,11 +369,11 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) (font.Face, meta.Des
 			// register the face used
 			fm.lastFootprintIndex = footprintIndex
 
-			return face, fp.metadata()
+			return face
 		}
 	}
 
-	return nil, meta.Description{}
+	return nil
 }
 
 // ResolveFace select a font based on the current query (see `SetQuery`),
@@ -400,14 +403,14 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 		if footprintIndex == -1 {
 			continue
 		}
-		if face, _ := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
+		if face := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
 			return face
 		}
 	}
 
 	// if no family has matched so far, try again with system fallback
 	for _, footprintIndexList := range fm.candidates.withFallback {
-		if face, _ := fm.resolveForRune(footprintIndexList, r); face != nil {
+		if face := fm.resolveForRune(footprintIndexList, r); face != nil {
 			return face
 		}
 	}
@@ -418,7 +421,7 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 		if footprintIndex == -1 {
 			continue
 		}
-		if face, _ := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
+		if face := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
 			return face
 		}
 	}

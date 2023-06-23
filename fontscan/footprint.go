@@ -32,9 +32,6 @@ type footprint struct {
 	// of the font among a family, like "Bold Italic"
 	Aspect meta.Aspect
 
-	// IsMonospace is the glyph of the font have constant width
-	IsMonospace bool
-
 	// isUserProvided is set to true for fonts add manually to
 	// a FontMap
 	// User fonts will always be tried if no other fonts match,
@@ -49,7 +46,6 @@ func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
 	out.Runes = newRuneSetFromCmap(f.Cmap)
 	out.Family = meta.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
-	out.IsMonospace = md.IsMonospace
 	out.Location.File = fmt.Sprintf("%v", md)
 	out.isUserProvided = true
 	return out
@@ -77,21 +73,12 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool) (out footpri
 	}
 	out.Runes = newRuneSetFromCmap(cmap) // ... and build the corresponding rune set
 
-	desc := meta.Metadata(ld)
-	out.Family = meta.NormalizeFamily(desc.Family)
-	out.Aspect = desc.Aspect
-	out.IsMonospace = desc.IsMonospace
+	desc := meta.NewFontDescriptor(ld)
+	out.Family = meta.NormalizeFamily(desc.Family())
+	out.Aspect = desc.Aspect()
 	out.isUserProvided = isUserProvided
 
 	return out, nil
-}
-
-func (fp *footprint) metadata() meta.Description {
-	return meta.Description{
-		Family:      fp.Family,
-		Aspect:      fp.Aspect,
-		IsMonospace: fp.IsMonospace,
-	}
 }
 
 // loadFromDisk assume the footprint location refers to the file system
