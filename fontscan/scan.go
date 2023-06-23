@@ -251,7 +251,7 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 	loaders, _ := loader.NewLoaders(file)
 
 	for i, ld := range loaders {
-		fp, err := newFootprintFromLoader(ld)
+		fp, err := newFootprintFromLoader(ld, false)
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue

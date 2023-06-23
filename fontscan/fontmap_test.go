@@ -59,6 +59,47 @@ func TestResolveFont(t *testing.T) {
 	}
 }
 
+func TestResolveFallbackManual(t *testing.T) {
+	logger := log.New(os.Stdout, "", 0)
+	fm := NewFontMap(logger)
+
+	err := fm.UseSystemFonts(t.TempDir())
+	tu.AssertNoErr(t, err)
+
+	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file1.Close()
+
+	file2, err := os.Open("../font/testdata/Roboto-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file2.Close()
+
+	err = fm.AddFont(file1, "user:Amiri", "")
+	tu.AssertNoErr(t, err)
+
+	fm.SetQuery(Query{}) // no families
+	face := fm.ResolveFace('c')
+	tu.Assert(t, fm.FontLocation(face.Font).File == "user:Amiri")
+}
+
+func TestRevolveFamilyConflict(t *testing.T) {
+	logger := log.New(os.Stdout, "", 0)
+	fm := NewFontMap(logger)
+
+	err := fm.UseSystemFonts(t.TempDir())
+	tu.AssertNoErr(t, err)
+
+	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file1.Close()
+
+	// This tests is effective on platforms with an Arimo font
+	fm.AddFont(file1, "user:amiri", "Arimo")
+
+	fm.SetQuery(Query{Families: []string{"Arimo"}})
+	tu.Assert(t, fm.FontLocation(fm.ResolveFace('a').Font).File == "user:amiri")
+}
+
 func BenchmarkResolveFont(b *testing.B) {
 	logger := log.New(io.Discard, "", 0)
 	fm := NewFontMap(logger)

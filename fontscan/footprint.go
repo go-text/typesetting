@@ -34,6 +34,15 @@ type footprint struct {
 
 	// IsMonospace is the glyph of the font have constant width
 	IsMonospace bool
+
+	// isUserProvided is set to true for fonts add manually to
+	// a FontMap
+	// User fonts will always be tried if no other fonts match,
+	// and will have priority among font with same family name.
+	//
+	// This field is not serialized in the index, since it is always false
+	// for system fonts.
+	isUserProvided bool
 }
 
 func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
@@ -42,10 +51,11 @@ func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
 	out.Aspect = md.Aspect
 	out.IsMonospace = md.IsMonospace
 	out.Location.File = fmt.Sprintf("%v", md)
+	out.isUserProvided = true
 	return out
 }
 
-func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
+func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool) (out footprint, err error) {
 	raw, err := ld.RawTable(loader.MustNewTag("cmap"))
 	if err != nil {
 		return footprint{}, err
@@ -71,6 +81,7 @@ func newFootprintFromLoader(ld *loader.Loader) (out footprint, err error) {
 	out.Family = meta.NormalizeFamily(desc.Family)
 	out.Aspect = desc.Aspect
 	out.IsMonospace = desc.IsMonospace
+	out.isUserProvided = isUserProvided
 
 	return out, nil
 }
