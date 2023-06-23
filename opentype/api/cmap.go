@@ -37,6 +37,9 @@ func (c cmapID) key() uint32 { return uint32(c.platform)<<16 | uint32(c.encoding
 // when several subtables are given.
 // When present, the variation selectors are returned.
 // [os2FontPage] is used for legacy arabic fonts.
+//
+// The returned values are copied from the input 'cmap', meaning they do not
+// retain any reference on the input storage.
 func ProcessCmap(cmap tables.Cmap, os2FontPage tables.FontPage) (Cmap, UnicodeVariations, error) {
 	var (
 		candidateIds []cmapID
@@ -617,7 +620,8 @@ func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
 // of rune ranges
 type CmapRuneRanger interface {
 	// RuneRanges returns a list of (start, end) rune pairs, both included.
-	RuneRanges() [][2]rune
+	// `dst` is an optional buffer used to reduce allocations
+	RuneRanges(dst [][2]rune) [][2]rune
 }
 
 var (
@@ -627,38 +631,47 @@ var (
 	_ CmapRuneRanger = cmap13(nil)
 )
 
-func (cm cmap4) RuneRanges() [][2]rune {
-	out := make([][2]rune, 0, len(cm))
+func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
+	if cap(dst) < len(cm) {
+		dst = make([][2]rune, 0, len(cm))
+	}
+	dst = dst[:0]
 	for _, e := range cm {
 		start, end := rune(e.start), rune(e.end)
-		if L := len(out); L != 0 && out[L-1][1] == start {
+		if L := len(dst); L != 0 && dst[L-1][1] == start {
 			// grow the previous range
-			out[L-1][1] = end
+			dst[L-1][1] = end
 		} else {
-			out = append(out, [2]rune{start, end})
+			dst = append(dst, [2]rune{start, end})
 		}
 	}
-	return out
+	return dst
 }
 
-func (cm *cmap6or10) RuneRanges() [][2]rune {
-	return [][2]rune{
-		{cm.firstCode, cm.firstCode + rune(len(cm.entries)) - 1},
+func (cm *cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
+	if cap(dst) < 1 {
+		dst = [][2]rune{{}}
 	}
+	dst = dst[:1]
+	dst[0] = [2]rune{cm.firstCode, cm.firstCode + rune(len(cm.entries)) - 1}
+	return dst
 }
 
-func (cm cmap12) RuneRanges() [][2]rune {
-	out := make([][2]rune, 0, len(cm))
+func (cm cmap12) RuneRanges(dst [][2]rune) [][2]rune {
+	if cap(dst) < len(cm) {
+		dst = make([][2]rune, 0, len(cm))
+	}
+	dst = dst[:0]
 	for _, e := range cm {
 		start, end := rune(e.StartCharCode), rune(e.EndCharCode)
-		if L := len(out); L != 0 && out[L-1][1] == start {
+		if L := len(dst); L != 0 && dst[L-1][1] == start {
 			// grow the previous range
-			out[L-1][1] = end
+			dst[L-1][1] = end
 		} else {
-			out = append(out, [2]rune{start, end})
+			dst = append(dst, [2]rune{start, end})
 		}
 	}
-	return out
+	return dst
 }
 
-func (cm cmap13) RuneRanges() [][2]rune { return cmap12(cm).RuneRanges() }
+func (cm cmap13) RuneRanges(dst [][2]rune) [][2]rune { return cmap12(cm).RuneRanges(dst) }

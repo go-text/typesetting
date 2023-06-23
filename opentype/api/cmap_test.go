@@ -45,6 +45,10 @@ func loopThroughCmap(cmap Cmap) int {
 		_, _ = iter.Char()
 		nbGlyphs++
 	}
+
+	if cmap, ok := cmap.(CmapRuneRanger); ok {
+		_ = cmap.RuneRanges(nil) // check for crashes
+	}
 	return nbGlyphs
 }
 
@@ -187,7 +191,7 @@ func assertRuneRangesEqual(t *testing.T, cm Cmap) {
 		byIter[r] = true
 	}
 
-	for _, ran := range cm.(CmapRuneRanger).RuneRanges() {
+	for _, ran := range cm.(CmapRuneRanger).RuneRanges(nil) {
 		for r := ran[0]; r <= ran[1]; r++ {
 			byRanges[r] = true
 		}
