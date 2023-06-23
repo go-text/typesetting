@@ -231,7 +231,8 @@ var bhedTag = loader.MustNewTag("bhed")
 // If a 'bhed' Apple table is present, it replaces the 'head' one.
 //
 // 'buffer' may be provided to reduce allocations; the return Head is guaranteed
-// not to retain any reference on 'buffer'
+// not to retain any reference on 'buffer'.
+// If 'buffer' is nil or has not enough capacity, a new slice is allocated (and returned).
 func LoadHeadTable(ld *loader.Loader, buffer []byte) (tables.Head, []byte, error) {
 	var err error
 	// check 'bhed' first
