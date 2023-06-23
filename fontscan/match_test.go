@@ -76,6 +76,17 @@ func TestFontMap_selectByFamily(t *testing.T) {
 			"Times", true,
 			[]int{0, 1, 2, 3},
 		},
+		// user provided precedence
+		{
+			fontSet{
+				{Family: "Times", isUserProvided: true},
+				{Family: "arial", isUserProvided: false},
+				{Family: "arial", isUserProvided: true},
+			},
+			"arial",
+			false,
+			[]int{2, 1},
+		},
 	}
 	for _, tt := range tests {
 		if got := tt.fontset.selectByFamily(tt.family, tt.substitute, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
