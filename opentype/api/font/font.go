@@ -97,7 +97,7 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 		return nil, err
 	}
 
-	out.head, err = LoadHeadTable(ld)
+	out.head, _, err = LoadHeadTable(ld, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -229,22 +229,23 @@ var bhedTag = loader.MustNewTag("bhed")
 
 // LoadHeadTable loads the table corresponding to the 'head' tag.
 // If a 'bhed' Apple table is present, it replaces the 'head' one.
-func LoadHeadTable(ld *loader.Loader) (tables.Head, error) {
-	var (
-		s   []byte
-		err error
-	)
+//
+// 'buffer' may be provided to reduce allocations; the return Head is guaranteed
+// not to retain any reference on 'buffer'.
+// If 'buffer' is nil or has not enough capacity, a new slice is allocated (and returned).
+func LoadHeadTable(ld *loader.Loader, buffer []byte) (tables.Head, []byte, error) {
+	var err error
 	// check 'bhed' first
 	if ld.HasTable(bhedTag) {
-		s, err = ld.RawTable(bhedTag)
+		buffer, err = ld.RawTableTo(bhedTag, buffer)
 	} else {
-		s, err = ld.RawTable(loader.MustNewTag("head"))
+		buffer, err = ld.RawTableTo(loader.MustNewTag("head"), buffer)
 	}
 	if err != nil {
-		return tables.Head{}, errors.New("missing required head (or bhed) table")
+		return tables.Head{}, nil, errors.New("missing required head (or bhed) table")
 	}
-	out, _, err := tables.ParseHead(s)
-	return out, err
+	out, _, err := tables.ParseHead(buffer)
+	return out, buffer, err
 }
 
 // return nil if no table is valid (or present)

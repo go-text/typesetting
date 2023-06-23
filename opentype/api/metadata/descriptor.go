@@ -15,38 +15,46 @@ const (
 	nameWWSSubfamily       tables.NameID = 22 //
 )
 
-// FontDescriptor provides access to family and aspect
-type FontDescriptor struct {
+type os2Table struct {
+	USWeightClass uint16
+	USWidthClass  uint16
+	FsSelection   uint16
+}
+
+// fontDescriptor provides access to family and aspect
+type fontDescriptor struct {
 	// these tables are required both in Family
 	// and Aspect
-	os2   *tables.Os2 // optional
+	os2   *os2Table // optional
 	names tables.Name
 	head  tables.Head
 }
 
-// NewFontDescriptor loads the required tables from [ld].
-func NewFontDescriptor(ld *loader.Loader) *FontDescriptor {
-	var out FontDescriptor
+// Describe provides access to family and aspect.
+// 'buffer' may be provided to reduce allocations.
+func Describe(ld *loader.Loader, buffer []byte) (family string, aspect Aspect, _ []byte) {
+	var desc fontDescriptor
 
 	// load tables, all considered optional
-	raw, _ := ld.RawTable(loader.MustNewTag("OS/2"))
-	if os2, _, err := tables.ParseOs2(raw); err != nil {
-		out.os2 = &os2
+	buffer, _ = ld.RawTableTo(loader.MustNewTag("OS/2"), buffer)
+	if os2, _, err := tables.ParseOs2(buffer); err != nil {
+		desc.os2 = &os2Table{
+			USWeightClass: os2.USWeightClass,
+			USWidthClass:  os2.USWidthClass,
+			FsSelection:   os2.FsSelection,
+		}
 	}
 
-	raw, _ = ld.RawTable(loader.MustNewTag("name"))
-	out.names, _, _ = tables.ParseName(raw)
+	desc.head, buffer, _ = font.LoadHeadTable(ld, buffer)
 
-	out.head, _ = font.LoadHeadTable(ld)
+	buffer, _ = ld.RawTableTo(loader.MustNewTag("name"), buffer)
+	desc.names, _, _ = tables.ParseName(buffer)
 
-	raw, _ = ld.RawTable(loader.MustNewTag("name"))
-	out.names, _, _ = tables.ParseName(raw)
-
-	return &out
+	return desc.Family(), desc.Aspect(), buffer
 }
 
 // Family returns the font family name.
-func (fd *FontDescriptor) Family() string {
+func (fd *fontDescriptor) Family() string {
 	var family string
 	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
 		family = fd.names.Name(namePreferredFamily)
@@ -153,9 +161,7 @@ type Description struct {
 func Metadata(font *loader.Loader) Description {
 	var out Description
 
-	descriptor := NewFontDescriptor(font)
-	out.Aspect = descriptor.Aspect()
-	out.Family = descriptor.Family()
+	out.Family, out.Aspect, _ = Describe(font, nil)
 
 	metrics := newFontMetrics(font)
 	out.IsMonospace = metrics.isMonospace()
