@@ -224,7 +224,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 	var addedFonts []footprint
 	for i, fontDesc := range loaders {
-		fp, err := newFootprintFromLoader(fontDesc, true)
+		fp, _, err := newFootprintFromLoader(fontDesc, true, scanBuffer{})
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue

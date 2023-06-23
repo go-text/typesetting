@@ -186,7 +186,7 @@ func TestNewRuneSetFromCmap(t *testing.T) {
 		{CmapSimple{0: 0, 1: 0, 2: 0, 800: 0, 801: 0, 1000: 0}, newRuneSet(0, 1, 2, 800, 801, 1000)},
 	}
 	for _, tt := range tests {
-		if got := newRuneSetFromCmap(tt.args); !reflect.DeepEqual(got, tt.want) {
+		if got, _ := newRuneSetFromCmap(tt.args, nil); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("NewRuneSetFromCmap() = %v, want %v", got, tt.want)
 		}
 	}
@@ -205,7 +205,7 @@ func TestBits(t *testing.T) {
 
 type runeRange [][2]rune
 
-func (rr runeRange) RuneRanges() [][2]rune { return rr }
+func (rr runeRange) RuneRanges(_ [][2]rune) [][2]rune { return rr }
 
 func (rr runeRange) runes() (out []rune) {
 	for _, ra := range rr {
@@ -225,7 +225,7 @@ func TestRuneRanges(t *testing.T) {
 			{0, 30}, {0xFF, 0xFF * 2},
 		},
 	} {
-		got := newRuneSetFromCmapRange(source)
+		got, _ := newRuneSetFromCmapRange(source, nil)
 		exp := newRuneSet(source.runes()...)
 		tu.Assert(t, reflect.DeepEqual(got, exp))
 	}

@@ -212,6 +212,14 @@ type footprintScanner struct {
 	previousIndex map[string]fileFootprints // reference index, to be updated
 
 	dst systemFontsIndex // accumulated footprints
+
+	// used to reduce allocations
+	scanBuffer
+}
+
+type scanBuffer struct {
+	tableBuffer []byte
+	cmapBuffer  [][2]rune
 }
 
 func newFootprintAccumulator(currentIndex systemFontsIndex) footprintScanner {
@@ -251,7 +259,8 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 	loaders, _ := loader.NewLoaders(file)
 
 	for i, ld := range loaders {
-		fp, err := newFootprintFromLoader(ld, false)
+		var fp footprint
+		fp, fa.scanBuffer, err = newFootprintFromLoader(ld, false, fa.scanBuffer)
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue

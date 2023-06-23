@@ -43,7 +43,7 @@ type footprint struct {
 }
 
 func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
-	out.Runes = newRuneSetFromCmap(f.Cmap)
+	out.Runes, _ = newRuneSetFromCmap(f.Cmap, nil)
 	out.Family = meta.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
 	out.Location.File = fmt.Sprintf("%v", md)
@@ -51,34 +51,42 @@ func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
 	return out
 }
 
-func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool) (out footprint, err error) {
-	raw, err := ld.RawTable(loader.MustNewTag("cmap"))
-	if err != nil {
-		return footprint{}, err
-	}
-	tb, _, err := tables.ParseCmap(raw)
-	if err != nil {
-		return footprint{}, err
-	}
+func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanBuffer) (out footprint, _ scanBuffer, err error) {
+	raw := buffer.tableBuffer
 
-	raw, _ = ld.RawTable(loader.MustNewTag("OS/2"))
+	// since raw is shared, special car must be taken in the parsing order
+
+	raw, _ = ld.RawTableTo(loader.MustNewTag("OS/2"), raw)
 	fp := tables.FPNone
 	if os2, _, err := tables.ParseOs2(raw); err != nil {
 		fp = os2.FontPage()
 	}
 
+	// we can use the buffer since ProcessCmap do not keep any reference on
+	// the input slice
+	raw, err = ld.RawTableTo(loader.MustNewTag("cmap"), raw)
+	if err != nil {
+		return footprint{}, buffer, err
+	}
+	tb, _, err := tables.ParseCmap(raw)
+	if err != nil {
+		return footprint{}, buffer, err
+	}
 	cmap, _, err := api.ProcessCmap(tb, fp)
 	if err != nil {
-		return footprint{}, err
+		return footprint{}, buffer, err
 	}
-	out.Runes = newRuneSetFromCmap(cmap) // ... and build the corresponding rune set
+
+	out.Runes, buffer.cmapBuffer = newRuneSetFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
 
 	desc := meta.NewFontDescriptor(ld)
 	out.Family = meta.NormalizeFamily(desc.Family())
 	out.Aspect = desc.Aspect()
 	out.isUserProvided = isUserProvided
 
-	return out, nil
+	buffer.tableBuffer = raw
+
+	return out, buffer, nil
 }
 
 // loadFromDisk assume the footprint location refers to the file system
