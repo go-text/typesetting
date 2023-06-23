@@ -148,10 +148,6 @@ func ignoreFontFile(name string) bool {
 	return false
 }
 
-type fontFileHandler interface {
-	consume(path string, info os.FileInfo) error
-}
-
 // --------------------- footprint mode -----------------------
 
 // timeStamp is the (UnixNano) modification time of a font file,
