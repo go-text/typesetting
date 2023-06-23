@@ -56,11 +56,6 @@ type FontMap struct {
 	// or populated with the [UseSystemFonts], [AddFont], and/or [AddFace] method.
 	database fontSet
 
-	// manualLoads tracks indices into database that were inserted manually, rather than
-	// discovered by traversing the filesystem. These faces should be tried if no substitions
-	// are able to match the query.
-	manualLoads []int
-
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
 
@@ -227,7 +222,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 	var addedFonts []footprint
 	for i, fontDesc := range loaders {
-		fp, err := newFootprintFromLoader(fontDesc)
+		fp, err := newFootprintFromLoader(fontDesc, true)
 		// the font won't be usable, just ignore it
 		if err != nil {
 			continue
@@ -249,10 +244,6 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 	if len(addedFonts) == 0 {
 		return fmt.Errorf("empty font resource %s", fileID)
 	}
-	dbStartlen := len(fm.database)
-	for i := dbStartlen; i < dbStartlen+len(addedFonts); i++ {
-		fm.manualLoads = append(fm.manualLoads, i)
-	}
 
 	fm.database = append(fm.database, addedFonts...)
 
@@ -267,7 +258,6 @@ func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 	fp := newFootprintFromFont(face.Font, md)
 	fm.cache(fp, face)
 
-	fm.manualLoads = append(fm.manualLoads, len(fm.database))
 	fm.database = append(fm.database, fp)
 
 	fm.buildCandidates()
@@ -302,32 +292,27 @@ func (fm *FontMap) SetQuery(query Query) {
 	fm.buildCandidates()
 }
 
-func (cd *candidates) resetWithSize(candidateSize, manualSize int) {
+func (cd *candidates) resetWithSize(candidateSize int) {
 	if cap(cd.withFallback) < candidateSize { // reallocate
 		cd.withFallback = make([][]int, candidateSize)
 		cd.withoutFallback = make([]int, candidateSize)
 	}
-	if cap(cd.manual) < manualSize {
-		cd.manual = make([]int, manualSize)
-	}
+
 	// only reslice
 	cd.withFallback = cd.withFallback[0:candidateSize]
 	cd.withoutFallback = cd.withoutFallback[0:candidateSize]
-	cd.manual = cd.manual[0:manualSize]
 
 	// reset to "zero" values
 	for i := range cd.withoutFallback {
 		cd.withFallback[i] = nil
 		cd.withoutFallback[i] = -1
 	}
-	for i := range cd.manual {
-		cd.manual[i] = -1
-	}
+	cd.manual = cd.manual[0:]
 }
 
 func (fm *FontMap) buildCandidates() {
 	fm.lastFootprintIndex = -1
-	fm.candidates.resetWithSize(len(fm.query.Families), len(fm.manualLoads))
+	fm.candidates.resetWithSize(len(fm.query.Families))
 
 	selectFootprints := func(systemFallback bool) {
 		for familyIndex, family := range fm.query.Families {
@@ -352,7 +337,7 @@ func (fm *FontMap) buildCandidates() {
 	selectFootprints(false)
 	selectFootprints(true)
 
-	copy(fm.candidates.manual, fm.manualLoads)
+	fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
 	fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
 }
 

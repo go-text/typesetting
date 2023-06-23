@@ -51,18 +51,31 @@ func (fc familyCrible) fillWithSubstitutions(family string) {
 type scoredFootprints struct {
 	footprints []int
 	scores     []int
+
+	database fontSet
 }
 
 // keep the underlying storage
-func (sf *scoredFootprints) reset() {
+func (sf *scoredFootprints) reset(fs fontSet) {
 	sf.footprints = sf.footprints[:0]
 	sf.scores = sf.scores[:0]
+
+	sf.database = fs
 }
 
 // Len is the number of elements in the collection.
 func (sf scoredFootprints) Len() int { return len(sf.footprints) }
 
-func (sf scoredFootprints) Less(i int, j int) bool { return sf.scores[i] < sf.scores[j] }
+func (sf scoredFootprints) Less(i int, j int) bool {
+	if sf.scores[i] < sf.scores[j] {
+		return true
+	} else if sf.scores[i] > sf.scores[j] {
+		return false
+	} else {
+		indexi, indexj := sf.footprints[i], sf.footprints[j]
+		return sf.database[indexi].isUserProvided && !sf.database[indexj].isUserProvided
+	}
+}
 
 // Swap swaps the elements with indexes i and j.
 func (sf scoredFootprints) Swap(i int, j int) {
@@ -84,6 +97,9 @@ func isGenericFamily(family string) bool {
 // `substitute` controls whether or not system substitutions are applied.
 // The following generic family : "serif", "sans-serif", "monospace", "cursive", "fantasy"
 // are always expanded to concrete families.
+//
+// If two fonts have the same family, user provided are returned first.
+//
 // The returned slice may be empty if no font matches the given `family`.
 // buffer is used to reduce allocations
 func (fm fontSet) selectByFamily(family string, substitute bool,
@@ -92,7 +108,7 @@ func (fm fontSet) selectByFamily(family string, substitute bool,
 	// build the crible, handling substitutions
 	family = meta.NormalizeFamily(family)
 
-	footprintBuffer.reset()
+	footprintBuffer.reset(fm)
 	cribleBuffer.reset()
 
 	// always substitute generic families
@@ -293,5 +309,16 @@ func (fs fontSet) retainsBestMatches(candidates []int, query meta.Aspect) []int 
 	matchingWeight := fs.matchWeight(candidates, query.Weight)
 	candidates = fs.filterByWeight(candidates, matchingWeight)
 
+	return candidates
+}
+
+// filterUserProvided selects the user inserted fonts, appending to
+// `candidates`, which is returned
+func (fs fontSet) filterUserProvided(candidates []int) []int {
+	for index, fp := range fs {
+		if fp.isUserProvided {
+			candidates = append(candidates, index)
+		}
+	}
 	return candidates
 }
