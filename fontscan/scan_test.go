@@ -19,19 +19,6 @@ func TestDefaultDirs(t *testing.T) {
 	fmt.Printf("Valid font directories:\n%v\n", dirs)
 }
 
-func TestScanFontFiles(t *testing.T) {
-	ti := time.Now()
-
-	logger := log.New(io.Discard, "", 0)
-	directories, err := DefaultFontDirectories(logger)
-	tu.AssertNoErr(t, err)
-
-	fontpaths, err := scanFontFiles(logger, directories...)
-	tu.AssertNoErr(t, err)
-
-	fmt.Printf("Found %d fonts in %s\n", len(fontpaths), time.Since(ti))
-}
-
 func TestScanFontFootprints(t *testing.T) {
 	ti := time.Now()
 

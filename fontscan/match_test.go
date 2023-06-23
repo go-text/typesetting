@@ -8,6 +8,14 @@ import (
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
+func allIndices(fs fontSet) []int {
+	out := make([]int, len(fs))
+	for i := range fs {
+		out[i] = i
+	}
+	return out
+}
+
 func (fc familyCrible) families() []string {
 	var out []string
 	for k := range fc {
