@@ -73,13 +73,6 @@ func deserializeAspectFrom(data []byte, as *meta.Aspect) (int, error) {
 	return aspectSize, nil
 }
 
-func serializeBool(b bool) byte {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 // serializeTo serialize the Footprint in binary format,
 // by appending to `dst` and returning the slice
 func (fp footprint) serializeTo(dst []byte) []byte {
@@ -93,7 +86,6 @@ func (fp footprint) serializeTo(dst []byte) []byte {
 	dst = append(dst, serializeString(fp.Family)...)
 	dst = append(dst, fp.Runes.serialize()...)
 	dst = append(dst, serializeAspect(fp.Aspect)...)
-	dst = append(dst, serializeBool(fp.IsMonospace))
 
 	return dst
 }
@@ -127,11 +119,6 @@ func (fp *footprint) deserializeFrom(data []byte) (int, error) {
 		return 0, err
 	}
 	n += read
-	if len(data) < n+1 {
-		return 0, errors.New("invalid IsMonospace (EOF)")
-	}
-	fp.IsMonospace = data[n] == 1
-	n += 1
 
 	return n, nil
 }
