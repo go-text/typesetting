@@ -79,9 +79,9 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 
 	out.Runes, buffer.cmapBuffer = newRuneSetFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
 
-	desc := meta.NewFontDescriptor(ld)
-	out.Family = meta.NormalizeFamily(desc.Family())
-	out.Aspect = desc.Aspect()
+	family, aspect, raw := meta.Describe(ld, raw)
+	out.Family = meta.NormalizeFamily(family)
+	out.Aspect = aspect
 	out.isUserProvided = isUserProvided
 
 	buffer.tableBuffer = raw
