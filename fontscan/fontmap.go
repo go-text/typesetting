@@ -29,12 +29,12 @@ type cacheEntry struct {
 //
 // A typical usage would be as following :
 //
-//	fontMap := NewFontMap()
+//	fontMap := NewFontMap("cachedir")
 //
 //	// at least one of the following calls
 //	fontMap.UseSystemFonts() // error handling omitted
 //	fontMap.AddFont(font1, "font1") // error handling omitted
-//	fontMap.AddFont(font2, "font2") // error handling omitted
+//	fontMap.AddFace(alreadyParsed, metadata) // error handling omitted
 //
 //	// set the font description
 //	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
@@ -204,6 +204,9 @@ func refreshSystemFontsIndex(logger *log.Logger, cachePath string) (systemFontsI
 // instead of the one found in the font file.
 //
 // An error is returned if the font resource is not supported.
+//
+// The order of calls to [AddFont] and [AddFace] determines relative priority
+// of manually loaded fonts. See [ResolveFace] for details about when this matters.
 func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) error {
 	loaders, err := loader.NewLoaders(fontFile)
 	if err != nil {
@@ -256,6 +259,9 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 // [AddFace] inserts an already-loaded font.Face into the FontMap. The caller
 // is responsible for ensuring that [md] is accurate for the face.
+//
+// The order of calls to [AddFont] and [AddFace] determines relative priority
+// of manually loaded fonts. See [ResolveFace] for details about when this matters.
 func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 	fp := newFootprintFromFont(face.Font, md)
 	fm.cache(fp, face)
@@ -387,7 +393,14 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 // ResolveFace select a font based on the current query (see `SetQuery`),
 // and supporting the given rune, applying CSS font selection rules.
 // The function will return nil if the underlying font database is empty,
-// or if the file system is broken; otherwise the returned [font.Font] is always valid.
+// or if the file system is broken; otherwise the returned [font.Face] is always valid.
+//
+// If no fonts match the current query for the current rune according to the
+// builtin matching process, the fonts added manually by [AddFont] and [AddFace]
+// will be searched in the order in which they were added for a font with coverage
+// for the provided rune. The first font covering the requested rune will be returned.
+//
+// If no fonts match after the manual font search, an arbitrary face will be returned.
 func (fm *FontMap) ResolveFace(r rune) font.Face {
 	// in many case, the same font will support a lot of runes
 	// thus, as an optimisation, we register the last used footprint and start
