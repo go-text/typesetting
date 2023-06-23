@@ -295,6 +295,15 @@ func (fm *FontMap) SetQuery(query Query) {
 	fm.buildCandidates()
 }
 
+// candidates is a cache storing the indices into FontMap.database of footprints matching a Query
+type candidates struct {
+	// the two fallback slices have the same length: the number of family in the query
+	withFallback    [][]int // for each queried family
+	withoutFallback []int   // for each queried family, only one footprint is selected
+
+	manual []int // manually inserted faces to be tried if the other candidates fail.
+}
+
 func (cd *candidates) resetWithSize(candidateSize int) {
 	if cap(cd.withFallback) < candidateSize { // reallocate
 		cd.withFallback = make([][]int, candidateSize)
@@ -328,7 +337,15 @@ func (fm *FontMap) buildCandidates() {
 			candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
 
 			if systemFallback {
-				fm.candidates.withFallback[familyIndex] = candidates
+				// candidates is owned by fm.footprintsBuffer: copy its content
+				S := fm.candidates.withFallback[familyIndex]
+				if L := len(candidates); cap(S) < L {
+					S = make([]int, L)
+				} else {
+					S = S[:L]
+				}
+				copy(S, candidates)
+				fm.candidates.withFallback[familyIndex] = S
 			} else {
 				// when no systemFallback is required, the CSS spec says
 				// that only one font among the candidates must be tried
@@ -342,15 +359,6 @@ func (fm *FontMap) buildCandidates() {
 
 	fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
 	fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
-}
-
-// candidates is a cache storing the indices into FontMap.database of footprints matching a Query
-type candidates struct {
-	// the two fallback slices have the same length: the number of family in the query
-	withFallback    [][]int // for each queried family
-	withoutFallback []int   // for each queried family, only one footprint is selected
-
-	manual []int // manually inserted faces to be tried if the other candidates fail.
 }
 
 // returns nil if not candidates supports the rune `r`
