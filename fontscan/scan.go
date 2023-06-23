@@ -289,56 +289,10 @@ func scanFontFootprints(logger *log.Logger, currentIndex systemFontsIndex, dirs 
 
 	accu := newFootprintAccumulator(currentIndex)
 	for _, dir := range dirs {
-		err := scanDirectory(logger, dir, visited, &accu)
+		err := accu.scanDirectory(logger, dir, visited)
 		if err != nil {
 			return nil, err
 		}
 	}
 	return accu.dst, nil
-}
-
-// --------------------- File name mode ------------------------------
-
-type fileNameScanner []string // list of paths
-
-// return the lower filename and ext
-func splitAtDot(filePath string) (name, ext string) {
-	filePath = filepath.Base(strings.ToLower(filePath))
-	if i := strings.IndexByte(filePath, '.'); i != -1 {
-		return filePath[:i], filePath[i:]
-	}
-	return name, ""
-}
-
-func isFontFile(fileName string) bool {
-	_, ext := splitAtDot(fileName)
-	switch ext {
-	case ".ttf", ".ttc", ".otf", ".otc", ".woff": // Opentype
-		return true
-	default:
-		return false
-	}
-}
-
-func (fns *fileNameScanner) consume(path string, _ os.FileInfo) error {
-	if isFontFile(path) {
-		*fns = append(*fns, path)
-	}
-	return nil
-}
-
-// returns a list of file path looking like font files
-// no font loading is performed by this function
-func scanFontFiles(logger *log.Logger, dirs ...string) ([]string, error) {
-	visited := make(map[string]bool)
-
-	var dst fileNameScanner
-	for _, dir := range dirs {
-		err := scanDirectory(logger, dir, visited, &dst)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return dst, nil
 }
