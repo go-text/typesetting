@@ -148,7 +148,7 @@ type Aspect struct {
 
 // Aspect returns the [Aspect] of the font,
 // defaulting to regular style.
-func (fd *FontDescriptor) Aspect() Aspect {
+func (fd *fontDescriptor) Aspect() Aspect {
 	// use rawAspect and additionalStyle to infer the Aspect
 
 	out := fd.rawAspect() // load the aspect properties ...
@@ -203,7 +203,7 @@ func (as *Aspect) SetDefaults() {
 	}
 }
 
-func (fd *FontDescriptor) additionalStyle() string {
+func (fd *fontDescriptor) additionalStyle() string {
 	var style string
 	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
 		style = fd.names.Name(namePreferredSubfamily)
@@ -223,7 +223,7 @@ func (fd *FontDescriptor) additionalStyle() string {
 	return style
 }
 
-func (fd *FontDescriptor) rawAspect() Aspect {
+func (fd *fontDescriptor) rawAspect() Aspect {
 	var (
 		style   Style
 		weight  Weight
