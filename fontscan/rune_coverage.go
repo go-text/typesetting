@@ -36,9 +36,10 @@ type runeSet []runePage
 
 // newRuneSetFromCmap iterates through the given `cmap`
 // to build the corresponding rune set.
-func newRuneSetFromCmap(cmap api.Cmap) runeSet {
+// buffer may be provided to reduce allocations, and is returned
+func newRuneSetFromCmap(cmap api.Cmap, buffer [][2]rune) (runeSet, [][2]rune) {
 	if ranger, ok := cmap.(api.CmapRuneRanger); ok { // use the fast range implementation
-		return newRuneSetFromCmapRange(ranger)
+		return newRuneSetFromCmapRange(ranger, buffer)
 	}
 
 	var rs runeSet
@@ -47,7 +48,7 @@ func newRuneSetFromCmap(cmap api.Cmap) runeSet {
 		r, _ := iter.Char()
 		rs.Add(r)
 	}
-	return rs
+	return rs, buffer
 }
 
 // assume a <= b
@@ -85,10 +86,11 @@ func addRangeToPage(page *pageSet, start, end byte) {
 
 // newRuneSetFromCmapRange iterates through the given `cmap`
 // to build the corresponding rune set.
-func newRuneSetFromCmapRange(cmap api.CmapRuneRanger) runeSet {
+func newRuneSetFromCmapRange(cmap api.CmapRuneRanger, buffer [][2]rune) (runeSet, [][2]rune) {
+	buffer = cmap.RuneRanges(buffer)
 	var rs runeSet
 	lastPage := &runePage{ref: 0xFFFF} // start with an invalid sentinel value
-	for _, ra := range cmap.RuneRanges() {
+	for _, ra := range buffer {
 		start, end := ra[0], ra[1]
 
 		pageStart, pageEnd := uint16(start>>8), uint16(end>>8)
@@ -128,7 +130,7 @@ func newRuneSetFromCmapRange(cmap api.CmapRuneRanger) runeSet {
 
 		lastPage = &rs[len(rs)-1]
 	}
-	return rs
+	return rs, buffer
 }
 
 // findPageFrom is the same as findPagePos, but
