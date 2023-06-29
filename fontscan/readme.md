@@ -5,20 +5,7 @@ fundamental object needed by `go-text` for shaping and text rendering.
 
 ## Use case
 
-This package may be used by UI toolkits and markup language renderers
-
-### UI toolkits
-
-To support apps displaying a large number of scripts, a GUI toolkit want to leverage
-the fonts provided by the OS (system fonts). This ensure correct rendering, and alleviate
-the work required by the developper.
-
-### Markup language renderers
-
-The second use case deals with the rendering of markup documents (think HTML or SVG), where the author provide _hints_ about the fonts that should be used. In this case, the two main requirements are
-
-- use the whole system fonts to find the best match with respect to the author intention
-- handle a large rune coverage : many scripts may be present in the same document, so that we can't specify at build time the set of fonts we will use
+This package may be used by UI toolkits and markup language renderers. Both use-cases may need to display large quantities of text of varying languages and writing systems, and want to make use of all available fonts, both packaged within the application and installed on the system. In both cases, content/UI authors provide hints about the fonts that they want chosen (family names, weights, styles, etc...) and want the closest available match to the requested properties.
 
 ## Overview of the API
 
@@ -58,7 +45,7 @@ Fontconfig configurations files.
 
 ### Style matching
 
-`FontMap.SetQuery` takes an optionnal argument describing the style of
+`FontMap.SetQuery` takes an optional argument describing the style of
 the required font (style, weight, stretchiness).
 
 When no exact match is found, the [CSS font selection rules](https://drafts.csswg.org/css-fonts/#font-prop) are applied to return the closest match.
