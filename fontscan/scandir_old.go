@@ -49,7 +49,7 @@ func (dst *footprintScanner) scanDirectory(logger *log.Logger, dir string, visit
 }
 
 // DirEntry is a copy of the Go 1.16+ fs.DirEntry interface.
-type DirEntry interface {
+type dirEntry interface {
 	// Name returns the name of the file (or subdirectory) described by the entry.
 	// This name is only the final element of the path (the base name), not the entire path.
 	// For example, Name would return "hello.go" not "home/gopher/hello.go".
@@ -114,7 +114,7 @@ func (e dirEntryAdapter) Type() os.FileMode {
 }
 
 // readDir re-implements os.ReadDir (Go 1.16+) using only Go 1.14's stdlib.
-func readDir(name string) ([]DirEntry, error) {
+func readDir(name string) ([]dirEntry, error) {
 	d, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func readDir(name string) ([]DirEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	adapted := make([]DirEntry, len(entries))
+	adapted := make([]dirEntry, len(entries))
 	for i, e := range entries {
 		adapted[i] = dirEntryAdapter{e}
 	}

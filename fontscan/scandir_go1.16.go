@@ -49,8 +49,8 @@ func (dst *footprintScanner) scanDirectory(logger *log.Logger, dir string, visit
 	return err
 }
 
-type DirEntry = fs.DirEntry
+type dirEntry = fs.DirEntry
 
-func readDir(name string) ([]DirEntry, error) {
+func readDir(name string) ([]dirEntry, error) {
 	return os.ReadDir(name)
 }
