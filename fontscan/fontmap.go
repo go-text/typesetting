@@ -27,20 +27,6 @@ type cacheEntry struct {
 // It supports system and user-provided fonts, and implements the CSS font substitutions
 // rules.
 //
-// A typical usage would be as following :
-//
-//	fontMap := NewFontMap("cachedir")
-//
-//	// at least one of the following calls
-//	fontMap.UseSystemFonts() // error handling omitted
-//	fontMap.AddFont(font1, "font1") // error handling omitted
-//	fontMap.AddFace(alreadyParsed, metadata) // error handling omitted
-//
-//	// set the font description
-//	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
-//
-//	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
-//
 // Note that [FontMap] is NOT safe for concurrent use, but several font maps may coexist
 // in an application.
 //
