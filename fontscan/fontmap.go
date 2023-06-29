@@ -80,7 +80,8 @@ func NewFontMap(logger *log.Logger) *FontMap {
 // The first call of this method trigger a rather long scan.
 // A per-application on-disk cache is used to speed up subsequent initialisations.
 // Callers can provide an appropriate directory path within which this cache may be
-// stored.
+// stored. If the empty string is provided, the FontMap will attempt to infer a correct,
+// platform-dependent cache path.
 //
 // NOTE: On Android, callers *must* provide a writable path manually, as it cannot
 // be inferred without access to the Java runtime environment of the application.
