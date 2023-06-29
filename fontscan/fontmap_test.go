@@ -11,10 +11,55 @@ import (
 	"time"
 
 	"github.com/go-text/typesetting/font"
+	fontapi "github.com/go-text/typesetting/opentype/api/font"
+	"github.com/go-text/typesetting/opentype/api/metadata"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
+	"github.com/go-text/typesetting/opentype/loader"
 	tu "github.com/go-text/typesetting/opentype/testutils"
 	"github.com/go-text/typesetting/shaping"
 )
+
+func ExampleFontMap_UseSystemFonts() {
+	fontMap := NewFontMap(log.Default())
+	fontMap.UseSystemFonts("cachdir") // error handling omitted
+
+	// set the font description
+	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
+}
+
+func ExampleFontMap_AddFont() {
+	// Open an on-disk font file. Do not close it, as the fontMap will need to parse
+	// it on-demand. If you need to close it, read all of the bytes into a bytes.Reader
+	// first.
+	fontFile, _ := os.Open("myFont.ttf") // error handling omitted
+
+	fontMap := NewFontMap(log.Default())
+	fontMap.AddFont(fontFile, "myFont.ttf", "My Font") // error handling omitted
+
+	// set the font description
+	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+
+	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
+}
+
+func ExampleFontMap_AddFace() {
+	// Open an on-disk font file.
+	fontFile, _ := os.Open("myFont.ttf") // error handling omitted
+	defer fontFile.Close()
+
+	// Load it and its metadata.
+	ld, _ := loader.NewLoader(fontFile) // error handling omitted
+	md := metadata.Metadata(ld)
+	f, _ := fontapi.NewFont(ld) // error handling omitted
+	fontMap := NewFontMap(log.Default())
+	fontMap.AddFace(&fontapi.Face{Font: f}, md)
+
+	// set the font description
+	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+
+	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
+}
 
 var _ shaping.Fontmap = (*FontMap)(nil)
 
