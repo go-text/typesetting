@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	fontapi "github.com/go-text/typesetting/opentype/api/font"
-	"github.com/go-text/typesetting/opentype/api/metadata"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
 	tu "github.com/go-text/typesetting/opentype/testutils"
@@ -50,7 +49,7 @@ func ExampleFontMap_AddFace() {
 
 	// Load it and its metadata.
 	ld, _ := loader.NewLoader(fontFile) // error handling omitted
-	md := metadata.Metadata(ld)
+	md := meta.Metadata(ld)
 	f, _ := fontapi.NewFont(ld) // error handling omitted
 	fontMap := NewFontMap(log.Default())
 	fontMap.AddFace(&fontapi.Face{Font: f}, md)
