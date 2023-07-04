@@ -83,9 +83,21 @@ func (sf scoredFootprints) Swap(i int, j int) {
 	sf.scores[i], sf.scores[j] = sf.scores[j], sf.scores[i]
 }
 
+// Generic families as defined by
+// https://www.w3.org/TR/css-fonts-4/#generic-font-families
+const (
+	Fantasy   = "fantasy"
+	Math      = "math"
+	Emoji     = "emoji"
+	Serif     = "serif"
+	SansSerif = "sans-serif"
+	Cursive   = "cursive"
+	Monospace = "monospace"
+)
+
 func isGenericFamily(family string) bool {
 	switch family {
-	case "serif", "sans-serif", "monospace", "cursive", "fantasy":
+	case Serif, SansSerif, Monospace, Cursive, Fantasy, Math, Emoji:
 		return true
 	default:
 		return false
@@ -95,8 +107,7 @@ func isGenericFamily(family string) bool {
 // selectByFamily returns all the fonts in the fontmap matching
 // the given `family`, with the best matches coming first.
 // `substitute` controls whether or not system substitutions are applied.
-// The following generic family : "serif", "sans-serif", "monospace", "cursive", "fantasy"
-// are always expanded to concrete families.
+// The generic families are always expanded to concrete families.
 //
 // If two fonts have the same family, user provided are returned first.
 //
