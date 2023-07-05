@@ -107,9 +107,6 @@ func TestResolveFallbackManual(t *testing.T) {
 	logger := log.New(os.Stdout, "", 0)
 	fm := NewFontMap(logger)
 
-	err := fm.UseSystemFonts(t.TempDir())
-	tu.AssertNoErr(t, err)
-
 	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
 	tu.AssertNoErr(t, err)
 	defer file1.Close()
@@ -119,6 +116,7 @@ func TestResolveFallbackManual(t *testing.T) {
 	defer file2.Close()
 
 	err = fm.AddFont(file1, "user:Amiri", "")
+	err = fm.AddFont(file2, "user:Roboto", "")
 	tu.AssertNoErr(t, err)
 
 	fm.SetQuery(Query{}) // no families
