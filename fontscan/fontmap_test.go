@@ -116,6 +116,7 @@ func TestResolveFallbackManual(t *testing.T) {
 	defer file2.Close()
 
 	err = fm.AddFont(file1, "user:Amiri", "")
+	tu.AssertNoErr(t, err)
 	err = fm.AddFont(file2, "user:Roboto", "")
 	tu.AssertNoErr(t, err)
 
