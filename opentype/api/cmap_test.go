@@ -5,6 +5,7 @@ package api
 import (
 	"bytes"
 	"encoding/binary"
+	"reflect"
 	"testing"
 
 	"github.com/go-text/typesetting/opentype/loader"
@@ -158,4 +159,41 @@ func TestCmap14(t *testing.T) {
 
 	_, flag = uv.GetGlyphVariant(33446, 0xF)
 	tu.Assert(t, flag == VariantNotFound)
+}
+
+func TestRuneRanges(t *testing.T) {
+	for _, filename := range append(tu.Filenames(t, "common"), tu.Filenames(t, "cmap")...) {
+		fp := readFontFile(t, filename)
+		cmapT, _, err := tables.ParseCmap(readTable(t, fp, "cmap"))
+		tu.AssertNoErr(t, err)
+		cmap, _, err := ProcessCmap(cmapT)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, cmap != nil)
+
+		assertRuneRangesEqual(t, cmap)
+	}
+}
+
+func assertRuneRangesEqual(t *testing.T, cm Cmap) {
+	if _, ok := cm.(CmapRuneRanger); !ok {
+		return
+	}
+
+	byRanges, byIter := make(map[rune]bool), make(map[rune]bool)
+
+	iter := cm.Iter()
+	for iter.Next() {
+		r, _ := iter.Char()
+		byIter[r] = true
+	}
+
+	for _, ran := range cm.(CmapRuneRanger).RuneRanges() {
+		for r := ran[0]; r <= ran[1]; r++ {
+			byRanges[r] = true
+		}
+	}
+
+	if !reflect.DeepEqual(byRanges, byIter) {
+		t.Fatal("inconsistent rune ranges")
+	}
 }
