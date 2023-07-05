@@ -281,6 +281,9 @@ func (fm *FontMap) FontMetadata(ft font.Font) (family string, aspect meta.Aspect
 // SetQuery set the families and aspect required, influencing subsequent
 // `ResolveFace` calls.
 func (fm *FontMap) SetQuery(query Query) {
+	if len(query.Families) == 0 {
+		query.Families = []string{""}
+	}
 	fm.query = query
 
 	// since many runes will be looked for the same query,
