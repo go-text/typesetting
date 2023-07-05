@@ -34,18 +34,13 @@ type runePage struct {
 // runes.
 type runeSet []runePage
 
-// newRuneSet builds a set containing the given runes.
-func newRuneSet(runes ...rune) runeSet {
-	var rs runeSet
-	for _, r := range runes {
-		rs.Add(r)
-	}
-	return rs
-}
-
 // newRuneSetFromCmap iterates through the given `cmap`
 // to build the corresponding rune set.
 func newRuneSetFromCmap(cmap api.Cmap) runeSet {
+	if ranger, ok := cmap.(api.CmapRuneRanger); ok { // use the fast range implementation
+		return newRuneSetFromCmapRange(ranger)
+	}
+
 	var rs runeSet
 	iter := cmap.Iter()
 	for iter.Next() {
@@ -55,19 +50,85 @@ func newRuneSetFromCmap(cmap api.Cmap) runeSet {
 	return rs
 }
 
-// runes returns a copy of the runes in the set.
-func (rs runeSet) runes() (out []rune) {
-	for _, page := range rs {
-		pageLow := rune(page.ref) << 8
-		for j, set := range page.set {
-			for k := rune(0); k < 32; k++ {
-				if set&uint32(1<<k) != 0 {
-					out = append(out, pageLow|rune(j)<<5|k)
-				}
-			}
-		}
+// assume a <= b
+func addRangeToPage(page *pageSet, start, end byte) {
+	// indexes in [0; 8[
+	uintIndexStart := start >> 5
+	uintIndexEnd := end >> 5
+
+	// bit index, in [0; 32[
+	bitIndexStart := (start & 0x1f)
+	bitIndexEnd := (end & 0x1f)
+
+	// handle the start uint
+	bitEnd := byte(31)
+	if uintIndexEnd == uintIndexStart {
+		bitEnd = bitIndexEnd
 	}
-	return out
+	b := &page[uintIndexStart]
+	alt := (uint32(1)<<(bitEnd-bitIndexStart+1) - 1) << bitIndexStart // mask for bits from a to b (included)
+	*b |= alt
+
+	// handle the end uint, when required
+	if uintIndexEnd != uintIndexStart {
+		// fill uint between with ones
+		for index := uintIndexStart + 1; index < uintIndexEnd; index++ {
+			page[index] = 0xFFFFFFFF
+		}
+
+		// handle the last
+		b := &page[uintIndexEnd]
+		alt := (uint32(1)<<(bitIndexEnd+1) - 1) // mask for bits from a to b (included)
+		*b |= alt
+	}
+}
+
+// newRuneSetFromCmapRange iterates through the given `cmap`
+// to build the corresponding rune set.
+func newRuneSetFromCmapRange(cmap api.CmapRuneRanger) runeSet {
+	var rs runeSet
+	lastPage := &runePage{ref: 0xFFFF} // start with an invalid sentinel value
+	for _, ra := range cmap.RuneRanges() {
+		start, end := ra[0], ra[1]
+
+		pageStart, pageEnd := uint16(start>>8), uint16(end>>8)
+
+		// handle the starting page
+		startByte, endByte := byte(start&0xff), byte(end&0xff)
+		endByteClamped := byte(0xFF)
+		if pageEnd == pageStart {
+			endByteClamped = endByte
+		}
+
+		// check if we can reuse the last page
+		var leaf *pageSet
+		if pageStart == lastPage.ref { // use the same page
+			leaf = &lastPage.set
+		} else {
+			rs = append(rs, runePage{ref: pageStart})
+			leaf = &rs[len(rs)-1].set
+		}
+		addRangeToPage(leaf, startByte, endByteClamped)
+
+		// handle the next
+		if pageEnd != pageStart { // this means pageStart < pageEnd
+			// fill the strictly intermediate pages with ones
+			for pageIndex := pageStart + 1; pageIndex < pageEnd; pageIndex++ {
+				rs = append(rs, runePage{
+					ref: pageIndex,
+					set: pageSet{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+				})
+			}
+
+			// hande the last
+			rs = append(rs, runePage{ref: pageEnd})
+			leaf = &rs[len(rs)-1].set
+			addRangeToPage(leaf, 0, endByte)
+		}
+
+		lastPage = &rs[len(rs)-1]
+	}
+	return rs
 }
 
 // findPageFrom is the same as findPagePos, but
@@ -96,40 +157,6 @@ func (rs runeSet) findPageFrom(low int, ref pageRef) int {
 // It returns its index if it exists, otherwise it returns the negative of
 // the (`position` + 1) where `position` is the index where it should be inserted
 func (rs runeSet) findPagePos(page pageRef) int { return rs.findPageFrom(0, page) }
-
-// return true if and only if `a` is a subset of `b`
-func (a runeSet) isSubset(b runeSet) bool {
-	ai, bi := 0, 0
-	for ai < len(a) && bi < len(b) {
-		an := a[ai].ref
-		bn := b[bi].ref
-		// Check matching pages
-		if an == bn {
-			am := a[ai].set
-			bm := b[bi].set
-
-			if am != bm {
-				//  Does am have any bits not in bm?
-				for j, av := range am {
-					if av & ^bm[j] != 0 {
-						return false
-					}
-				}
-			}
-			ai++
-			bi++
-		} else if an < bn { // Does a have any pages not in b?
-			return false
-		} else {
-			bi = b.findPageFrom(bi+1, an)
-			if bi < 0 {
-				bi = -bi - 1
-			}
-		}
-	}
-	// did we look at every page?
-	return ai >= len(a)
-}
 
 // findPage returns the page containing the specified char, or nil
 // if it doesn't exists

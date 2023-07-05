@@ -14,7 +14,7 @@ func TestSerializeDeserialize(t *testing.T) {
 		{
 			Family: "a strange one",
 			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			Aspect: meta.Aspect{1, 200, 0.45},
+			Aspect: meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
 		},
 		{
 			Runes: runeSet{},

@@ -7,12 +7,37 @@ import (
 	"testing"
 
 	"github.com/go-text/typesetting/opentype/api"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 )
+
+// newRuneSet builds a set containing the given runes.
+func newRuneSet(runes ...rune) runeSet {
+	var rs runeSet
+	for _, r := range runes {
+		rs.Add(r)
+	}
+	return rs
+}
 
 func randomRunes() []rune {
 	out := make([]rune, 1000)
 	for i := range out {
 		out[i] = rand.Int31()
+	}
+	return out
+}
+
+// runes returns a copy of the runes in the set.
+func (rs runeSet) runes() (out []rune) {
+	for _, page := range rs {
+		pageLow := rune(page.ref) << 8
+		for j, set := range page.set {
+			for k := rune(0); k < 32; k++ {
+				if set&uint32(1<<k) != 0 {
+					out = append(out, pageLow|rune(j)<<5|k)
+				}
+			}
+		}
 	}
 	return out
 }
@@ -120,26 +145,6 @@ func TestDeserializeFrom(t *testing.T) {
 	}
 }
 
-func TestCoverage_isSubset(t *testing.T) {
-	tests := []struct {
-		a    runeSet
-		b    runeSet
-		want bool
-	}{
-		{newRuneSet(), newRuneSet(), true},
-		{newRuneSet(1, 10, 0x78DD), newRuneSet(1, 10, 0x78DD), true},
-		{newRuneSet(1, 10, 0x78DD), newRuneSet(1, 10, 0x78DD, 13), true},
-		{newRuneSet(1, 10, 0x78DD, 12), newRuneSet(1, 10, 0x78DD), false},
-		{newRuneSet(0x78DD), newRuneSet(1, 10), false},
-		{newRuneSet(1, 10), newRuneSet(0x78DD), false},
-	}
-	for _, tt := range tests {
-		if got := tt.a.isSubset(tt.b); got != tt.want {
-			t.Errorf("Coverage.isSubset() = %v, want %v", got, tt.want)
-		}
-	}
-}
-
 // CmapSimple is a map based Cmap implementation.
 type CmapSimple map[rune]api.GID
 
@@ -184,5 +189,44 @@ func TestNewRuneSetFromCmap(t *testing.T) {
 		if got := newRuneSetFromCmap(tt.args); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("NewRuneSetFromCmap() = %v, want %v", got, tt.want)
 		}
+	}
+}
+
+func TestBits(t *testing.T) {
+	a, b := 2, 13
+	var total uint32
+	for i := a; i <= b; i++ {
+		total |= 1 << i
+	}
+
+	alt := (uint32(1)<<(b-a+1) - 1) << a // mask for bits from a to b (included)
+	tu.Assert(t, total == alt)
+}
+
+type runeRange [][2]rune
+
+func (rr runeRange) RuneRanges() [][2]rune { return rr }
+
+func (rr runeRange) runes() (out []rune) {
+	for _, ra := range rr {
+		for r := ra[0]; r <= ra[1]; r++ {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func TestRuneRanges(t *testing.T) {
+	for _, source := range []runeRange{
+		{
+			{0, 10}, {12, 14}, {15, 15}, {18, 2000}, {2100, 0xFFFFFF},
+		},
+		{
+			{0, 30}, {0xFF, 0xFF * 2},
+		},
+	} {
+		got := newRuneSetFromCmapRange(source)
+		exp := newRuneSet(source.runes()...)
+		tu.Assert(t, reflect.DeepEqual(got, exp))
 	}
 }
