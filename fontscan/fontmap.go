@@ -37,6 +37,7 @@ type cacheEntry struct {
 type FontMap struct {
 	logger *log.Logger
 	// caches of already loaded faceCache : the two maps are updated conjointly
+	firstFace font.Face
 	faceCache map[Location]font.Face
 	metaCache map[font.Font]cacheEntry
 
@@ -259,6 +260,9 @@ func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 }
 
 func (fm *FontMap) cache(fp footprint, face font.Face) {
+	if fm.firstFace == nil {
+		fm.firstFace = face
+	}
 	fm.faceCache[fp.Location] = face
 	fm.metaCache[face.Font] = cacheEntry{fp.Location, fp.Family, fp.Aspect}
 }
@@ -453,11 +457,24 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 		return face
 	}
 
+	// return an arbitrary face
+	if fm.firstFace == nil && len(fm.database) > 0 {
+		for _, fp := range fm.database {
+			face, err := fm.loadFont(fp)
+			if err != nil {
+				// very unlikely; warn and keep going
+				fm.logger.Println(err)
+				continue
+			}
+			return face
+		}
+	}
+
+	return fm.firstFace
 	// refreshSystemFontsIndex makes sure at least one face is valid
 	// and AddFont also check for valid font files, meaning that
 	// a valid FontMap should always contain a valid face,
-	// and this should never happen in pratice
-	return nil
+	// and we should never return a nil face.
 }
 
 func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
