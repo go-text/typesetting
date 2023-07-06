@@ -446,18 +446,6 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 	fm.logger.Printf("No font matched for %v and rune %U (%c) -> returning arbitrary face", fm.query.Families, r, r)
 
 	// return an arbitrary face
-	for _, face := range fm.faceCache {
-		return face
-	}
-	for _, fp := range fm.database {
-		face, err := fm.loadFont(fp)
-		if err != nil { // very unlikely
-			continue
-		}
-		return face
-	}
-
-	// return an arbitrary face
 	if fm.firstFace == nil && len(fm.database) > 0 {
 		for _, fp := range fm.database {
 			face, err := fm.loadFont(fp)
