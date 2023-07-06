@@ -47,6 +47,7 @@ type FontMap struct {
 	// or populated with the [UseSystemFonts], [AddFont], and/or [AddFace] method.
 	database  fontSet
 	scriptMap map[language.Script][]int
+	lru       runeLRU
 
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
@@ -69,7 +70,7 @@ func NewFontMap(logger *log.Logger) *FontMap {
 	if logger == nil {
 		logger = log.New(log.Writer(), "fontscan", log.Flags())
 	}
-	return &FontMap{
+	fm := &FontMap{
 		logger:             logger,
 		faceCache:          make(map[Location]font.Face),
 		metaCache:          make(map[font.Font]cacheEntry),
@@ -77,6 +78,8 @@ func NewFontMap(logger *log.Logger) *FontMap {
 		scriptMap:          make(map[language.Script][]int),
 		lastFootprintIndex: -1,
 	}
+	fm.lru.maxSize = 4096
+	return fm
 }
 
 // UseSystemFonts loads the system fonts and adds them to the font map.
@@ -102,6 +105,7 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 
 	fm.buildCandidates()
 
+	fm.lru.Clear()
 	return nil
 }
 
@@ -260,6 +264,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 	fm.buildCandidates()
 
+	fm.lru.Clear()
 	return nil
 }
 
@@ -275,6 +280,7 @@ func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 	fm.appendFootprints(fp)
 
 	fm.buildCandidates()
+	fm.lru.Clear()
 }
 
 func (fm *FontMap) cache(fp footprint, face font.Face) {
@@ -413,7 +419,15 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 // for the provided rune. The first font covering the requested rune will be returned.
 //
 // If no fonts match after the manual font search, an arbitrary face will be returned.
-func (fm *FontMap) ResolveFace(r rune) font.Face {
+func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
+	key := fm.lru.KeyFor(fm.query, r)
+	face, ok := fm.lru.Get(key, fm.query)
+	if ok {
+		return face
+	}
+	defer func() {
+		fm.lru.Put(key, fm.query, face)
+	}()
 	// in many case, the same font will support a lot of runes
 	// thus, as an optimisation, we register the last used footprint and start
 	// to check if it supports `r`
