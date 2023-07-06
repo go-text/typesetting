@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/bits"
+	"sort"
 
+	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/api"
 )
 
@@ -266,4 +268,23 @@ func (rs *runeSet) deserializeFrom(data []byte) (int, error) {
 	*rs = v
 
 	return 2 + runePageSize*L, nil
+}
+
+type scriptSet []language.Script
+
+// insert adds the given script to the set if it is not already present.
+func (s *scriptSet) insert(newScript language.Script) {
+	scriptIdx := sort.Search(len([]language.Script(*s)), func(i int) bool {
+		return (*s)[i] >= newScript
+	})
+	if scriptIdx != len(*s) && (*s)[scriptIdx] == newScript {
+		return
+	}
+	// Grow the slice if necessary.
+	startLen := len(*s)
+	*s = append(*s, language.Script(0))[:startLen]
+	// Shift all elements from scriptIdx onward to the right one position.
+	*s = append((*s)[:scriptIdx+1], (*s)[scriptIdx:]...)
+	// Insert newScript at the correct position.
+	(*s)[scriptIdx] = newScript
 }
