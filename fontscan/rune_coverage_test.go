@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/api"
 	tu "github.com/go-text/typesetting/opentype/testutils"
 )
@@ -229,4 +230,274 @@ func TestRuneRanges(t *testing.T) {
 		exp := newRuneSet(source.runes()...)
 		tu.Assert(t, reflect.DeepEqual(got, exp))
 	}
+}
+
+func TestScriptSet(t *testing.T) {
+	type testcase struct {
+		name     string
+		toInsert []language.Script
+		expected []language.Script
+	}
+	for _, tc := range []testcase{
+		{
+			name:     "empty add nothing",
+			expected: []language.Script{},
+		},
+		{
+			name:     "add latin",
+			toInsert: []language.Script{language.Latin},
+			expected: []language.Script{language.Latin},
+		},
+		{
+			name:     "add latin twice",
+			toInsert: []language.Script{language.Latin, language.Latin},
+			expected: []language.Script{language.Latin},
+		},
+		{
+			name:     "add latin and arabic",
+			toInsert: []language.Script{language.Latin, language.Arabic},
+			expected: []language.Script{language.Latin, language.Arabic},
+		},
+		{
+			name:     "add latin and arabic twice",
+			toInsert: []language.Script{language.Latin, language.Arabic, language.Latin, language.Arabic},
+			expected: []language.Script{language.Latin, language.Arabic},
+		},
+		{
+			name:     "add latin and arabic twice in a row",
+			toInsert: []language.Script{language.Latin, language.Latin, language.Arabic, language.Arabic},
+			expected: []language.Script{language.Latin, language.Arabic},
+		},
+		{
+			name: "add many scripts",
+			toInsert: func() []language.Script {
+				scripts := make([]language.Script, 0, len(testScripts)*10)
+				for i := 0; i < 10; i++ {
+					scripts = append(scripts, testScripts...)
+				}
+				rand.Seed(0)
+				rand.Shuffle(len(scripts), func(i, j int) {
+					scripts[i], scripts[j] = scripts[j], scripts[i]
+				})
+				return scripts
+			}(),
+			expected: testScripts,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			set := make(scriptSet, 0, 1)
+			for _, s := range tc.toInsert {
+				set.insert(s)
+			}
+			sort.Slice(tc.expected, func(i, j int) bool {
+				return tc.expected[i] < tc.expected[j]
+			})
+			if len(tc.expected) != len(set) {
+				t.Errorf("expected %d scripts, got %d", len(tc.expected), len(set))
+			}
+			for i := 0; i < min(len(tc.expected), len(set)); i++ {
+				if tc.expected[i] != set[i] {
+					t.Errorf("mismatch at index %d, expected %s got %s", i, tc.expected[i], set[i])
+				}
+			}
+		})
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+var testScripts = []language.Script{
+	language.Adlam,
+	language.Afaka,
+	language.Ahom,
+	language.Anatolian_Hieroglyphs,
+	language.Arabic,
+	language.Armenian,
+	language.Avestan,
+	language.Balinese,
+	language.Bamum,
+	language.Bassa_Vah,
+	language.Batak,
+	language.Bengali,
+	language.Bhaiksuki,
+	language.Blissymbols,
+	language.Book_Pahlavi,
+	language.Bopomofo,
+	language.Brahmi,
+	language.Braille,
+	language.Buginese,
+	language.Buhid,
+	language.Canadian_Aboriginal,
+	language.Carian,
+	language.Caucasian_Albanian,
+	language.Chakma,
+	language.Cham,
+	language.Cherokee,
+	language.Chorasmian,
+	language.Cirth,
+	language.Code_for_unwritten_documents,
+	language.Common,
+	language.Coptic,
+	language.Cuneiform,
+	language.Cypriot,
+	language.Cypro_Minoan,
+	language.Cyrillic,
+	language.Deseret,
+	language.Devanagari,
+	language.Dives_Akuru,
+	language.Dogra,
+	language.Duployan,
+	language.Egyptian_Hieroglyphs,
+	language.Egyptian_demotic,
+	language.Egyptian_hieratic,
+	language.Elbasan,
+	language.Elymaic,
+	language.Ethiopic,
+	language.Georgian,
+	language.Glagolitic,
+	language.Gothic,
+	language.Grantha,
+	language.Greek,
+	language.Gujarati,
+	language.Gunjala_Gondi,
+	language.Gurmukhi,
+	language.Han,
+	language.Hangul,
+	language.Hanifi_Rohingya,
+	language.Hanunoo,
+	language.Hatran,
+	language.Hebrew,
+	language.Hiragana,
+	language.Imperial_Aramaic,
+	language.Inherited,
+	language.Inscriptional_Pahlavi,
+	language.Inscriptional_Parthian,
+	language.Javanese,
+	language.Jurchen,
+	language.Kaithi,
+	language.Kannada,
+	language.Katakana,
+	language.Katakana_Or_Hiragana,
+	language.Kawi,
+	language.Kayah_Li,
+	language.Kharoshthi,
+	language.Khitan_Small_Script,
+	language.Khitan_large_script,
+	language.Khmer,
+	language.Khojki,
+	language.Khudawadi,
+	language.Kpelle,
+	language.Lao,
+	language.Latin,
+	language.Leke,
+	language.Lepcha,
+	language.Limbu,
+	language.Linear_A,
+	language.Linear_B,
+	language.Lisu,
+	language.Loma,
+	language.Lycian,
+	language.Lydian,
+	language.Mahajani,
+	language.Makasar,
+	language.Malayalam,
+	language.Mandaic,
+	language.Manichaean,
+	language.Marchen,
+	language.Masaram_Gondi,
+	language.Mathematical_notation,
+	language.Mayan_hieroglyphs,
+	language.Medefaidrin,
+	language.Meetei_Mayek,
+	language.Mende_Kikakui,
+	language.Meroitic_Cursive,
+	language.Meroitic_Hieroglyphs,
+	language.Miao,
+	language.Modi,
+	language.Mongolian,
+	language.Mro,
+	language.Multani,
+	language.Myanmar,
+	language.Nabataean,
+	language.Nag_Mundari,
+	language.Nandinagari,
+	language.New_Tai_Lue,
+	language.Newa,
+	language.Nko,
+	language.Nushu,
+	language.Nyiakeng_Puachue_Hmong,
+	language.Ogham,
+	language.Ol_Chiki,
+	language.Old_Hungarian,
+	language.Old_Italic,
+	language.Old_North_Arabian,
+	language.Old_Permic,
+	language.Old_Persian,
+	language.Old_Sogdian,
+	language.Old_South_Arabian,
+	language.Old_Turkic,
+	language.Old_Uyghur,
+	language.Oriya,
+	language.Osage,
+	language.Osmanya,
+	language.Pahawh_Hmong,
+	language.Palmyrene,
+	language.Pau_Cin_Hau,
+	language.Phags_Pa,
+	language.Phoenician,
+	language.Psalter_Pahlavi,
+	language.Ranjana,
+	language.Rejang,
+	language.Rongorongo,
+	language.Runic,
+	language.Samaritan,
+	language.Sarati,
+	language.Saurashtra,
+	language.Sharada,
+	language.Shavian,
+	language.Shuishu,
+	language.Siddham,
+	language.SignWriting,
+	language.Sinhala,
+	language.Sogdian,
+	language.Sora_Sompeng,
+	language.Soyombo,
+	language.Sundanese,
+	language.Sunuwar,
+	language.Syloti_Nagri,
+	language.Symbols,
+	language.Syriac,
+	language.Tagalog,
+	language.Tagbanwa,
+	language.Tai_Le,
+	language.Tai_Tham,
+	language.Tai_Viet,
+	language.Takri,
+	language.Tamil,
+	language.Tangsa,
+	language.Tangut,
+	language.Telugu,
+	language.Tengwar,
+	language.Thaana,
+	language.Thai,
+	language.Tibetan,
+	language.Tifinagh,
+	language.Tirhuta,
+	language.Toto,
+	language.Ugaritic,
+	language.Unknown,
+	language.Vai,
+	language.Visible_Speech,
+	language.Vithkuqi,
+	language.Wancho,
+	language.Warang_Citi,
+	language.Woleai,
+	language.Yezidi,
+	language.Yi,
+	language.Zanabazar_Square,
 }
