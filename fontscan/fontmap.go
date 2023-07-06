@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
 )
@@ -43,7 +44,8 @@ type FontMap struct {
 
 	// the database to query, either loaded from an index
 	// or populated with the [UseSystemFonts], [AddFont], and/or [AddFace] method.
-	database fontSet
+	database  fontSet
+	scriptMap map[language.Script][]int
 
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
@@ -71,6 +73,7 @@ func NewFontMap(logger *log.Logger) *FontMap {
 		faceCache:          make(map[Location]font.Face),
 		metaCache:          make(map[font.Font]cacheEntry),
 		cribleBuffer:       make(familyCrible),
+		scriptMap:          make(map[language.Script][]int),
 		lastFootprintIndex: -1,
 	}
 }
@@ -94,11 +97,25 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	}
 
 	// systemFonts is read-only, so may be used concurrently
-	fm.database = append(fm.database, systemFonts.flatten()...)
+	fm.appendFootprints(systemFonts.flatten()...)
 
 	fm.buildCandidates()
 
 	return nil
+}
+
+// appendFootprints adds the provided footprints to the database and maps their script
+// coverage.
+func (fm *FontMap) appendFootprints(footprints ...footprint) {
+	startIdx := len(fm.database)
+	fm.database = append(fm.database, footprints...)
+	// Insert entries into scriptMap for each footprint's covered scripts.
+	for i, fp := range footprints {
+		dbIdx := startIdx + i
+		for _, script := range fp.Runes.Scripts() {
+			fm.scriptMap[script] = append(fm.scriptMap[script], dbIdx)
+		}
+	}
 }
 
 // systemFonts is a global index of the system fonts.
@@ -238,7 +255,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 		return fmt.Errorf("empty font resource %s", fileID)
 	}
 
-	fm.database = append(fm.database, addedFonts...)
+	fm.appendFootprints(addedFonts...)
 
 	fm.buildCandidates()
 
@@ -254,7 +271,7 @@ func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 	fp := newFootprintFromFont(face.Font, md)
 	fm.cache(fp, face)
 
-	fm.database = append(fm.database, fp)
+	fm.appendFootprints(fp)
 
 	fm.buildCandidates()
 }
