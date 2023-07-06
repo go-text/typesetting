@@ -1,11 +1,14 @@
 package fontscan
 
 import (
+	"bytes"
 	"math/rand"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
 
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/api"
 	tu "github.com/go-text/typesetting/opentype/testutils"
@@ -289,17 +292,61 @@ func TestScriptSet(t *testing.T) {
 			for _, s := range tc.toInsert {
 				set.insert(s)
 			}
-			sort.Slice(tc.expected, func(i, j int) bool {
-				return tc.expected[i] < tc.expected[j]
-			})
-			if len(tc.expected) != len(set) {
-				t.Errorf("expected %d scripts, got %d", len(tc.expected), len(set))
-			}
-			for i := 0; i < min(len(tc.expected), len(set)); i++ {
-				if tc.expected[i] != set[i] {
-					t.Errorf("mismatch at index %d, expected %s got %s", i, tc.expected[i], set[i])
-				}
-			}
+			assertSetsMatch(t, tc.expected, set)
+		})
+	}
+}
+
+func assertSetsMatch(t *testing.T, expected, actual []language.Script) {
+	t.Helper()
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i] < expected[j]
+	})
+	if len(expected) != len(actual) {
+		t.Errorf("expected %d scripts, got %d", len(expected), len(actual))
+		t.Logf("expected: %q", expected)
+		t.Logf("actual: %q", actual)
+	}
+	for i := 0; i < min(len(expected), len(actual)); i++ {
+		if expected[i] != actual[i] {
+			t.Errorf("mismatch at index %d, expected %s got %s", i, expected[i], actual[i])
+		}
+	}
+}
+
+func TestRuneSetScripts(t *testing.T) {
+	type testcase struct {
+		name     string
+		fontdata []byte
+		expected []language.Script
+	}
+	for _, tc := range []testcase{
+		{
+			name: "Roboto Regular",
+			fontdata: func() []byte {
+				data, err := os.ReadFile("../font/testdata/Roboto-Regular.ttf")
+				tu.AssertNoErr(t, err)
+				return data
+			}(),
+			expected: []language.Script{language.Cyrillic, language.Greek, language.Latin, language.Inherited, language.Common, language.Unknown},
+		},
+		{
+			name: "Amiri Regular",
+			fontdata: func() []byte {
+				data, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
+				tu.AssertNoErr(t, err)
+				return data
+			}(),
+			expected: []language.Script{language.Arabic, language.Latin, language.Inherited, language.Common},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			face, err := font.ParseTTF(bytes.NewReader(tc.fontdata))
+			tu.AssertNoErr(t, err)
+			rs, _ := newRuneSetFromCmap(face.Cmap, nil)
+			actualScripts := rs.Scripts()
+
+			assertSetsMatch(t, tc.expected, actualScripts)
 		})
 	}
 }
