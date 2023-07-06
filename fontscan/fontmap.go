@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"sync"
 
 	"github.com/go-text/typesetting/font"
@@ -458,10 +459,39 @@ func (fm *FontMap) ResolveFace(r rune) font.Face {
 		}
 	}
 
-	// this is very very unlikely, since the substitution
-	// always add a default generic family
-	fm.logger.Printf("No font matched for %v and rune %U (%c) -> returning arbitrary face", fm.query.Families, r, r)
+	fm.logger.Printf("No font matched for %q and rune %U (%c) -> searching by script coverage and aspect", fm.query.Families, r, r)
 
+	script := language.LookupScript(r)
+	scriptCandidates, ok := fm.scriptMap[language.LookupScript(r)]
+	if ok {
+		aspectCandidates := make([]int, len(scriptCandidates))
+		copy(aspectCandidates, scriptCandidates)
+		// Filter candidates to those matching the requested aspect first.
+		aspectCandidates = fm.database.retainsBestMatches(aspectCandidates, fm.query.Aspect)
+		if face := fm.resolveForRune(aspectCandidates, r); face != nil {
+			return face
+		}
+		fm.logger.Printf("No font matched for aspect %v, script %s, and rune %U (%c) -> searching by script coverage only", fm.query.Aspect, script, r, r)
+		// aspectCandidates has been filtered down and has exactly enough excess capacity to hold
+		// the other original candidates.
+		allCandidates := aspectCandidates[len(aspectCandidates):len(aspectCandidates):cap(aspectCandidates)]
+		// Populate allCandidates with every script candidate that isn't in aspectCandidates.
+		for _, idx := range scriptCandidates {
+			possibleIdx := sort.Search(len(aspectCandidates), func(i int) bool {
+				return aspectCandidates[i] >= idx
+			})
+			if possibleIdx < len(aspectCandidates) && aspectCandidates[possibleIdx] == idx {
+				continue
+			}
+			allCandidates = append(allCandidates, idx)
+		}
+		// Try allCandidates.
+		if face := fm.resolveForRune(allCandidates, r); face != nil {
+			return face
+		}
+	}
+
+	fm.logger.Printf("No font matched for script %s and rune %U (%c) -> returning arbitrary face", script, r, r)
 	// return an arbitrary face
 	if fm.firstFace == nil && len(fm.database) > 0 {
 		for _, fp := range fm.database {
