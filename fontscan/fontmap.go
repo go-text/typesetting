@@ -57,10 +57,6 @@ type FontMap struct {
 	cribleBuffer     familyCrible
 
 	query Query // current query
-
-	// cached value of the last footprint index
-	// selected by ResolveFace
-	lastFootprintIndex int
 }
 
 // NewFontMap return a new font map, which should be filled with the `UseSystemFonts`
@@ -71,12 +67,11 @@ func NewFontMap(logger *log.Logger) *FontMap {
 		logger = log.New(log.Writer(), "fontscan", log.Flags())
 	}
 	fm := &FontMap{
-		logger:             logger,
-		faceCache:          make(map[Location]font.Face),
-		metaCache:          make(map[font.Font]cacheEntry),
-		cribleBuffer:       make(familyCrible),
-		scriptMap:          make(map[language.Script][]int),
-		lastFootprintIndex: -1,
+		logger:       logger,
+		faceCache:    make(map[Location]font.Face),
+		metaCache:    make(map[font.Font]cacheEntry),
+		cribleBuffer: make(familyCrible),
+		scriptMap:    make(map[language.Script][]int),
 	}
 	fm.lru.maxSize = 4096
 	return fm
@@ -347,7 +342,6 @@ func (cd *candidates) resetWithSize(candidateSize int) {
 }
 
 func (fm *FontMap) buildCandidates() {
-	fm.lastFootprintIndex = -1
 	fm.candidates.resetWithSize(len(fm.query.Families))
 
 	selectFootprints := func(systemFallback bool) {
@@ -398,9 +392,6 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 				continue
 			}
 
-			// register the face used
-			fm.lastFootprintIndex = footprintIndex
-
 			return face
 		}
 	}
@@ -428,23 +419,6 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 	defer func() {
 		fm.lru.Put(key, fm.query, face)
 	}()
-	// in many case, the same font will support a lot of runes
-	// thus, as an optimisation, we register the last used footprint and start
-	// to check if it supports `r`
-	if fm.lastFootprintIndex != -1 {
-		// check the coverage
-		if fp := fm.database[fm.lastFootprintIndex]; fp.Runes.Contains(r) {
-			// try to use the font
-			face, err := fm.loadFont(fp)
-			if err == nil {
-				return face
-			}
-
-			// very unlikely; warn and keep going
-			fm.logger.Println(err)
-		}
-	}
-
 	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range fm.candidates.withoutFallback {
 		if footprintIndex == -1 {
