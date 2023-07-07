@@ -232,7 +232,7 @@ func (a runeSet) Len() int {
 
 const runePageSize = 2 + 8*4 // uint16 + 8 * uint32
 
-// serializeTo serialize the Coverage in binary format
+// serialize serialize the Coverage in binary format
 func (rs runeSet) serialize() []byte {
 	buffer := make([]byte, 2+runePageSize*len(rs))
 	binary.BigEndian.PutUint16(buffer, uint16(len(rs)))
@@ -287,6 +287,38 @@ func (s *scriptSet) insert(newScript language.Script) {
 	*s = append((*s)[:scriptIdx+1], (*s)[scriptIdx:]...)
 	// Insert newScript at the correct position.
 	(*s)[scriptIdx] = newScript
+}
+
+const scriptSize = 4
+
+// serialize serialize the script set in binary format
+func (ss scriptSet) serialize() []byte {
+	buffer := make([]byte, 2+scriptSize*len(ss))
+	buffer[0] = byte(len(ss)) // there is about 190 scripts, a byte is enough
+	for i, script := range ss {
+		binary.BigEndian.PutUint32(buffer[1+scriptSize*i:], uint32(script))
+	}
+	return buffer
+}
+
+// deserializeFrom reads the binary format produced by serialize
+// it returns the number of bytes read from `data`
+func (ss *scriptSet) deserializeFrom(data []byte) (int, error) {
+	if len(data) < 1 {
+		return 0, errors.New("invalid Script set (EOF)")
+	}
+	L := int(data[0])
+	if len(data) < 1+scriptSize*L {
+		return 0, errors.New("invalid Script set size (EOF)")
+	}
+	v := make(scriptSet, L)
+	for i := range v {
+		v[i] = language.Script(binary.BigEndian.Uint32(data[1+scriptSize*i:]))
+	}
+
+	*ss = v
+
+	return 1 + scriptSize*L, nil
 }
 
 // Scripts returns an approximation of the scripts that the runeSet has coverage for.
