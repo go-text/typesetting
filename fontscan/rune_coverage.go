@@ -293,8 +293,8 @@ const scriptSize = 4
 
 // serialize serialize the script set in binary format
 func (ss scriptSet) serialize() []byte {
-	buffer := make([]byte, 2+scriptSize*len(ss))
-	buffer[0] = byte(len(ss)) // there is about 190 scripts, a byte is enough
+	buffer := make([]byte, 1+scriptSize*len(ss))
+	buffer[0] = byte(len(ss)) // there are about 190 scripts, a byte is enough
 	for i, script := range ss {
 		binary.BigEndian.PutUint32(buffer[1+scriptSize*i:], uint32(script))
 	}
