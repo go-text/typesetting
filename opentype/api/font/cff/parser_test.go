@@ -4,10 +4,12 @@ package cff
 
 import (
 	"bytes"
+	"encoding/json"
 	"reflect"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
+	psinterpreter "github.com/go-text/typesetting/opentype/api/font/cff/interpreter"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
 	tu "github.com/go-text/typesetting/opentype/testutils"
@@ -83,4 +85,29 @@ func TestGlyhName(t *testing.T) {
 		gotUserStrings[i] = string(b)
 	}
 	tu.Assert(t, reflect.DeepEqual(expectedUserStrings, gotUserStrings))
+}
+
+func TestType2Extent(t *testing.T) {
+	// regression test for a bug discovered in https://github.com/go-text/render/pull/8
+
+	content, err := td.Files.Open("toys/tables/cff_with_fixed.json")
+	tu.AssertNoErr(t, err)
+
+	var data struct {
+		Charstring  []byte
+		LocalSubrs  [][]byte
+		GlobalSubrs [][]byte
+	}
+	err = json.NewDecoder(content).Decode(&data)
+	tu.AssertNoErr(t, err)
+
+	var (
+		loader type2CharstringHandler
+		psi    psinterpreter.Machine
+	)
+	err = psi.Run(data.Charstring, data.LocalSubrs, data.GlobalSubrs, &loader)
+	tu.AssertNoErr(t, err)
+
+	extents := loader.cs.Bounds.ToExtents()
+	tu.Assert(t, 0 <= extents.Width && extents.Width <= 1000 && -1000 <= extents.Height && extents.Height <= 0)
 }
