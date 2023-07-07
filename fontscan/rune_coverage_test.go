@@ -38,7 +38,7 @@ func randomRanges() [][2]rune {
 	lastEnd := 0
 	for i := range out {
 		start := lastEnd + rand.Intn(2)
-		end := start + 5 + rand.Intn(100)
+		end := start + 1 + rand.Intn(200)
 		lastEnd = end
 		out[i] = [2]rune{rune(start), rune(end)}
 	}
@@ -382,7 +382,6 @@ func (rs runeSet) scriptsNaive() scriptSet {
 		s := language.LookupScript(r)
 		tmp[s] = true
 	}
-	delete(tmp, language.Unknown)
 	out := make(scriptSet, 0, len(tmp))
 	for s := range tmp {
 		out = append(out, s)
