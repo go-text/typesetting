@@ -92,7 +92,7 @@ func (l *runeLRU) Put(k runeLRUKey, q Query, v *font.Face) {
 	val := &runeLRUEntry{key: k, v: v, families: copyStrSlice(q.Families)}
 	l.m[k] = val
 	l.insert(val)
-	if len(l.m) > l.maxSize {
+	for len(l.m) > l.maxSize {
 		oldest := l.tail.next
 		l.remove(oldest)
 		delete(l.m, oldest.key)

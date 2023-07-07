@@ -77,6 +77,14 @@ func NewFontMap(logger *log.Logger) *FontMap {
 	return fm
 }
 
+// SetRuneCacheSize configures the size of the cache powering [FontMap.ResolveFace].
+// Applications displaying large quantities of text should tune this value to be greater
+// than the number of unique glyphs they expect to display at one time in order to achieve
+// optimal performance when segmenting text by face rune coverage.
+func (fm *FontMap) SetRuneCacheSize(size int) {
+	fm.lru.maxSize = size
+}
+
 // UseSystemFonts loads the system fonts and adds them to the font map.
 // This method is safe for concurrent use, but should only be called once
 // per font map.
