@@ -28,6 +28,9 @@ type footprint struct {
 	// Runes is the set of runes supported by the font.
 	Runes runeSet
 
+	// set of scripts deduced from Runes
+	scripts scriptSet
+
 	// Aspect precises the visual characteristics
 	// of the font among a family, like "Bold Italic"
 	Aspect meta.Aspect
@@ -78,6 +81,7 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 	}
 
 	out.Runes, buffer.cmapBuffer = newRuneSetFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
+	out.scripts = scriptSet{}                                                  // TODO
 
 	family, aspect, raw := meta.Describe(ld, raw)
 	out.Family = meta.NormalizeFamily(family)

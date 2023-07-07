@@ -17,12 +17,14 @@ import (
 func Test_serializeFootprints(t *testing.T) {
 	input := []footprint{
 		{
-			Family: "a strange one",
-			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			Aspect: meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
+			Family:  "a strange one",
+			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
+			scripts: scriptSet{0, 1, 5, 0xffffff},
+			Aspect:  meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
 		},
 		{
-			Runes: runeSet{},
+			Runes:   runeSet{},
+			scripts: scriptSet{},
 		},
 	}
 	dump := serializeFootprintsTo(input, nil)
@@ -68,12 +70,14 @@ func assertFontsetEquals(expected, got []footprint) error {
 func TestSerializeDeserialize(t *testing.T) {
 	for _, fp := range []footprint{
 		{
-			Family: "a strange one",
-			Runes:  newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			Aspect: meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
+			Family:  "a strange one",
+			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
+			scripts: scriptSet{0, 1, 5, 0xffffff},
+			Aspect:  meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
 		},
 		{
-			Runes: runeSet{},
+			Runes:   runeSet{},
+			scripts: scriptSet{},
 		},
 	} {
 		b := fp.serializeTo(nil)
