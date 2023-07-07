@@ -25,8 +25,32 @@ func newRuneSet(runes ...rune) runeSet {
 
 func randomRunes() []rune {
 	out := make([]rune, 1000)
+	const maxRuneScript = 0xe01ef
 	for i := range out {
-		out[i] = rand.Int31()
+		out[i] = rand.Int31n(maxRuneScript + 10) // allow some invalid runes
+	}
+	return out
+}
+
+func randomRanges() [][2]rune {
+	L := 50 + rand.Intn(500)
+	out := make([][2]rune, L)
+	lastEnd := 0
+	for i := range out {
+		start := lastEnd + rand.Intn(2)
+		end := start + 5 + rand.Intn(100)
+		lastEnd = end
+		out[i] = [2]rune{rune(start), rune(end)}
+	}
+	return out
+}
+
+func runesFromRanges(ranges [][2]rune) []rune {
+	var out []rune
+	for _, ra := range ranges {
+		for r := ra[0]; r <= ra[1]; r++ {
+			out = append(out, r)
+		}
 	}
 	return out
 }
@@ -349,6 +373,71 @@ func TestRuneSetScripts(t *testing.T) {
 			assertSetsMatch(t, tc.expected, actualScripts)
 		})
 	}
+}
+
+// slow but easy implementation, used as a reference
+func (rs runeSet) scriptsNaive() scriptSet {
+	tmp := make(map[language.Script]bool)
+	for _, r := range rs.runes() {
+		s := language.LookupScript(r)
+		tmp[s] = true
+	}
+	delete(tmp, language.Unknown)
+	out := make(scriptSet, 0, len(tmp))
+	for s := range tmp {
+		out = append(out, s)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+func TestScriptsFromRanges(t *testing.T) {
+	for range [200]int{} {
+		ranges := randomRanges()
+		runes := runesFromRanges(ranges)
+		rs := newRuneSet(runes...)
+		exp, got := rs.scriptsNaive(), scriptsFromRanges(ranges)
+		if !reflect.DeepEqual(exp, got) {
+			t.Fatalf("expected %v, got %v", exp, got)
+		}
+	}
+}
+
+func BenchmarkScriptSet(b *testing.B) {
+	type test struct {
+		ranges [][2]rune
+		set    runeSet
+	}
+	var cases []test
+	for range [200]int{} {
+		ranges := randomRanges()
+		cases = append(cases, test{ranges, newRuneSet(runesFromRanges(ranges)...)})
+	}
+
+	b.Run("naive", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, test := range cases {
+				_ = test.set.scriptsNaive()
+			}
+		}
+	})
+	b.Run("from rune pages", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, test := range cases {
+				_ = test.set.Scripts()
+			}
+		}
+	})
+	b.Run("from rune ranges", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, test := range cases {
+				_ = scriptsFromRanges(test.ranges)
+			}
+		}
+	})
 }
 
 func min(a, b int) int {

@@ -346,3 +346,30 @@ func (rs runeSet) Scripts() []language.Script {
 	}
 	return scripts
 }
+
+// scriptsFromRanges returns the set of scripts used in [ranges],
+// which must be sorted (in ascending order).
+// The ranges have inclusive bounds.
+func scriptsFromRanges(ranges [][2]rune) scriptSet {
+	out := make(scriptSet, 0, 2)
+
+	// we leverage the fact that both ranges and scriptRanges are sorted
+	// to loop through both slices at the same time
+	indexS := 0 // indices in ranges and scriptRanges
+	for _, ra := range ranges {
+		start, end := ra[0], ra[1]
+		// find the scriptItem for start
+		for indexS < len(language.ScriptRanges) && language.ScriptRanges[indexS].End < start {
+			indexS++
+		}
+		// we now have start <= ScriptRange.End
+		// we can add the script for every ScriptRange such that ScriptRangeStart <= end
+		for indexS < len(language.ScriptRanges) && language.ScriptRanges[indexS].Start <= end {
+			// we have a covered script
+			out.insert(language.ScriptRanges[indexS].Script)
+			indexS++
+		}
+	}
+
+	return out
+}
