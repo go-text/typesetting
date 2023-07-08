@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-text/typesetting/language"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 )
 
@@ -19,7 +20,7 @@ func Test_serializeFootprints(t *testing.T) {
 		{
 			Family:  "a strange one",
 			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			scripts: scriptSet{0, 1, 5, 0xffffff},
+			scripts: scriptSet{0, 1, 5, 0xffffff, language.Nabataean, language.Unknown},
 			Aspect:  meta.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
 		},
 		{

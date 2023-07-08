@@ -120,7 +120,7 @@ func (fm *FontMap) appendFootprints(footprints ...footprint) {
 	// Insert entries into scriptMap for each footprint's covered scripts.
 	for i, fp := range footprints {
 		dbIdx := startIdx + i
-		for _, script := range fp.Runes.Scripts() {
+		for _, script := range fp.scripts {
 			fm.scriptMap[script] = append(fm.scriptMap[script], dbIdx)
 		}
 	}
