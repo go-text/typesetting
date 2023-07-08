@@ -36,21 +36,26 @@ type runePage struct {
 // runes.
 type runeSet []runePage
 
-// newRuneSetFromCmap iterates through the given `cmap`
+// newCoveragesFromCmap iterates through the given `cmap`
 // to build the corresponding rune set.
 // buffer may be provided to reduce allocations, and is returned
-func newRuneSetFromCmap(cmap api.Cmap, buffer [][2]rune) (runeSet, [][2]rune) {
+func newCoveragesFromCmap(cmap api.Cmap, buffer [][2]rune) (runeSet, scriptSet, [][2]rune) {
 	if ranger, ok := cmap.(api.CmapRuneRanger); ok { // use the fast range implementation
-		return newRuneSetFromCmapRange(ranger, buffer)
+		return newCoveragesFromCmapRange(ranger, buffer)
 	}
 
-	var rs runeSet
+	// use the slower rune by rune API
+	var (
+		rs runeSet
+		ss scriptSet
+	)
 	iter := cmap.Iter()
 	for iter.Next() {
 		r, _ := iter.Char()
 		rs.Add(r)
+		ss.insert(language.LookupScript(r))
 	}
-	return rs, buffer
+	return rs, ss, buffer
 }
 
 // assume a <= b
@@ -86,10 +91,13 @@ func addRangeToPage(page *pageSet, start, end byte) {
 	}
 }
 
-// newRuneSetFromCmapRange iterates through the given `cmap`
+// newCoveragesFromCmapRange iterates through the given `cmap`
 // to build the corresponding rune set.
-func newRuneSetFromCmapRange(cmap api.CmapRuneRanger, buffer [][2]rune) (runeSet, [][2]rune) {
+func newCoveragesFromCmapRange(cmap api.CmapRuneRanger, buffer [][2]rune) (runeSet, scriptSet, [][2]rune) {
 	buffer = cmap.RuneRanges(buffer)
+
+	ss := scriptsFromRanges(buffer)
+
 	var rs runeSet
 	lastPage := &runePage{ref: 0xFFFF} // start with an invalid sentinel value
 	for _, ra := range buffer {
@@ -132,7 +140,7 @@ func newRuneSetFromCmapRange(cmap api.CmapRuneRanger, buffer [][2]rune) (runeSet
 
 		lastPage = &rs[len(rs)-1]
 	}
-	return rs, buffer
+	return rs, ss, buffer
 }
 
 // findPageFrom is the same as findPagePos, but
@@ -321,32 +329,6 @@ func (ss *scriptSet) deserializeFrom(data []byte) (int, error) {
 	return 1 + scriptSize*L, nil
 }
 
-// Scripts returns an approximation of the scripts that the runeSet has coverage for.
-// It works by sampling the coverage set for the first covered rune in every page and
-// mapping that to a supported script. This means that it can miss some supported
-// scripts.
-func (rs runeSet) Scripts() []language.Script {
-	scripts := make(scriptSet, 0, 1)
-	for _, pageSet := range rs {
-	pageSearch:
-		for pageIdx, page := range pageSet.set {
-			if page == 0 {
-				continue
-			}
-			for i := 0; i < 32; i++ {
-				if (page & (1 << i)) == 0 {
-					continue
-				}
-				firstRune := (rune(pageSet.ref) << 8) | (rune(pageIdx) << 5) | rune(i)
-
-				scripts.insert(language.LookupScript(firstRune))
-				continue pageSearch
-			}
-		}
-	}
-	return scripts
-}
-
 // scriptsFromRanges returns the set of scripts used in [ranges],
 // which must be sorted (in ascending order), and have inclusive bounds.
 func scriptsFromRanges(ranges [][2]rune) scriptSet {
@@ -359,24 +341,60 @@ func scriptsFromRanges(ranges [][2]rune) scriptSet {
 	indexS := uint(0) // index in scriptRanges
 	for _, ra := range ranges {
 		start, end := ra[0], ra[1]
-		// find the scriptItem for start
+
+		// advance, skipping the items entirely to the left of 'ra'
 		for indexS < LR && language.ScriptRanges[indexS].End < start {
 			indexS++
 		}
-		// we now have start <= ScriptRange.End
-		// we can add the script for every ScriptRange such that ScriptRangeStart <= end
-		for indexS < LR && language.ScriptRanges[indexS].Start <= end {
-			// we have a covered script
-			out.insert(language.ScriptRanges[indexS].Script)
 
+		if indexS >= LR {
+			// the incomming ranges are higher than known scripts :
+			// add Unknown and break early
+			out.insert(language.Unknown)
+			break
+		}
+
+		// loop through the 'interesting' items,
+		// that is the ones with item.Start <= end
+		for indexS < LR {
+			item := language.ScriptRanges[indexS]
+			if item.Start > end {
+				// check for Unknown
+				if !hasUnknown && indexS > 0 {
+					previousItem := language.ScriptRanges[indexS-1]
+					if previousItem.End < end { // then previousItem.End < end < item.Start
+						out.insert(language.Unknown)
+						hasUnknown = true
+					}
+				}
+				break
+			}
+
+			// here, item.End >= start and item.Start <= end
+
+			// detect the Unknown script;
+			// as an optimization, skip the check if we have already found it
 			if !hasUnknown && indexS > 0 {
-				if language.ScriptRanges[indexS-1].End+1 < language.ScriptRanges[indexS].Start {
-					// we have a gap : Unknown script
+				previousItem := language.ScriptRanges[indexS-1]
+				// do we have a gap between items, inside the range
+				if previousItem.End+1 < item.Start && item.Start > start {
 					out.insert(language.Unknown)
 					hasUnknown = true
 				}
 			}
+
+			// since item.End >= start and item.Start <= end,
+			// 'item' and 'ra' have an intersection : add the script
+			out.insert(item.Script)
+
 			indexS++
+		}
+
+		if indexS >= LR {
+			// the incomming ranges are higher than known scripts :
+			// add Unknown and break early
+			out.insert(language.Unknown)
+			break
 		}
 	}
 

@@ -33,14 +33,25 @@ func randomRunes() []rune {
 }
 
 func randomRanges() [][2]rune {
-	L := 50 + rand.Intn(500)
+	L := 50 + rand.Intn(300)
 	out := make([][2]rune, L)
-	lastEnd := 0
-	for i := range out {
-		start := lastEnd + rand.Intn(2)
-		end := start + 1 + rand.Intn(200)
-		lastEnd = end
-		out[i] = [2]rune{rune(start), rune(end)}
+
+	if rand.Intn(2) == 0 {
+		lastEnd := 0
+		for i := range out {
+			start := lastEnd + rand.Intn(2)
+			end := start + 1 + rand.Intn(300)
+			lastEnd = end
+			out[i] = [2]rune{rune(start), rune(end)}
+		}
+	} else {
+		lastIndex := 0
+		for i := range out {
+			index := lastIndex + rand.Intn(2)
+			item := language.ScriptRanges[index]
+			out[i] = [2]rune{item.Start, item.End}
+			lastIndex = index
+		}
 	}
 	return out
 }
@@ -214,7 +225,7 @@ func TestNewRuneSetFromCmap(t *testing.T) {
 		{CmapSimple{0: 0, 1: 0, 2: 0, 800: 0, 801: 0, 1000: 0}, newRuneSet(0, 1, 2, 800, 801, 1000)},
 	}
 	for _, tt := range tests {
-		if got, _ := newRuneSetFromCmap(tt.args, nil); !reflect.DeepEqual(got, tt.want) {
+		if got, _, _ := newCoveragesFromCmap(tt.args, nil); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("NewRuneSetFromCmap() = %v, want %v", got, tt.want)
 		}
 	}
@@ -253,7 +264,7 @@ func TestRuneRanges(t *testing.T) {
 			{0, 30}, {0xFF, 0xFF * 2},
 		},
 	} {
-		got, _ := newRuneSetFromCmapRange(source, nil)
+		got, _, _ := newCoveragesFromCmapRange(source, nil)
 		exp := newRuneSet(source.runes()...)
 		tu.Assert(t, reflect.DeepEqual(got, exp))
 	}
@@ -367,10 +378,10 @@ func TestRuneSetScripts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			face, err := font.ParseTTF(bytes.NewReader(tc.fontdata))
 			tu.AssertNoErr(t, err)
-			rs, _ := newRuneSetFromCmap(face.Cmap, nil)
-			actualScripts := rs.Scripts()
-
+			rs, actualScripts, _ := newCoveragesFromCmap(face.Cmap, nil)
+			approxScripts := rs.approximateScripts()
 			assertSetsMatch(t, tc.expected, actualScripts)
+			assertSetsMatch(t, tc.expected, approxScripts)
 		})
 	}
 }
@@ -391,15 +402,52 @@ func (rs runeSet) scriptsNaive() scriptSet {
 }
 
 func TestScriptsFromRanges(t *testing.T) {
-	for range [200]int{} {
-		ranges := randomRanges()
-		runes := runesFromRanges(ranges)
+	var ranges [][][2]rune
+	for range [400]int{} {
+		ranges = append(ranges, randomRanges())
+	}
+	ranges = append(ranges, [][2]rune{
+		{0, 20},
+		{0xe01ef - 2, 0xe01ef + 2},
+	}, [][2]rune{
+		{0, 30},
+		{0xe01ef + 3, 0xe01ef + 5},
+	})
+
+	for _, rans := range ranges {
+		runes := runesFromRanges(rans)
 		rs := newRuneSet(runes...)
-		exp, got := rs.scriptsNaive(), scriptsFromRanges(ranges)
+		exp, got := rs.scriptsNaive(), scriptsFromRanges(rans)
 		if !reflect.DeepEqual(exp, got) {
-			t.Fatalf("expected %v, got %v", exp, got)
+			t.Fatalf("for %v, expected %v, got %v", rans, exp, got)
 		}
 	}
+}
+
+// approximateScripts returns an approximation of the scripts that the runeSet has coverage for.
+// It works by sampling the coverage set for the first covered rune in every page and
+// mapping that to a supported script. This means that it can miss some supported
+// scripts.
+func (rs runeSet) approximateScripts() []language.Script {
+	scripts := make(scriptSet, 0, 1)
+	for _, pageSet := range rs {
+	pageSearch:
+		for pageIdx, page := range pageSet.set {
+			if page == 0 {
+				continue
+			}
+			for i := 0; i < 32; i++ {
+				if (page & (1 << i)) == 0 {
+					continue
+				}
+				firstRune := (rune(pageSet.ref) << 8) | (rune(pageIdx) << 5) | rune(i)
+
+				scripts.insert(language.LookupScript(firstRune))
+				continue pageSearch
+			}
+		}
+	}
+	return scripts
 }
 
 func BenchmarkScriptSet(b *testing.B) {
@@ -425,7 +473,7 @@ func BenchmarkScriptSet(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, test := range cases {
-				_ = test.set.Scripts()
+				_ = test.set.approximateScripts()
 			}
 		}
 	})
