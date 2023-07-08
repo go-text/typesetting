@@ -46,7 +46,7 @@ type footprint struct {
 }
 
 func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
-	out.Runes, _ = newRuneSetFromCmap(f.Cmap, nil)
+	out.Runes, out.scripts, _ = newCoveragesFromCmap(f.Cmap, nil)
 	out.Family = meta.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
 	out.Location.File = fmt.Sprintf("%v", md)
@@ -80,8 +80,7 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 		return footprint{}, buffer, err
 	}
 
-	out.Runes, buffer.cmapBuffer = newRuneSetFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
-	out.scripts = scriptSet{}                                                  // TODO
+	out.Runes, out.scripts, buffer.cmapBuffer = newCoveragesFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
 
 	family, aspect, raw := meta.Describe(ld, raw)
 	out.Family = meta.NormalizeFamily(family)
