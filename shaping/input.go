@@ -54,6 +54,9 @@ type Input struct {
 // by specialized glyphs, which would be activated by using
 //
 //	FontFeature{Tag: loader.MustNewTag("frac"), Value: 1}
+//
+// See also https://learn.microsoft.com/en-us/typography/opentype/spec/featurelist
+// and https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_fonts/OpenType_fonts_guide
 type FontFeature struct {
 	Tag   loader.Tag
 	Value uint32
