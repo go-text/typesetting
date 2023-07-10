@@ -89,6 +89,8 @@ func TestOtTagScriptSimple(t *testing.T) {
 	testSimpleTags(t, "kana", language.Katakana)
 	testSimpleTags(t, "latn", language.Latin)
 
+	testSimpleTags(t, "math", language.Mathematical_notation)
+
 	/* These are trickier since their OT script tags have space. */
 	testSimpleTags(t, "lao ", language.Lao)
 	testSimpleTags(t, "yi  ", language.Yi)

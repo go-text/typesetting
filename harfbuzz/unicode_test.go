@@ -27,43 +27,6 @@ func TestGeneralCategory(t *testing.T) {
 	}
 }
 
-//  static hb_script_t
-//  simple_get_script (hb_unicode_funcs_t *ufuncs,
-// 			hb_codepoint_t      codepoint,
-// 			void               *user_data)
-//  {
-//    data_t *data = (data_t *) user_data;
-
-//    g_assert (hb_unicode_funcs_get_parent (ufuncs) != NULL);
-//    g_assert_cmphex (data.value, ==, MAGIC0);
-//    g_assert (!data.freed);
-
-//    if ('a' <= codepoint && codepoint <= 'z')
-// 	 return uint(language.Latin);
-//    else
-// 	 return uint(language.Unknown);
-//  }
-
-//  static hb_script_t
-//  a_is_for_arabic_get_script (hb_unicode_funcs_t *ufuncs,
-// 				 hb_codepoint_t      codepoint,
-// 				 void               *user_data)
-//  {
-//    data_t *data = (data_t *) user_data;
-
-//    g_assert (hb_unicode_funcs_get_parent (ufuncs) != NULL);
-//    g_assert_cmphex (data.value, ==, MAGIC1);
-//    g_assert (!data.freed);
-
-//    if (codepoint == 'a') {
-// 	 return uint(language.Arabic);
-//    } else {
-// 	 hb_unicode_funcs_t *parent = hb_unicode_funcs_get_parent (ufuncs);
-
-// 	 return hb_unicode_script (parent, codepoint);
-//    }
-//  }
-
 /* Check all properties */
 
 /* Some of the following tables where adapted from glib/glib/tests/utf8-misc.c.
@@ -145,6 +108,12 @@ var combiningClassTestsMore = []testPairT{
 	/* Unicode-13.0 character additions */
 	{0x1ABF, 220},
 
+	/* Unicode-14.0 character additions */
+	{0x1DFA, 218},
+
+	/* Unicode-15.0 character additions */
+	{0x10EFD, 220},
+
 	{0x111111, 0},
 }
 
@@ -222,6 +191,12 @@ var generalCategoryTestsMore = []testPairT{
 
 	/* Unicode-13.0 character additions */
 	{0x08BE, uint(otherLetter)},
+
+	/* Unicode-14.0 character additions */
+	{0x20C0, uint(currencySymbol)},
+
+	/* Unicode-15.0 character additions */
+	{0x0CF3, uint(spacingMark)},
 
 	{0x111111, uint(unassigned)},
 }
@@ -470,6 +445,17 @@ var scriptTestsMore = []testPairT{
 	{0x10FB0, uint(language.Chorasmian)},
 	{0x11900, uint(language.Dives_Akuru)},
 	{0x18B00, uint(language.Khitan_Small_Script)},
+
+	/* Unicode-14.0 additions */
+	{0x10570, uint(language.Vithkuqi)},
+	{0x10F70, uint(language.Old_Uyghur)},
+	{0x12F90, uint(language.Cypro_Minoan)},
+	{0x16A70, uint(language.Tangsa)},
+	{0x1E290, uint(language.Toto)},
+
+	/* Unicode-15.0 additions */
+	{0x11F00, uint(language.Kawi)},
+	{0x1E4D0, uint(language.Nag_Mundari)},
 
 	{0x111111, uint(language.Unknown)},
 }

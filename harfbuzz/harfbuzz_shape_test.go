@@ -34,10 +34,11 @@ func TestDebug(t *testing.T) {
 	// when debugging
 	t.Skip()
 
-	dir := "harfbuzz_reference/aots/tests"
-	testString := `../fonts/gpos4_lookupflag_f1.otf;--features="test" --no-clusters --no-glyph-names --ned;U+0011,U+0012,U+0011,U+0013,U+0011;[17|18@1500,0|17@3000,0|19@4500,0|17@4500,0]`
-	testD := newTestData(t, dir, testString)
-	runShapingTest(t, testD, true)
+	// dir := "harfbuzz_reference/in-house/tests"
+	testString := `fonts/AdobeBlank2.ttf;--no-glyph-names --no-positions;U+1F1E6,U+1F1E8;[1=0|1=0]`
+	testD := newTestData(t, ".", testString)
+	out := runShapingTest(t, testD, true)
+	fmt.Println(out)
 }
 
 // Generates gidDDD if glyph has no name.
@@ -78,6 +79,12 @@ func (b *Buffer) serialize(font *Font, opt formatOpts) string {
 				if pos.YAdvance != 0 {
 					fmt.Fprintf(gs, ",%d", pos.YAdvance)
 				}
+			}
+		}
+
+		if opt.showFlags {
+			if mask := glyph.Mask & glyphFlagDefined; mask != 0 {
+				fmt.Fprintf(gs, "#%d", mask)
 			}
 		}
 
@@ -154,6 +161,12 @@ func (so *shapeOpts) setupBuffer(buffer *Buffer) {
 	if so.removeDefaultIgnorables {
 		flags |= RemoveDefaultIgnorables
 	}
+	if so.unsafeToConcat {
+		flags |= ProduceUnsafeToConcat
+	}
+	if so.safeToInsertTatweel {
+		flags |= ProduceSafeToInsertTatweel
+	}
 	buffer.Flags = flags
 	buffer.Invisible = so.invisibleGlyph
 	buffer.ClusterLevel = so.clusterLevel
@@ -226,172 +239,42 @@ func (so *shapeOpts) shape(font *Font, buffer *Buffer, verify bool) error {
 	if err != nil {
 		return err
 	}
+
 	buffer.Shape(font, features)
 
 	if verify {
-		if err := so.verifyBuffer(buffer, textBuffer, font); err != nil {
-			return err
-		}
+		err := so.verifyBuffer(buffer, textBuffer, font, features)
+		return err
 	}
 
 	return nil
 }
 
-func (so *shapeOpts) verifyBuffer(buffer, textBuffer *Buffer, font *Font) error {
-	if err := so.verifyBufferMonotone(buffer); err != nil {
+func (so *shapeOpts) verifyBuffer(buffer, textBuffer *Buffer, font *Font, features []Feature) error {
+	if err := buffer.verifyMonotone(); err != nil {
 		return err
 	}
-	if err := so.verifyBufferSafeToBreak(buffer, textBuffer, font); err != nil {
+	if err := buffer.verifyUnsafeToBreak(textBuffer, font, features); err != nil {
 		return err
 	}
-	if err := so.verifyValidGID(buffer, font); err != nil {
+	if err := buffer.verifyValidGID(font); err != nil {
 		log.Println(err)
 	}
 	return nil
 }
 
-func (so *shapeOpts) verifyValidGID(buffer *Buffer, font *Font) error {
-	for _, glyph := range buffer.Info {
-		_, ok := font.GlyphExtents(glyph.Glyph)
-		if !ok {
-			return fmt.Errorf("Unknow glyph %d in font", glyph.Glyph)
-		}
-	}
-	return nil
-}
-
-/* Check that clusters are monotone. */
-func (so *shapeOpts) verifyBufferMonotone(buffer *Buffer) error {
-	if so.clusterLevel == MonotoneGraphemes || so.clusterLevel == MonotoneCharacters {
-		isForward := buffer.Props.Direction.isForward()
-
-		info := buffer.Info
-
-		for i := 1; i < len(info); i++ {
-			if info[i-1].Cluster != info[i].Cluster && (info[i-1].Cluster < info[i].Cluster) != isForward {
-				return fmt.Errorf("cluster at index %d is not monotone", i)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (so *shapeOpts) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, font *Font) error {
-	if so.clusterLevel != MonotoneGraphemes && so.clusterLevel != MonotoneCharacters {
-		/* Cannot perform this check without monotone clusters.
-		 * Then again, unsafe-to-break flag is much harder to use without
-		 * monotone clusters. */
-		return nil
-	}
-
-	/* Check that breaking up shaping at safe-to-break is indeed safe. */
-
-	fragment, reconstruction := NewBuffer(), NewBuffer()
-	copyBufferProperties(reconstruction, buffer)
-
-	info := buffer.Info
-	text := textBuffer.Info
-
-	/* Chop text and shape fragments. */
-	forward := buffer.Props.Direction.isForward()
-	start := 0
-	textStart := len(textBuffer.Info)
-	if forward {
-		textStart = 0
-	}
-	textEnd := textStart
-	for end := 1; end < len(buffer.Info)+1; end++ {
-		offset := 1
-		if forward {
-			offset = 0
-		}
-		if end < len(buffer.Info) && (info[end].Cluster == info[end-1].Cluster ||
-			info[end-offset].Mask&GlyphUnsafeToBreak != 0) {
-			continue
-		}
-
-		/* Shape segment corresponding to glyphs start..end. */
-		if end == len(buffer.Info) {
-			if forward {
-				textEnd = len(textBuffer.Info)
-			} else {
-				textStart = 0
-			}
-		} else {
-			if forward {
-				cluster := info[end].Cluster
-				for textEnd < len(textBuffer.Info) && text[textEnd].Cluster < cluster {
-					textEnd++
-				}
-			} else {
-				cluster := info[end-1].Cluster
-				for textStart != 0 && text[textStart-1].Cluster >= cluster {
-					textStart--
-				}
-			}
-		}
-		if !(textStart < textEnd) {
-			return fmt.Errorf("unexpected %d >= %d", textStart, textEnd)
-		}
-
-		if debugMode >= 1 {
-			fmt.Println()
-			fmt.Printf("VERIFY SAFE TO BREAK : start %d end %d text start %d end %d\n", start, end, textStart, textEnd)
-			fmt.Println()
-		}
-
-		fragment.Clear()
-		copyBufferProperties(fragment, buffer)
-
-		flags := fragment.Flags
-		if 0 < textStart {
-			flags = (flags & ^Bot)
-		}
-		if textEnd < len(textBuffer.Info) {
-			flags = (flags & ^Eot)
-		}
-		fragment.Flags = flags
-
-		appendBuffer(fragment, textBuffer, textStart, textEnd)
-		features, err := so.parseFeatures()
-		if err != nil {
-			return err
-		}
-		fragment.Shape(font, features)
-		appendBuffer(reconstruction, fragment, 0, len(fragment.Info))
-
-		start = end
-		if forward {
-			textStart = textEnd
-		} else {
-			textEnd = textStart
-		}
-	}
-
-	diff := bufferDiff(reconstruction, buffer, ^GID(0), 0)
-	if diff != bufferDiffFlagEqual {
-		/* Return the reconstructed result instead so it can be inspected. */
-		buffer.Info = nil
-		buffer.Pos = nil
-		appendBuffer(buffer, reconstruction, 0, len(reconstruction.Info))
-
-		return fmt.Errorf("safe-to-break test failed: %d", diff)
-	}
-
-	return nil
-}
-
 // returns the serialized shaped output
 // if `verify` is true, additional check on buffer contents is performed
-func (mft testInput) shape(t *testing.T, verify bool) string {
+func (mft testInput) shape(t *testing.T, verify bool) (string, error) {
 	buffer := mft.populateBuffer()
 
 	font := mft.fontOpts.loadFont(t)
 	err := mft.shaper.shape(font, buffer, verify)
-	tu.AssertNoErr(t, err)
+	if err != nil {
+		return "", err
+	}
 
-	return buffer.serialize(font, mft.format)
+	return buffer.serialize(font, mft.format), nil
 }
 
 // harfbuzz seems to be OK with an invalid font
@@ -411,19 +294,26 @@ func skipInvalidFontIndex(t *testing.T, ft api.FontID) bool {
 	return false
 }
 
-// skipVerify is true when debugging, to reduce stdout clutter
-func runShapingTest(t *testing.T, test testData, skipVerify bool) {
+// skipVerify should be true when debugging, to reduce stdout clutter
+// it returns the serialized output
+func runShapingTest(t *testing.T, test testData, skipVerify bool) string {
+	t.Helper()
+
 	if skipInvalidFontIndex(t, test.input.fontOpts.fontRef) {
-		return
+		return ""
 	}
 
 	verify := test.expected != "*"
 
 	// actual does the shaping
-	got := test.input.shape(t, !skipVerify && verify)
+	got, err := test.input.shape(t, !skipVerify && verify)
+	if err != nil {
+		t.Fatalf("for input %s: %s", test.originLine, err)
+	}
 	got = strings.TrimSpace(got)
 
 	if verify {
 		tu.AssertC(t, test.expected == got, fmt.Sprintf("%s\n%s\n expected :\n%s\n got \n%s", test.originDir, test.originLine, test.expected, got))
 	}
+	return got
 }

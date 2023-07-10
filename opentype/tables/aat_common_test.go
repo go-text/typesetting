@@ -399,10 +399,21 @@ func TestParseKerx(t *testing.T) {
 }
 
 func TestInvalidFeat(t *testing.T) {
-	// this is an invalid feat table, comming from a real font file (huh...)
-	file, err := td.Files.ReadFile("toys/tables/featInvalid.bin")
+	// this is an invalid feat table, comming from a real font table (huh...)
+	table, err := td.Files.ReadFile("toys/tables/featInvalid.bin")
 	tu.AssertNoErr(t, err)
 
-	_, _, err = ParseFeat(file)
+	_, _, err = ParseFeat(table)
 	tu.Assert(t, err != nil)
+}
+
+func TestParseLtag(t *testing.T) {
+	table, err := td.Files.ReadFile("toys/tables/ltag.bin")
+	tu.AssertNoErr(t, err)
+
+	ltag, _, err := ParseLtag(table)
+	tu.AssertNoErr(t, err)
+
+	tu.Assert(t, len(ltag.tagRange) == 1)
+	tu.Assert(t, ltag.Language(0) == "pl")
 }

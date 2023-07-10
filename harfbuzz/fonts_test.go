@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestAdvanceTtVarNohvar(t *testing.T) {
 	x, y = font.GlyphAdvanceForDirection(2, TopToBottom)
 
 	assertEqualInt32(t, x, 0)
-	assertEqualInt32(t, y, -1000)
+	assertEqualInt32(t, y, -1257)
 
 	coords := []float32{500.0}
 	font.SetVarCoordsDesign(coords)
@@ -57,8 +58,7 @@ func TestAdvanceTtVarNohvar(t *testing.T) {
 
 	x, y = font.GlyphAdvanceForDirection(2, TopToBottom)
 	assertEqualInt32(t, x, 0)
-	// https://lorp.github.io/samsa/src/samsa-gui.html disagree with harfbuzz here
-	assertEqualInt32(t, y, -995)
+	assertEqualInt32(t, y, -1257)
 }
 
 func TestAdvanceTtVarHvarvvar(t *testing.T) {
@@ -204,4 +204,58 @@ func TestLigCarets(t *testing.T) {
 	if !reflect.DeepEqual(expected, carets) {
 		t.Fatalf("for glyph %d, expected %v, got %v", 1023, expected, carets)
 	}
+}
+
+func TestColorGlyphExtents(t *testing.T) {
+	// TODO: Support COLR table
+	t.Skip()
+
+	/* This font contains a COLRv1 glyph with a ClipBox,
+	 * and various components without. The main thing
+	 * we test here is that glyphs with no paint return
+	 * 0,0,0,0 and not meaningless numbers.
+	 */
+	ft := openFontFile(t, "fonts/adwaita.ttf")
+	font := NewFont(&font.Face{Font: ft})
+
+	for _, test := range []struct {
+		gid     GID
+		extents GlyphExtents
+		ok      bool
+	}{
+		{0, GlyphExtents{0, 0, 0, 0}, true},
+		{1, GlyphExtents{0, 0, 0, 0}, true},
+		{2, GlyphExtents{180, 960, 1060, -1220}, true},
+		{3, GlyphExtents{188, 950, 900, -1200}, true},
+		{4, GlyphExtents{413, 50, 150, -75}, true},
+		{5, GlyphExtents{638, 350, 600, -600}, true},
+		{1000, GlyphExtents{}, false},
+	} {
+		gotExtents, gotOK := font.GlyphExtents(test.gid)
+		tu.Assert(t, gotOK == test.ok)
+		tu.AssertC(t, gotExtents == test.extents, fmt.Sprintf("Glyph %d", test.gid))
+	}
+}
+
+func TestNames(t *testing.T) {
+	// from 'post' table
+	ft := openFontFile(t, "fonts/adwaita.ttf")
+
+	tu.Assert(t, ft.GlyphName(0) == ".notdef")
+	tu.Assert(t, ft.GlyphName(1) == ".space")
+	tu.Assert(t, ft.GlyphName(2) == "icon0")
+	tu.Assert(t, ft.GlyphName(3) == "icon0.0")
+	tu.Assert(t, ft.GlyphName(4) == "icon0.1")
+	tu.Assert(t, ft.GlyphName(5) == "icon0.2")
+	/* beyond last glyph */
+	tu.Assert(t, ft.GlyphName(1000) == "")
+
+	// from 'cff' table
+	ft = openFontFile(t, "fonts/SourceSansPro-Regular.otf")
+
+	tu.Assert(t, ft.GlyphName(0) == ".notdef")
+	tu.Assert(t, ft.GlyphName(1) == "space")
+	tu.Assert(t, ft.GlyphName(2) == "A")
+	/* beyond last glyph */
+	tu.Assert(t, ft.GlyphName(2000) == "")
 }

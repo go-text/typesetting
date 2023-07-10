@@ -57,6 +57,7 @@ type Font struct {
 	Trak tables.Trak
 	Ankr tables.Ankr
 	Feat tables.Feat
+	Ltag tables.Ltag
 	Morx Morx
 	Kern Kernx
 	Kerx Kernx
@@ -77,7 +78,13 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 		err error
 	)
 
-	raw, err := ld.RawTable(loader.MustNewTag("cmap"))
+	// 'cmap' handling depend on os2
+	raw, _ := ld.RawTable(loader.MustNewTag("OS/2"))
+	os2, _, _ := tables.ParseOs2(raw)
+	fontPage := os2.FontPage()
+	out.os2, _ = newOs2(os2)
+
+	raw, err = ld.RawTable(loader.MustNewTag("cmap"))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +92,7 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 	if err != nil {
 		return nil, err
 	}
-	out.Cmap, out.cmapVar, err = api.ProcessCmap(tb)
+	out.Cmap, out.cmapVar, err = api.ProcessCmap(tb, fontPage)
 	if err != nil {
 		return nil, err
 	}
@@ -119,10 +126,6 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 	out.avar, _, _ = tables.ParseAvar(raw)
 
 	out.upem = out.head.Upem()
-
-	raw, _ = ld.RawTable(loader.MustNewTag("OS/2"))
-	os2, _, _ := tables.ParseOs2(raw)
-	out.os2, _ = newOs2(os2)
 
 	raw, _ = ld.RawTable(loader.MustNewTag("glyf"))
 	locaRaw, _ := ld.RawTable(loader.MustNewTag("loca"))
@@ -216,6 +219,9 @@ func NewFont(ld *loader.Loader) (*Font, error) {
 	raw, _ = ld.RawTable(loader.MustNewTag("feat"))
 	out.Feat, _, _ = tables.ParseFeat(raw)
 
+	raw, _ = ld.RawTable(loader.MustNewTag("ltag"))
+	out.Ltag, _, _ = tables.ParseLtag(raw)
+
 	return &out, nil
 }
 
@@ -278,46 +284,45 @@ func loadCff(ld *loader.Loader, numGlyphs int) (*cff.Font, error) {
 	return cff, nil
 }
 
-func LoadHmtx(ld *loader.Loader, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
-	raw, err := ld.RawTable(loader.MustNewTag("hhea"))
-	if err != nil {
-		return nil, tables.Hmtx{}, err
-	}
-	hhea, _, err := tables.ParseHhea(raw)
+func loadHVtmx(hheaRaw, htmxRaw []byte, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
+	hhea, _, err := tables.ParseHhea(hheaRaw)
 	if err != nil {
 		return nil, tables.Hmtx{}, err
 	}
 
-	raw, err = ld.RawTable(loader.MustNewTag("hmtx"))
-	if err != nil {
-		return nil, tables.Hmtx{}, err
-	}
-	hmtx, _, err := tables.ParseHmtx(raw, int(hhea.NumOfLongMetrics), numGlyphs-int(hhea.NumOfLongMetrics))
+	hmtx, _, err := tables.ParseHmtx(htmxRaw, int(hhea.NumOfLongMetrics), numGlyphs-int(hhea.NumOfLongMetrics))
 	if err != nil {
 		return nil, tables.Hmtx{}, err
 	}
 	return &hhea, hmtx, nil
 }
 
-func loadVmtx(ld *loader.Loader, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
-	raw, err := ld.RawTable(loader.MustNewTag("vhea"))
-	if err != nil {
-		return nil, tables.Hmtx{}, err
-	}
-	vhea, _, err := tables.ParseHhea(raw)
+func LoadHmtx(ld *loader.Loader, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
+	rawHead, err := ld.RawTable(loader.MustNewTag("hhea"))
 	if err != nil {
 		return nil, tables.Hmtx{}, err
 	}
 
-	raw, err = ld.RawTable(loader.MustNewTag("vmtx"))
+	rawMetrics, err := ld.RawTable(loader.MustNewTag("hmtx"))
 	if err != nil {
 		return nil, tables.Hmtx{}, err
 	}
-	vmtx, _, err := tables.ParseHmtx(raw, int(vhea.NumOfLongMetrics), numGlyphs-int(vhea.NumOfLongMetrics))
+
+	return loadHVtmx(rawHead, rawMetrics, numGlyphs)
+}
+
+func loadVmtx(ld *loader.Loader, numGlyphs int) (*tables.Hhea, tables.Hmtx, error) {
+	rawHead, err := ld.RawTable(loader.MustNewTag("vhea"))
 	if err != nil {
 		return nil, tables.Hmtx{}, err
 	}
-	return &vhea, vmtx, nil
+
+	rawMetrics, err := ld.RawTable(loader.MustNewTag("vmtx"))
+	if err != nil {
+		return nil, tables.Hmtx{}, err
+	}
+
+	return loadHVtmx(rawHead, rawMetrics, numGlyphs)
 }
 
 func loadGDEF(ld *loader.Loader, axisCount int) (tables.GDEF, error) {
