@@ -14,6 +14,7 @@ import (
 	apiFont "github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
 )
@@ -462,4 +463,28 @@ func heapSize() uint64 {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 	return stats.Alloc
+}
+
+func TestFeatures(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	textInput := []rune("1/2")
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      16 * 72,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	shaper := HarfbuzzShaper{}
+	// without 'frac' feature
+	out := shaper.Shape(input)
+	tu.Assert(t, len(out.Glyphs) == 3)
+
+	// now with 'frac' enabled
+	input.FontFeatures = []FontFeature{{Tag: loader.MustNewTag("frac"), Value: 1}}
+	out = shaper.Shape(input)
+	tu.Assert(t, len(out.Glyphs) == 1)
 }
