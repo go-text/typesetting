@@ -4,8 +4,12 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// addWordSpacing alter the run, adding [additionalSpacing] on each
+// word separator.
+// [text] is the origin input slice used to create the run.
 // See https://www.w3.org/TR/css-text-3/#word-separator
 func (run *Output) addWordSpacing(text []rune, additionalSpacing fixed.Int26_6) {
+	isVertical := run.Direction.IsVertical()
 	for i, g := range run.Glyphs {
 		// find the corresponding runes :
 		// to simplify, we assume the words separators are not produced by ligatures
@@ -27,7 +31,7 @@ func (run *Output) addWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 		// we have a word separator: add space
 		// we do it by enlarging the separator glyph advance
 		// and distributing space around the glyph content
-		if run.Direction.IsVertical() {
+		if isVertical {
 			run.Glyphs[i].YAdvance += additionalSpacing
 			run.Glyphs[i].YOffset += additionalSpacing / 2
 		} else {
