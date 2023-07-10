@@ -168,10 +168,10 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Direction) {
 			if nextCluster == -1 {
 				nextCluster = textLen
 			}
-			switch dir {
-			case di.DirectionLTR:
+			switch dir.Progression() {
+			case di.FromTopLeft:
 				runesInCluster = nextCluster - currentCluster
-			case di.DirectionRTL:
+			case di.TowardTopLeft:
 				runesInCluster = previousCluster - currentCluster
 			}
 			previousCluster = g
