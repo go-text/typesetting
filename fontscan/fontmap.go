@@ -160,7 +160,7 @@ func initSystemFonts(logger *log.Logger, userCacheDir string) error {
 	var err error
 
 	initSystemFontsOnce.Do(func() {
-		const cacheFile = "font_index.cache"
+		const cacheFilePattern = "font_index_v%d.cache"
 
 		// load an existing index
 		var dir string
@@ -169,7 +169,7 @@ func initSystemFonts(logger *log.Logger, userCacheDir string) error {
 			return
 		}
 
-		cachePath := filepath.Join(dir, cacheFile)
+		cachePath := filepath.Join(dir, fmt.Sprintf(cacheFilePattern, cacheFormatVersion))
 
 		systemFonts, err = refreshSystemFontsIndex(logger, cachePath)
 	})
