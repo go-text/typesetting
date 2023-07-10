@@ -44,6 +44,16 @@ type Input struct {
 }
 
 // FontFeature sets one font feature.
+//
+// A font feature is an optionnal behavior a font might expose,
+// identified by a 4 bytes [Tag].
+// Most features are disabled by default; setting a non zero [Value]
+// enables it.
+//
+// An exemple of font feature is the replacement of fractions (like 1/2, 3/4)
+// by specialized glyphs, which would be activated by using
+//
+//	FontFeature{Tag: loader.MustNewTag("frac"), Value: 1}
 type FontFeature struct {
 	Tag   loader.Tag
 	Value uint32
