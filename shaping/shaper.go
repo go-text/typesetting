@@ -94,8 +94,18 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 	font.XScale = int32(input.Size.Ceil()) << scaleShift
 	font.YScale = font.XScale
 
+	features := make([]harfbuzz.Feature, len(input.FontFeatures))
+	for i, f := range input.FontFeatures {
+		features[i] = harfbuzz.Feature{
+			Tag:   f.Tag,
+			Value: f.Value,
+			Start: harfbuzz.FeatureGlobalStart,
+			End:   harfbuzz.FeatureGlobalEnd,
+		}
+	}
+
 	// Actually use harfbuzz to shape the text.
-	t.buf.Shape(font, nil)
+	t.buf.Shape(font, features)
 
 	// Convert the shaped text into an Output.
 	glyphs := make([]Glyph, len(t.buf.Info))
