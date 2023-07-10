@@ -555,7 +555,7 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 }
 
 // Handle legacy font with remap
-// TODO: the Iter() method does not include the additional mapping
+// TODO: the Iter() and RuneRanges() method does not include the additional mapping
 
 type remaperSymbol struct {
 	Cmap
