@@ -16,6 +16,8 @@ type HarfbuzzShaper struct {
 	buf *harfbuzz.Buffer
 
 	fonts fontLRU
+
+	features []harfbuzz.Feature
 }
 
 // SetFontCacheSize adjusts the size of the font cache within the shaper.
@@ -94,9 +96,13 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 	font.XScale = int32(input.Size.Ceil()) << scaleShift
 	font.YScale = font.XScale
 
-	features := make([]harfbuzz.Feature, len(input.FontFeatures))
+	if L := len(input.FontFeatures); cap(t.features) < L {
+		t.features = make([]harfbuzz.Feature, L)
+	} else {
+		t.features = t.features[0:L]
+	}
 	for i, f := range input.FontFeatures {
-		features[i] = harfbuzz.Feature{
+		t.features[i] = harfbuzz.Feature{
 			Tag:   f.Tag,
 			Value: f.Value,
 			Start: harfbuzz.FeatureGlobalStart,
@@ -105,7 +111,7 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 	}
 
 	// Actually use harfbuzz to shape the text.
-	t.buf.Shape(font, features)
+	t.buf.Shape(font, t.features)
 
 	// Convert the shaped text into an Output.
 	glyphs := make([]Glyph, len(t.buf.Info))
