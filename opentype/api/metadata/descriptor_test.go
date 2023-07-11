@@ -49,9 +49,42 @@ func Test_isMonospace(t *testing.T) {
 		ld, err := loader.NewLoader(bytes.NewReader(f))
 		tu.AssertNoErr(t, err)
 
-		fd := newFontDescriptor(ld)
+		fd := newFontMetrics(ld)
 		tu.AssertC(t, td.Monospace[file] == fd.isMonospace(), file)
 	}
 
-	tu.Assert(t, !(&fontDescriptor{}).isMonospace()) // check it does not crash
+	tu.Assert(t, !(&fontMetrics{}).isMonospace()) // check it does not crash
+}
+
+func TestAspect_inferFromStyle(t *testing.T) {
+	styn, wn, sten := StyleNormal, WeightNormal, StretchNormal
+	tests := []struct {
+		args   string
+		fields Aspect
+		want   Aspect
+	}{
+		{
+			"", Aspect{styn, wn, sten}, Aspect{styn, wn, sten}, // no op
+		},
+		{
+			"Black", Aspect{0, 0, 0}, Aspect{0, WeightBlack, 0},
+		},
+		{
+			"conDensed", Aspect{0, 0, 0}, Aspect{0, 0, StretchCondensed},
+		},
+		{
+			"ITALIC", Aspect{0, 0, 0}, Aspect{StyleItalic, 0, 0},
+		},
+		{
+			"black", Aspect{0, WeightNormal, 0}, Aspect{0, WeightNormal, 0}, // respect initial value
+		},
+		{
+			"black oblique", Aspect{0, 0, 0}, Aspect{StyleItalic, WeightBlack, 0},
+		},
+	}
+	for _, tt := range tests {
+		as := tt.fields
+		as.inferFromStyle(tt.args)
+		tu.AssertC(t, as == tt.want, tt.args)
+	}
 }

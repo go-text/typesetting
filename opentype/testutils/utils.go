@@ -6,7 +6,7 @@ package testutils
 
 import (
 	"embed"
-	"path/filepath"
+	"path"
 	"testing"
 
 	"github.com/go-text/typesetting-utils/opentype"
@@ -49,7 +49,9 @@ func FilenamesFS(t testing.TB, fs *embed.FS, dir string) []string {
 		if entry.IsDir() {
 			continue
 		}
-		filename := filepath.Join(dir, entry.Name())
+		// We should not use filepath.Join here because embed.FS still uses
+		// unix-style paths on Windows.
+		filename := path.Join(dir, entry.Name())
 		out = append(out, filename)
 	}
 	return out

@@ -37,6 +37,9 @@ func (c cmapID) key() uint32 { return uint32(c.platform)<<16 | uint32(c.encoding
 // when several subtables are given.
 // When present, the variation selectors are returned.
 // [os2FontPage] is used for legacy arabic fonts.
+//
+// The returned values are copied from the input 'cmap', meaning they do not
+// retain any reference on the input storage.
 func ProcessCmap(cmap tables.Cmap, os2FontPage tables.FontPage) (Cmap, UnicodeVariations, error) {
 	var (
 		candidateIds []cmapID
@@ -552,7 +555,7 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 }
 
 // Handle legacy font with remap
-// TODO: the Iter() method does not include the additional mapping
+// TODO: the Iter() and RuneRanges() method does not include the additional mapping
 
 type remaperSymbol struct {
 	Cmap
@@ -610,3 +613,65 @@ func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
 
 	return 0, false
 }
+
+// ---------------------------- efficent rune set support -----------------------------------------
+
+// CmapRuneRanger is implemented by cmaps whose coverage is defined in terms
+// of rune ranges
+type CmapRuneRanger interface {
+	// RuneRanges returns a list of (start, end) rune pairs, both included.
+	// `dst` is an optional buffer used to reduce allocations
+	RuneRanges(dst [][2]rune) [][2]rune
+}
+
+var (
+	_ CmapRuneRanger = cmap4(nil)
+	_ CmapRuneRanger = (*cmap6or10)(nil)
+	_ CmapRuneRanger = cmap12(nil)
+	_ CmapRuneRanger = cmap13(nil)
+)
+
+func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
+	if cap(dst) < len(cm) {
+		dst = make([][2]rune, 0, len(cm))
+	}
+	dst = dst[:0]
+	for _, e := range cm {
+		start, end := rune(e.start), rune(e.end)
+		if L := len(dst); L != 0 && dst[L-1][1] == start {
+			// grow the previous range
+			dst[L-1][1] = end
+		} else {
+			dst = append(dst, [2]rune{start, end})
+		}
+	}
+	return dst
+}
+
+func (cm *cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
+	if cap(dst) < 1 {
+		dst = [][2]rune{{}}
+	}
+	dst = dst[:1]
+	dst[0] = [2]rune{cm.firstCode, cm.firstCode + rune(len(cm.entries)) - 1}
+	return dst
+}
+
+func (cm cmap12) RuneRanges(dst [][2]rune) [][2]rune {
+	if cap(dst) < len(cm) {
+		dst = make([][2]rune, 0, len(cm))
+	}
+	dst = dst[:0]
+	for _, e := range cm {
+		start, end := rune(e.StartCharCode), rune(e.EndCharCode)
+		if L := len(dst); L != 0 && dst[L-1][1] == start {
+			// grow the previous range
+			dst[L-1][1] = end
+		} else {
+			dst = append(dst, [2]rune{start, end})
+		}
+	}
+	return dst
+}
+
+func (cm cmap13) RuneRanges(dst [][2]rune) [][2]rune { return cmap12(cm).RuneRanges(dst) }

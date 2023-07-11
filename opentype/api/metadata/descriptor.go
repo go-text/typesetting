@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"github.com/go-text/typesetting/opentype/api"
 	"github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -16,52 +15,46 @@ const (
 	nameWWSSubfamily       tables.NameID = 22 //
 )
 
+type os2Table struct {
+	USWeightClass uint16
+	USWidthClass  uint16
+	FsSelection   uint16
+}
+
+// fontDescriptor provides access to family and aspect
 type fontDescriptor struct {
 	// these tables are required both in Family
 	// and Aspect
-	os2   *tables.Os2 // optional
+	os2   *os2Table // optional
 	names tables.Name
 	head  tables.Head
-
-	cmap    api.Cmap // optional
-	metrics tables.Hmtx
-	post    tables.Post
 }
 
-func newFontDescriptor(ld *loader.Loader) *fontDescriptor {
-	var out fontDescriptor
+// Describe provides access to family and aspect.
+// 'buffer' may be provided to reduce allocations.
+func Describe(ld *loader.Loader, buffer []byte) (family string, aspect Aspect, _ []byte) {
+	var desc fontDescriptor
 
 	// load tables, all considered optional
-	raw, _ := ld.RawTable(loader.MustNewTag("OS/2"))
-	fp := tables.FPNone
-	if os2, _, err := tables.ParseOs2(raw); err != nil {
-		out.os2 = &os2
-		fp = os2.FontPage()
+	buffer, _ = ld.RawTableTo(loader.MustNewTag("OS/2"), buffer)
+	if os2, _, err := tables.ParseOs2(buffer); err != nil {
+		desc.os2 = &os2Table{
+			USWeightClass: os2.USWeightClass,
+			USWidthClass:  os2.USWidthClass,
+			FsSelection:   os2.FsSelection,
+		}
 	}
 
-	raw, _ = ld.RawTable(loader.MustNewTag("name"))
-	out.names, _, _ = tables.ParseName(raw)
+	desc.head, buffer, _ = font.LoadHeadTable(ld, buffer)
 
-	out.head, _ = font.LoadHeadTable(ld)
+	buffer, _ = ld.RawTableTo(loader.MustNewTag("name"), buffer)
+	desc.names, _, _ = tables.ParseName(buffer)
 
-	raw, _ = ld.RawTable(loader.MustNewTag("cmap"))
-	tb, _, _ := tables.ParseCmap(raw)
-	out.cmap, _, _ = api.ProcessCmap(tb, fp)
-
-	raw, _ = ld.RawTable(loader.MustNewTag("name"))
-	out.names, _, _ = tables.ParseName(raw)
-
-	raw, _ = ld.RawTable(loader.MustNewTag("post"))
-	out.post, _, _ = tables.ParsePost(raw)
-
-	raw, _ = ld.RawTable(loader.MustNewTag("maxp"))
-	maxp, _, _ := tables.ParseMaxp(raw)
-	_, out.metrics, _ = font.LoadHmtx(ld, int(maxp.NumGlyphs))
-
-	return &out
+	return desc.Family(), desc.Aspect(), buffer
 }
 
-func (fd *fontDescriptor) family() string {
+// Family returns the font family name.
+func (fd *fontDescriptor) Family() string {
 	var family string
 	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
 		family = fd.names.Name(namePreferredFamily)
@@ -80,6 +73,22 @@ func (fd *fontDescriptor) family() string {
 	return family
 }
 
+type fontMetrics struct {
+	metrics tables.Hmtx
+	post    tables.Post
+}
+
+func newFontMetrics(ld *loader.Loader) (out fontMetrics) {
+	raw, _ := ld.RawTable(loader.MustNewTag("post"))
+	out.post, _, _ = tables.ParsePost(raw)
+
+	raw, _ = ld.RawTable(loader.MustNewTag("maxp"))
+	maxp, _, _ := tables.ParseMaxp(raw)
+	_, out.metrics, _ = font.LoadHmtx(ld, int(maxp.NumGlyphs))
+
+	return out
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a
@@ -96,7 +105,7 @@ func abs(x int) int {
 
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
-func (fd *fontDescriptor) isMonospace() bool {
+func (fd *fontMetrics) isMonospace() bool {
 	// code adapted from fontconfig
 
 	// try the fast shortcuts
@@ -104,7 +113,7 @@ func (fd *fontDescriptor) isMonospace() bool {
 		return true
 	}
 
-	if fd.cmap == nil || fd.metrics.IsEmpty() {
+	if fd.metrics.IsEmpty() {
 		// we can't be sure, so be conservative
 		return false
 	}
@@ -150,12 +159,12 @@ type Description struct {
 // Metadata queries the family and the aspect properties of the
 // font loaded under [font]
 func Metadata(font *loader.Loader) Description {
-	descriptor := newFontDescriptor(font)
-
 	var out Description
-	out.Aspect = descriptor.aspect()
-	out.Family = descriptor.family()
-	out.IsMonospace = descriptor.isMonospace()
+
+	out.Family, out.Aspect, _ = Describe(font, nil)
+
+	metrics := newFontMetrics(font)
+	out.IsMonospace = metrics.isMonospace()
 
 	return out
 }

@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -66,7 +66,8 @@ func readTestFile(t testing.TB, filename string) (out []testData) {
 	f, err := td.Files.ReadFile(filename)
 	tu.AssertNoErr(t, err)
 
-	dir := filepath.Dir(filename) // xxx/tests/file.tests
+	// We can't use filepath.Dir here because embed.FS always uses unix-style paths, even on windows.
+	dir := path.Dir(filename) // xxx/tests/file.tests
 
 	for _, line := range strings.Split(string(f), "\n") {
 		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" { // skip comments
@@ -102,7 +103,8 @@ func newTestData(t testing.TB, dir string, line string) testData {
 	fontFileHash, options, unicodes, expected := chunks[0], chunks[1], chunks[2], chunks[3]
 
 	splitHash := strings.Split(fontFileHash, "@")
-	fontFile := filepath.Join(dir, splitHash[0])
+	// We should not use filepath.Join here because embed.FS expects unix-style paths always.
+	fontFile := path.Join(dir, splitHash[0])
 	// skip costy hash check, trusting upstream repo
 
 	input := newTestInput(t, options)
@@ -173,7 +175,6 @@ func newTestInput(t testing.TB, options string) testInput {
 
 	fo := newFontOptions()
 
-	flags.StringVar(&fo.fontRef.File, "font-file", "", "Set font file-name")
 	fontRefIndex := flags.Int("face-index", 0, "Set face index (default: 0)")
 	flags.Func("font-size", "Font size", fo.parseFontSize)
 	flags.Func("font-ppem", "Set x,y pixels per EM (default: 0; disabled)", fo.parseFontPpem)
