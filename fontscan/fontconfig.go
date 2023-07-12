@@ -5,7 +5,6 @@ package fontscan
 import (
 	"encoding/xml"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,12 +42,12 @@ func fcVarsFromEnv() fcVars {
 }
 
 // resolveRoot returns the path of the root fontconfig file according to the fcVars.
-func (f fcVars) resolveRoot(logger *log.Logger) string {
+func (f fcVars) resolveRoot(logger Logger) string {
 	return f.resolvePath(logger, f.configFile)
 }
 
 // resolvePath applies fontconfig's heuristics for finding a path referenced within its config.
-func (f fcVars) resolvePath(logger *log.Logger, path string) string {
+func (f fcVars) resolvePath(logger Logger, path string) string {
 	hasSysroot := len(f.sysroot) > 0
 	if filepath.IsAbs(path) {
 		if hasSysroot && !strings.HasPrefix(path, f.sysroot) {
@@ -125,7 +124,7 @@ func (directive *fcDirective) UnmarshalXML(d *xml.Decoder, start xml.StartElemen
 // supplementary config files (or directories) to include.
 // The file parameter is expected to already be resolved by
 // resolvePath().
-func (fc fcVars) parseFcFile(logger *log.Logger, file, currentWorkingDir string) (fontDirs, includes []string, _ error) {
+func (fc fcVars) parseFcFile(logger Logger, file, currentWorkingDir string) (fontDirs, includes []string, _ error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening fontconfig config file: %s", err)
@@ -171,7 +170,7 @@ func (fc fcVars) parseFcFile(logger *log.Logger, file, currentWorkingDir string)
 // parseFcDir processes all the files in [dir] matching the [09]*.conf pattern
 // seen is updated with the processed fontconfig files. The dir parameter is
 // expected to already be resolved by resolvePath.
-func (fc fcVars) parseFcDir(logger *log.Logger, dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
+func (fc fcVars) parseFcDir(logger Logger, dir, currentWorkingDir string, seen map[string]bool) (fontDirs, includes []string, _ error) {
 	entries, err := readDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading fontconfig config directory: %s", err)
@@ -201,7 +200,7 @@ func (fc fcVars) parseFcDir(logger *log.Logger, dir, currentWorkingDir string, s
 
 // parseFcConfig recursively parses the fontconfig config file at [rootConfig]
 // and its includes, returning the font directories to scan
-func (fc fcVars) parseFcConfig(logger *log.Logger) ([]string, error) {
+func (fc fcVars) parseFcConfig(logger Logger) ([]string, error) {
 	root := fc.resolveRoot(logger)
 	seen := map[string]bool{root: true}
 

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -18,7 +17,7 @@ import (
 // DefaultFontDirectories return the OS-dependent usual directories for
 // fonts, or an error if no one exists.
 // These are the directories used by `FindFont` and `FontMap.UseSystemFonts` to locate fonts.
-func DefaultFontDirectories(logger *log.Logger) ([]string, error) {
+func DefaultFontDirectories(logger Logger) ([]string, error) {
 	var dirs []string
 	switch runtime.GOOS {
 	case "windows":
@@ -104,7 +103,7 @@ func DefaultFontDirectories(logger *log.Logger) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			logger.Println("font dir is not a directory", dir)
+			logger.Printf("font dir is not a directory: %q", dir)
 			continue
 		}
 
@@ -287,7 +286,7 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 // `currentIndex` may be passed to avoid scanning font files that are
 // already present in `currentIndex` and up to date, and directly duplicating
 // the footprint in `currentIndex`
-func scanFontFootprints(logger *log.Logger, currentIndex systemFontsIndex, dirs ...string) (systemFontsIndex, error) {
+func scanFontFootprints(logger Logger, currentIndex systemFontsIndex, dirs ...string) (systemFontsIndex, error) {
 	// keep track of visited dirs to avoid double inclusions,
 	// for instance with symbolic links
 	visited := make(map[string]bool)
