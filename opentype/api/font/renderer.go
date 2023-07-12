@@ -271,10 +271,16 @@ func buildSegments(points []contourPoint) []api.Segment {
 	return out
 }
 
+type errGlyphOutOfRange int
+
+func (e errGlyphOutOfRange) Error() string {
+	return fmt.Sprintf("out of range glyph %d", e)
+}
+
 // apply variation when needed
 func (f *Face) glyphDataFromGlyf(glyph gID) (api.GlyphOutline, error) {
 	if int(glyph) >= len(f.glyf) {
-		return api.GlyphOutline{}, fmt.Errorf("out of range glyph %d", glyph)
+		return api.GlyphOutline{}, errGlyphOutOfRange(glyph)
 	}
 	var points []contourPoint
 	f.getPointsForGlyph(glyph, 0, &points)
