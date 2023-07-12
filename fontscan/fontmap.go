@@ -49,6 +49,8 @@ type FontMap struct {
 	scriptMap map[language.Script][]int
 	lru       runeLRU
 
+	// built holds whether the candidates are populated.
+	built bool
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
 
@@ -106,7 +108,7 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	// systemFonts is read-only, so may be used concurrently
 	fm.appendFootprints(systemFonts.flatten()...)
 
-	fm.buildCandidates()
+	fm.built = false
 
 	fm.lru.Clear()
 	return nil
@@ -265,7 +267,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 	fm.appendFootprints(addedFonts...)
 
-	fm.buildCandidates()
+	fm.built = false
 
 	fm.lru.Clear()
 	return nil
@@ -282,7 +284,7 @@ func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
 
 	fm.appendFootprints(fp)
 
-	fm.buildCandidates()
+	fm.built = false
 	fm.lru.Clear()
 }
 
@@ -316,10 +318,7 @@ func (fm *FontMap) SetQuery(query Query) {
 		query.Families = []string{""}
 	}
 	fm.query = query
-
-	// since many runes will be looked for the same query,
-	// we eagerly revolve the candidates for the given query
-	fm.buildCandidates()
+	fm.built = false
 }
 
 // candidates is a cache storing the indices into FontMap.database of footprints matching a Query
@@ -350,6 +349,9 @@ func (cd *candidates) resetWithSize(candidateSize int) {
 }
 
 func (fm *FontMap) buildCandidates() {
+	if fm.built {
+		return
+	}
 	fm.candidates.resetWithSize(len(fm.query.Families))
 
 	selectFootprints := func(systemFallback bool) {
@@ -385,6 +387,7 @@ func (fm *FontMap) buildCandidates() {
 
 	fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
 	fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
+	fm.built = true
 }
 
 // returns nil if not candidates supports the rune `r`
@@ -427,6 +430,9 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 	defer func() {
 		fm.lru.Put(key, fm.query, face)
 	}()
+	// Build the candidates if we missed the cache. If they're already built this is a
+	// no-op.
+	fm.buildCandidates()
 	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range fm.candidates.withoutFallback {
 		if footprintIndex == -1 {
