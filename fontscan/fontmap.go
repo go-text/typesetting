@@ -22,6 +22,11 @@ type cacheEntry struct {
 	meta.Aspect
 }
 
+// Logger is a type that can log warnings.
+type Logger interface {
+	Printf(format string, args ...interface{})
+}
+
 // The family substitution algorithm is copied from fontconfig
 // and the match algorithm is inspired from Rust font-kit library
 
@@ -37,7 +42,7 @@ type cacheEntry struct {
 // A lightweight alternative is provided by the [FindFont] function, which only uses
 // file paths to select a font.
 type FontMap struct {
-	logger *log.Logger
+	logger Logger
 	// caches of already loaded faceCache : the two maps are updated conjointly
 	firstFace font.Face
 	faceCache map[Location]font.Face
@@ -62,7 +67,7 @@ type FontMap struct {
 // NewFontMap return a new font map, which should be filled with the `UseSystemFonts`
 // or `AddFont` methods. The provided logger will be used to record non-fatal errors
 // encountered during font loading. If logger is nil, log.Default() is used.
-func NewFontMap(logger *log.Logger) *FontMap {
+func NewFontMap(logger Logger) *FontMap {
 	if logger == nil {
 		logger = log.New(log.Writer(), "fontscan", log.Flags())
 	}
@@ -156,7 +161,7 @@ func cacheDir(userProvided string) (string, error) {
 // If the returned error is nil, `SystemFonts` is guaranteed to contain
 // at least one valid font.Face.
 // It is protected by sync.Once, and is then safe to use by multiple goroutines.
-func initSystemFonts(logger *log.Logger, userCacheDir string) error {
+func initSystemFonts(logger Logger, userCacheDir string) error {
 	var err error
 
 	initSystemFontsOnce.Do(func() {
@@ -177,7 +182,7 @@ func initSystemFonts(logger *log.Logger, userCacheDir string) error {
 	return err
 }
 
-func refreshSystemFontsIndex(logger *log.Logger, cachePath string) (systemFontsIndex, error) {
+func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex, error) {
 	fontDirectories, err := DefaultFontDirectories(logger)
 	if err != nil {
 		return nil, fmt.Errorf("searching font directories: %s", err)
@@ -396,7 +401,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 			// try to use the font
 			face, err := fm.loadFont(fp)
 			if err != nil { // very unlikely; try an other family
-				fm.logger.Println(err)
+				fm.logger.Printf("failed loading face: %v", err)
 				continue
 			}
 
@@ -494,7 +499,7 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 			face, err := fm.loadFont(fp)
 			if err != nil {
 				// very unlikely; warn and keep going
-				fm.logger.Println(err)
+				fm.logger.Printf("failed loading face: %v", err)
 				continue
 			}
 			return face
