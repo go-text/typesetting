@@ -1071,48 +1071,27 @@ func TestLineWrap(t *testing.T) {
 			name: "reject mid-cluster line breaks at non-zero offsets",
 			shaped: []Output{
 				{
-					Advance: fixed.I(10),
-					LineBounds: Bounds{
-						Ascent:  fixed.I(10),
-						Descent: fixed.I(5),
-						// No line gap.
-					},
-					GlyphBounds: Bounds{
-						Ascent: fixed.I(10),
-						// No glyphs descend.
-					},
+					Advance:     fixed.I(10),
+					LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+					GlyphBounds: Bounds{Ascent: fixed.I(10)},
 					Glyphs: []Glyph{
 						simpleGlyph(0),
 					},
 					Runes: Range{Count: 1},
 				},
 				{
-					Advance: fixed.I(10),
-					LineBounds: Bounds{
-						Ascent:  fixed.I(10),
-						Descent: fixed.I(5),
-						// No line gap.
-					},
-					GlyphBounds: Bounds{
-						Ascent: fixed.I(10),
-						// No glyphs descend.
-					},
+					Advance:     fixed.I(10),
+					LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+					GlyphBounds: Bounds{Ascent: fixed.I(10)},
 					Glyphs: []Glyph{
 						simpleGlyph(1),
 					},
 					Runes: Range{Count: 1, Offset: 1},
 				},
 				{
-					Advance: fixed.I(10 * 2),
-					LineBounds: Bounds{
-						Ascent:  fixed.I(10),
-						Descent: fixed.I(5),
-						// No line gap.
-					},
-					GlyphBounds: Bounds{
-						Ascent: fixed.I(10),
-						// No glyphs descend.
-					},
+					Advance:     fixed.I(10 * 2),
+					LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+					GlyphBounds: Bounds{Ascent: fixed.I(10)},
 					Glyphs: []Glyph{
 						complexGlyph(2, 2, 2),
 						complexGlyph(2, 2, 2),
@@ -1120,15 +1099,10 @@ func TestLineWrap(t *testing.T) {
 					Runes: Range{Count: 2, Offset: 2},
 				},
 				{
-					Advance: fixed.I(10),
-					LineBounds: Bounds{
-						Ascent:  fixed.I(10),
-						Descent: fixed.I(5),
-						// No line gap.
-					},
+					Advance:    fixed.I(10),
+					LineBounds: Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
 					GlyphBounds: Bounds{
 						Ascent: fixed.I(10),
-						// No glyphs descend.
 					},
 					Glyphs: []Glyph{
 						simpleGlyph(4),
@@ -1143,48 +1117,27 @@ func TestLineWrap(t *testing.T) {
 			expected: []Line{
 				[]Output{
 					{
-						Advance: fixed.I(10),
-						LineBounds: Bounds{
-							Ascent:  fixed.I(10),
-							Descent: fixed.I(5),
-							// No line gap.
-						},
-						GlyphBounds: Bounds{
-							Ascent: fixed.I(10),
-							// No glyphs descend.
-						},
+						Advance:     fixed.I(10),
+						LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+						GlyphBounds: Bounds{Ascent: fixed.I(10)},
 						Glyphs: []Glyph{
 							simpleGlyph(0),
 						},
 						Runes: Range{Count: 1},
 					},
 					{
-						Advance: fixed.I(10),
-						LineBounds: Bounds{
-							Ascent:  fixed.I(10),
-							Descent: fixed.I(5),
-							// No line gap.
-						},
-						GlyphBounds: Bounds{
-							Ascent: fixed.I(10),
-							// No glyphs descend.
-						},
+						Advance:     fixed.I(10),
+						LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+						GlyphBounds: Bounds{Ascent: fixed.I(10)},
 						Glyphs: []Glyph{
 							simpleGlyph(1),
 						},
 						Runes: Range{Count: 1, Offset: 1},
 					},
 					{
-						Advance: fixed.I(10 * 2),
-						LineBounds: Bounds{
-							Ascent:  fixed.I(10),
-							Descent: fixed.I(5),
-							// No line gap.
-						},
-						GlyphBounds: Bounds{
-							Ascent: fixed.I(10),
-							// No glyphs descend.
-						},
+						Advance:     fixed.I(10 * 2),
+						LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+						GlyphBounds: Bounds{Ascent: fixed.I(10)},
 						Glyphs: []Glyph{
 							complexGlyph(2, 2, 2),
 							complexGlyph(2, 2, 2),
@@ -1192,16 +1145,9 @@ func TestLineWrap(t *testing.T) {
 						Runes: Range{Count: 2, Offset: 2},
 					},
 					{
-						Advance: fixed.I(10),
-						LineBounds: Bounds{
-							Ascent:  fixed.I(10),
-							Descent: fixed.I(5),
-							// No line gap.
-						},
-						GlyphBounds: Bounds{
-							Ascent: fixed.I(10),
-							// No glyphs descend.
-						},
+						Advance:     fixed.I(10),
+						LineBounds:  Bounds{Ascent: fixed.I(10), Descent: fixed.I(5)},
+						GlyphBounds: Bounds{Ascent: fixed.I(10)},
 						Glyphs: []Glyph{
 							simpleGlyph(4),
 						},
