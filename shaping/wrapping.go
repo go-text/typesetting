@@ -893,19 +893,33 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 	return finalLine, 0, done
 }
 
+// checkpoint captures both the current candidate line and the corresponding run iteration
+// state. These can be restored together by calling restore().
+func (l *LineWrapper) checkpoint() {
+	l.scratch.candidateSave()
+	l.glyphRuns.Save()
+}
+
+// restore resets the current candidate line and corresponding run iteration state to the
+// values at the last call to checkpoint().
+func (l *LineWrapper) restore() {
+	l.scratch.candidateRestore()
+	l.glyphRuns.Restore()
+}
+
 // wrapNextLine iteratively processes line breaking candidates, building a line within the
 // wrapper's scratch [WrapBuffer]. It returns whether the paragraph is finished once it has
 // successfully built a line.
 func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 	for {
-		l.scratch.candidateSave()
-		l.glyphRuns.Save()
+		l.checkpoint()
 		option, ok := l.breaker.nextWordBreak()
 		if !ok {
 			break
 		}
 		switch result, candidateRun := l.processBreakOption(option, config); result {
 		case breakInvalid:
+			l.restore()
 			continue
 		case fits:
 			l.scratch.markCandidateBest(candidateRun)
@@ -924,7 +938,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			}
 			// Fall through to try grapheme breaking.
 		case newLineBeforeBreak:
-			l.glyphRuns.Restore()
+			l.restore()
 			// We found a valid line that didn't use this break, so mark that it can be
 			// reused on the next iteration.
 			l.breaker.markWordOptionUnused()
@@ -944,19 +958,19 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 		}
 		// Ensure that the grapheme breaking has access to
 		// all runs we already tried in the iterator.
-		l.glyphRuns.Restore()
-		l.scratch.candidateRestore()
+		l.restore()
 		// segment using UAX#29 grapheme clustering here and try
 		// breaking again using only those boundaries to find a viable break in cases
 		// where no UAX#14 breaks were viable above.
 		for {
-			l.glyphRuns.Save()
+			l.checkpoint()
 			option, ok := l.breaker.nextGraphemeBreak()
 			if !ok {
 				break
 			}
 			switch result, candidateRun := l.processBreakOption(option, config); result {
 			case breakInvalid:
+				l.restore()
 				continue
 			case fits:
 				// If we found at least one viable line candidate, we aren't using the word break option.
@@ -972,7 +986,7 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				}
 				return true
 			case newLineBeforeBreak:
-				l.glyphRuns.Restore()
+				l.restore()
 				// If we found at least one viable line candidate, we aren't using the word break option.
 				l.breaker.markWordOptionUnused()
 				l.breaker.markGraphemeOptionUnused()
