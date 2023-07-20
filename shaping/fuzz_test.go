@@ -4,11 +4,13 @@
 package shaping
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/segmenter"
+	"golang.org/x/image/math/fixed"
 )
 
 // FuzzE2E shapes and wraps large strings looking for unshapable text or failures
@@ -44,6 +46,56 @@ func FuzzE2E(f *testing.F) {
 				totalRunes += run.Runes.Count
 			}
 		}
+		if totalRunes != len(textInput) {
+			t.Errorf("mismatched runes! expected %d, but wrapped output only contains %d", len(textInput), totalRunes)
+		}
+		_ = outs
+	})
+}
+
+// FuzzE2EVariableSize shapes and wraps large strings at varying text sizes and line widths.
+func FuzzE2EVariableSize(f *testing.F) {
+	face := loadOpentypeFont(f, "../font/testdata/Amiri-Regular.ttf")
+	f.Add(benchParagraphLatin, byte(16), byte(100), byte(0))
+	f.Add(benchParagraphArabic, byte(16), byte(100), byte(0))
+	f.Fuzz(func(t *testing.T, input string, textSize byte, lineWidth byte, truncateBreakCont byte) {
+		// We pack the wrapconfig fields into a byte in order to ensure that the fuzzer spends more time
+		// exploring interesting parts of the space instead of varying bits that don't matter.
+		wc := WrapConfig{
+			TruncateAfterLines: int(truncateBreakCont & 0b11111),
+			TextContinues:      truncateBreakCont&0b100000 != 0,
+			BreakPolicy:        LineBreakPolicy((truncateBreakCont & 0b11000000 >> 5) % 3),
+		}
+		textInput := []rune(input)
+		var shaper HarfbuzzShaper
+		out := []Output{shaper.Shape(Input{
+			Text:      textInput,
+			RunStart:  0,
+			RunEnd:    len(textInput),
+			Direction: di.DirectionRTL,
+			Face:      face,
+			Size:      fixed.I(int(textSize)),
+			Script:    language.Arabic,
+			Language:  language.NewLanguage("AR"),
+		})}
+		if out[0].Runes.Count != len(textInput) {
+			t.Errorf("expected %d shaped runes, got %d", len(textInput), out[0].Runes.Count)
+		}
+		var l LineWrapper
+		outs, truncated := l.WrapParagraph(wc, int(lineWidth), textInput, NewSliceIterator(out))
+		totalRunes := 0
+		for _, l := range outs {
+			for _, run := range l {
+				if run.Runes.Offset != totalRunes {
+					if reflect.DeepEqual(run, wc.Truncator) {
+						continue
+					}
+					t.Errorf("expected rune offset %d, got %d", totalRunes, run.Runes.Offset)
+				}
+				totalRunes += run.Runes.Count
+			}
+		}
+		totalRunes += truncated
 		if totalRunes != len(textInput) {
 			t.Errorf("mismatched runes! expected %d, but wrapped output only contains %d", len(textInput), totalRunes)
 		}
