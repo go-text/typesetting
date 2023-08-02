@@ -949,6 +949,10 @@ func compareLines(t *testing.T, lineNumber int, expected, actual Line) {
 }
 
 func TestLineWrap(t *testing.T) {
+	emptyString := []Output{{
+		Size:       fixed.I(100),
+		LineBounds: Bounds{Ascent: fixed.I(-100), Descent: fixed.I(50)},
+	}}
 	type testcase struct {
 		name      string
 		shaped    []Output
@@ -957,6 +961,24 @@ func TestLineWrap(t *testing.T) {
 		expected  []Line
 	}
 	for _, tc := range []testcase{
+		{
+			// Wrapping the empty string should produce a run with no glyphs/runes but
+			// with valid line bounds.
+			name:      "empty string",
+			shaped:    emptyString,
+			paragraph: []rune{},
+			maxWidth:  1000,
+			expected:  []Line{emptyString},
+		},
+		{
+			// Wrapping the empty string should produce a run with no glyphs/runes but
+			// with valid line bounds (even if the available width is zero).
+			name:      "empty string zero width",
+			shaped:    emptyString,
+			paragraph: []rune{},
+			maxWidth:  0,
+			expected:  []Line{emptyString},
+		},
 		{
 			// This test case verifies that no line breaks occur if they are not
 			// necessary, and that the proper Offsets are reported in the output.
