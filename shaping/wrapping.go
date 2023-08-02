@@ -759,7 +759,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 		_, firstRun, hasFirst := runs.Next()
 		_, _, hasSecond := runs.Peek()
 		if hasFirst && !hasSecond {
-			if firstRun.Advance.Ceil() < maxWidth {
+			if firstRun.Advance.Ceil() <= maxWidth {
 				return l.scratch.singleRunParagraph(firstRun), 0
 			}
 		}
@@ -863,7 +863,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 	truncating := l.config.TruncateAfterLines == 1
 
 	// If we're not truncating, the iterator contains only one run, and that run fits, take the fast path.
-	if !(l.config.TextContinues && truncating) && firstRun.Runes.Offset == l.lineStartRune && firstRun.Advance.Ceil() < maxWidth {
+	if !(l.config.TextContinues && truncating) && firstRun.Runes.Offset == l.lineStartRune && firstRun.Advance.Ceil() <= maxWidth {
 		// Save current iterator state so we can peek ahead.
 		l.glyphRuns.Save()
 		// Advance beyond firstRun, which we already know from the Peek() above.
