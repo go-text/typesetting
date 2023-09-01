@@ -58,7 +58,7 @@ func Test_familyList_insertAfter(t *testing.T) {
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
 		mark := l.elementEquals(tt.element)
-		if mark == nil {
+		if mark < 0 {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
 		l.insertAfter(mark, tt.families)
@@ -82,7 +82,7 @@ func Test_familyList_insertBefore(t *testing.T) {
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
 		mark := l.elementEquals(tt.element)
-		if mark == nil {
+		if mark < 0 {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
 		l.insertBefore(mark, tt.families)
@@ -106,7 +106,7 @@ func Test_familyList_replace(t *testing.T) {
 	for _, tt := range tests {
 		l := newFamilyList(tt.start)
 		mark := l.elementEquals(tt.element)
-		if mark == nil {
+		if mark < 0 {
 			t.Fatalf("element %s not found in %v", tt.element, l)
 		}
 		l.replace(mark, tt.families)
