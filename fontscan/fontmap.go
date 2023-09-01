@@ -77,7 +77,7 @@ func NewFontMap(logger Logger) *FontMap {
 		logger:       logger,
 		faceCache:    make(map[Location]font.Face),
 		metaCache:    make(map[font.Font]cacheEntry),
-		cribleBuffer: make(familyCrible),
+		cribleBuffer: make(familyCrible, 150),
 		scriptMap:    make(map[language.Script][]int),
 	}
 	fm.lru.maxSize = 4096
