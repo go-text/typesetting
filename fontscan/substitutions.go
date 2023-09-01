@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-text/typesetting/language"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
-	"golang.org/x/exp/slices"
 )
 
 // this file implements the family substitution feature,
@@ -44,7 +43,12 @@ func newFamilyList(families []string) *familyList {
 
 // returns the node equal to `family` or -1, if not found
 func (fl *familyList) elementEquals(family string) int {
-	return slices.Index(fl.items, family)
+	for i, v := range fl.items {
+		if v == family {
+			return i
+		}
+	}
+	return -1
 }
 
 // returns the first node containing `family` or -1, if not found
@@ -67,25 +71,25 @@ func (fl *familyList) compileTo(dst familyCrible) {
 }
 
 func (fl *familyList) insertStart(families []string) {
-	fl.items = slices.Insert(fl.items, 0, families...)
+	fl.items = insertAt(fl.items, 0, families)
 }
 
 func (fl *familyList) insertEnd(families []string) {
-	fl.items = slices.Insert(fl.items, len(fl.items), families...)
+	fl.items = insertAt(fl.items, len(fl.items), families)
 }
 
 // insertAfter inserts families right after element
 func (fl *familyList) insertAfter(element int, families []string) {
-	fl.items = slices.Insert(fl.items, element+1, families...)
+	fl.items = insertAt(fl.items, element+1, families)
 }
 
 // insertBefore inserts families right before element
 func (fl *familyList) insertBefore(element int, families []string) {
-	fl.items = slices.Insert(fl.items, element, families...)
+	fl.items = insertAt(fl.items, element, families)
 }
 
 func (fl *familyList) replace(element int, families []string) {
-	fl.items = slices.Replace(fl.items, element, element+1, families...)
+	fl.items = replaceAt(fl.items, element, element+1, families)
 }
 
 // ----- substitutions ------
@@ -228,4 +232,69 @@ func (fl *familyList) execute(subs substitution) {
 	default:
 		panic("exhaustive switch")
 	}
+}
+
+// ----- []string manipulation -----
+
+func insertAt(s []string, i int, v []string) []string {
+	if len(v) == 0 {
+		return s
+	}
+	if len(s) == i {
+		return append(s, v...)
+	}
+	if len(s)+len(v) > cap(s) {
+		// create a new slice with sufficient capacity
+		r := append(s[:i], make([]string, len(s)+len(v)-i)...)
+		// copy the inserted values
+		copy(r[i:], v)
+		// copy rest of the items from source
+		copy(r[i+len(v):], s[i:])
+		return r
+	}
+
+	// resize the slice
+	s = s[:len(s)+len(v)]
+	// move items to make space for v
+	copy(s[i+len(v):], s[i:])
+	// copy v
+	copy(s[i:], v)
+	return s
+}
+
+func replaceAt(s []string, i, j int, v []string) []string {
+	// just cutting
+	if len(v) == 0 {
+		return append(s[:i], s[j:]...)
+	}
+	// cutting the original til the end
+	if len(s) == j {
+		return append(s[:i], v...)
+	}
+	// calculate the final length
+	tot := len(s) + len(v) - (j - i)
+	if tot > cap(s) {
+		// create a new slice with sufficient capacity
+		r := append(s[:i], make([]string, tot-i)...)
+		// copy the inserted values
+		copy(r[i:], v)
+		// add the tail from the source
+		copy(r[i+len(v):], s[j:])
+		return r
+	}
+
+	// the replacement is shorter than the cut
+	if tot <= len(v) {
+		copy(s[i:], v)
+		copy(s[i+len(v):], s[j:])
+		return s[:tot]
+	}
+
+	// resize the slice
+	s = s[:tot]
+	// move items to make space for v
+	copy(s[i+len(v):], s[j:])
+	// copy v
+	copy(s[i:], v)
+	return s
 }
