@@ -12,6 +12,7 @@ import (
 // to a user provided family
 // each of them may happen one (or more) alternative family to look for
 
+// familySubstitution maps family name to possible alias
 // it is generated from fontconfig substitution rules
 // the order matters, since the rules apply sequentially to the current
 // state of the family list
@@ -48,7 +49,7 @@ func newFamilyList(families []string) familyList {
 	return fl
 }
 
-// returns the node equal to `family` or -1, if not found
+// returns the index equal to `family` or -1, if not found
 func (fl familyList) elementEquals(family string) int {
 	for i, v := range fl {
 		if v.family == family {
@@ -58,7 +59,7 @@ func (fl familyList) elementEquals(family string) int {
 	return -1
 }
 
-// returns the first node containing `family` or -1, if not found
+// returns the first index containing `family` or -1, if not found
 func (fl familyList) elementContains(family string) int {
 	for i, v := range fl {
 		if strings.Contains(v.family, family) {
@@ -132,7 +133,7 @@ const (
 
 type substitutionTest interface {
 	// returns >= 0 if the substitution should be applied
-	// for opAppendLast and opPrependFirst an arbitrary value could be returned
+	// opAppendLast and opPrependFirst accept any non-negative value
 	test(list familyList, lang LangID) int
 
 	// return a copy where families have been normalized
@@ -166,6 +167,9 @@ func (mf familyContains) normalize() substitutionTest {
 type noGenericFamily struct{}
 
 func (noGenericFamily) test(list familyList, _ LangID) int {
+	if len(list) == 0 {
+		return -1
+	}
 	for _, v := range list {
 		switch v.family {
 		case "serif", "sans-serif", "monospace":
