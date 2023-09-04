@@ -283,17 +283,10 @@ func replaceAt(s []string, i, j int, v []string) []string {
 		return r
 	}
 
-	// the replacement is shorter than the cut
-	if tot <= len(v) {
-		copy(s[i:], v)
-		copy(s[i+len(v):], s[j:])
-		return s[:tot]
-	}
-
-	// resize the slice
+	n := len(s)
 	s = s[:tot]
 	// move items to make space for v
-	copy(s[i+len(v):], s[j:])
+	copy(s[i+len(v):], s[j:n])
 	// copy v
 	copy(s[i:], v)
 	return s

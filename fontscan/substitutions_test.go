@@ -151,3 +151,84 @@ func TestSubstituteHelvetica(t *testing.T) {
 		t.Fatalf("unexpected family %s", f4)
 	}
 }
+
+func TestInsertAt(t *testing.T) {
+	mkcap := func(cap int, strs ...string) []string {
+		return append(make([]string, 0, cap), strs...)
+	}
+	clone := func(s []string) []string {
+		r := make([]string, len(s), cap(s))
+		copy(r, s)
+		return r
+	}
+
+	tests := []struct {
+		start  []string
+		at     int
+		add    []string
+		result []string
+	}{
+		{[]string{}, 0, []string{"A"}, []string{"A"}},
+		{[]string{"X"}, 0, []string{"A"}, []string{"A", "X"}},
+		{[]string{"X"}, 1, []string{"A"}, []string{"X", "A"}},
+		{mkcap(3, "X"), 0, []string{"A"}, []string{"A", "X"}},
+		{mkcap(3, "X"), 1, []string{"A"}, []string{"X", "A"}},
+		{mkcap(3, "X"), 0, []string{"A", "B"}, []string{"A", "B", "X"}},
+		{mkcap(3, "X"), 1, []string{"A", "B"}, []string{"X", "A", "B"}},
+		{mkcap(4, "X", "Y"), 0, []string{"A", "B"}, []string{"A", "B", "X", "Y"}},
+		{mkcap(4, "X", "Y"), 1, []string{"A", "B"}, []string{"X", "A", "B", "Y"}},
+		{mkcap(4, "X", "Y"), 2, []string{"A", "B"}, []string{"X", "Y", "A", "B"}},
+	}
+	for _, tt := range tests {
+		result := insertAt(clone(tt.start), tt.at, tt.add)
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Fatalf("insertAt: expected %v, got %v", tt.result, result)
+		}
+
+		// replaceAt functions like insertAt when start == end
+		result = replaceAt(clone(tt.start), tt.at, tt.at, tt.add)
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Fatalf("replaceAt: expected %v, got %v", tt.result, result)
+		}
+	}
+}
+
+func TestReplaceAt(t *testing.T) {
+	mkcap := func(cap int, strs ...string) []string {
+		return append(make([]string, 0, cap), strs...)
+	}
+	clone := func(s []string) []string {
+		r := make([]string, len(s), cap(s))
+		copy(r, s)
+		return r
+	}
+
+	tests := []struct {
+		start  []string
+		at, to int
+		add    []string
+		result []string
+	}{
+		{mkcap(4, "X", "Y", "Z"), 0, 2, []string{"A"}, []string{"A", "Z"}},
+
+		{mkcap(4, "X", "Y", "Z"), 0, 1, []string{"A"}, []string{"A", "Y", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 0, 1, []string{"A", "B"}, []string{"A", "B", "Y", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 0, 1, []string{"A", "B", "C"}, []string{"A", "B", "C", "Y", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 0, 2, []string{"A"}, []string{"A", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 0, 2, []string{"A", "B"}, []string{"A", "B", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 0, 2, []string{"A", "B", "C"}, []string{"A", "B", "C", "Z"}},
+
+		{mkcap(4, "X", "Y", "Z"), 1, 2, []string{"A"}, []string{"X", "A", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 1, 2, []string{"A", "B"}, []string{"X", "A", "B", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 1, 2, []string{"A", "B", "C"}, []string{"X", "A", "B", "C", "Z"}},
+		{mkcap(4, "X", "Y", "Z"), 1, 3, []string{"A"}, []string{"X", "A"}},
+		{mkcap(4, "X", "Y", "Z"), 1, 3, []string{"A", "B"}, []string{"X", "A", "B"}},
+		{mkcap(4, "X", "Y", "Z"), 1, 3, []string{"A", "B", "C"}, []string{"X", "A", "B", "C"}},
+	}
+	for _, tt := range tests {
+		result := replaceAt(clone(tt.start), tt.at, tt.to, tt.add)
+		if !reflect.DeepEqual(tt.result, result) {
+			t.Fatalf("expected %v, got %v", tt.result, result)
+		}
+	}
+}
