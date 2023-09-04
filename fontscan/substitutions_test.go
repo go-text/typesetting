@@ -131,6 +131,11 @@ func Test_familyList_execute(t *testing.T) {
 		lang  LangID
 		want  familyList
 	}{
+		{nil, substitution{noGenericFamily{}, []string{"sans-serif"}, opAppendLast, 's'}, 0, familyList{}},
+		{[]string{"f1"}, substitution{noGenericFamily{}, []string{"sans-serif"}, opAppendLast, 's'}, 0, familyList{{"f1", true}, {"sans-serif", true}}},
+		{[]string{"serif"}, substitution{noGenericFamily{}, []string{"sans-serif"}, opAppendLast, 's'}, 0, familyList{{"serif", true}}},
+		{[]string{"sans-serif"}, substitution{noGenericFamily{}, []string{"sans-serif"}, opAppendLast, 's'}, 0, familyList{{"sans-serif", true}}},
+		{[]string{"monospace"}, substitution{noGenericFamily{}, []string{"sans-serif"}, opAppendLast, 's'}, 0, familyList{{"monospace", true}}},
 		{nil, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 0}, 0, familyList{}},                                            // no match
 		{[]string{"f1", "f2"}, substitution{familyEquals("f4"), []string{"aa", "bb"}, opReplace, 0}, 0, familyList{{"f1", true}, {"f2", true}}}, // no match
 
@@ -261,6 +266,9 @@ func TestInsertAt(t *testing.T) {
 		add    lt
 		result lt
 	}{
+		{lt{}, 0, nil, lt{}},
+		{lt{X}, 0, nil, lt{X}},
+		{lt{X}, 1, nil, lt{X}},
 		{lt{}, 0, lt{A}, lt{A}},
 		{lt{X}, 0, lt{A}, lt{A, X}},
 		{lt{X}, 1, lt{A}, lt{X, A}},
@@ -302,7 +310,9 @@ func TestReplaceAt(t *testing.T) {
 		add    lt
 		result lt
 	}{
-		{mkcap(4, X, Y, Z), 0, 2, lt{A}, lt{A, Z}},
+		{lt{X, Y, Z}, 0, 3, nil, lt{}},
+		{lt{X, Y, Z}, 1, 2, nil, lt{X, Z}},
+		{lt{X, Y, Z}, 1, 3, nil, lt{X}},
 
 		{mkcap(4, X, Y, Z), 0, 1, lt{A}, lt{A, Y, Z}},
 		{mkcap(4, X, Y, Z), 0, 1, lt{A, B}, lt{A, B, Y, Z}},
