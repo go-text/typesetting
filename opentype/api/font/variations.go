@@ -296,6 +296,11 @@ func unpackDeltas(data []byte, pointNumbersCount int) ([]int16, error) {
 			nbRead += int(count)
 			data = data[1:]
 		} else {
+			// we fill fill out[nbRead:nbRead+count-1], that is we must have
+			// nbRead+count-1 < pointNumbersCount
+			if got := nbRead + int(count); got > pointNumbersCount {
+				return nil, fmt.Errorf("invalid packed deltas (expected %d point numbers, got %d)", pointNumbersCount, got)
+			}
 			isInt16 := control&deltasAreWords != 0
 			if isInt16 {
 				if len(data) < 1+2*int(count) {
