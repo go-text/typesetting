@@ -3,6 +3,7 @@
 package font
 
 import (
+	"os"
 	"reflect"
 	"testing"
 
@@ -121,4 +122,32 @@ func TestAdvanceNoHVar(t *testing.T) {
 		got := face.HorizontalAdvance(api.GID(i))
 		tu.Assert(t, exp == got)
 	}
+}
+
+func TestInvalidGVAR(t *testing.T) {
+	// this file is build by subsetting the 'glyf' table
+	// but keeping the variations tables
+	f, err := os.Open("test/Selawik-VF-Subset.ttf")
+	tu.AssertNoErr(t, err)
+	defer f.Close()
+
+	ld, err := loader.NewLoader(f)
+	tu.AssertNoErr(t, err)
+
+	head, _, _ := LoadHeadTable(ld, nil)
+	raw, _ := ld.RawTable(loader.MustNewTag("maxp"))
+	maxp, _, _ := tables.ParseMaxp(raw)
+	raw, _ = ld.RawTable(loader.MustNewTag("glyf"))
+	locaRaw, _ := ld.RawTable(loader.MustNewTag("loca"))
+	loca, _ := tables.ParseLoca(locaRaw, int(maxp.NumGlyphs), head.IndexToLocFormat == 1)
+	glyf, _ := tables.ParseGlyf(raw, loca)
+
+	raw, err = ld.RawTable(loader.MustNewTag("gvar"))
+	tu.AssertNoErr(t, err)
+	gvar, _, err := tables.ParseGvar(raw)
+	tu.AssertNoErr(t, err)
+	// check that newGvar does not crash..
+	_, err = newGvar(gvar, glyf)
+	// ... and reports an error
+	tu.Assert(t, err != nil)
 }
