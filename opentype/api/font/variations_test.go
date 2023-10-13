@@ -125,6 +125,8 @@ func TestAdvanceNoHVar(t *testing.T) {
 }
 
 func TestInvalidGVAR(t *testing.T) {
+	// this file is build by subsetting the 'glyf' table
+	// but keeping the variations tables
 	f, err := os.Open("test/Selawik-VF-Subset.ttf")
 	tu.AssertNoErr(t, err)
 	defer f.Close()
@@ -146,6 +148,6 @@ func TestInvalidGVAR(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	// check that newGvar does not crash..
 	_, err = newGvar(gvar, glyf)
-	// ... and report and error
+	// ... and reports an error
 	tu.Assert(t, err != nil)
 }
