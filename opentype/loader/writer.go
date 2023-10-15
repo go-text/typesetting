@@ -11,14 +11,9 @@ type Table struct {
 	Tag     Tag
 }
 
-// Write creates a single font file from the given [tables] slice,
+// WriteTTF creates a single Truetype font file (.ttf) from the given [tables] slice,
 // which must be sorted by Tag
-func Write(tables []Table) []byte {
-	buffer := writeTTF(tables)
-	return buffer
-}
-
-func writeTTF(tables []Table) []byte {
+func WriteTTF(tables []Table) []byte {
 	introLength := uint32(otfHeaderSize + len(tables)*otfEntrySize)
 	buffer := make([]byte, introLength)
 

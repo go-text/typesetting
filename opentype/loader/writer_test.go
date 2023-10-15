@@ -24,7 +24,7 @@ func TestWrite(t *testing.T) {
 			tu.AssertNoErr(t, err)
 		}
 
-		content := Write(tables)
+		content := WriteTTF(tables)
 		font2, err := NewLoader(bytes.NewReader(content))
 		tu.AssertNoErr(t, err)
 
