@@ -829,11 +829,28 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 		return nil, 0, true
 	}
 	defer func() {
-		// Update the start position of the next line.
 		if len(finalLine) > 0 {
 			finalRun := finalLine[len(finalLine)-1]
+
+			// Zero trailing whitespace advance, to make room for the truncator
+			if L := len(finalRun.Glyphs); l.truncating && L != 0 {
+				if finalRun.Direction.IsVertical() {
+					if g := &finalRun.Glyphs[L-1]; g.Height == 0 {
+						g.YAdvance = 0
+					}
+				} else { // horizontal
+					if g := finalRun.Glyphs[L-1]; g.Width == 0 {
+						g.XAdvance = 0
+					}
+				}
+				finalRun.RecomputeAdvance()
+			}
+
+			// Update the start position of the next line.
 			l.lineStartRune = finalRun.Runes.Count + finalRun.Runes.Offset
+
 		}
+
 		// Check whether we've exhausted the text.
 		done = done || l.lineStartRune >= l.breaker.totalRunes
 		// Implement truncation if needed.
@@ -1050,7 +1067,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		return breakInvalid, Output{}
 	}
 	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune)
-	candidateLineWidth := (candidateRun.Advance + l.scratch.candidateAdvance()).Ceil()
+	candidateLineWidth := (candidateRun.advanceSpaceAware() + l.scratch.candidateAdvance()).Ceil()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {

@@ -12,6 +12,7 @@ import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
@@ -2765,8 +2766,8 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 				{
 					name:           "WhenNecessary-Truncate",
 					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
-					runeCounts:     []int{6},
-					truncatedCount: 6,
+					runeCounts:     []int{7},
+					truncatedCount: 5,
 				},
 				{
 					name:           "Always-Truncate",
@@ -3206,4 +3207,42 @@ var regressionRuns = []Output{
 			Offset: 26, Count: 5,
 		},
 	},
+}
+
+func TestSpace(t *testing.T) {
+	// assume single run, 1 to 1 rune <-> glyph mapping
+	shapedText := func(text []rune, line Line) string {
+		tu.Assert(t, len(line) == 1)
+		runLine := line[0]
+		var s []rune
+		for _, g := range runLine.Glyphs {
+			s = append(s, text[g.ClusterIndex])
+		}
+		return string(s)
+	}
+
+	text := []rune(" The quick brown fox")
+
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	run := (&HarfbuzzShaper{}).Shape(Input{
+		Text:   text,
+		Face:   face,
+		Size:   72,
+		RunEnd: len(text),
+	})
+	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
+
+	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{BreakPolicy: Always}, 5, text, NewSliceIterator([]Output{run}))
+
+	expected := []string{
+		" The ",
+		"quick ",
+		"brown ",
+		"fox",
+	}
+	tu.Assert(t, len(lines) == 4)
+	for i, line := range lines {
+		s := shapedText(text, line)
+		tu.Assert(t, s == expected[i])
+	}
 }
