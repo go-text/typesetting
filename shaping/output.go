@@ -128,6 +128,29 @@ func (o *Output) RecomputeAdvance() {
 	o.Advance = advance
 }
 
+// advanceSpaceAware adjust the value in [Advance]
+// if a white space character end the run.
+// TODO: should be take into account multiple spaces ?
+func (o *Output) advanceSpaceAware() fixed.Int26_6 {
+	L := len(o.Glyphs)
+	if L == 0 {
+		return o.Advance
+	}
+
+	// adjust the last to account for spaces
+	if o.Direction.IsVertical() {
+		if g := o.Glyphs[L-1]; g.Height == 0 {
+			return o.Advance - g.YAdvance
+		}
+	} else { // horizontal
+		if g := o.Glyphs[L-1]; g.Width == 0 {
+			return o.Advance - g.XAdvance
+		}
+	}
+
+	return o.Advance
+}
+
 // RecalculateAll updates the all other fields of the Output
 // to match the current contents of the Glyphs field.
 // This method will fail with UnimplementedDirectionError if the Output
