@@ -129,8 +129,8 @@ func (o *Output) RecomputeAdvance() {
 }
 
 // advanceSpaceAware adjust the value in [Advance]
-// if a white space character end the run.
-// TODO: should be take into account multiple spaces ?
+// if a white space character ends the run.
+// TODO: should we take into account multiple spaces ?
 func (o *Output) advanceSpaceAware() fixed.Int26_6 {
 	L := len(o.Glyphs)
 	if L == 0 {
