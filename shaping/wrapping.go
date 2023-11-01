@@ -816,6 +816,55 @@ type lineConfig struct {
 	truncatedMaxWidth int
 }
 
+func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (Line, int, bool) {
+	if len(finalLine) > 0 {
+		finalRun := finalLine[len(finalLine)-1]
+
+		// zero trailing whitespace advance,
+		// to be coherent with Output.advanceSpaceAware
+		if L := len(finalRun.Glyphs); L != 0 {
+			if finalRun.Direction.IsVertical() {
+				if g := &finalRun.Glyphs[L-1]; g.Height == 0 {
+					g.YAdvance = 0
+				}
+			} else { // horizontal
+				if g := finalRun.Glyphs[L-1]; g.Width == 0 {
+					g.XAdvance = 0
+				}
+			}
+			finalRun.RecomputeAdvance()
+		}
+
+		// Update the start position of the next line.
+		l.lineStartRune = finalRun.Runes.Count + finalRun.Runes.Offset
+	}
+
+	// Check whether we've exhausted the text.
+	done = done || l.lineStartRune >= l.breaker.totalRunes
+
+	// Implement truncation if needed.
+	truncated := 0
+	if l.truncating {
+		l.config.TruncateAfterLines--
+		insertTruncator := false
+		if l.config.TruncateAfterLines == 0 {
+			done = true
+			truncated = l.breaker.totalRunes - l.lineStartRune
+			insertTruncator = truncated > 0 || l.config.TextContinues
+		}
+		if insertTruncator {
+			finalLine = append(finalLine, l.config.Truncator)
+		}
+	}
+
+	// Mark the paragraph as complete if needed.
+	if done {
+		l.more = false
+	}
+
+	return finalLine, truncated, done
+}
+
 // WrapNextLine wraps the shaped glyphs of a paragraph to a particular max width.
 // It is meant to be called iteratively to wrap each line, allowing lines to
 // be wrapped to different widths within the same paragraph. When done is true,
@@ -828,49 +877,11 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (finalLine Line, truncated int,
 	if !l.more {
 		return nil, 0, true
 	}
+
 	defer func() {
-		if len(finalLine) > 0 {
-			finalRun := finalLine[len(finalLine)-1]
-
-			// Zero trailing whitespace advance, to make room for the truncator
-			if L := len(finalRun.Glyphs); l.truncating && L != 0 {
-				if finalRun.Direction.IsVertical() {
-					if g := &finalRun.Glyphs[L-1]; g.Height == 0 {
-						g.YAdvance = 0
-					}
-				} else { // horizontal
-					if g := finalRun.Glyphs[L-1]; g.Width == 0 {
-						g.XAdvance = 0
-					}
-				}
-				finalRun.RecomputeAdvance()
-			}
-
-			// Update the start position of the next line.
-			l.lineStartRune = finalRun.Runes.Count + finalRun.Runes.Offset
-
-		}
-
-		// Check whether we've exhausted the text.
-		done = done || l.lineStartRune >= l.breaker.totalRunes
-		// Implement truncation if needed.
-		if l.truncating {
-			l.config.TruncateAfterLines--
-			insertTruncator := false
-			if l.config.TruncateAfterLines == 0 {
-				done = true
-				truncated = l.breaker.totalRunes - l.lineStartRune
-				insertTruncator = truncated > 0 || l.config.TextContinues
-			}
-			if insertTruncator {
-				finalLine = append(finalLine, l.config.Truncator)
-			}
-		}
-		// Mark the paragraph as complete if needed.
-		if done {
-			l.more = false
-		}
+		finalLine, truncated, done = l.postProcessLine(finalLine, done)
 	}()
+
 	// If the iterator is empty, return early.
 	_, firstRun, hasFirst := l.glyphRuns.Peek()
 	if !hasFirst {

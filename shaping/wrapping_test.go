@@ -2772,14 +2772,14 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 				{
 					name:           "Always-Truncate",
 					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
-					runeCounts:     []int{6},
-					truncatedCount: 6,
+					runeCounts:     []int{7},
+					truncatedCount: 5,
 				},
 				{
 					name:           "Never-Truncate",
 					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
-					runeCounts:     []int{},
-					truncatedCount: 12,
+					runeCounts:     []int{7},
+					truncatedCount: 5,
 				},
 			},
 		},
@@ -2790,24 +2790,24 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 				{
 					name:       "WhenNecessary",
 					config:     WrapConfig{BreakPolicy: WhenNecessary},
-					runeCounts: []int{6, 6},
+					runeCounts: []int{7, 5},
 				},
 				{
 					name:           "WhenNecessary-Truncate",
 					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
-					runeCounts:     []int{6},
-					truncatedCount: 6,
+					runeCounts:     []int{7},
+					truncatedCount: 5,
 				},
 				{
 					name:       "Always",
 					config:     WrapConfig{BreakPolicy: Always},
-					runeCounts: []int{6, 6},
+					runeCounts: []int{7, 5},
 				},
 				{
 					name:           "Always-Truncate",
 					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
-					runeCounts:     []int{6},
-					truncatedCount: 6,
+					runeCounts:     []int{7},
+					truncatedCount: 5,
 				},
 				{
 					name:       "Never",
@@ -2817,8 +2817,8 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 				{
 					name:           "Never-Truncate",
 					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
-					runeCounts:     []int{},
-					truncatedCount: 12,
+					runeCounts:     []int{7},
+					truncatedCount: 5,
 				},
 			},
 		},
@@ -2886,12 +2886,12 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 				{
 					name:       "WhenNecessary",
 					config:     WrapConfig{BreakPolicy: WhenNecessary},
-					runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+					runeCounts: []int{1, 1, 2, 1, 2, 1, 1, 1, 1, 1},
 				},
 				{
 					name:       "Always",
 					config:     WrapConfig{BreakPolicy: Always},
-					runeCounts: []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1},
+					runeCounts: []int{1, 1, 2, 1, 2, 1, 1, 1, 1, 1},
 				},
 				{
 					name:       "Never",
@@ -3209,7 +3209,7 @@ var regressionRuns = []Output{
 	},
 }
 
-func TestSpace(t *testing.T) {
+func TestTrailingSpace(t *testing.T) {
 	// assume single run, 1 to 1 rune <-> glyph mapping
 	shapedText := func(text []rune, line Line) string {
 		tu.Assert(t, len(line) == 1)
