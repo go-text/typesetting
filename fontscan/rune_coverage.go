@@ -219,7 +219,7 @@ func (rs runeSet) Delete(r rune) {
 }
 
 // Contains returns `true` if `r` is in the set.
-func (rs *runeSet) Contains(r rune) bool {
+func (rs runeSet) Contains(r rune) bool {
 	leaf := rs.findPage(uint16(r >> 8))
 	if leaf == nil {
 		return false
