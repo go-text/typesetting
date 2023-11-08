@@ -22,6 +22,17 @@ import (
 // and the position in the resulting uint32 is given by the 5 lower bits (from 0 to 31)
 type pageSet [8]uint32
 
+func (a pageSet) isIncludedIn(b pageSet) bool {
+	for j, aPage := range a {
+		bPage := b[j]
+		// Does a have any bits not in b?
+		if aPage & ^bPage != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // pageRef stores the second and third bytes of a rune (uint16(r >> 8)),
 // shared by all the runes in a page.
 type pageRef = uint16
@@ -225,6 +236,33 @@ func (rs runeSet) Contains(r rune) bool {
 		return false
 	}
 	return leaf[(r&0xff)>>5]&(1<<(r&0x1f)) != 0
+}
+
+// return true iff a is a subset of b, that is if all runes
+// of a are in b
+func (a runeSet) isIncludedIn(b runeSet) bool {
+	ai, bi := 0, 0 // index in a and b
+	for ai < len(a) && bi < len(b) {
+		aEntry, bEntry := a[ai], b[bi]
+		// Check matching pages
+		if aEntry.ref == bEntry.ref {
+			if ok := aEntry.set.isIncludedIn(bEntry.set); !ok {
+				return false
+			}
+			ai++
+			bi++
+		} else if aEntry.ref < bEntry.ref { // Does a have any pages not in b?
+			return false
+		} else {
+			// increment bi to match a
+			bi = b.findPageFrom(bi+1, aEntry.ref)
+			if bi < 0 {
+				bi = -bi - 1
+			}
+		}
+	}
+	//  did we look at every page?
+	return ai >= len(a)
 }
 
 // Len returns the number of runes in the set.
