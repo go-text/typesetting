@@ -278,7 +278,7 @@ func (a runeSet) Len() int {
 
 const runePageSize = 2 + 8*4 // uint16 + 8 * uint32
 
-// serialize serialize the Coverage in binary format
+// serialize serialize the rune coverage in binary format
 func (rs runeSet) serialize() []byte {
 	buffer := make([]byte, 2+runePageSize*len(rs))
 	binary.BigEndian.PutUint16(buffer, uint16(len(rs)))
@@ -292,15 +292,15 @@ func (rs runeSet) serialize() []byte {
 	return buffer
 }
 
-// deserializeFrom reads the binary format produced by serializeTo
+// deserializeFrom reads the binary format produced by serialize.
 // it returns the number of bytes read from `data`
 func (rs *runeSet) deserializeFrom(data []byte) (int, error) {
 	if len(data) < 2 {
-		return 0, errors.New("invalid Coverage (EOF)")
+		return 0, errors.New("invalid rune set (EOF)")
 	}
 	L := int(binary.BigEndian.Uint16(data))
 	if len(data) < 2+runePageSize*L {
-		return 0, errors.New("invalid Coverage size (EOF)")
+		return 0, errors.New("invalid rune set size (EOF)")
 	}
 	v := make(runeSet, L)
 	for i := range v {
