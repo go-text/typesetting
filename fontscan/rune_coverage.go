@@ -22,10 +22,10 @@ import (
 // and the position in the resulting uint32 is given by the 5 lower bits (from 0 to 31)
 type pageSet [8]uint32
 
-func (a pageSet) isIncludedIn(b pageSet) bool {
-	for j, aPage := range a {
-		bPage := b[j]
-		// Does a have any bits not in b?
+func (a pageSet) includes(b pageSet) bool {
+	for j, aPage := range b {
+		bPage := a[j]
+		// Does b have any bits not in a?
 		if aPage & ^bPage != 0 {
 			return false
 		}
@@ -238,31 +238,31 @@ func (rs runeSet) Contains(r rune) bool {
 	return leaf[(r&0xff)>>5]&(1<<(r&0x1f)) != 0
 }
 
-// return true iff a is a subset of b, that is if all runes
-// of a are in b
-func (a runeSet) isIncludedIn(b runeSet) bool {
-	ai, bi := 0, 0 // index in a and b
-	for ai < len(a) && bi < len(b) {
-		aEntry, bEntry := a[ai], b[bi]
+// return true iff a includes b, that is if b is a subset of a, that is if all runes
+// of b are in a
+func (a runeSet) includes(b runeSet) bool {
+	bi, ai := 0, 0 // index in b and a
+	for bi < len(b) && ai < len(a) {
+		bEntry, aEntry := b[bi], a[ai]
 		// Check matching pages
-		if aEntry.ref == bEntry.ref {
-			if ok := aEntry.set.isIncludedIn(bEntry.set); !ok {
+		if bEntry.ref == aEntry.ref {
+			if ok := aEntry.set.includes(bEntry.set); !ok {
 				return false
 			}
-			ai++
 			bi++
-		} else if aEntry.ref < bEntry.ref { // Does a have any pages not in b?
+			ai++
+		} else if bEntry.ref < aEntry.ref { // Does b have any pages not in a?
 			return false
 		} else {
-			// increment bi to match a
-			bi = b.findPageFrom(bi+1, aEntry.ref)
-			if bi < 0 {
-				bi = -bi - 1
+			// increment ai to match the page of b
+			ai = a.findPageFrom(ai+1, bEntry.ref)
+			if ai < 0 { // the page is not even in a
+				return false
 			}
 		}
 	}
 	//  did we look at every page?
-	return ai >= len(a)
+	return bi >= len(b)
 }
 
 // Len returns the number of runes in the set.

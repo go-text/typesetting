@@ -487,15 +487,15 @@ func BenchmarkScriptSet(b *testing.B) {
 	})
 }
 
-func (a runeSet) isIncludedInNaive(b runeSet) bool {
+func (a runeSet) includesNaive(b runeSet) bool {
 	ar := a.runes()
 	br := b.runes()
-	bSet := make(map[rune]bool)
-	for _, b := range br {
-		bSet[b] = true
+	aSet := make(map[rune]bool)
+	for _, r := range ar {
+		aSet[r] = true
 	}
-	for _, a := range ar {
-		if !bSet[a] {
+	for _, b := range br {
+		if !aSet[b] {
 			return false
 		}
 	}
@@ -503,18 +503,18 @@ func (a runeSet) isIncludedInNaive(b runeSet) bool {
 }
 
 func Test_isIncludedIn(t *testing.T) {
-	tu.Assert(t, newRuneSet(0, 1, 2, 3).isIncludedIn(newRuneSet(0, 1, 2, 3, 4)))
-	tu.Assert(t, newRuneSet(0, 1, 2, 3).isIncludedIn(newRuneSet(0, 1, 2, 3)))
-	tu.Assert(t, newRuneSet(0, 1, 12).isIncludedIn(newRuneSet(0, 1, 2, 3, 12, 24)))
-	tu.Assert(t, newRuneSet(0, 1, 12000).isIncludedIn(newRuneSet(0, 1, 2, 3, 12000, 13000)))
-	tu.Assert(t, !newRuneSet(0, 1, 12000).isIncludedIn(newRuneSet(0, 1, 2)))
-	tu.Assert(t, !newRuneSet(4, 5, 6, 7).isIncludedIn(newRuneSet(4, 5, 6, 8)))
+	tu.Assert(t, newRuneSet(0, 1, 2, 3, 4).includes(newRuneSet(0, 1, 2, 3)))
+	tu.Assert(t, newRuneSet(0, 1, 2, 3).includes(newRuneSet(0, 1, 2, 3)))
+	tu.Assert(t, newRuneSet(0, 1, 2, 3, 12, 24).includes(newRuneSet(0, 1, 12)))
+	tu.Assert(t, newRuneSet(0, 1, 2, 3, 12000, 13000).includes(newRuneSet(0, 1, 12000)))
+	tu.Assert(t, !newRuneSet(0, 1, 2).includes(newRuneSet(0, 1, 12000)))
+	tu.Assert(t, !newRuneSet(4, 5, 6, 8).includes(newRuneSet(4, 5, 6, 7)))
 
 	// compare against an easy to write implementation
 	for range [300]byte{} {
 		a := newRuneSet(randomRunes()...)
 		b := newRuneSet(randomRunes()...)
-		tu.Assert(t, a.isIncludedIn(b) == a.isIncludedInNaive(b))
+		tu.Assert(t, a.includes(b) == a.includesNaive(b))
 	}
 }
 
@@ -525,7 +525,7 @@ func BenchmarkIsIncludedIn(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_ = as.isIncludedIn(bs)
+		_ = as.includes(bs)
 	}
 }
 
