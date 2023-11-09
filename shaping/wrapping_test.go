@@ -2760,54 +2760,62 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 		},
 		{
 			paragraph: []rune("hello, world"),
-			maxWidth:  60,
+			// maxWidth of 56 with this truncator reuslts in ~40px of usable space for the text if the
+			// truncator is present. The text "hello, " needs a little more space than this even if the
+			// space is shortened to width zero.
+			maxWidth:  56,
 			truncator: []rune("…"),
 			expectations: []expectation{
 				{
+					// We are forced to wrap within a word here.
 					name:           "WhenNecessary-Truncate",
 					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
-					runeCounts:     []int{7},
-					truncatedCount: 5,
+					runeCounts:     []int{5},
+					truncatedCount: 7,
 				},
 				{
+					// We are forced to wrap within a word here.
 					name:           "Always-Truncate",
 					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
-					runeCounts:     []int{7},
-					truncatedCount: 5,
+					runeCounts:     []int{5},
+					truncatedCount: 7,
 				},
 				{
+					// Since we can't wrap within words in this configuration, we truncate all runes.
 					name:           "Never-Truncate",
 					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
-					runeCounts:     []int{7},
-					truncatedCount: 5,
+					runeCounts:     []int{},
+					truncatedCount: 12,
 				},
 			},
 		},
 		{
+			// The first word "hello, " doesn't quite fit in 40 pixels. These tests exercise this boundary
+			// condition with various break policies and truncation policies.
 			paragraph: []rune("hello, world"),
-			maxWidth:  44,
+			maxWidth:  40,
 			expectations: []expectation{
 				{
 					name:       "WhenNecessary",
 					config:     WrapConfig{BreakPolicy: WhenNecessary},
-					runeCounts: []int{7, 5},
+					runeCounts: []int{5, 2, 5},
 				},
 				{
 					name:           "WhenNecessary-Truncate",
 					config:         WrapConfig{BreakPolicy: WhenNecessary, TruncateAfterLines: 1},
-					runeCounts:     []int{7},
-					truncatedCount: 5,
+					runeCounts:     []int{5},
+					truncatedCount: 7,
 				},
 				{
 					name:       "Always",
 					config:     WrapConfig{BreakPolicy: Always},
-					runeCounts: []int{7, 5},
+					runeCounts: []int{5, 6, 1},
 				},
 				{
 					name:           "Always-Truncate",
 					config:         WrapConfig{BreakPolicy: Always, TruncateAfterLines: 1},
-					runeCounts:     []int{7},
-					truncatedCount: 5,
+					runeCounts:     []int{5},
+					truncatedCount: 7,
 				},
 				{
 					name:       "Never",
@@ -2817,8 +2825,8 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 				{
 					name:           "Never-Truncate",
 					config:         WrapConfig{BreakPolicy: Never, TruncateAfterLines: 1},
-					runeCounts:     []int{7},
-					truncatedCount: 5,
+					runeCounts:     []int{},
+					truncatedCount: 12,
 				},
 			},
 		},
