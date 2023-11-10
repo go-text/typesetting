@@ -15,7 +15,7 @@ type LangID uint16
 // NewLangID returns the compact index of the given language,
 // or false if it is not supported by this package.
 //
-// Derived language no exactly supported are mapped to their primary part : for instance,
+// Derived languages not exactly supported are mapped to their primary part : for instance,
 // 'fr-be' is mapped to 'fr'
 func NewLangID(l language.Language) (LangID, bool) {
 	const N = len(languagesRunes)

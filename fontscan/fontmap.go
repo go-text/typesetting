@@ -400,7 +400,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 		if fp := fm.database[footprintIndex]; fp.Runes.Contains(r) {
 			// try to use the font
 			face, err := fm.loadFont(fp)
-			if err != nil { // very unlikely; try an other family
+			if err != nil { // very unlikely; try another family
 				fm.logger.Printf("failed loading face: %v", err)
 				continue
 			}
@@ -412,14 +412,14 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 	return nil
 }
 
-// returns nil if not candidates supports the language `lang`
+// returns nil if no candidates support the language `lang`
 func (fm *FontMap) resolveForLang(candidates []int, lang LangID) font.Face {
 	for _, footprintIndex := range candidates {
 		// check the coverage
 		if fp := fm.database[footprintIndex]; fp.langs.contains(lang) {
 			// try to use the font
 			face, err := fm.loadFont(fp)
-			if err != nil { // very unlikely; try an other family
+			if err != nil { // very unlikely; try another family
 				fm.logger.Printf("failed loading face: %v", err)
 				continue
 			}
