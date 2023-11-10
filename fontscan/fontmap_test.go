@@ -63,7 +63,7 @@ func ExampleFontMap_AddFace() {
 var _ shaping.Fontmap = (*FontMap)(nil)
 
 func TestResolveFont(t *testing.T) {
-	en, _ := NewLanguageID("en")
+	en, _ := NewLangID("en")
 
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "", 0)
@@ -115,7 +115,7 @@ func TestResolveForLang(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"helvetica"}})
 
 	// all system fonts should have support for english
-	en, _ := NewLanguageID("en")
+	en, _ := NewLangID("en")
 	face := fm.ResolveFaceForLang(en)
 	tu.AssertC(t, face != nil, "expected EN to be supported by system fonts")
 }
@@ -141,7 +141,7 @@ func TestResolveFallbackManual(t *testing.T) {
 	face := fm.ResolveFace('c')
 	tu.Assert(t, fm.FontLocation(face.Font).File == "user:Amiri")
 
-	en, _ := NewLanguageID("en")
+	en, _ := NewLangID("en")
 	face = fm.ResolveFaceForLang(en)
 	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Amiri")
 }

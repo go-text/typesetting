@@ -8,16 +8,16 @@ import (
 	"github.com/go-text/typesetting/language"
 )
 
-// LanguageID is a compact representation of a language
+// LangID is a compact representation of a language
 // this package has orthographic knowledge of.
-type LanguageID uint16
+type LangID uint16
 
-// NewLanguageID returns the compact index of the given language,
+// NewLangID returns the compact index of the given language,
 // or false if it is not supported by this package.
 //
 // Derived language no exactly supported are mapped to their primary part : for instance,
 // 'fr-be' is mapped to 'fr'
-func NewLanguageID(l language.Language) (LanguageID, bool) {
+func NewLangID(l language.Language) (LangID, bool) {
 	const N = len(languagesRunes)
 	// binary search
 	i, j := 0, N
@@ -30,7 +30,7 @@ func NewLanguageID(l language.Language) (LanguageID, bool) {
 			i = h + 1
 		} else {
 			// extact match
-			return LanguageID(h), true
+			return LangID(h), true
 		}
 	}
 	// i is the index where l should be :
@@ -44,7 +44,7 @@ func NewLanguageID(l language.Language) (LanguageID, bool) {
 			// no root match
 			return 0, false
 		} else { // found the root
-			return LanguageID(i), true
+			return LangID(i), true
 		}
 
 	}
@@ -61,7 +61,7 @@ type langset [8]uint64
 func newLangsetFromCoverage(rs runeSet) (out langset) {
 	for id, item := range languagesRunes {
 		if rs.includes(item.runes) {
-			out.add(LanguageID(id))
+			out.add(LangID(id))
 		}
 	}
 	return out
@@ -80,13 +80,13 @@ func (ls langset) String() string {
 	return "{" + strings.Join(chunks, "|") + "}"
 }
 
-func (ls *langset) add(l LanguageID) {
+func (ls *langset) add(l LangID) {
 	page := (l & 0b111111111 >> 6)
 	bit := l & 0b111111
 	ls[page] |= 1 << bit
 }
 
-func (ls langset) contains(l LanguageID) bool {
+func (ls langset) contains(l LangID) bool {
 	page := (l & 0b111111111 >> 6)
 	bit := l & 0b111111
 	return ls[page]&(1<<bit) != 0

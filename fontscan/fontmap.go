@@ -413,7 +413,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 }
 
 // returns nil if not candidates supports the language `lang`
-func (fm *FontMap) resolveForLang(candidates []int, lang LanguageID) font.Face {
+func (fm *FontMap) resolveForLang(candidates []int, lang LangID) font.Face {
 	for _, footprintIndex := range candidates {
 		// check the coverage
 		if fp := fm.database[footprintIndex]; fp.langs.contains(lang) {
@@ -539,7 +539,7 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 // (for the actual query), or nil if no one is found.
 //
 // The matching logic is similar to the one used by [ResolveFace].
-func (fm *FontMap) ResolveFaceForLang(lang LanguageID) font.Face {
+func (fm *FontMap) ResolveFaceForLang(lang LangID) font.Face {
 	// no-op if already built
 	fm.buildCandidates()
 
