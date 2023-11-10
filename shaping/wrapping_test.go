@@ -2760,7 +2760,7 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 		},
 		{
 			paragraph: []rune("hello, world"),
-			// maxWidth of 56 with this truncator reuslts in ~40px of usable space for the text if the
+			// maxWidth of 56 with this truncator results in ~40px of usable space for the text if the
 			// truncator is present. The text "hello, " needs a little more space than this even if the
 			// space is shortened to width zero.
 			maxWidth:  56,
