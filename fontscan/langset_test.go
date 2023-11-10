@@ -18,7 +18,7 @@ func TestAssertSorted(t *testing.T) {
 func TestNewLanguageID(t *testing.T) {
 	tests := []struct {
 		l     language.Language
-		want  LanguageID
+		want  LangID
 		want1 bool
 	}{
 		{language.NewLanguage("a"), 0, false},
@@ -34,7 +34,7 @@ func TestNewLanguageID(t *testing.T) {
 		{language.NewLanguage("pa-pr"), 180, true}, // primary tag match
 	}
 	for _, tt := range tests {
-		got, got1 := NewLanguageID(tt.l)
+		got, got1 := NewLangID(tt.l)
 		if got != tt.want {
 			t.Errorf("NewLanguageID() got = %v, want %v", got, tt.want)
 		}
@@ -48,7 +48,7 @@ func TestNewLangset(t *testing.T) {
 	// trivial check
 	for id, lang := range languagesRunes {
 		ls := newLangsetFromCoverage(lang.runes)
-		tu.Assert(t, ls.contains(LanguageID(id)))
+		tu.Assert(t, ls.contains(LangID(id)))
 	}
 
 	file2, err := os.Open("../font/testdata/UbuntuMono-R.ttf")
@@ -60,9 +60,9 @@ func TestNewLangset(t *testing.T) {
 	tu.AssertNoErr(t, err)
 
 	ls := newLangsetFromCoverage(fp.Runes)
-	en, _ := NewLanguageID(language.NewLanguage("en"))
-	fr, _ := NewLanguageID(language.NewLanguage("fr"))
-	ar, _ := NewLanguageID(language.NewLanguage("ar"))
-	ta, _ := NewLanguageID(language.NewLanguage("ta"))
+	en, _ := NewLangID(language.NewLanguage("en"))
+	fr, _ := NewLangID(language.NewLanguage("fr"))
+	ar, _ := NewLangID(language.NewLanguage("ar"))
+	ta, _ := NewLangID(language.NewLanguage("ta"))
 	tu.Assert(t, ls.contains(en) && ls.contains(fr) && !ls.contains(ar) && !ls.contains(ta))
 }
