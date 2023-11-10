@@ -395,10 +395,28 @@ func (fm *FontMap) buildCandidates() {
 
 // returns nil if not candidates supports the rune `r`
 func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
-	// we first look up for an exact family match, without substitutions
 	for _, footprintIndex := range candidates {
 		// check the coverage
 		if fp := fm.database[footprintIndex]; fp.Runes.Contains(r) {
+			// try to use the font
+			face, err := fm.loadFont(fp)
+			if err != nil { // very unlikely; try an other family
+				fm.logger.Printf("failed loading face: %v", err)
+				continue
+			}
+
+			return face
+		}
+	}
+
+	return nil
+}
+
+// returns nil if not candidates supports the language `lang`
+func (fm *FontMap) resolveForLang(candidates []int, lang LanguageID) font.Face {
+	for _, footprintIndex := range candidates {
+		// check the coverage
+		if fp := fm.database[footprintIndex]; fp.langs.contains(lang) {
 			// try to use the font
 			face, err := fm.loadFont(fp)
 			if err != nil { // very unlikely; try an other family
@@ -517,12 +535,51 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 	// and we should never return a nil face.
 }
 
+// ResolveForLang returns the first face supporting the given language
+// (for the actual query), or nil if no one is found.
+//
+// The matching logic is similar to the one used by [ResolveFace].
+func (fm *FontMap) ResolveFaceForLang(lang LanguageID) font.Face {
+	// no-op if already built
+	fm.buildCandidates()
+
+	// we first look up for an exact family match, without substitutions
+	for _, footprintIndex := range fm.candidates.withoutFallback {
+		if footprintIndex == -1 {
+			continue
+		}
+		if face := fm.resolveForLang([]int{footprintIndex}, lang); face != nil {
+			return face
+		}
+	}
+
+	// if no family has matched so far, try again with system fallback
+	for _, footprintIndexList := range fm.candidates.withFallback {
+		if face := fm.resolveForLang(footprintIndexList, lang); face != nil {
+			return face
+		}
+	}
+
+	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
+	// and rune coverage.
+	for _, footprintIndex := range fm.candidates.manual {
+		if footprintIndex == -1 {
+			continue
+		}
+		if face := fm.resolveForLang([]int{footprintIndex}, lang); face != nil {
+			return face
+		}
+	}
+
+	return nil
+}
+
 func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
 	if face, hasCached := fm.faceCache[fp.Location]; hasCached {
 		return face, nil
 	}
 
-	// since user provided fonts are added to `fonts`
+	// since user provided fonts are added to `faceCache`
 	// we may now assume the font is stored on the file system
 	face, err := fp.loadFromDisk()
 	if err != nil {
