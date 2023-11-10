@@ -278,7 +278,7 @@ func (a runeSet) Len() int {
 
 const runePageSize = 2 + 8*4 // uint16 + 8 * uint32
 
-// serialize serialize the rune coverage in binary format
+// serialize serializes the rune coverage in binary format
 func (rs runeSet) serialize() []byte {
 	buffer := make([]byte, 2+runePageSize*len(rs))
 	binary.BigEndian.PutUint16(buffer, uint16(len(rs)))
@@ -337,7 +337,7 @@ func (s *scriptSet) insert(newScript language.Script) {
 
 const scriptSize = 4
 
-// serialize serialize the script set in binary format
+// serialize serializes the script set in binary format
 func (ss scriptSet) serialize() []byte {
 	buffer := make([]byte, 1+scriptSize*len(ss))
 	buffer[0] = byte(len(ss)) // there are about 190 scripts, a byte is enough
