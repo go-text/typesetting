@@ -37,10 +37,8 @@ type Logger interface {
 // Note that [FontMap] is NOT safe for concurrent use, but several font maps may coexist
 // in an application.
 //
-// [FontMap] is designed to work with an index built by scanning the system fonts,
-// which is a costly operation (see [UseSystemFonts] for more details).
-// A lightweight alternative is provided by the [FindFont] function, which only uses
-// file paths to select a font.
+// [FontMap] is mainly designed to work with an index built by scanning the system fonts :
+// see [UseSystemFonts] for more details.
 type FontMap struct {
 	logger Logger
 	// caches of already loaded faceCache : the two maps are updated conjointly
