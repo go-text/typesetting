@@ -32,7 +32,7 @@ type footprint struct {
 	scripts scriptSet
 
 	// set of languages deduced from Runes
-	langs langset
+	langs langSet
 
 	// Aspect precises the visual characteristics
 	// of the font among a family, like "Bold Italic"

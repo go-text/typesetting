@@ -51,17 +51,17 @@ func NewLangID(l language.Language) (LangID, bool) {
 	return 0, false
 }
 
-// langset is a bit set for 512 languages
+// langSet is a bit set for 512 languages
 //
 // It works as a map[LangID]bool, with the limitation
 // that only the 9 low bits of a LangID are used.
 // More precisely, the page of a LangID l is given by its 3 "higher" bits : 8-6
 // and the bit position by its 6 lower bits : 5-0
-type langset [8]uint64
+type langSet [8]uint64
 
 // newLangsetFromCoverage compile the languages supported by the given
 // rune coverage
-func newLangsetFromCoverage(rs runeSet) (out langset) {
+func newLangsetFromCoverage(rs runeSet) (out langSet) {
 	for id, item := range languagesRunes {
 		if rs.includes(item.runes) {
 			out.add(LangID(id))
@@ -70,7 +70,7 @@ func newLangsetFromCoverage(rs runeSet) (out langset) {
 	return out
 }
 
-func (ls langset) String() string {
+func (ls langSet) String() string {
 	var chunks []string
 	for pageN, page := range ls {
 		for bit := 0; bit < 64; bit++ {
@@ -83,22 +83,22 @@ func (ls langset) String() string {
 	return "{" + strings.Join(chunks, "|") + "}"
 }
 
-func (ls *langset) add(l LangID) {
+func (ls *langSet) add(l LangID) {
 	page := (l & 0b111111111 >> 6)
 	bit := l & 0b111111
 	ls[page] |= 1 << bit
 }
 
-func (ls langset) contains(l LangID) bool {
+func (ls langSet) contains(l LangID) bool {
 	page := (l & 0b111111111 >> 6)
 	bit := l & 0b111111
 	return ls[page]&(1<<bit) != 0
 }
 
-const langsetSize = 8 * 8
+const langSetSize = 8 * 8
 
-func (ls langset) serialize() []byte {
-	var buffer [langsetSize]byte
+func (ls langSet) serialize() []byte {
+	var buffer [langSetSize]byte
 	for i, v := range ls {
 		binary.BigEndian.PutUint64(buffer[i*8:], v)
 	}
@@ -107,12 +107,12 @@ func (ls langset) serialize() []byte {
 
 // deserializeFrom reads the binary format produced by serializeTo
 // it returns the number of bytes read from `data`
-func (ls *langset) deserializeFrom(data []byte) (int, error) {
-	if len(data) < langsetSize {
+func (ls *langSet) deserializeFrom(data []byte) (int, error) {
+	if len(data) < langSetSize {
 		return 0, errors.New("invalid lang set (EOF)")
 	}
 	for i := range ls {
 		ls[i] = binary.BigEndian.Uint64(data[i*8:])
 	}
-	return langsetSize, nil
+	return langSetSize, nil
 }
