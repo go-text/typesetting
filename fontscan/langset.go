@@ -52,7 +52,10 @@ func NewLangID(l language.Language) (LangID, bool) {
 }
 
 // langset is a bit set for 512 languages
-// the page of a LanguageID l is given by its 3 high bits : 8-6
+//
+// It works as a map[LangID]bool, with the limitation
+// that only the 9 low bits of a LangID are used.
+// More precisely, the page of a LangID l is given by its 3 "higher" bits : 8-6
 // and the bit position by its 6 lower bits : 5-0
 type langset [8]uint64
 
