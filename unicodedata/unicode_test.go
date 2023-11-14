@@ -142,11 +142,11 @@ func TestLookupLineBreakClass(t *testing.T) {
 		{'\u24EA', BreakAI},
 		{'\u2780', BreakAI},
 		// AL: Ordinary Alphabetic and Symbol Characters (XP)
-		{'\u0600', BreakAL},     //   ARABIC NUMBER SIGN
-		{'\u06DD', BreakAL},     //  	ARABIC END OF AYAH
+		{'\u0600', BreakNU},     //   ARABIC NUMBER SIGN
+		{'\u06DD', BreakNU},     //  	ARABIC END OF AYAH
 		{'\u070F', BreakAL},     //  	SYRIAC ABBREVIATION MARK
 		{'\u2061', BreakAL},     //   	FUNCTION APPLICATION
-		{'\U000110BD', BreakAL}, //  	KAITHI NUMBER SIGN
+		{'\U000110BD', BreakNU}, //  	KAITHI NUMBER SIGN
 		// BA: Break After (A)
 		{'\u1680', BreakBA},     // OGHAM SPACE MARK
 		{'\u2000', BreakBA},     // EN QUAD
