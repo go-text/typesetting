@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"unicode"
+
+	tu "github.com/go-text/typesetting/opentype/testutils"
 )
 
 func TestUnicodeNormalization(t *testing.T) {
@@ -563,6 +565,12 @@ func TestLookupGraphemeBreakClass(t *testing.T) {
 			t.Errorf("LookupGraphemeBreakClass(%x) = %p, want %p", tt.args, got, tt.want)
 		}
 	}
+}
+
+func TestLookupWordBreakClass(t *testing.T) {
+	// these runes have changed from Unicode v15.0 to 15.1
+	tu.Assert(t, LookupWordBreakClass(0x6DD) == WordBreakNumeric)
+	tu.Assert(t, LookupWordBreakClass(0x661) == WordBreakNumeric)
 }
 
 func TestLookupMirrorChar(t *testing.T) {

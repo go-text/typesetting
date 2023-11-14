@@ -23,12 +23,14 @@ import (
 type runeAttr uint8
 
 const (
-	aLineBreak runeAttr = 1 << iota
-	aMandatoryBreak
+	aLineBreak      runeAttr = 1 << iota
+	aMandatoryBreak          // implies aLineBreak
 
 	// this flag is on if the cursor can appear in front of a character.
 	// i.e. if we are at a grapheme boundary.
 	aGraphemeBoundary
+
+	aWordBoundary
 )
 
 const paragraphSeparator rune = 0x2029
@@ -40,6 +42,10 @@ type lineBreakClass = *unicode.RangeTable
 // graphemeBreakClass stores the Unicode Grapheme Cluster Break Property
 // See https://unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
 type graphemeBreakClass = *unicode.RangeTable
+
+// wordBreakClass stores the Unicode Word Break Property
+// See https://unicode.org/reports/tr29/#Table_Word_Break_Property_Values
+type wordBreakClass = *unicode.RangeTable
 
 // cursor holds the information for the current index
 // processed by `computeAttributes`, that is
@@ -63,6 +69,16 @@ type cursor struct {
 	// see [updateGraphemeRIOdd]
 	isPrevGraphemeRIOdd bool
 
+	prevPrevWord     wordBreakClass // the Word Break property at the previous previous, non Extend rune
+	prevWord         wordBreakClass // the Word Break property at the previous, non Extend rune
+	word             wordBreakClass // the Word Break property at index i
+	prevWordNoExtend int            // the index of the last rune NOT having a Extend word break property
+
+	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
+	// used for rules WB15 and WB16
+	// see [updateWordRIOdd]
+	isPrevWordRIOdd bool
+
 	prevPrevLine lineBreakClass // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
 	prevLine     lineBreakClass // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
 	line         lineBreakClass // the Line Break Class at index i
@@ -74,7 +90,6 @@ type cursor struct {
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules LB30a
-	// see [updateGrRIOdd]
 	isPrevLinebreakRIOdd bool
 
 	// are we in a numeric sequence, as defined in Example 7 of customisation for LB25
@@ -89,7 +104,8 @@ type cursor struct {
 // some of them are set in [startIteration]
 func newCursor(text []rune) *cursor {
 	cr := cursor{
-		prevPrevLine: ucd.BreakXX,
+		prevPrevLine:     ucd.BreakXX,
+		prevWordNoExtend: -1,
 	}
 
 	// `startIteration` set `breakCl` from `nextBreakCl`
@@ -102,14 +118,14 @@ func newCursor(text []rune) *cursor {
 }
 
 // computeAttributes does the heavy lifting of the segmentation,
-// by computing a break attribute for each rune
+// by computing a break attribute for each rune.
 //
 // More precisely, `attributes` is a slice of length len(text)+1,
 // which will be filled at index i by the attribute describing the
-// break between rune at index i-1 and index i
+// break between rune at index i-1 and index i.
 //
 // Unicode defines a lot of properties; for now we only handle
-// graphemes and line breaking
+// graphemes and line breaking.
 //
 // The rules are somewhat complex, but the general logic is pretty simple:
 // iterate through the input slice, fetch context information
@@ -131,6 +147,14 @@ func computeAttributes(text []rune, attributes []runeAttr) {
 		isGraphemeBoundary := cr.applyGraphemeBoundaryRules()
 		if isGraphemeBoundary {
 			attr |= aGraphemeBoundary
+		}
+
+		isWordBoundary, removePrevNoExtend := cr.applyWordBoundaryRules(i)
+		if isWordBoundary {
+			attr |= aWordBoundary
+		}
+		if removePrevNoExtend {
+			attributes[cr.prevWordNoExtend] &^= aWordBoundary
 		}
 
 		// UAX#14 Line Breaking
@@ -155,9 +179,9 @@ func computeAttributes(text []rune, attributes []runeAttr) {
 	}
 
 	// start and end of the paragraph are always
-	// grapheme boundaries
-	attributes[0] |= aGraphemeBoundary         // Rule GB1
-	attributes[len(text)] |= aGraphemeBoundary // Rule GB2
+	// grapheme boundaries and word boundaries
+	attributes[0] |= aGraphemeBoundary | aWordBoundary         // Rule GB1 and WB1
+	attributes[len(text)] |= aGraphemeBoundary | aWordBoundary // Rule GB2 and WB2
 
 	// never break before the first char,
 	// but always break after the last

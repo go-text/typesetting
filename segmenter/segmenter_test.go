@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	tu "github.com/go-text/typesetting/opentype/testutils"
 )
 
 func hex(rs []rune) string {
@@ -39,6 +41,15 @@ func collectGraphemes(s *Segmenter, input []rune) []string {
 	return out
 }
 
+func collectWordBoundaries(s *Segmenter, input []rune) []bool {
+	s.Init(input)
+	out := make([]bool, len(s.attributes))
+	for i, a := range s.attributes {
+		out[i] = a&aWordBoundary != 0
+	}
+	return out
+}
+
 func TestLineBreakUnicodeReference(t *testing.T) {
 	file := "test/LineBreakTest.txt"
 	b, err := ioutil.ReadFile(file)
@@ -61,34 +72,45 @@ func TestLineBreakUnicodeReference(t *testing.T) {
 	}
 }
 
-func parseUCDTestLine(t *testing.T, line string) (string, []string) {
-	var segments []string
-	var input string
-	var currentSegment string
-
+func parseUCDTestLineBoundary(t *testing.T, line string) (runes []rune, boundaries []bool) {
 	line = strings.Split(line, "#")[0] // remove comments
 	for _, field := range strings.Fields(line) {
 		switch field {
 		case string(rune(0x00f7)): // DIVISION SIGN: boundary here
-			// do not add empty segments when DIVISION SIGN is at the start
-			if currentSegment != "" {
-				segments = append(segments, currentSegment)
-				currentSegment = ""
-			}
+			boundaries = append(boundaries, true)
 		case string(rune(0x00d7)): // MULTIPLICATION SIGN: no boundary here
+			boundaries = append(boundaries, false)
 		default: // read the rune hex code
 			character, err := strconv.ParseUint(field, 16, 32)
-			if err != nil {
-				t.Fatalf("invalid line %s: %s", line, err)
-			}
-			if character > 0x10ffff {
-				t.Fatalf("unexpected character")
-			}
-			currentSegment += string(rune(character))
-			input += string(rune(character))
+			tu.AssertNoErr(t, err)
+			tu.Assert(t, character <= 0x10ffff)
+
+			runes = append(runes, rune(character))
 		}
 	}
-	return input, segments
+
+	tu.Assert(t, len(runes)+1 == len(boundaries))
+
+	return
+}
+
+func parseUCDTestLine(t *testing.T, line string) (string, []string) {
+	var segments []string
+	var segmentStart int
+
+	runes, boundaries := parseUCDTestLineBoundary(t, line)
+	for i, b := range boundaries {
+		if i == 0 { // do not add empty segment at the start
+			continue
+		}
+		if b {
+			// boundary here
+			segments = append(segments, string(runes[segmentStart:i]))
+			segmentStart = i
+		}
+	}
+
+	return string(runes), segments
 }
 
 func TestGraphemeBreakUnicodeReference(t *testing.T) {
@@ -113,7 +135,28 @@ func TestGraphemeBreakUnicodeReference(t *testing.T) {
 	}
 }
 
-func segmentCount(s *Segmenter, input []rune) int {
+func TestWordBreakUnicodeReference(t *testing.T) {
+	file := "test/WordBreakTest.txt"
+	b, err := ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(b), "\n")
+
+	var seg1 Segmenter
+	for i, line := range lines {
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
+			continue
+		}
+		text, expectedBoundaries := parseUCDTestLineBoundary(t, line)
+		actualBoundaries := collectWordBoundaries(&seg1, text)
+		if !reflect.DeepEqual(expectedBoundaries, actualBoundaries) {
+			t.Errorf("line %d [%s]: expected %#v, got %#v", i+1, hex(text), expectedBoundaries, actualBoundaries)
+		}
+	}
+}
+
+func lineSegmentCount(s *Segmenter, input []rune) int {
 	s.Init(input)
 	iter := s.LineIterator()
 	var out int
@@ -123,7 +166,7 @@ func segmentCount(s *Segmenter, input []rune) int {
 	return out
 }
 
-func getInputs() [][]rune {
+func getLineBreakInputs() [][]rune {
 	file := "test/LineBreakTest.txt"
 	by, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -138,13 +181,13 @@ func getInputs() [][]rune {
 }
 
 func BenchmarkSegmentUnicodeReference(b *testing.B) {
-	inputs := getInputs()
+	inputs := getLineBreakInputs()
 	b.ResetTimer()
 
 	seg := &Segmenter{}
 	for i := 0; i < b.N; i++ {
 		for _, line := range inputs {
-			segmentCount(seg, line)
+			lineSegmentCount(seg, line)
 		}
 	}
 }

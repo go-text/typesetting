@@ -398,13 +398,21 @@ func (cr *cursor) startIteration(text []rune, i int) {
 	}
 
 	// query general unicode properties for the current rune
+
 	cr.isExtentedPic = unicode.Is(ucd.Extended_Pictographic, cr.r)
 
 	cr.prevGrapheme = cr.grapheme
 	cr.grapheme = ucd.LookupGraphemeBreakClass(cr.r)
 
+	if cr.word != ucd.WordBreakExtendFormat {
+		cr.prevPrevWord = cr.prevWord
+		cr.prevWord = cr.word
+		cr.prevWordNoExtend = i - 1
+	}
+	cr.word = ucd.LookupWordBreakClass(cr.r)
+
 	// prevPrevLine and prevLine are handled in endIteration
-	cr.line = cr.nextLine // avoid calling LookupBreakClass twice
+	cr.line = cr.nextLine // avoid calling LookupLineBreakClass twice
 	cr.nextLine = ucd.LookupLineBreakClass(cr.next)
 }
 
