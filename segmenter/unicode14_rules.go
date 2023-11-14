@@ -10,7 +10,7 @@ import (
 
 // Apply the Line Breaking Rules and returns the computed break opportunity
 // See https://unicode.org/reports/tr14/#BreakingRules
-func (cr *cursor) applyLineBreakingRules() breakOpportunity {
+func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	// start by attributing the break class for the current rune
 	cr.ruleLB1()
 
