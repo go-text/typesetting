@@ -45,7 +45,7 @@ func collectWordBoundaries(s *Segmenter, input []rune) []bool {
 	s.Init(input)
 	out := make([]bool, len(s.attributes))
 	for i, a := range s.attributes {
-		out[i] = a&aWordBoundary != 0
+		out[i] = a&WordBoundary != 0
 	}
 	return out
 }

@@ -18,19 +18,25 @@ import (
 	ucd "github.com/go-text/typesetting/unicodedata"
 )
 
-// runeAttr is a flag storing the break properties between two runes of
-// the input text, as computed by computeAttributes
-type runeAttr uint8
+// Break is a flag storing the break properties between two runes of
+// the input text.
+type Break uint8
 
 const (
-	aLineBreak      runeAttr = 1 << iota
-	aMandatoryBreak          // implies aLineBreak
+	LineBoundary          Break = 1 << iota
+	MandatoryLineBoundary       // implies LineBoundary
 
-	// this flag is on if the cursor can appear in front of a character.
+	// GraphemeBoundary is on if the cursor can appear in front of a character,
 	// i.e. if we are at a grapheme boundary.
-	aGraphemeBoundary
+	GraphemeBoundary
 
-	aWordBoundary
+	// WordBoundary is on if we are at the beginning or end of a word.
+	//
+	// To actually detect words, you should also look for runes
+	// with the [Alphabetic] property, or with a General_Category of Number.
+	// See also http://unicode.org/reports/tr44/#Alphabetic and
+	// http://unicode.org/reports/tr44/#General_Category_Values
+	WordBoundary
 )
 
 const paragraphSeparator rune = 0x2029
@@ -117,60 +123,60 @@ func newCursor(text []rune) *cursor {
 	return &cr
 }
 
-// computeAttributes does the heavy lifting of the segmentation,
+// ComputeBreakAttributes does the heavy lifting of text segmentation,
 // by computing a break attribute for each rune.
 //
-// More precisely, `attributes` is a slice of length len(text)+1,
+// More precisely, `attributes` must be a slice of length len(text)+1,
 // which will be filled at index i by the attribute describing the
 // break between rune at index i-1 and index i.
 //
 // Unicode defines a lot of properties; for now we only handle
-// graphemes and line breaking.
-//
-// The rules are somewhat complex, but the general logic is pretty simple:
-// iterate through the input slice, fetch context information
-// from previous and following runes required by the rules,
-// and finaly apply them.
-// Some rules require variable length lookup, which we handle by keeping
-// a state in a [cursor] object.
-func computeAttributes(text []rune, attributes []runeAttr) {
+// grapheme, word and line breaking.
+func ComputeBreakAttributes(text []rune, attributes []Break) {
+	// The rules are somewhat complex, but the general logic is pretty simple:
+	// iterate through the input slice, fetch context information
+	// from previous and following runes required by the rules,
+	// and finaly apply them.
+	// Some rules require variable length lookup, which we handle by keeping
+	// a state in a [cursor] object.
+
 	// initialise the cursor properties
 	cr := newCursor(text)
 
 	for i := 0; i <= len(text); i++ { // note that we accept i == len(text) to fill the last attribute
 		cr.startIteration(text, i)
 
-		var attr runeAttr
+		var attr Break
 
-		// UAX#29 Grapheme Boundaries
+		// UAX#29 Grapheme and word Boundaries
 
 		isGraphemeBoundary := cr.applyGraphemeBoundaryRules()
 		if isGraphemeBoundary {
-			attr |= aGraphemeBoundary
+			attr |= GraphemeBoundary
 		}
 
 		isWordBoundary, removePrevNoExtend := cr.applyWordBoundaryRules(i)
 		if isWordBoundary {
-			attr |= aWordBoundary
+			attr |= WordBoundary
 		}
 		if removePrevNoExtend {
-			attributes[cr.prevWordNoExtend] &^= aWordBoundary
+			attributes[cr.prevWordNoExtend] &^= WordBoundary
 		}
 
 		// UAX#14 Line Breaking
 
-		bo := cr.applyLineBreakingRules()
+		bo := cr.applyLineBoundaryRules()
 		switch bo {
 		case breakEmpty:
 			// rule LB31 : default to allow line break
-			attr |= aLineBreak
+			attr |= LineBoundary
 		case breakProhibited:
-			attr &^= aLineBreak
+			attr &^= LineBoundary
 		case breakAllowed:
-			attr |= aLineBreak
+			attr |= LineBoundary
 		case breakMandatory:
-			attr |= aLineBreak
-			attr |= aMandatoryBreak
+			attr |= LineBoundary
+			attr |= MandatoryLineBoundary
 		}
 
 		cr.endIteration(i == 0)
@@ -180,14 +186,14 @@ func computeAttributes(text []rune, attributes []runeAttr) {
 
 	// start and end of the paragraph are always
 	// grapheme boundaries and word boundaries
-	attributes[0] |= aGraphemeBoundary | aWordBoundary         // Rule GB1 and WB1
-	attributes[len(text)] |= aGraphemeBoundary | aWordBoundary // Rule GB2 and WB2
+	attributes[0] |= GraphemeBoundary | WordBoundary         // Rule GB1 and WB1
+	attributes[len(text)] |= GraphemeBoundary | WordBoundary // Rule GB2 and WB2
 
 	// never break before the first char,
 	// but always break after the last
-	attributes[0] &^= aLineBreak             // Rule LB2
-	attributes[len(text)] |= aLineBreak      // Rule LB3
-	attributes[len(text)] |= aMandatoryBreak // Rule LB3
+	attributes[0] &^= LineBoundary                 // Rule LB2
+	attributes[len(text)] |= LineBoundary          // Rule LB3
+	attributes[len(text)] |= MandatoryLineBoundary // Rule LB3
 }
 
 // Segmenter is the entry point of the package.
@@ -209,24 +215,24 @@ type Segmenter struct {
 	// Example :
 	// 	text : 			[b, 		u, 	l, 	l]
 	// 	attributes :	[<start> b, b u, u l, l l, l <end>]
-	attributes []runeAttr
+	attributes []Break
 }
 
 // Init resets the segmenter storage with the given input,
 // and computes the attributes required to segment the text.
 func (seg *Segmenter) Init(paragraph []rune) {
 	seg.text = append(seg.text[:0], paragraph...)
-	seg.attributes = append(seg.attributes[:0], make([]runeAttr, len(paragraph)+1)...)
-	computeAttributes(seg.text, seg.attributes)
+	seg.attributes = append(seg.attributes[:0], make([]Break, len(paragraph)+1)...)
+	ComputeBreakAttributes(seg.text, seg.attributes)
 }
 
 // attributeIterator is an helper type used to
 // handle iterating over a slice of runeAttr
 type attributeIterator struct {
 	src       *Segmenter
-	pos       int      // the current position in the input slice
-	lastBreak int      // the start of the current segment
-	flag      runeAttr // break where this flag is on
+	pos       int   // the current position in the input slice
+	lastBreak int   // the start of the current segment
+	flag      Break // break where this flag is on
 }
 
 // next returns true if there is still a segment to process,
@@ -260,7 +266,7 @@ func (li *LineIterator) Line() Line {
 	return Line{
 		Offset:           li.lastBreak,
 		Text:             li.src.text[li.lastBreak:li.pos], // pos is not included since we break right before
-		IsMandatoryBreak: li.src.attributes[li.pos]&aMandatoryBreak != 0,
+		IsMandatoryBreak: li.src.attributes[li.pos]&MandatoryLineBoundary != 0,
 	}
 }
 
@@ -278,7 +284,7 @@ type Line struct {
 // LineIterator returns an iterator on the lines
 // delimited in [Init].
 func (sg *Segmenter) LineIterator() *LineIterator {
-	return &LineIterator{attributeIterator: attributeIterator{src: sg, flag: aLineBreak}}
+	return &LineIterator{attributeIterator: attributeIterator{src: sg, flag: LineBoundary}}
 }
 
 // GraphemeIterator provides a convenient way of
@@ -310,5 +316,5 @@ type Grapheme struct {
 // GraphemeIterator returns an iterator over the graphemes
 // delimited in [Init].
 func (sg *Segmenter) GraphemeIterator() *GraphemeIterator {
-	return &GraphemeIterator{attributeIterator: attributeIterator{src: sg, flag: aGraphemeBoundary}}
+	return &GraphemeIterator{attributeIterator: attributeIterator{src: sg, flag: GraphemeBoundary}}
 }
