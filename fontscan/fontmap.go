@@ -325,30 +325,27 @@ func (fm *FontMap) SetQuery(query Query) {
 }
 
 // candidates is a cache storing the indices into FontMap.database of footprints matching a Query
+// families
 type candidates struct {
-	// the two fallback slices have the same length: the number of family in the query
-	withFallback    [][]int // for each queried family
-	withoutFallback []int   // for each queried family, only one footprint is selected
+	// footprints with exact match :
+	// for each queried family, at most one footprint is selected
+	withoutFallback []int
+
+	// footprints matching the expanded query (where subsitutions have been applied)
+	withFallback []int
 
 	manual []int // manually inserted faces to be tried if the other candidates fail.
 }
 
-func (cd *candidates) resetWithSize(candidateSize int) {
-	if cap(cd.withFallback) < candidateSize { // reallocate
-		cd.withFallback = make([][]int, candidateSize)
-		cd.withoutFallback = make([]int, candidateSize)
+// reset slices, setting the capacity of withoutFallback to nbFamilies
+func (cd *candidates) resetWithSize(nbFamilies int) {
+	if cap(cd.withoutFallback) < nbFamilies { // reallocate
+		cd.withoutFallback = make([]int, nbFamilies)
 	}
 
-	// only reslice
-	cd.withFallback = cd.withFallback[0:candidateSize]
-	cd.withoutFallback = cd.withoutFallback[0:candidateSize]
-
-	// reset to "zero" values
-	for i := range cd.withoutFallback {
-		cd.withFallback[i] = nil
-		cd.withoutFallback[i] = -1
-	}
-	cd.manual = cd.manual[0:]
+	cd.withoutFallback = cd.withoutFallback[:0]
+	cd.withFallback = cd.withFallback[:0]
+	cd.manual = cd.manual[:0]
 }
 
 func (fm *FontMap) buildCandidates() {
@@ -357,9 +354,10 @@ func (fm *FontMap) buildCandidates() {
 	}
 	fm.candidates.resetWithSize(len(fm.query.Families))
 
-	selectFootprints := func(systemFallback bool) {
-		for familyIndex, family := range fm.query.Families {
-			candidates := fm.database.selectByFamily(family, systemFallback, &fm.footprintsBuffer, fm.cribleBuffer)
+	// first pass for an exact match
+	{
+		for _, family := range fm.query.Families {
+			candidates := fm.database.selectByFamilyExact(family, &fm.footprintsBuffer, fm.cribleBuffer)
 			if len(candidates) == 0 {
 				continue
 			}
@@ -367,29 +365,37 @@ func (fm *FontMap) buildCandidates() {
 			// select the correct aspects
 			candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
 
-			if systemFallback {
-				// candidates is owned by fm.footprintsBuffer: copy its content
-				S := fm.candidates.withFallback[familyIndex]
-				if L := len(candidates); cap(S) < L {
-					S = make([]int, L)
-				} else {
-					S = S[:L]
-				}
-				copy(S, candidates)
-				fm.candidates.withFallback[familyIndex] = S
-			} else {
-				// when no systemFallback is required, the CSS spec says
-				// that only one font among the candidates must be tried
-				fm.candidates.withoutFallback[familyIndex] = candidates[0]
-			}
+			// when no systemFallback is required, the CSS spec says
+			// that only one font among the candidates must be tried
+			fm.candidates.withoutFallback = append(fm.candidates.withoutFallback, candidates[0])
 		}
 	}
 
-	selectFootprints(false)
-	selectFootprints(true)
+	// second pass with substitutions
+	{
+		candidates := fm.database.selectByFamilyWithSubs(fm.query.Families, &fm.footprintsBuffer, fm.cribleBuffer)
 
-	fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
-	fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
+		// select the correct aspects
+		candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
+
+		// candidates is owned by fm.footprintsBuffer: copy its content
+		S := fm.candidates.withFallback
+		if L := len(candidates); cap(S) < L {
+			S = make([]int, L)
+		} else {
+			S = S[:L]
+		}
+		copy(S, candidates)
+		fm.candidates.withFallback = S
+	}
+
+	// third pass with user provided fonts
+	{
+		fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
+		fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
+
+	}
+
 	fm.built = true
 }
 
@@ -451,35 +457,25 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 	defer func() {
 		fm.lru.Put(key, fm.query, face)
 	}()
+
 	// Build the candidates if we missed the cache. If they're already built this is a
 	// no-op.
 	fm.buildCandidates()
+
 	// we first look up for an exact family match, without substitutions
-	for _, footprintIndex := range fm.candidates.withoutFallback {
-		if footprintIndex == -1 {
-			continue
-		}
-		if face := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
-			return face
-		}
+	if face := fm.resolveForRune(fm.candidates.withoutFallback, r); face != nil {
+		return face
 	}
 
 	// if no family has matched so far, try again with system fallback
-	for _, footprintIndexList := range fm.candidates.withFallback {
-		if face := fm.resolveForRune(footprintIndexList, r); face != nil {
-			return face
-		}
+	if face := fm.resolveForRune(fm.candidates.withFallback, r); face != nil {
+		return face
 	}
 
 	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
 	// and rune coverage.
-	for _, footprintIndex := range fm.candidates.manual {
-		if footprintIndex == -1 {
-			continue
-		}
-		if face := fm.resolveForRune([]int{footprintIndex}, r); face != nil {
-			return face
-		}
+	if face := fm.resolveForRune(fm.candidates.manual, r); face != nil {
+		return face
 	}
 
 	fm.logger.Printf("No font matched for %q and rune %U (%c) -> searching by script coverage and aspect", fm.query.Families, r, r)
@@ -544,31 +540,19 @@ func (fm *FontMap) ResolveFaceForLang(lang LangID) font.Face {
 	fm.buildCandidates()
 
 	// we first look up for an exact family match, without substitutions
-	for _, footprintIndex := range fm.candidates.withoutFallback {
-		if footprintIndex == -1 {
-			continue
-		}
-		if face := fm.resolveForLang([]int{footprintIndex}, lang); face != nil {
-			return face
-		}
+	if face := fm.resolveForLang(fm.candidates.withoutFallback, lang); face != nil {
+		return face
 	}
 
 	// if no family has matched so far, try again with system fallback
-	for _, footprintIndexList := range fm.candidates.withFallback {
-		if face := fm.resolveForLang(footprintIndexList, lang); face != nil {
-			return face
-		}
+	if face := fm.resolveForLang(fm.candidates.withFallback, lang); face != nil {
+		return face
 	}
 
 	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
 	// and rune coverage.
-	for _, footprintIndex := range fm.candidates.manual {
-		if footprintIndex == -1 {
-			continue
-		}
-		if face := fm.resolveForLang([]int{footprintIndex}, lang); face != nil {
-			return face
-		}
+	if face := fm.resolveForLang(fm.candidates.manual, lang); face != nil {
+		return face
 	}
 
 	return nil

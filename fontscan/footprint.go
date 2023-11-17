@@ -23,6 +23,8 @@ type footprint struct {
 
 	// Family is the general nature of the font, like
 	// "Arial"
+	// Note that, for performance reason, we store the
+	// normalized version of the family name.
 	Family string
 
 	// Runes is the set of runes supported by the font.
