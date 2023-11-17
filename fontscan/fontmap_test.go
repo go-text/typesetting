@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -259,4 +260,23 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"MyRoboto"}})
 	face := fm.ResolveFace(0x20)
 	tu.Assert(t, fm.FontLocation(face.Font).File == "Roboto2")
+}
+
+func TestQueryHelveticaLinux(t *testing.T) {
+	// This is a regression test which asserts that
+	// our behavior is similar than fontconfig, on a linux system
+	if runtime.GOOS != "linux" {
+		t.Skip()
+	}
+
+	fm := NewFontMap(nil)
+	err := fm.UseSystemFonts(t.TempDir())
+	tu.AssertNoErr(t, err)
+
+	fm.SetQuery(Query{Families: []string{
+		"BlinkMacSystemFont", // 'unknown' family
+		"Helvetica",
+	}})
+	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
+	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans"))
 }

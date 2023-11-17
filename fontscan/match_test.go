@@ -52,7 +52,7 @@ func fontsFromFamilies(families ...string) (out fontSet) {
 	return out
 }
 
-func TestFontMap_selectByFamily(t *testing.T) {
+func TestFontMap_selectByFamilyExact(t *testing.T) {
 	tests := []struct {
 		fontset    fontSet
 		family     string
@@ -68,22 +68,8 @@ func TestFontMap_selectByFamily(t *testing.T) {
 		{fontsFromFamilies("ar Ial", "emoji"), "Arial", false, []int{0}},
 		// substitution
 		{fontsFromFamilies("arial"), "Helvetica", false, nil},
-		{fontsFromFamilies("arial"), "Helvetica", true, []int{0}},
-		{fontsFromFamilies("caladea", "XXX"), "cambria", true, []int{0}},
-		// substitution, with order
-		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", true, []int{1, 0}},
-		// substitution, with order, and no matching fonts
-		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", true, []int{1, 0}},
 		// generic families
 		{fontsFromFamilies("norasi", "XXX"), "serif", false, []int{0}},
-		// default to generic families
-		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", true, []int{0}},
-		// substitutions
-		{
-			fontsFromFamilies("Nimbus Roman", "Tinos", "Liberation Serif", "DejaVu Serif", "arial"),
-			"Times", true,
-			[]int{0, 1, 2, 3},
-		},
 		// user provided precedence
 		{
 			fontSet{
@@ -97,7 +83,37 @@ func TestFontMap_selectByFamily(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamily(tt.family, tt.substitute, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
+		if got := tt.fontset.selectByFamilyExact(tt.family, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FontMap.selectByFamily() = \n%v, want \n%v", got, tt.want)
+		}
+	}
+}
+
+func TestFontMap_selectByFamilyList(t *testing.T) {
+	tests := []struct {
+		fontset    fontSet
+		family     string
+		substitute bool
+		want       []int
+	}{
+		{nil, "", true, nil}, // no match on empty fontset
+		{fontsFromFamilies("arial"), "Helvetica", true, []int{0}},
+		{fontsFromFamilies("caladea", "XXX"), "cambria", true, []int{0}},
+		// substitution, with order
+		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", true, []int{1, 0}},
+		// substitution, with order, and no matching fonts
+		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", true, []int{1, 0}},
+		// default to generic families
+		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", true, []int{0}},
+		// substitutions
+		{
+			fontsFromFamilies("Nimbus Roman", "Tinos", "Liberation Serif", "DejaVu Serif", "arial"),
+			"Times", true,
+			[]int{0, 1, 2, 3},
+		},
+	}
+	for _, tt := range tests {
+		if got := tt.fontset.selectByFamilyWithSubs([]string{tt.family}, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FontMap.selectByFamily() = \n%v, want \n%v", got, tt.want)
 		}
 	}

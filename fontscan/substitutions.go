@@ -27,16 +27,20 @@ func init() {
 	}
 }
 
-// familyList is a list of family to match, order
+// familyList is a list of normalized families to match, order
 // by user preference (first is best).
 // It also implements helpers to insert at the start,
 // the end and "around" an element
 type familyList []string
 
+// normalize the families
 func newFamilyList(families []string) familyList {
 	// we'll guess that we end up with about ~140 items
 	fl := make([]string, 0, 140)
 	fl = append(fl, families...)
+	for i, f := range fl {
+		fl[i] = meta.NormalizeFamily(f)
+	}
 	return fl
 }
 
