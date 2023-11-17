@@ -232,3 +232,10 @@ func TestReplaceAt(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkNewFamilyCrible(b *testing.B) {
+	c := make(familyCrible)
+	for i := 0; i < b.N; i++ {
+		c.fillWithSubstitutions("Arial")
+	}
+}
