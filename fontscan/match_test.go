@@ -103,13 +103,6 @@ func TestFontMap_selectByFamily(t *testing.T) {
 	}
 }
 
-func BenchmarkNewFamilyCrible(b *testing.B) {
-	c := make(familyCrible)
-	for i := 0; i < b.N; i++ {
-		c.fillWithSubstitutions("Arial")
-	}
-}
-
 func fontsetFromStretches(sts ...meta.Stretch) (out fontSet) {
 	for _, stretch := range sts {
 		out = append(out, footprint{Aspect: meta.Aspect{Stretch: stretch}})
