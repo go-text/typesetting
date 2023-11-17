@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -264,13 +263,17 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 
 func TestQueryHelveticaLinux(t *testing.T) {
 	// This is a regression test which asserts that
-	// our behavior is similar than fontconfig, on a linux system
-	if runtime.GOOS != "linux" {
-		t.Skip()
-	}
+	// our behavior is similar than fontconfig
+
+	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file1.Close()
 
 	fm := NewFontMap(nil)
-	err := fm.UseSystemFonts(t.TempDir())
+	err = fm.AddFont(file1, "file1", "Nimbus Sans")
+	tu.AssertNoErr(t, err)
+
+	err = fm.AddFont(file1, "file2", "Bitstream Vera Sans")
 	tu.AssertNoErr(t, err)
 
 	fm.SetQuery(Query{Families: []string{
@@ -278,5 +281,5 @@ func TestQueryHelveticaLinux(t *testing.T) {
 		"Helvetica",
 	}})
 	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
-	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans"))
+	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
 }
