@@ -314,6 +314,26 @@ func (fm *FontMap) FontMetadata(ft font.Font) (family string, aspect meta.Aspect
 	return item.Family, item.Aspect
 }
 
+// FindSystemFont looks for a system font with the given [family],
+// returning the first match, or false is no one is found.
+//
+// User added fonts are ignored, and the [FontMap] must have been
+// initialized with [UseSystemFonts] or this method will always return false.
+//
+// Family names are compared through [meta.Normalize].
+func (fm *FontMap) FindSystemFont(family string) (Location, bool) {
+	family = meta.NormalizeFamily(family)
+	for _, footprint := range fm.database {
+		if footprint.isUserProvided {
+			continue
+		}
+		if footprint.Family == family {
+			return footprint.Location, true
+		}
+	}
+	return Location{}, false
+}
+
 // SetQuery set the families and aspect required, influencing subsequent
 // `ResolveFace` calls.
 func (fm *FontMap) SetQuery(query Query) {
