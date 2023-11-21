@@ -261,6 +261,29 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	tu.Assert(t, fm.FontLocation(face.Font).File == "Roboto2")
 }
 
+func TestQueryHelveticaLinux(t *testing.T) {
+	// This is a regression test which asserts that
+	// our behavior is similar than fontconfig
+
+	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file1.Close()
+
+	fm := NewFontMap(nil)
+	err = fm.AddFont(file1, "file1", "Nimbus Sans")
+	tu.AssertNoErr(t, err)
+
+	err = fm.AddFont(file1, "file2", "Bitstream Vera Sans")
+	tu.AssertNoErr(t, err)
+
+	fm.SetQuery(Query{Families: []string{
+		"BlinkMacSystemFont", // 'unknown' family
+		"Helvetica",
+	}})
+	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
+	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
+}
+
 func TestFindSytemFont(t *testing.T) {
 	fm := NewFontMap(log.New(io.Discard, "", 0))
 	_, ok := fm.FindSystemFont("Nimbus")
