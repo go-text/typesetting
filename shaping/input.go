@@ -11,6 +11,7 @@ import (
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/loader"
 	"golang.org/x/image/math/fixed"
+	"golang.org/x/text/unicode/bidi"
 )
 
 type Input struct {
@@ -168,3 +169,108 @@ func ignoreFaceChange(r rune) bool {
 		(unicode.Is(unicode.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
 		harfbuzz.IsDefaultIgnorable(r)
 }
+
+// Segmenter holds a state used to split input
+// according to three caracteristics : text direction (bidi),
+// script, and face.
+type Segmenter struct {
+	// pools of inputs, used to reduce allocations,
+	// which are alternatively considered as input/output of the segmentation
+	buffer1, buffer2 []Input
+
+	// buffer used for bidi segmentation
+	bidiParagraph bidi.Paragraph
+
+	// used to handle Common script
+	parenthesisStack []int
+}
+
+// Split segments the given [text] according to :
+//   - text direction
+//   - script
+//   - face, as defined by [faces]
+//
+// As a consequence, the following fields of the returned runs are set :
+//   - Text, RunStart, RunEnd
+//   - Direction
+//   - Script
+//   - Face
+//
+// [defaultDirection] is used during bidi ordering, and should refer to the general
+// context [text] is used in (typically the user system preference for GUI apps.)
+//
+// The returned sliced is owned by the [Segmenter] and is only valid until
+// the next call to [Split].
+func (seg *Segmenter) Split(text []rune, faces Fontmap, defaultDirection di.Direction) []Input {
+	seg.reset()
+	seg.splitByBidi(text, defaultDirection)
+	seg.splitByScript()
+	seg.splitByFace()
+	return seg.buffer1
+}
+
+func (seg *Segmenter) reset() {
+	// zero the slices to avoid 'memory leak' on pointer slice fields
+	for i := range seg.buffer1 {
+		seg.buffer1[i].Text = nil
+		seg.buffer1[i].FontFeatures = nil
+	}
+	for i := range seg.buffer2 {
+		seg.buffer2[i].Text = nil
+		seg.buffer2[i].FontFeatures = nil
+	}
+	seg.buffer1 = seg.buffer1[:0]
+	seg.buffer2 = seg.buffer2[:0]
+	// bidiParagraph is reset when using SetString
+	seg.parenthesisStack = seg.parenthesisStack[:0]
+}
+
+// fills buffer1
+func (seg *Segmenter) splitByBidi(text []rune, defaultDirection di.Direction) {
+	if defaultDirection.Axis() != di.Horizontal || len(text) == 0 {
+		seg.buffer1 = append(seg.buffer1, Input{
+			Text:      text,
+			RunStart:  0,
+			RunEnd:    len(text),
+			Direction: defaultDirection,
+		})
+		return
+	}
+	def := bidi.LeftToRight
+	if defaultDirection.Progression() == di.TowardTopLeft {
+		def = bidi.RightToLeft
+	}
+	seg.bidiParagraph.SetString(string(text), bidi.DefaultDirection(def))
+	out, err := seg.bidiParagraph.Order()
+	if err != nil {
+		seg.buffer1 = append(seg.buffer1, Input{
+			Text:      text,
+			RunStart:  0,
+			RunEnd:    len(text),
+			Direction: defaultDirection,
+		})
+		return
+	}
+
+	input := Input{Text: text} // start a rune 0
+	for i := 0; i < out.NumRuns(); i++ {
+		currentInput := input
+		run := out.Run(i)
+		dir := run.Direction()
+		_, endRune := run.Pos()
+		currentInput.RunEnd = endRune + 1
+		if dir == bidi.RightToLeft {
+			currentInput.Direction = di.DirectionRTL
+		} else {
+			currentInput.Direction = di.DirectionLTR
+		}
+		seg.buffer1 = append(seg.buffer1, currentInput)
+		input.RunStart = currentInput.RunEnd
+	}
+}
+
+// uses buffer1 as input and fills buffer2
+func (seg *Segmenter) splitByScript() {}
+
+// uses buffer2 as input, resets and fills buffer1
+func (seg *Segmenter) splitByFace() {}

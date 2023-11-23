@@ -6,9 +6,11 @@ import (
 	"testing"
 	"unicode"
 
+	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/opentype/api"
 	oFont "github.com/go-text/typesetting/opentype/api/font"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 )
 
 func Test_ignoreFaceChange(t *testing.T) {
@@ -215,5 +217,66 @@ func TestSplitByFontGlyphs(t *testing.T) {
 				t.Errorf("SplitByFontGlyphs() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSplitBidi(t *testing.T) {
+	ltrSource := []rune("The quick brown fox jumps over the lazy dog.")
+	rtlSource := []rune("الحب سماء لا تمط غير الأحلام")
+	bidiSource := []rune("The quick سماء שלום لا fox تمط שלום غير the lazy dog.")
+	bidi2Source := []rune("الحب سماء brown привет fox تمط jumps привет over غير الأحلام")
+	type run struct {
+		start, end int
+		dir        di.Direction
+	}
+	for _, test := range []struct {
+		text         []rune
+		expectedRuns []run
+	}{
+		{
+			text: ltrSource,
+			expectedRuns: []run{
+				{0, len(ltrSource), di.DirectionLTR},
+			},
+		},
+		{
+			text: rtlSource,
+			expectedRuns: []run{
+				{0, len(rtlSource), di.DirectionRTL},
+			},
+		},
+		{
+			text: bidiSource,
+			expectedRuns: []run{
+				// spaces are assigned to LTR runs
+				{0, 10, di.DirectionLTR},
+				{10, 22, di.DirectionRTL},
+				{22, 27, di.DirectionLTR},
+				{27, 39, di.DirectionRTL},
+				{39, 53, di.DirectionLTR},
+			},
+		},
+		{
+			text: bidi2Source,
+			// spaces are assigned to RTL runs
+			expectedRuns: []run{
+				{0, 10, di.DirectionRTL},
+				{10, 26, di.DirectionLTR},
+				{26, 31, di.DirectionRTL},
+				{31, 48, di.DirectionLTR},
+				{48, 60, di.DirectionRTL},
+			},
+		},
+	} {
+		var seg Segmenter
+		seg.splitByBidi(test.text, di.DirectionLTR)
+		inputs := seg.buffer1
+		tu.Assert(t, len(inputs) == len(test.expectedRuns))
+		for i, run := range test.expectedRuns {
+			got := inputs[i]
+			tu.Assert(t, got.Direction == run.dir)
+			tu.Assert(t, got.RunStart == run.start)
+			tu.Assert(t, got.RunEnd == run.end)
+		}
 	}
 }
