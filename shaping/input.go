@@ -104,70 +104,7 @@ func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
 // the return value of the `Fontmap.ResolveFace` call.
 // The 'Face' field of 'input' is ignored: only 'availableFaces' is used to select the face.
 func SplitByFace(input Input, availableFaces Fontmap) []Input {
-	var splitInputs []Input
-	currentInput := input
-	for i := input.RunStart; i < input.RunEnd; i++ {
-		r := input.Text[i]
-		if currentInput.Face != nil && ignoreFaceChange(r) {
-			// add the rune to the current input
-			continue
-		}
-
-		// select the first font supporting r
-		selectedFace := availableFaces.ResolveFace(r)
-
-		if currentInput.Face == selectedFace {
-			// add the rune to the current input
-			continue
-		}
-
-		// new face needed
-
-		if i != input.RunStart {
-			// close the current input ...
-			currentInput.RunEnd = i
-			// ... add it to the output ...
-			splitInputs = append(splitInputs, currentInput)
-		}
-
-		// ... and create a new one
-		currentInput = input
-		currentInput.RunStart = i
-		currentInput.Face = selectedFace
-	}
-
-	// close and add the last input
-	currentInput.RunEnd = input.RunEnd
-	splitInputs = append(splitInputs, currentInput)
-	return splitInputs
-}
-
-// ignoreFaceChange returns `true` is the given rune should not trigger
-// a change of font.
-//
-// We don't want space characters to affect font selection; in general,
-// it's always wrong to select a font just to render a space.
-// We assume that all fonts have the ASCII space, and for other space
-// characters if they don't, HarfBuzz will compatibility-decompose them
-// to ASCII space...
-//
-// We don't want to change fonts for line or paragraph separators.
-//
-// Finaly, we also don't change fonts for what Harfbuzz consider
-// as ignorable (however, some Control Format runes like 06DD are not ignored).
-//
-// The rationale is taken from pango : see bugs
-// https://bugzilla.gnome.org/show_bug.cgi?id=355987
-// https://bugzilla.gnome.org/show_bug.cgi?id=701652
-// https://bugzilla.gnome.org/show_bug.cgi?id=781123
-// for more details.
-func ignoreFaceChange(r rune) bool {
-	return unicode.Is(unicode.Cc, r) || // control
-		unicode.Is(unicode.Cs, r) || // surrogate
-		unicode.Is(unicode.Zl, r) || // line separator
-		unicode.Is(unicode.Zp, r) || // paragraph separator
-		(unicode.Is(unicode.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
-		harfbuzz.IsDefaultIgnorable(r)
+	return splitByFace(input, availableFaces, nil)
 }
 
 // Segmenter holds a state used to split input
@@ -178,11 +115,16 @@ type Segmenter struct {
 	// which are alternatively considered as input/output of the segmentation
 	buffer1, buffer2 []Input
 
+	// used to handle Common script
+	delimStack []delimEntry
+
 	// buffer used for bidi segmentation
 	bidiParagraph bidi.Paragraph
+}
 
-	// used to handle Common script
-	parenthesisStack []int
+type delimEntry struct {
+	index  int             // in the [pairedDelims] list
+	script language.Script // resolved from the context
 }
 
 // Split segments the given [text] according to :
@@ -190,7 +132,7 @@ type Segmenter struct {
 //   - script
 //   - face, as defined by [faces]
 //
-// As a consequence, the following fields of the returned runs are set :
+// As a consequence, it sets the following fields of the returned runs :
 //   - Text, RunStart, RunEnd
 //   - Direction
 //   - Script
@@ -205,7 +147,7 @@ func (seg *Segmenter) Split(text []rune, faces Fontmap, defaultDirection di.Dire
 	seg.reset()
 	seg.splitByBidi(text, defaultDirection)
 	seg.splitByScript()
-	seg.splitByFace()
+	seg.splitByFace(faces)
 	return seg.buffer1
 }
 
@@ -221,8 +163,10 @@ func (seg *Segmenter) reset() {
 	}
 	seg.buffer1 = seg.buffer1[:0]
 	seg.buffer2 = seg.buffer2[:0]
+
 	// bidiParagraph is reset when using SetString
-	seg.parenthesisStack = seg.parenthesisStack[:0]
+
+	seg.delimStack = seg.delimStack[:0]
 }
 
 // fills buffer1
@@ -269,8 +213,175 @@ func (seg *Segmenter) splitByBidi(text []rune, defaultDirection di.Direction) {
 	}
 }
 
+// lookupDelimIndex binary searches in the list of the paired delimiters,
+// and returns -1 if `ch` is not found
+func lookupDelimIndex(ch rune) int {
+	lower := 0
+	upper := len(pairedDelims) - 1
+
+	for lower <= upper {
+		mid := (lower + upper) / 2
+
+		if ch < pairedDelims[mid] {
+			upper = mid - 1
+		} else if ch > pairedDelims[mid] {
+			lower = mid + 1
+		} else {
+			return mid
+		}
+	}
+
+	return -1
+}
+
 // uses buffer1 as input and fills buffer2
-func (seg *Segmenter) splitByScript() {}
+//
+// See https://unicode.org/reports/tr24/#Common for reference
+func (seg *Segmenter) splitByScript() {
+	for _, input := range seg.buffer1 {
+		currentInput := input
+		currentInput.Script = language.Common
+
+		for i := input.RunStart; i < input.RunEnd; i++ {
+			r := input.Text[i]
+			rScript := language.LookupScript(r)
+
+			// to properly handle Common script,
+			// we register paired delimiters
+
+			delimIndex := -1
+			if rScript == language.Common {
+				delimIndex = lookupDelimIndex(r)
+			}
+
+			if delimIndex >= 0 { // handle paired characters
+				if delimIndex%2 == 0 {
+					// this is an open character : push it onto the stack
+					seg.delimStack = append(seg.delimStack, delimEntry{delimIndex, currentInput.Script})
+				} else {
+					// this is a close character : try to look backward in the stack
+					// for its counterpart
+					counterPartIndex := delimIndex - 1
+					j := len(seg.delimStack) - 1
+					for ; j >= 0; j-- {
+						if seg.delimStack[j].index == counterPartIndex { // found a match, use its script
+							rScript = seg.delimStack[j].script
+							break
+						}
+					}
+					// in any case, pop the open characters
+					if j == -1 {
+						j = 0
+					}
+					seg.delimStack = seg.delimStack[:j]
+				}
+			}
+
+			// check if we have a 'real' change of script, or not
+			if rScript == language.Common || rScript == currentInput.Script {
+				// no change
+				continue
+			} else if currentInput.Script == language.Common {
+				// update the pair stack to attribute the resolved script
+				for i := range seg.delimStack {
+					seg.delimStack[i].script = rScript
+				}
+				// set the resolved script to the current run,
+				// but do NOT create a new run
+				currentInput.Script = rScript
+			} else {
+				// split to a new run
+				if i != input.RunStart { // push the existing one
+					currentInput.RunEnd = i
+					seg.buffer2 = append(seg.buffer2, currentInput)
+				}
+
+				currentInput.RunStart = i
+				currentInput.Script = rScript
+			}
+		}
+		// close and add the last input
+		currentInput.RunEnd = input.RunEnd
+		seg.buffer2 = append(seg.buffer2, currentInput)
+	}
+}
 
 // uses buffer2 as input, resets and fills buffer1
-func (seg *Segmenter) splitByFace() {}
+func (seg *Segmenter) splitByFace(faces Fontmap) {
+	seg.buffer1 = seg.buffer1[:0]
+	for _, input := range seg.buffer2 {
+		seg.buffer1 = splitByFace(input, faces, seg.buffer1)
+	}
+}
+
+func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
+	currentInput := input
+	for i := input.RunStart; i < input.RunEnd; i++ {
+		r := input.Text[i]
+		if ignoreFaceChange(r) {
+			// add the rune to the current input
+			continue
+		}
+
+		// select the first font supporting r
+		selectedFace := availableFaces.ResolveFace(r)
+
+		// now that we have a font, apply it back,
+		// but do NOT create a new run
+		if currentInput.Face == nil {
+			currentInput.Face = selectedFace
+		}
+
+		if currentInput.Face == selectedFace {
+			// add the rune to the current input
+			continue
+		}
+
+		// new face needed
+
+		if i != input.RunStart {
+			// close the current input ...
+			currentInput.RunEnd = i
+			// ... add it to the output ...
+			buffer = append(buffer, currentInput)
+		}
+
+		// ... and create a new one
+		currentInput = input
+		currentInput.RunStart = i
+		currentInput.Face = selectedFace
+	}
+
+	// close and add the last input
+	currentInput.RunEnd = input.RunEnd
+	buffer = append(buffer, currentInput)
+	return buffer
+}
+
+// ignoreFaceChange returns `true` is the given rune should not trigger
+// a change of font.
+//
+// We don't want space characters to affect font selection; in general,
+// it's always wrong to select a font just to render a space.
+// We assume that all fonts have the ASCII space, and for other space
+// characters if they don't, HarfBuzz will compatibility-decompose them
+// to ASCII space...
+//
+// We don't want to change fonts for line or paragraph separators.
+//
+// Finaly, we also don't change fonts for what Harfbuzz consider
+// as ignorable (however, some Control Format runes like 06DD are not ignored).
+//
+// The rationale is taken from pango : see bugs
+// https://bugzilla.gnome.org/show_bug.cgi?id=355987
+// https://bugzilla.gnome.org/show_bug.cgi?id=701652
+// https://bugzilla.gnome.org/show_bug.cgi?id=781123
+// for more details.
+func ignoreFaceChange(r rune) bool {
+	return unicode.Is(unicode.Cc, r) || // control
+		unicode.Is(unicode.Cs, r) || // surrogate
+		unicode.Is(unicode.Zl, r) || // line separator
+		unicode.Is(unicode.Zp, r) || // paragraph separator
+		(unicode.Is(unicode.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
+		harfbuzz.IsDefaultIgnorable(r)
+}
