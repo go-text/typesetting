@@ -127,25 +127,27 @@ type delimEntry struct {
 	script language.Script // resolved from the context
 }
 
-// Split segments the given [text] according to :
+// Split segments the given pre-configured input according to:
 //   - text direction
 //   - script
 //   - face, as defined by [faces]
 //
-// As a consequence, it sets the following fields of the returned runs :
+// Only the input runes in the range [text.RunStart] to [text.RunEnd] will be split.
+//
+// As a consequence, it sets the following fields of the returned runs:
 //   - Text, RunStart, RunEnd
 //   - Direction
 //   - Script
 //   - Face
 //
-// [defaultDirection] is used during bidi ordering, and should refer to the general
+// [text.Direction] is used during bidi ordering, and should refer to the general
 // context [text] is used in (typically the user system preference for GUI apps.)
 //
 // The returned sliced is owned by the [Segmenter] and is only valid until
 // the next call to [Split].
-func (seg *Segmenter) Split(text []rune, faces Fontmap, defaultDirection di.Direction) []Input {
+func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	seg.reset()
-	seg.splitByBidi(text, defaultDirection)
+	seg.splitByBidi(text)
 	seg.splitByScript()
 	seg.splitByFace(faces)
 	return seg.buffer1
@@ -170,44 +172,38 @@ func (seg *Segmenter) reset() {
 }
 
 // fills buffer1
-func (seg *Segmenter) splitByBidi(text []rune, defaultDirection di.Direction) {
-	if defaultDirection.Axis() != di.Horizontal || len(text) == 0 {
-		seg.buffer1 = append(seg.buffer1, Input{
-			Text:      text,
-			RunStart:  0,
-			RunEnd:    len(text),
-			Direction: defaultDirection,
-		})
+func (seg *Segmenter) splitByBidi(text Input) {
+	if text.Direction.Axis() != di.Horizontal || text.RunStart >= text.RunEnd {
+		seg.buffer1 = append(seg.buffer1, text)
 		return
 	}
 	def := bidi.LeftToRight
-	if defaultDirection.Progression() == di.TowardTopLeft {
+	if text.Direction.Progression() == di.TowardTopLeft {
 		def = bidi.RightToLeft
 	}
-	seg.bidiParagraph.SetString(string(text), bidi.DefaultDirection(def))
+	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
 	out, err := seg.bidiParagraph.Order()
 	if err != nil {
-		seg.buffer1 = append(seg.buffer1, Input{
-			Text:      text,
-			RunStart:  0,
-			RunEnd:    len(text),
-			Direction: defaultDirection,
-		})
+		seg.buffer1 = append(seg.buffer1, text)
 		return
 	}
 
-	input := Input{Text: text} // start a rune 0
+	input := text // start a rune 0 of the run
 	for i := 0; i < out.NumRuns(); i++ {
 		currentInput := input
 		run := out.Run(i)
 		dir := run.Direction()
 		_, endRune := run.Pos()
+		endRune += text.RunStart // shift by the input run position
 		currentInput.RunEnd = endRune + 1
+
+		// override the direction
 		if dir == bidi.RightToLeft {
 			currentInput.Direction = di.DirectionRTL
 		} else {
 			currentInput.Direction = di.DirectionLTR
 		}
+
 		seg.buffer1 = append(seg.buffer1, currentInput)
 		input.RunStart = currentInput.RunEnd
 	}

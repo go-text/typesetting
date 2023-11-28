@@ -248,23 +248,35 @@ func TestSplitBidi(t *testing.T) {
 		dir        di.Direction
 	}
 	for _, test := range []struct {
-		text         []rune
-		expectedRuns []run
+		text             []rune
+		defaultDirection di.Direction
+		expectedRuns     []run
 	}{
 		{
-			text: ltrSource,
+			text:             ltrSource,
+			defaultDirection: di.DirectionLTR,
 			expectedRuns: []run{
 				{0, len(ltrSource), di.DirectionLTR},
 			},
 		},
 		{
-			text: rtlSource,
+			text:             ltrSource,
+			defaultDirection: di.DirectionRTL,
+			expectedRuns: []run{
+				{0, len(ltrSource) - 1, di.DirectionLTR},
+				{len(ltrSource) - 1, len(ltrSource), di.DirectionRTL},
+			},
+		},
+		{
+			text:             rtlSource,
+			defaultDirection: di.DirectionRTL,
 			expectedRuns: []run{
 				{0, len(rtlSource), di.DirectionRTL},
 			},
 		},
 		{
-			text: bidiSource,
+			text:             bidiSource,
+			defaultDirection: di.DirectionLTR,
 			expectedRuns: []run{
 				// spaces are assigned to LTR runs
 				{0, 10, di.DirectionLTR},
@@ -275,7 +287,8 @@ func TestSplitBidi(t *testing.T) {
 			},
 		},
 		{
-			text: bidi2Source,
+			text:             bidi2Source,
+			defaultDirection: di.DirectionLTR,
 			// spaces are assigned to RTL runs
 			expectedRuns: []run{
 				{0, 10, di.DirectionRTL},
@@ -287,9 +300,9 @@ func TestSplitBidi(t *testing.T) {
 		},
 	} {
 		var seg Segmenter
-		seg.splitByBidi(test.text, di.DirectionLTR)
+		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: test.defaultDirection})
 		inputs := seg.buffer1
-		tu.Assert(t, len(inputs) == len(test.expectedRuns))
+		tu.AssertC(t, len(inputs) == len(test.expectedRuns), string(test.text))
 		for i, run := range test.expectedRuns {
 			got := inputs[i]
 			tu.Assert(t, got.RunStart == run.start)
@@ -347,7 +360,7 @@ func TestSplitScript(t *testing.T) {
 		}},
 	} {
 		var seg Segmenter
-		seg.splitByBidi(test.text, di.DirectionLTR) // fills buffer1
+		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR}) // fills buffer1
 		tu.Assert(t, len(seg.buffer1) == 1)
 
 		seg.splitByScript()
@@ -420,12 +433,39 @@ func TestSplit(t *testing.T) {
 			},
 		},
 	} {
-		inputs := seg.Split([]rune(test.text), fm, di.DirectionLTR)
+		inputs := seg.Split(Input{
+			Text:      []rune(test.text),
+			RunEnd:    len([]rune(test.text)),
+			Direction: di.DirectionLTR,
+
+			Size:     10,
+			Language: "fr",
+		}, fm)
 		tu.Assert(t, len(inputs) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {
 			got := inputs[i]
 			tu.Assert(t, got.RunStart == run.start)
 			tu.Assert(t, got.RunEnd == run.end)
+			tu.Assert(t, got.Direction == run.dir)
+			tu.Assert(t, got.Script == run.script)
+			tu.Assert(t, got.Face == run.face)
+			// check that input properties are properly copied
+			tu.Assert(t, got.Size == 10)
+			tu.Assert(t, got.Language == "fr")
+		}
+
+		// check that spliting a "middle" text slice is supported
+		inputs = seg.Split(Input{
+			Text:      []rune("DUMMY" + test.text + "DUMMY"),
+			RunStart:  5,
+			RunEnd:    5 + len([]rune(test.text)),
+			Direction: di.DirectionLTR,
+		}, fm)
+		tu.Assert(t, len(inputs) == len(test.expectedRuns))
+		for i, run := range test.expectedRuns {
+			got := inputs[i]
+			tu.Assert(t, got.RunStart == 5+run.start)
+			tu.Assert(t, got.RunEnd == 5+run.end)
 			tu.Assert(t, got.Direction == run.dir)
 			tu.Assert(t, got.Script == run.script)
 			tu.Assert(t, got.Face == run.face)
