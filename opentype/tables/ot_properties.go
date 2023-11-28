@@ -215,13 +215,13 @@ func (lk ExtensionPos) Cov() Coverage         { return nil } // not used anyway
 
 // FindGlyph performs a binary search in the list, returning the record for `secondGlyph`,
 // or `nil` if not found.
-func (ps PairSet) FindGlyph(secondGlyph GlyphID) *PairValueRecord {
+func (ps PairSet) FindGlyph(secondGlyph GlyphID) (PairValueRecord, bool) {
 	low, high := 0, int(ps.pairValueCount)
 	for low < high {
 		mid := low + (high-low)/2 // avoid overflow when computing mid
 		rec, err := ps.data.get(mid)
 		if err != nil { // argh...
-			return nil
+			return PairValueRecord{}, false
 		}
 		p := rec.SecondGlyph
 		if secondGlyph < p {
@@ -229,10 +229,10 @@ func (ps PairSet) FindGlyph(secondGlyph GlyphID) *PairValueRecord {
 		} else if secondGlyph > p {
 			low = mid + 1
 		} else {
-			return &rec
+			return rec, true
 		}
 	}
-	return nil
+	return PairValueRecord{}, false
 }
 
 // GetDelta returns the hint for the given `ppem`, scaled by `scale`.
