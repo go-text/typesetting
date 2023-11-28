@@ -4,6 +4,8 @@ package unicodedata
 
 import (
 	"unicode"
+
+	"github.com/go-text/typesetting/language"
 )
 
 var categories []*unicode.RangeTable
@@ -174,3 +176,22 @@ const (
 	T          ArabicJoining = 'T' // Transparent, e.g. Arabic Fatha
 	G          ArabicJoining = 'G' // Ignored, e.g. LRE, RLE, ZWNBSP
 )
+
+// LookupVerticalOrientation returns the prefered orientation
+// for the given rune. The script [s] must be the one of [r].
+func LookupVerticalOrientation(s language.Script, r rune) (isSideways bool) {
+	for _, script := range uprightOrMixedScripts {
+		if script.script != s {
+			continue
+		}
+
+		if script.exceptions == nil || !unicode.Is(script.exceptions, r) {
+			return script.isMainSideways
+		}
+
+		return !script.isMainSideways
+	}
+
+	// all other scripts have full R (sideways)
+	return true
+}
