@@ -31,12 +31,10 @@ var (
 )
 
 const (
-	// psArgStackSize is the argument stack size for a PostScript interpreter.
-	// 5176.CFF.pdf section 4 "DICT Data" says that "An operator may be
-	// preceded by up to a maximum of 48 operands". 5177.Type2.pdf Appendix B
-	// "Type 2 Charstring Implementation Limits" says that "Argument stack 48".
-	// T1_SPEC.pdf 6.1 Encoding as a limitation of 24.
-	psArgStackSize = 48
+	// psArgStackSize is the argument stack size for a PostScript interpreter,
+	// set to 513 in CFF2
+	// See https://learn.microsoft.com/en-us/typography/opentype/spec/cff2#appendixD
+	psArgStackSize = 513
 
 	// Similarly, Appendix B says "Subr nesting, stack limit 10".
 	psCallStackSize = 10

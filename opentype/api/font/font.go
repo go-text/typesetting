@@ -30,7 +30,7 @@ type Font struct {
 	hhea *tables.Hhea
 	vhea *tables.Vhea
 	vorg *tables.VORG // optional
-	cff  *cff.Font
+	cff  *cff.CFF
 	post post // optional
 	svg  svg  // optional
 
@@ -269,7 +269,7 @@ func selectBitmapTable(ld *loader.Loader) bitmap {
 }
 
 // return nil if the table is missing or invalid
-func loadCff(ld *loader.Loader, numGlyphs int) (*cff.Font, error) {
+func loadCff(ld *loader.Loader, numGlyphs int) (*cff.CFF, error) {
 	raw, err := ld.RawTable(loader.MustNewTag("CFF "))
 	if err != nil {
 		return nil, err
