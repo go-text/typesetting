@@ -11,6 +11,7 @@ import (
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/loader"
 	"golang.org/x/image/math/fixed"
+	"golang.org/x/text/unicode/bidi"
 )
 
 type Input struct {
@@ -103,17 +104,229 @@ func SplitByFontGlyphs(input Input, availableFaces []font.Face) []Input {
 // the return value of the `Fontmap.ResolveFace` call.
 // The 'Face' field of 'input' is ignored: only 'availableFaces' is used to select the face.
 func SplitByFace(input Input, availableFaces Fontmap) []Input {
-	var splitInputs []Input
+	return splitByFace(input, availableFaces, nil)
+}
+
+// Segmenter holds a state used to split input
+// according to three caracteristics : text direction (bidi),
+// script, and face.
+type Segmenter struct {
+	// pools of inputs, used to reduce allocations,
+	// which are alternatively considered as input/output of the segmentation
+	buffer1, buffer2 []Input
+
+	// used to handle Common script
+	delimStack []delimEntry
+
+	// buffer used for bidi segmentation
+	bidiParagraph bidi.Paragraph
+}
+
+type delimEntry struct {
+	index  int             // in the [pairedDelims] list
+	script language.Script // resolved from the context
+}
+
+// Split segments the given pre-configured input according to:
+//   - text direction
+//   - script
+//   - face, as defined by [faces]
+//
+// Only the input runes in the range [text.RunStart] to [text.RunEnd] will be split.
+//
+// As a consequence, it sets the following fields of the returned runs:
+//   - Text, RunStart, RunEnd
+//   - Direction
+//   - Script
+//   - Face
+//
+// [text.Direction] is used during bidi ordering, and should refer to the general
+// context [text] is used in (typically the user system preference for GUI apps.)
+//
+// The returned sliced is owned by the [Segmenter] and is only valid until
+// the next call to [Split].
+func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
+	seg.reset()
+	seg.splitByBidi(text)
+	seg.splitByScript()
+	seg.splitByFace(faces)
+	return seg.buffer1
+}
+
+func (seg *Segmenter) reset() {
+	// zero the slices to avoid 'memory leak' on pointer slice fields
+	for i := range seg.buffer1 {
+		seg.buffer1[i].Text = nil
+		seg.buffer1[i].FontFeatures = nil
+	}
+	for i := range seg.buffer2 {
+		seg.buffer2[i].Text = nil
+		seg.buffer2[i].FontFeatures = nil
+	}
+	seg.buffer1 = seg.buffer1[:0]
+	seg.buffer2 = seg.buffer2[:0]
+
+	// bidiParagraph is reset when using SetString
+
+	seg.delimStack = seg.delimStack[:0]
+}
+
+// fills buffer1
+func (seg *Segmenter) splitByBidi(text Input) {
+	if text.Direction.Axis() != di.Horizontal || text.RunStart >= text.RunEnd {
+		seg.buffer1 = append(seg.buffer1, text)
+		return
+	}
+	def := bidi.LeftToRight
+	if text.Direction.Progression() == di.TowardTopLeft {
+		def = bidi.RightToLeft
+	}
+	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
+	out, err := seg.bidiParagraph.Order()
+	if err != nil {
+		seg.buffer1 = append(seg.buffer1, text)
+		return
+	}
+
+	input := text // start a rune 0 of the run
+	for i := 0; i < out.NumRuns(); i++ {
+		currentInput := input
+		run := out.Run(i)
+		dir := run.Direction()
+		_, endRune := run.Pos()
+		endRune += text.RunStart // shift by the input run position
+		currentInput.RunEnd = endRune + 1
+
+		// override the direction
+		if dir == bidi.RightToLeft {
+			currentInput.Direction = di.DirectionRTL
+		} else {
+			currentInput.Direction = di.DirectionLTR
+		}
+
+		seg.buffer1 = append(seg.buffer1, currentInput)
+		input.RunStart = currentInput.RunEnd
+	}
+}
+
+// lookupDelimIndex binary searches in the list of the paired delimiters,
+// and returns -1 if `ch` is not found
+func lookupDelimIndex(ch rune) int {
+	lower := 0
+	upper := len(pairedDelims) - 1
+
+	for lower <= upper {
+		mid := (lower + upper) / 2
+
+		if ch < pairedDelims[mid] {
+			upper = mid - 1
+		} else if ch > pairedDelims[mid] {
+			lower = mid + 1
+		} else {
+			return mid
+		}
+	}
+
+	return -1
+}
+
+// uses buffer1 as input and fills buffer2
+//
+// See https://unicode.org/reports/tr24/#Common for reference
+func (seg *Segmenter) splitByScript() {
+	for _, input := range seg.buffer1 {
+		currentInput := input
+		currentInput.Script = language.Common
+
+		for i := input.RunStart; i < input.RunEnd; i++ {
+			r := input.Text[i]
+			rScript := language.LookupScript(r)
+
+			// to properly handle Common script,
+			// we register paired delimiters
+
+			delimIndex := -1
+			if rScript == language.Common {
+				delimIndex = lookupDelimIndex(r)
+			}
+
+			if delimIndex >= 0 { // handle paired characters
+				if delimIndex%2 == 0 {
+					// this is an open character : push it onto the stack
+					seg.delimStack = append(seg.delimStack, delimEntry{delimIndex, currentInput.Script})
+				} else {
+					// this is a close character : try to look backward in the stack
+					// for its counterpart
+					counterPartIndex := delimIndex - 1
+					j := len(seg.delimStack) - 1
+					for ; j >= 0; j-- {
+						if seg.delimStack[j].index == counterPartIndex { // found a match, use its script
+							rScript = seg.delimStack[j].script
+							break
+						}
+					}
+					// in any case, pop the open characters
+					if j == -1 {
+						j = 0
+					}
+					seg.delimStack = seg.delimStack[:j]
+				}
+			}
+
+			// check if we have a 'real' change of script, or not
+			if rScript == language.Common || rScript == currentInput.Script {
+				// no change
+				continue
+			} else if currentInput.Script == language.Common {
+				// update the pair stack to attribute the resolved script
+				for i := range seg.delimStack {
+					seg.delimStack[i].script = rScript
+				}
+				// set the resolved script to the current run,
+				// but do NOT create a new run
+				currentInput.Script = rScript
+			} else {
+				// split to a new run
+				if i != input.RunStart { // push the existing one
+					currentInput.RunEnd = i
+					seg.buffer2 = append(seg.buffer2, currentInput)
+				}
+
+				currentInput.RunStart = i
+				currentInput.Script = rScript
+			}
+		}
+		// close and add the last input
+		currentInput.RunEnd = input.RunEnd
+		seg.buffer2 = append(seg.buffer2, currentInput)
+	}
+}
+
+// uses buffer2 as input, resets and fills buffer1
+func (seg *Segmenter) splitByFace(faces Fontmap) {
+	seg.buffer1 = seg.buffer1[:0]
+	for _, input := range seg.buffer2 {
+		seg.buffer1 = splitByFace(input, faces, seg.buffer1)
+	}
+}
+
+func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
 	currentInput := input
 	for i := input.RunStart; i < input.RunEnd; i++ {
 		r := input.Text[i]
-		if currentInput.Face != nil && ignoreFaceChange(r) {
+		if ignoreFaceChange(r) {
 			// add the rune to the current input
 			continue
 		}
 
 		// select the first font supporting r
 		selectedFace := availableFaces.ResolveFace(r)
+
+		// now that we have a font, apply it back,
+		// but do NOT create a new run
+		if currentInput.Face == nil {
+			currentInput.Face = selectedFace
+		}
 
 		if currentInput.Face == selectedFace {
 			// add the rune to the current input
@@ -126,7 +339,7 @@ func SplitByFace(input Input, availableFaces Fontmap) []Input {
 			// close the current input ...
 			currentInput.RunEnd = i
 			// ... add it to the output ...
-			splitInputs = append(splitInputs, currentInput)
+			buffer = append(buffer, currentInput)
 		}
 
 		// ... and create a new one
@@ -137,8 +350,8 @@ func SplitByFace(input Input, availableFaces Fontmap) []Input {
 
 	// close and add the last input
 	currentInput.RunEnd = input.RunEnd
-	splitInputs = append(splitInputs, currentInput)
-	return splitInputs
+	buffer = append(buffer, currentInput)
+	return buffer
 }
 
 // ignoreFaceChange returns `true` is the given rune should not trigger
