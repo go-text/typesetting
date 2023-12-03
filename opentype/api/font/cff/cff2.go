@@ -26,7 +26,7 @@ type CFF2 struct {
 	// otherwise, it can be safely indexed by `fdSelect` output
 	fonts []privateFonts
 
-	varStore tables.ItemVarStore // optional
+	VarStore tables.ItemVarStore // optional
 }
 
 type privateFonts struct {
@@ -54,7 +54,7 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		psi ps.Machine
 	)
 	if err := psi.Run(topDictSrc, nil, nil, &tp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading top dict: %s", err)
 	}
 
 	var (
@@ -84,7 +84,7 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		var fd fontDict2
 		err = psi.Run(font, nil, nil, &fd)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("reading font dict: %s", err)
 		}
 		end := int(fd.privateDictOffset + fd.privateDictSize)
 		if L := len(src); L < end {
@@ -94,7 +94,7 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		var pd privateDict2
 		err = psi.Run(src[fd.privateDictOffset:end], nil, nil, &pd)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("reading private dict: %s", err)
 		}
 
 		out.fonts[i].defaultVSIndex = pd.vsindex
@@ -136,7 +136,7 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 			return nil, fmt.Errorf("reading variation store: EOF: expected length: %d, got %d", end, L)
 		}
 		vstore := src[tp.vstore+2 : end]
-		out.varStore, _, err = tables.ParseItemVarStore(vstore)
+		out.VarStore, _, err = tables.ParseItemVarStore(vstore)
 		if err != nil {
 			return nil, err
 		}
@@ -173,22 +173,22 @@ func (tp *topDict2) Apply(state *ps.Machine, op ps.Operator) error {
 		if state.ArgStack.Top < 1 {
 			return fmt.Errorf("invalid number of arguments for operator %s in Top Dict", op)
 		}
-		tp.charStrings = state.ArgStack.Pop()
+		tp.charStrings = int32(state.ArgStack.Pop())
 	case ps.Operator{Operator: 36, IsEscaped: true}: // FDArray
 		if state.ArgStack.Top < 1 {
 			return fmt.Errorf("invalid number of arguments for operator %s in Top Dict", op)
 		}
-		tp.fdArray = state.ArgStack.Pop()
+		tp.fdArray = int32(state.ArgStack.Pop())
 	case ps.Operator{Operator: 37, IsEscaped: true}: // FDSelect
 		if state.ArgStack.Top < 1 {
 			return fmt.Errorf("invalid number of arguments for operator %s in Top Dict", op)
 		}
-		tp.fdSelect = state.ArgStack.Pop()
+		tp.fdSelect = int32(state.ArgStack.Pop())
 	case ps.Operator{Operator: 24, IsEscaped: false}: // vstore
 		if state.ArgStack.Top < 1 {
 			return fmt.Errorf("invalid number of arguments for operator %s in Top Dict", op)
 		}
-		tp.vstore = state.ArgStack.Pop()
+		tp.vstore = int32(state.ArgStack.Pop())
 	default:
 		return fmt.Errorf("invalid operator %s in Top Dict", op)
 	}
@@ -208,8 +208,8 @@ func (fd *fontDict2) Apply(state *ps.Machine, op ps.Operator) error {
 		if state.ArgStack.Top < 2 {
 			return fmt.Errorf("invalid number of arguments for operator %s in Font Dict", op)
 		}
-		fd.privateDictOffset = state.ArgStack.Pop()
-		fd.privateDictSize = state.ArgStack.Pop()
+		fd.privateDictOffset = int32(state.ArgStack.Pop())
+		fd.privateDictSize = int32(state.ArgStack.Pop())
 		return nil
 	default:
 		return fmt.Errorf("invalid operator %s in Font Dict", op)
@@ -237,13 +237,13 @@ func (priv *privateDict2) Apply(state *ps.Machine, op ps.Operator) error {
 			if state.ArgStack.Top < 1 {
 				return errors.New("invalid stack size for 'subrs' in private Dict charstring")
 			}
-			priv.subrsOffset = state.ArgStack.Pop()
+			priv.subrsOffset = int32(state.ArgStack.Pop())
 			return nil
 		case 22: // "vsindex"
 			if state.ArgStack.Top < 1 {
 				return fmt.Errorf("invalid stack size for %s in private Dict", op)
 			}
-			priv.vsindex = state.ArgStack.Pop()
+			priv.vsindex = int32(state.ArgStack.Pop())
 			return nil
 		case 23: // "blend"
 			return nil

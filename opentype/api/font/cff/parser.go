@@ -588,20 +588,20 @@ var topDictOperators = [2][]topDictOperator{
 		13: {topDictNoOp, +1 /*UniqueID*/},
 		14: {topDictNoOp, -1 /*XUID*/},
 		15: {func(t *topDict, s *ps.Machine) error {
-			t.charsetOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
+			t.charsetOffset = int32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*charset*/},
 		16: {func(t *topDict, s *ps.Machine) error {
-			t.encodingOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
+			t.encodingOffset = int32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*Encoding*/},
 		17: {func(t *topDict, s *ps.Machine) error {
-			t.charStringsOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
+			t.charStringsOffset = int32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*CharStrings*/},
 		18: {func(t *topDict, s *ps.Machine) error {
-			t.privateDictLength = s.ArgStack.Vals[s.ArgStack.Top-2]
-			t.privateDictOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
+			t.privateDictLength = int32(s.ArgStack.Vals[s.ArgStack.Top-2])
+			t.privateDictOffset = int32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +2 /*Private*/},
 	},
@@ -613,20 +613,20 @@ var topDictOperators = [2][]topDictOperator{
 			return nil
 		}, +1 /*isFixedPitch*/},
 		2: {func(t *topDict, s *ps.Machine) error {
-			t.italicAngle = s.ArgStack.Float()
+			t.italicAngle = float32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*ItalicAngle*/},
 		3: {func(t *topDict, s *ps.Machine) error {
-			t.underlinePosition = s.ArgStack.Float()
+			t.underlinePosition = float32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*UnderlinePosition*/},
 		4: {func(t *topDict, s *ps.Machine) error {
-			t.underlineThickness = s.ArgStack.Float()
+			t.underlineThickness = float32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*UnderlineThickness*/},
 		5: {topDictNoOp, +1 /*PaintType*/},
 		6: {func(_ *topDict, i *ps.Machine) error {
-			if version := i.ArgStack.Vals[i.ArgStack.Top-1]; version != 2 {
+			if version := int(i.ArgStack.Vals[i.ArgStack.Top-1]); version != 2 {
 				return fmt.Errorf("charstring type %d not supported", version)
 			}
 			return nil
@@ -647,11 +647,11 @@ var topDictOperators = [2][]topDictOperator{
 		34: {topDictNoOp, +1 /*CIDCount*/},
 		35: {topDictNoOp, +1 /*UIDBase*/},
 		36: {func(t *topDict, s *ps.Machine) error {
-			t.fdArray = s.ArgStack.Vals[s.ArgStack.Top-1]
+			t.fdArray = int32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*FDArray*/},
 		37: {func(t *topDict, s *ps.Machine) error {
-			t.fdSelect = s.ArgStack.Vals[s.ArgStack.Top-1]
+			t.fdSelect = int32(s.ArgStack.Vals[s.ArgStack.Top-1])
 			return nil
 		}, +1 /*FDSelect*/},
 		38: {func(t *topDict, s *ps.Machine) error {
@@ -664,7 +664,7 @@ var topDictOperators = [2][]topDictOperator{
 // privateDict contains fields specific to the Private DICT context.
 type privateDict struct {
 	subrsOffset                  int32
-	defaultWidthX, nominalWidthX int32
+	defaultWidthX, nominalWidthX float64
 }
 
 func (privateDict) Context() ps.Context { return ps.PrivateDict }
@@ -694,7 +694,7 @@ func (priv *privateDict) Apply(state *ps.Machine, op ps.Operator) error {
 			if state.ArgStack.Top < 1 {
 				return errors.New("invalid stack size for 'subrs' in private Dict charstring")
 			}
-			priv.subrsOffset = state.ArgStack.Vals[state.ArgStack.Top-1]
+			priv.subrsOffset = int32(state.ArgStack.Vals[state.ArgStack.Top-1])
 			return state.ArgStack.PopN(1)
 		}
 	} else { // 2-byte operators. The first byte is the escape byte.

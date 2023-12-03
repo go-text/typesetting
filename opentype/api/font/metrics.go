@@ -54,7 +54,7 @@ func fixAscenderDescender(value float32, metricsTag Tag) float32 {
 	return value
 }
 
-func (f *Font) getPositionCommon(metricTag Tag, varCoords []float32) (float32, bool) {
+func (f *Font) getPositionCommon(metricTag Tag, varCoords []VarCoord) (float32, bool) {
 	deltaVar := f.mvar.getVar(metricTag, varCoords)
 	switch metricTag {
 	case metricsTagHorizontalAscender:

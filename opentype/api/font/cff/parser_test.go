@@ -5,7 +5,12 @@ package cff
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"os/exec"
 	"reflect"
+	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
@@ -125,14 +130,65 @@ func TestParseCFF2(t *testing.T) {
 	out, err := ParseCFF2(table)
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(out.Charstrings) == 0xFFFF)
-	tu.Assert(t, len(out.varStore.ItemVariationDatas) == 1)
-	tu.Assert(t, len(out.varStore.VariationRegionList.VariationRegions[0].RegionAxes) == 1)
+	tu.Assert(t, len(out.VarStore.ItemVariationDatas) == 1)
+	tu.Assert(t, len(out.VarStore.VariationRegionList.VariationRegions[0].RegionAxes) == 1)
 
 	for i := range out.Charstrings {
-		_, _, err := out.LoadGlyph(uint16(i), []float32{0.5})
+		_, _, err := out.LoadGlyph(uint16(i), []tables.Coord{tables.NewCoord(0.5)})
 		tu.AssertNoErr(t, err)
 
 		_, _, err = out.LoadGlyph(uint16(i), nil) // with no variation activated
 		tu.AssertNoErr(t, err)
+	}
+}
+
+func TestExec(t *testing.T) {
+	t.Skip()
+
+	text := []rune("a sample text あのイーハトーヴォの すきとおった風、夏でも底に冷たさを もつ青いそら… 不，那不是杂志。那是字典 史密斯是王明的朋友。")
+
+	type extent struct {
+		GID     int
+		Extents [4]int
+	}
+
+	for _, coord := range []int{
+		100, 200, 301, 400, 450, 710, 800, 900,
+	} {
+		cmd := exec.Command("./hb-shape", "/home/benoit/go/src/github.com/go-text/typesetting-utils/opentype/common/NotoSansCJKjp-VF.otf", "--variations", fmt.Sprintf(`wght=%d`, coord), "--show-extents", "--no-glyph-names", "--text", string(text))
+		cmd.Dir = "/home/benoit/Téléchargements/harfbuzz/build/util"
+		b, err := cmd.Output()
+		tu.AssertNoErr(t, err)
+		s := string(b[1 : len(b)-2])
+		glyphs := strings.Split(s, "|")
+		expected := map[int][4]int{}
+		for _, glyph := range glyphs {
+			gidS, val, _ := strings.Cut(glyph, "=")
+			gid, _ := strconv.Atoi(gidS)
+			_, extents, _ := strings.Cut(val, "<")
+			extents = extents[:len(extents)-1]
+			extS := strings.Split(extents, ",")
+			var exts [4]int
+			for i, e := range extS {
+				exts[i], _ = strconv.Atoi(e)
+			}
+			expected[gid] = exts
+		}
+		var extents []extent
+		for gid, ext := range expected {
+			extents = append(extents, extent{gid, ext})
+		}
+		sort.Slice(extents, func(i, j int) bool { return extents[i].GID < extents[j].GID })
+
+		chunks := make([]string, len(extents))
+		for i, ext := range extents {
+			chunks[i] = fmt.Sprintf("{%d, [4]int{%d, %d, %d, %d}},", ext.GID, ext.Extents[0], ext.Extents[1], ext.Extents[2], ext.Extents[3])
+		}
+		fmt.Printf(`{
+			Coord: %d,
+			Extents: []extent{%s
+			},
+		},
+		`, coord, strings.Join(chunks, "\n"))
 	}
 }

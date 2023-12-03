@@ -5,7 +5,6 @@ package cff
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/go-text/typesetting/opentype/api"
 	ps "github.com/go-text/typesetting/opentype/api/font/cff/interpreter"
@@ -44,8 +43,8 @@ type type2CharstringHandler struct {
 	// found in private DICT, needed since we can't differenciate
 	// no width set from 0 width
 	// `width` must be initialized to default width
-	nominalWidthX int32
-	width         int32
+	nominalWidthX float64
+	width         float64
 }
 
 func (type2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
@@ -143,8 +142,9 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 // LoadGlyph parses the glyph charstring to compute segments and path bounds.
 // It returns an error if the glyph is invalid or if decoding the charstring fails.
 //
-// [coords] must either have the same length as the variations axis, or be empty
-func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []float32) ([]api.Segment, ps.PathBounds, error) {
+// [coords] must either have the same length as the variations axis, or be empty,
+// and be normalized
+func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []tables.Coord) ([]api.Segment, ps.PathBounds, error) {
 	if int(glyph) >= len(f.Charstrings) {
 		return nil, ps.PathBounds{}, errGlyph
 	}
@@ -165,10 +165,11 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []float32) ([]api.Segment,
 	font := f.fonts[index]
 
 	loader.coords = coords
-	loader.vars = f.varStore
+	loader.vars = f.VarStore
 	loader.setVSIndex(int(font.defaultVSIndex))
 
 	err = psi.Run(f.Charstrings[glyph], font.localSubrs, f.globalSubrs, &loader)
+
 	return loader.cs.Segments, loader.cs.Bounds, err
 }
 
@@ -176,7 +177,7 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []float32) ([]api.Segment,
 type cff2CharstringHandler struct {
 	cs ps.CharstringReader
 
-	coords []float32 // variation coordinates
+	coords []tables.Coord // normalized variation coordinates
 	vars   tables.ItemVarStore
 
 	// the currently active ItemVariationData subtable (default to 0)
@@ -214,7 +215,7 @@ func (met *cff2CharstringHandler) blend(state *ps.Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("missing n argument for blend operator")
 	}
-	n := state.ArgStack.Pop()
+	n := int32(state.ArgStack.Pop())
 	k := int32(len(met.scalars))
 	if state.ArgStack.Top < n*(k+1) {
 		return errors.New("missing arguments for blend operator")
@@ -224,12 +225,13 @@ func (met *cff2CharstringHandler) blend(state *ps.Machine) error {
 		args := state.ArgStack.Vals[state.ArgStack.Top-n*(k+1) : state.ArgStack.Top]
 		// the first n values are the 'default' arguments
 		for i := int32(0); i < n; i++ {
-			baseValue := math.Float32frombits(uint32(args[i]))
+			baseValue := args[i]
 			deltas := args[n+i*k : n+(i+1)*k] // all the regions, for one operand
+			v := 0.
 			for ik, delta := range deltas {
-				baseValue += met.scalars[ik] * math.Float32frombits(uint32(delta))
+				v += float64(met.scalars[ik]) * delta
 			}
-			args[i] = int32(math.Round(float64(baseValue))) // upadte the stack with the blended value
+			args[i] = baseValue + v // update the stack with the blended value
 		}
 	}
 

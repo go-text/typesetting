@@ -163,7 +163,7 @@ func TestAdvanceTtVarCompV(t *testing.T) {
 
 func TestAdvanceTtVarGvarInfer(t *testing.T) {
 	ft := openFontFile(t, "fonts/TestGVAREight.ttf")
-	coords := []float32{float32(100) / (1 << 14)}
+	coords := []font.VarCoord{100}
 
 	face := &font.Face{Font: ft, Coords: coords}
 	font := NewFont(face)
