@@ -52,7 +52,7 @@ const (
 )
 
 type ArgStack struct {
-	Vals [psArgStackSize]float64 // we have to use float64 to properly store int32 values
+	Vals [psArgStackSize]float64 // we have to use float64 to properly store floats and int32 values
 	// Effecive size currently in use. The first value to
 	// pop is at index Top-1
 	Top int32
@@ -61,12 +61,6 @@ type ArgStack struct {
 // Uint16 returns the top level value as uint16,
 // without popping the stack.
 func (a *ArgStack) Uint16() uint16 { return uint16(a.Vals[a.Top-1]) }
-
-// // Float return the top level value as a real number (which is stored as its binary representation),
-// // without popping the stack.
-// func (a *ArgStack) Float() float32 {
-// 	return math.Float32frombits(uint32(a.Vals[a.Top-1]))
-// }
 
 // Pop returns the top level value and decrease `Top`
 // It will panic if the stack is empty.
