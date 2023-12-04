@@ -17,6 +17,7 @@ import (
 	tu "github.com/go-text/typesetting/opentype/testutils"
 	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/math/fixed"
 )
 
 func TestShape(t *testing.T) {
@@ -487,4 +488,28 @@ func TestFeatures(t *testing.T) {
 	input.FontFeatures = []FontFeature{{Tag: loader.MustNewTag("frac"), Value: 1}}
 	out = shaper.Shape(input)
 	tu.Assert(t, len(out.Glyphs) == 1)
+}
+
+func TestCFF2(t *testing.T) {
+	// regression test for https://github.com/go-text/typesetting/issues/118
+	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	face, err := font.ParseTTF(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	str := []rune("abcあいう")
+	input := Input{
+		Text:      str,
+		RunStart:  0,
+		RunEnd:    len(str),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(10),
+	}
+	out := (&HarfbuzzShaper{}).Shape(input)
+	for _, g := range out.Glyphs {
+		tu.Assert(t, g.Width > 0 && g.Height < 0)
+	}
+	tu.Assert(t, out.Advance > 0)
 }
