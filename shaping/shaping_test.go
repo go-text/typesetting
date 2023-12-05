@@ -521,12 +521,6 @@ func ExampleShaper_Shape() {
 	// Output:
 }
 
-var (
-	red   = color.RGBA{R: 0xFF, A: 0xFF}
-	green = color.RGBA{G: 0xFF, A: 0xFF}
-	blue  = color.RGBA{B: 0xFF, A: 0xFF}
-)
-
 func drawVLine(img *image.RGBA, start image.Point, height int, c color.RGBA) {
 	for y := start.Y; y <= start.Y+height; y++ {
 		img.SetRGBA(start.X, y, c)
@@ -547,6 +541,12 @@ func drawRect(img *image.RGBA, min, max image.Point, c color.RGBA) {
 	}
 }
 
+var (
+	red   = color.RGBA{R: 0xFF, A: 0xFF}
+	green = color.RGBA{G: 0xFF, A: 0xFF}
+	black = color.RGBA{A: 0xFF}
+)
+
 // assume horizontal direction
 func drawHGlyphs(out Output, file string) {
 	baseline := out.LineBounds.Ascent.Round()
@@ -556,7 +556,7 @@ func drawHGlyphs(out Output, file string) {
 	// white background
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
 
-	drawHLine(img, image.Pt(0, baseline), width, color.RGBA{A: 0xFF})
+	drawHLine(img, image.Pt(0, baseline), width, black)
 
 	dot := 0
 	for _, g := range out.Glyphs {
@@ -568,7 +568,7 @@ func drawHGlyphs(out Output, file string) {
 		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
 
 		// draw the dot ...
-		drawRect(img, image.Pt(dot-1, baseline-1), image.Pt(dot+1, baseline+1), color.RGBA{A: 0xFF})
+		drawRect(img, image.Pt(dot-1, baseline-1), image.Pt(dot+1, baseline+1), black)
 
 		// ... and advance
 		dot += g.XAdvance.Round()
@@ -588,7 +588,7 @@ func drawVGlyphs(out Output, file string) {
 	// white background
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
 
-	drawVLine(img, image.Pt(baseline, 0), height, color.RGBA{A: 0xFF})
+	drawVLine(img, image.Pt(baseline, 0), height, black)
 
 	dot := 0
 	for _, g := range out.Glyphs {
@@ -603,7 +603,7 @@ func drawVGlyphs(out Output, file string) {
 		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
 
 		// draw the dot ...
-		drawRect(img, image.Pt(baseline-1, dot-1), image.Pt(baseline+1, dot+1), color.RGBA{A: 0xFF})
+		drawRect(img, image.Pt(baseline-1, dot-1), image.Pt(baseline+1, dot+1), black)
 
 		// ... and advance
 		drawHLine(img, image.Pt(0, dot), width, red)
