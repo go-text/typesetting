@@ -604,7 +604,7 @@ func TestLookupVerticalOrientation(t *testing.T) {
 		{language.Hangul, '\uFFAB', true},
 	}
 	for _, tt := range tests {
-		if gotIsSideways := LookupVerticalOrientation(tt.s, tt.r); gotIsSideways != tt.wantIsSideways {
+		if gotIsSideways := LookupVerticalOrientation(tt.s).Orientation(tt.r); gotIsSideways != tt.wantIsSideways {
 			t.Errorf("LookupVerticalOrientation(%s) = %v, want %v", string(tt.r), gotIsSideways, tt.wantIsSideways)
 		}
 	}

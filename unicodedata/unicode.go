@@ -178,20 +178,23 @@ const (
 )
 
 // LookupVerticalOrientation returns the prefered orientation
-// for the given rune. The script [s] must be the one of [r].
-func LookupVerticalOrientation(s language.Script, r rune) (isSideways bool) {
+// for the given script.
+func LookupVerticalOrientation(s language.Script) ScriptVerticalOrientation {
 	for _, script := range uprightOrMixedScripts {
-		if script.script != s {
-			continue
+		if script.script == s {
+			return script
 		}
-
-		if script.exceptions == nil || !unicode.Is(script.exceptions, r) {
-			return script.isMainSideways
-		}
-
-		return !script.isMainSideways
 	}
 
 	// all other scripts have full R (sideways)
-	return true
+	return ScriptVerticalOrientation{exceptions: nil, script: s, isMainSideways: true}
+}
+
+// Orientation returns the prefered orientation
+// for the given rune (which should be in the script).
+func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
+	if sv.exceptions == nil || !unicode.Is(sv.exceptions, r) {
+		return sv.isMainSideways
+	}
+	return !sv.isMainSideways
 }
