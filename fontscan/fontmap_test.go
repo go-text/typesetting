@@ -283,3 +283,33 @@ func TestQueryHelveticaLinux(t *testing.T) {
 	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
 	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
 }
+
+func TestFindSytemFont(t *testing.T) {
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+	_, ok := fm.FindSystemFont("Nimbus")
+	tu.Assert(t, !ok) // no match on an empty fontmap
+
+	// simulate system fonts
+	fm.appendFootprints(footprint{
+		Family:   meta.NormalizeFamily("Nimbus"),
+		Location: Location{File: "nimbus.ttf"},
+	},
+		footprint{
+			Family:         meta.NormalizeFamily("Noto Sans"),
+			Location:       Location{File: "noto.ttf"},
+			isUserProvided: true,
+		},
+	)
+
+	nimbus, ok := fm.FindSystemFont("Nimbus")
+	tu.Assert(t, ok && nimbus.File == "nimbus.ttf")
+
+	_, ok = fm.FindSystemFont("nimbus ")
+	tu.Assert(t, ok)
+
+	_, ok = fm.FindSystemFont("Arial")
+	tu.Assert(t, !ok)
+
+	_, ok = fm.FindSystemFont("Noto Sans")
+	tu.Assert(t, !ok) // user provided font are ignored
+}
