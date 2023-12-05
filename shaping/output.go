@@ -11,14 +11,31 @@ import (
 // Glyph describes the attributes of a single glyph from a single
 // font face in a shaped output.
 type Glyph struct {
-	Width    fixed.Int26_6
-	Height   fixed.Int26_6
+	// Width is the width of the glyph content,
+	// expressed as a distance from the [XBearing],
+	// typically positive
+	Width fixed.Int26_6
+	// Height is the height of the glyph content,
+	// expressed as a distance from the [YBearing],
+	// typically negative
+	Height fixed.Int26_6
+	// XBearing is the distance between the dot (with offset applied) and
+	// the glyph content, typically positive
 	XBearing fixed.Int26_6
+	// YBearing is the distance between the dot (with offset applied) and
+	// the top of the glyph content, typically positive
 	YBearing fixed.Int26_6
+	// XAdvance is the distance between the current dot (without offset applied) and the next dot.
+	// It is typically positive for horizontal text, and always zero for vertical text.
 	XAdvance fixed.Int26_6
+	// XAdvance is the distance between the current dot (without offset applied) and the next dot.
+	// It is typically negative for vertical text, and always zero for horizontal text.
 	YAdvance fixed.Int26_6
-	XOffset  fixed.Int26_6
-	YOffset  fixed.Int26_6
+
+	// Offsets to be applied to the dot before actually drawing
+	// the glyph.
+	XOffset, YOffset fixed.Int26_6
+
 	// ClusterIndex is the lowest rune index of all runes shaped into
 	// this glyph cluster. All glyphs sharing the same cluster value
 	// are part of the same cluster and will have identical RuneCount
@@ -42,7 +59,7 @@ func (g Glyph) LeftSideBearing() fixed.Int26_6 {
 
 // RightSideBearing returns the distance from the glyph's right edge to
 // the edge of the glyph's advance. This value can be negative if the glyph's
-// right edge is before the end of its advance.
+// right edge is after the end of its advance.
 func (g Glyph) RightSideBearing() fixed.Int26_6 {
 	return g.XAdvance - g.Width - g.XBearing
 }
@@ -65,6 +82,13 @@ func (g Glyph) RightSideBearing() fixed.Int26_6 {
 //   - Descent     GLYPH
 //     |
 //   - Gap
+//
+// For vertical text:
+//
+//	Descent ------- Baseline --------------- Ascent --- Gap
+//		|				| 						|		|
+//		GLYPH		  GLYPH					GLYPH
+//			GLYPH GLYPH		GLYPH GLYPH GLYPH
 type Bounds struct {
 	// Ascent is the maximum ascent away from the baseline. This value is typically
 	// positive in coordiate systems that grow up.
@@ -77,8 +101,9 @@ type Bounds struct {
 	Gap fixed.Int26_6
 }
 
-// LineHeight returns the height of a horizontal line of text described by b.
-func (b Bounds) LineHeight() fixed.Int26_6 {
+// LineThickness returns the thickness of a line of text described by b,
+// that is its height for horizontal text, its width for vertical text.
+func (b Bounds) LineThickness() fixed.Int26_6 {
 	return b.Ascent - b.Descent + b.Gap
 }
 
@@ -166,13 +191,13 @@ func (o *Output) RecalculateAll() {
 		for i := range o.Glyphs {
 			g := &o.Glyphs[i]
 			advance += g.YAdvance
-			height := g.XBearing + g.XOffset
-			if height > tallest {
-				tallest = height
-			}
-			depth := height + g.Width
+			depth := g.XOffset + g.XBearing // start of the glyph
 			if depth < lowest {
 				lowest = depth
+			}
+			height := g.XOffset + g.Width // end of the glyph
+			if height > tallest {
+				tallest = height
 			}
 		}
 	} else { // horizontal
