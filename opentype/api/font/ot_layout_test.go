@@ -71,6 +71,6 @@ func TestOTFeatureVariation(t *testing.T) {
 	tu.AssertNoErr(t, err)
 
 	gsub := newLayout(gsubT)
-	tu.Assert(t, gsub.FindVariationIndex([]float32{0.8}) == 0)
-	tu.Assert(t, gsub.FindVariationIndex([]float32{0.4}) == -1)
+	tu.Assert(t, gsub.FindVariationIndex([]VarCoord{tables.NewCoord(0.8)}) == 0)
+	tu.Assert(t, gsub.FindVariationIndex([]VarCoord{tables.NewCoord(0.4)}) == -1)
 }

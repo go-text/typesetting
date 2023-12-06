@@ -309,7 +309,7 @@ func (f *Font) ExtentsForDirection(direction Direction) api.FontExtents {
 	return extents
 }
 
-func (font *Font) varCoords() []float32 { return font.face.Coords }
+func (font *Font) varCoords() []tables.Coord { return font.face.Coords }
 
 func (font *Font) getXDelta(varStore tables.ItemVarStore, device tables.DeviceTable) Position {
 	switch device := device.(type) {

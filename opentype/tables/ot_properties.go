@@ -286,7 +286,7 @@ func (gd *GDEF) GlyphProps(glyph GlyphID) GlyphProps {
 
 // GetDelta uses the variation [store] and the selected instance coordinates [coords]
 // to compute the value at [index].
-func (store ItemVarStore) GetDelta(index VariationStoreIndex, coords []float32) float32 {
+func (store ItemVarStore) GetDelta(index VariationStoreIndex, coords []Coord) float32 {
 	if int(index.DeltaSetOuter) >= len(store.ItemVariationDatas) {
 		return 0
 	}
@@ -297,13 +297,19 @@ func (store ItemVarStore) GetDelta(index VariationStoreIndex, coords []float32) 
 	deltaSet := varData.DeltaSets[index.DeltaSetInner]
 	var delta float32
 	for i, regionIndex := range varData.RegionIndexes {
-		region := store.VariationRegionList.VariationRegions[regionIndex].RegionAxes
-		v := float32(1)
-		for axis, coord := range coords {
-			factor := region[axis].evaluate(coord)
-			v *= factor
-		}
+		region := store.VariationRegionList.VariationRegions[regionIndex]
+		v := region.Evaluate(coords)
 		delta += float32(deltaSet[i]) * v
 	}
 	return delta
+}
+
+// Evaluate returns the scalar factor of the region
+func (vr VariationRegion) Evaluate(coords []Coord) float32 {
+	v := float32(1)
+	for axis, coord := range coords {
+		factor := vr.RegionAxes[axis].evaluate(coord)
+		v *= factor
+	}
+	return v
 }

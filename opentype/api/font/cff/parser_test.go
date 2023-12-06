@@ -111,3 +111,28 @@ func TestType2Extent(t *testing.T) {
 	extents := loader.cs.Bounds.ToExtents()
 	tu.Assert(t, 0 <= extents.Width && extents.Width <= 1000 && -1000 <= extents.Height && extents.Height <= 0)
 }
+
+func TestParseCFF2(t *testing.T) {
+	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	ft, err := loader.NewLoader(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	table, err := ft.RawTable(loader.MustNewTag("CFF2"))
+	tu.AssertNoErr(t, err)
+
+	out, err := ParseCFF2(table)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, len(out.Charstrings) == 0xFFFF)
+	tu.Assert(t, len(out.VarStore.ItemVariationDatas) == 1)
+	tu.Assert(t, len(out.VarStore.VariationRegionList.VariationRegions[0].RegionAxes) == 1)
+
+	for i := range out.Charstrings {
+		_, _, err := out.LoadGlyph(uint16(i), []tables.Coord{tables.NewCoord(0.5)})
+		tu.AssertNoErr(t, err)
+
+		_, _, err = out.LoadGlyph(uint16(i), nil) // with no variation activated
+		tu.AssertNoErr(t, err)
+	}
+}
