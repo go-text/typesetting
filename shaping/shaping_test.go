@@ -513,10 +513,16 @@ func ExampleShaper_Shape() {
 		Language:  language.NewLanguage("EN"),
 	}
 
-	drawHGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_horiz.png"))
+	horiz := shaper.Shape(input)
+	drawHGlyphs(horiz, filepath.Join(os.TempDir(), "shape_horiz.png"))
 
 	input.Direction = di.DirectionTTB
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert.png"))
+
+	horiz.rotate()
+	horiz.RecalculateAll()
+	fmt.Println(horiz.Glyphs)
+	drawVGlyphs(horiz, filepath.Join(os.TempDir(), "shape_vert_rotated2.png"))
 
 	// Output:
 }
@@ -584,6 +590,7 @@ func drawVGlyphs(out Output, file string) {
 	baseline := -out.GlyphBounds.Descent.Round()
 	width := out.GlyphBounds.LineThickness().Round()
 	height := -out.Advance.Round()
+	fmt.Println(baseline, width, height)
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	// white background
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)

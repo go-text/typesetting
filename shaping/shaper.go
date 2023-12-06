@@ -196,3 +196,31 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Direction) {
 		glyphs[i].RuneCount = runesInCluster
 	}
 }
+
+// Assuming [Glyphs] comes from an horizontal shaping,
+// applies a 90°, clockwise rotation to the whole slice of glyphs,
+// to create 'sideways' vertical text.
+//
+// The [Direction] field is updated by switching the axis to vertical
+// and the orientation to "sideways".
+//
+// [RecalculateAll] should be called afterwards.
+func (out *Output) rotate() {
+	for i, g := range out.Glyphs {
+		// switch height and width
+		out.Glyphs[i].Width = -g.Height // height is negative
+		out.Glyphs[i].Height = -g.Width
+		// compute the bearings
+		out.Glyphs[i].XBearing = g.YBearing + g.Height
+		out.Glyphs[i].YBearing = g.XAdvance - g.XBearing
+		// switch advance direction
+		out.Glyphs[i].XAdvance = 0
+		out.Glyphs[i].YAdvance = -g.XAdvance // YAdvance is negative
+		// apply a rotation around the dot
+		out.Glyphs[i].XOffset = g.YOffset
+		out.Glyphs[i].YOffset = -g.XOffset
+	}
+
+	// adjust direction
+	out.Direction |= di.BAxisVertical | di.BVerticalOrientationSet & ^di.BVerticalUpright
+}

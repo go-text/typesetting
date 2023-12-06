@@ -14,31 +14,39 @@ const (
 	DirectionBTT
 )
 
+const (
+	progression Direction = 1 << iota
+	// BAxisVertical is the bit for the axis, 0 for horizontal, 1 for vertical
+	BAxisVertical
+
+	// If this flag is set, the orientation is chosen
+	// using the [BVerticalUpright] flag.
+	// Otherwise, the segmenter will resolve the orientation based
+	// on unicode properties
+	BVerticalOrientationSet
+	// BVerticalUpright is set for 'upright', unset for 'sideways'
+	BVerticalUpright
+)
+
 // IsVertical returns whether d is laid out on a vertical
 // axis. If the return value is false, d is on the horizontal
 // axis.
-func (d Direction) IsVertical() bool {
-	return d == DirectionBTT || d == DirectionTTB
-}
+func (d Direction) IsVertical() bool { return d&BAxisVertical != 0 }
 
 // Axis returns the layout axis for d.
 func (d Direction) Axis() Axis {
-	switch d {
-	case DirectionBTT, DirectionTTB:
+	if d.IsVertical() {
 		return Vertical
-	default:
-		return Horizontal
 	}
+	return Horizontal
 }
 
 // Progression returns the text layout progression for d.
 func (d Direction) Progression() Progression {
-	switch d {
-	case DirectionTTB, DirectionLTR:
+	if d&progression == 0 {
 		return FromTopLeft
-	default:
-		return TowardTopLeft
 	}
+	return TowardTopLeft
 }
 
 // Axis indicates the axis of layout for a piece of text.
@@ -65,3 +73,9 @@ const (
 	// of TowardTopLeft progression.
 	TowardTopLeft Progression = true
 )
+
+// Orientation describes a glyph orientation.
+//
+// When shaping vertical text, some glyphs are rotated
+// by 90°. This flag should be used by renderers to also
+// rotate the glyph when drawing.
