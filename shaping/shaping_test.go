@@ -3,10 +3,16 @@ package shaping
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
+	hd "github.com/go-text/typesetting-utils/harfbuzz"
 	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
@@ -512,4 +518,122 @@ func TestCFF2(t *testing.T) {
 		tu.Assert(t, g.Width > 0 && g.Height < 0)
 	}
 	tu.Assert(t, out.Advance > 0)
+}
+
+func ExampleShaper_Shape() {
+	textInput := []rune("abcdefghijklmnop")
+	withKerningFont := "harfbuzz_reference/in-house/fonts/e39391c77a6321c2ac7a2d644de0396470cd4bfe.ttf"
+	b, _ := hd.Files.ReadFile(withKerningFont)
+	face, _ := font.ParseTTF(bytes.NewReader(b))
+
+	shaper := HarfbuzzShaper{}
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      16 * 72 * 10,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+
+	drawHGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_horiz.png"))
+
+	input.Direction = di.DirectionTTB
+	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert.png"))
+
+	// Output:
+}
+
+func drawVLine(img *image.RGBA, start image.Point, height int, c color.RGBA) {
+	for y := start.Y; y <= start.Y+height; y++ {
+		img.SetRGBA(start.X, y, c)
+	}
+}
+
+func drawHLine(img *image.RGBA, start image.Point, width int, c color.RGBA) {
+	for x := start.X; x <= start.X+width; x++ {
+		img.SetRGBA(x, start.Y, c)
+	}
+}
+
+func drawRect(img *image.RGBA, min, max image.Point, c color.RGBA) {
+	for x := min.X; x <= max.X; x++ {
+		for y := min.Y; y <= max.Y; y++ {
+			img.SetRGBA(x, y, c)
+		}
+	}
+}
+
+var (
+	red   = color.RGBA{R: 0xFF, A: 0xFF}
+	green = color.RGBA{G: 0xFF, A: 0xFF}
+	black = color.RGBA{A: 0xFF}
+)
+
+// assume horizontal direction
+func drawHGlyphs(out Output, file string) {
+	baseline := out.LineBounds.Ascent.Round()
+	height := out.LineBounds.LineThickness().Round()
+	width := out.Advance.Round()
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	// white background
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	drawHLine(img, image.Pt(0, baseline), width, black)
+
+	dot := 0
+	for _, g := range out.Glyphs {
+		minX := dot + g.XOffset.Round() + g.XBearing.Round()
+		maxX := minX + g.Width.Round()
+		minY := baseline + g.YOffset.Round() - g.YBearing.Round()
+		maxY := minY - g.Height.Round()
+
+		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
+
+		// draw the dot ...
+		drawRect(img, image.Pt(dot-1, baseline-1), image.Pt(dot+1, baseline+1), black)
+
+		// ... and advance
+		dot += g.XAdvance.Round()
+		drawVLine(img, image.Pt(dot, 0), height, red)
+	}
+
+	f, _ := os.Create(file)
+	_ = png.Encode(f, img)
+}
+
+// assume vertical direction
+func drawVGlyphs(out Output, file string) {
+	baseline := -out.GlyphBounds.Descent.Round()
+	width := out.GlyphBounds.LineThickness().Round()
+	height := -out.Advance.Round()
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	// white background
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	drawVLine(img, image.Pt(baseline, 0), height, black)
+
+	dot := 0
+	for _, g := range out.Glyphs {
+		dot += -g.YAdvance.Round()
+
+		minX := baseline + g.XOffset.Round() + g.XBearing.Round()
+		maxX := minX + g.Width.Round()
+
+		minY := dot + g.YOffset.Round() - g.YBearing.Round()
+		maxY := minY - g.Height.Round()
+
+		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
+
+		// draw the dot ...
+		drawRect(img, image.Pt(baseline-1, dot-1), image.Pt(baseline+1, dot+1), black)
+
+		// ... and advance
+		drawHLine(img, image.Pt(0, dot), width, red)
+	}
+
+	f, _ := os.Create(file)
+	_ = png.Encode(f, img)
 }
