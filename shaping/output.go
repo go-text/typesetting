@@ -28,7 +28,7 @@ type Glyph struct {
 	// XAdvance is the distance between the current dot (without offset applied) and the next dot.
 	// It is typically positive for horizontal text, and always zero for vertical text.
 	XAdvance fixed.Int26_6
-	// XAdvance is the distance between the current dot (without offset applied) and the next dot.
+	// YAdvance is the distance between the current dot (without offset applied) and the next dot.
 	// It is typically negative for vertical text, and always zero for horizontal text.
 	YAdvance fixed.Int26_6
 
