@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: Unlicense OR BSD-3-Clause
 
-package shaping_test
+package shaping
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 
+	hd "github.com/go-text/typesetting-utils/harfbuzz"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/shaping"
+	"github.com/go-text/typesetting/language"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -21,42 +24,38 @@ const (
 )
 
 var (
-	expectedFontExtents = shaping.Bounds{
-		Ascent:  fixed.I(int(15)),
-		Descent: fixed.I(int(-15)),
-		Gap:     fixed.I(int(0)),
+	expectedFontExtents = Bounds{
+		Ascent:  fixed.I(15),
+		Descent: fixed.I(-15),
+		Gap:     fixed.I(0),
 	}
-	simpleGlyph = shaping.Glyph{
+	simpleGlyph_ = Glyph{
 		GlyphID:  simpleGID,
-		XAdvance: fixed.I(int(10)),
-		YAdvance: fixed.I(int(10)),
-		XOffset:  fixed.I(int(0)),
-		YOffset:  fixed.I(int(0)),
-		Width:    fixed.I(int(10)),
-		Height:   -fixed.I(int(10)),
-		YBearing: fixed.I(int(10)),
+		XAdvance: fixed.I(10),
+		YAdvance: -fixed.I(10),
+		Width:    fixed.I(10),
+		Height:   -fixed.I(10),
+		YBearing: fixed.I(10),
 	}
-	deepGlyph = shaping.Glyph{
+	deepGlyph = Glyph{
 		GlyphID:  deepGID,
-		XAdvance: fixed.I(int(10)),
-		YAdvance: fixed.I(int(10)),
-		XOffset:  -fixed.I(int(5)),
-		YOffset:  fixed.I(int(0)),
-		Width:    fixed.I(int(10)),
-		Height:   -fixed.I(int(10)),
-		YBearing: fixed.I(int(0)),
-		XBearing: fixed.I(int(0)),
+		XAdvance: fixed.I(10),
+		YAdvance: -fixed.I(10),
+		XOffset:  -fixed.I(5),
+		Width:    fixed.I(10),
+		Height:   -fixed.I(10),
+		YBearing: fixed.I(0),
 	}
-	offsetGlyph = shaping.Glyph{
+	offsetGlyph = Glyph{
 		GlyphID:  offsetGID,
-		XAdvance: fixed.I(int(10)),
-		YAdvance: fixed.I(int(10)),
-		XOffset:  -fixed.I(int(2)),
-		YOffset:  fixed.I(int(2)),
-		Width:    fixed.I(int(10)),
-		Height:   -fixed.I(int(10)),
-		YBearing: fixed.I(int(10)),
-		XBearing: fixed.I(int(1)),
+		XAdvance: fixed.I(10),
+		YAdvance: -fixed.I(10),
+		XOffset:  -fixed.I(2),
+		YOffset:  fixed.I(2),
+		Width:    fixed.I(10),
+		Height:   -fixed.I(10),
+		YBearing: fixed.I(10),
+		XBearing: fixed.I(1),
 	}
 )
 
@@ -66,25 +65,25 @@ func TestRecalculate(t *testing.T) {
 	type testcase struct {
 		Name      string
 		Direction di.Direction
-		Input     []shaping.Glyph
-		Output    shaping.Output
+		Input     []Glyph
+		Output    Output
 	}
 	for _, tc := range []testcase{
 		{
 			Name: "empty",
-			Output: shaping.Output{
+			Output: Output{
 				LineBounds: expectedFontExtents,
 			},
 		},
 		{
 			Name:      "horizontal single simple glyph",
 			Direction: di.DirectionLTR,
-			Input:     []shaping.Glyph{simpleGlyph},
-			Output: shaping.Output{
-				Glyphs:  []shaping.Glyph{simpleGlyph},
-				Advance: simpleGlyph.XAdvance,
-				GlyphBounds: shaping.Bounds{
-					Ascent:  simpleGlyph.YBearing,
+			Input:     []Glyph{simpleGlyph_},
+			Output: Output{
+				Glyphs:  []Glyph{simpleGlyph_},
+				Advance: simpleGlyph_.XAdvance,
+				GlyphBounds: Bounds{
+					Ascent:  simpleGlyph_.YBearing,
 					Descent: fixed.I(0),
 				},
 				LineBounds: expectedFontExtents,
@@ -93,12 +92,12 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "horizontal glyph below baseline",
 			Direction: di.DirectionLTR,
-			Input:     []shaping.Glyph{simpleGlyph, deepGlyph},
-			Output: shaping.Output{
-				Glyphs:  []shaping.Glyph{simpleGlyph, deepGlyph},
-				Advance: simpleGlyph.XAdvance + deepGlyph.XAdvance,
-				GlyphBounds: shaping.Bounds{
-					Ascent:  simpleGlyph.YBearing,
+			Input:     []Glyph{simpleGlyph_, deepGlyph},
+			Output: Output{
+				Glyphs:  []Glyph{simpleGlyph_, deepGlyph},
+				Advance: simpleGlyph_.XAdvance + deepGlyph.XAdvance,
+				GlyphBounds: Bounds{
+					Ascent:  simpleGlyph_.YBearing,
 					Descent: deepGlyph.YBearing + deepGlyph.Height,
 				},
 				LineBounds: expectedFontExtents,
@@ -107,11 +106,11 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "horizontal single complex glyph",
 			Direction: di.DirectionLTR,
-			Input:     []shaping.Glyph{offsetGlyph},
-			Output: shaping.Output{
-				Glyphs:  []shaping.Glyph{offsetGlyph},
+			Input:     []Glyph{offsetGlyph},
+			Output: Output{
+				Glyphs:  []Glyph{offsetGlyph},
 				Advance: offsetGlyph.XAdvance,
-				GlyphBounds: shaping.Bounds{
+				GlyphBounds: Bounds{
 					Ascent:  offsetGlyph.YBearing + offsetGlyph.YOffset,
 					Descent: fixed.I(0),
 				},
@@ -121,12 +120,12 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical single simple glyph",
 			Direction: di.DirectionTTB,
-			Input:     []shaping.Glyph{simpleGlyph},
-			Output: shaping.Output{
-				Glyphs:  []shaping.Glyph{simpleGlyph},
-				Advance: simpleGlyph.YAdvance,
-				GlyphBounds: shaping.Bounds{
-					Ascent:  simpleGlyph.Width,
+			Input:     []Glyph{simpleGlyph_},
+			Output: Output{
+				Glyphs:  []Glyph{simpleGlyph_},
+				Advance: simpleGlyph_.YAdvance,
+				GlyphBounds: Bounds{
+					Ascent:  simpleGlyph_.Width,
 					Descent: 0,
 				},
 				LineBounds: expectedFontExtents,
@@ -135,12 +134,12 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical glyph below baseline",
 			Direction: di.DirectionTTB,
-			Input:     []shaping.Glyph{simpleGlyph, deepGlyph},
-			Output: shaping.Output{
-				Glyphs:  []shaping.Glyph{simpleGlyph, deepGlyph},
-				Advance: simpleGlyph.YAdvance + deepGlyph.YAdvance,
-				GlyphBounds: shaping.Bounds{
-					Ascent:  simpleGlyph.Width,
+			Input:     []Glyph{simpleGlyph_, deepGlyph},
+			Output: Output{
+				Glyphs:  []Glyph{simpleGlyph_, deepGlyph},
+				Advance: simpleGlyph_.YAdvance + deepGlyph.YAdvance,
+				GlyphBounds: Bounds{
+					Ascent:  simpleGlyph_.Width,
 					Descent: deepGlyph.XOffset + deepGlyph.XBearing,
 				},
 				LineBounds: expectedFontExtents,
@@ -149,12 +148,12 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical single complex glyph",
 			Direction: di.DirectionTTB,
-			Input:     []shaping.Glyph{offsetGlyph},
-			Output: shaping.Output{
-				Glyphs:  []shaping.Glyph{offsetGlyph},
+			Input:     []Glyph{offsetGlyph},
+			Output: Output{
+				Glyphs:  []Glyph{offsetGlyph},
 				Advance: offsetGlyph.YAdvance,
-				GlyphBounds: shaping.Bounds{
-					Ascent:  offsetGlyph.Width + offsetGlyph.XOffset,
+				GlyphBounds: Bounds{
+					Ascent:  offsetGlyph.Width + offsetGlyph.XOffset + offsetGlyph.XBearing,
 					Descent: offsetGlyph.XOffset + offsetGlyph.XBearing,
 				},
 				LineBounds: expectedFontExtents,
@@ -162,7 +161,7 @@ func TestRecalculate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
-			output := shaping.Output{
+			output := Output{
 				Glyphs:     tc.Input,
 				LineBounds: expectedFontExtents,
 				Direction:  tc.Direction,
@@ -184,5 +183,48 @@ func TestRecalculate(t *testing.T) {
 				t.Errorf("runes mismatch, expected %#+v, got %#+v", tc.Output.Runes, output.Runes)
 			}
 		})
+	}
+}
+
+func TestRotate(t *testing.T) {
+	glyphs1 := Output{
+		Glyphs: []Glyph{
+			simpleGlyph_, deepGlyph, offsetGlyph, deepGlyph, deepGlyph, offsetGlyph,
+		},
+		Direction: di.DirectionRTL,
+	}
+	glyphs2 := func() Output {
+		textInput := []rune("abcdefghijklmnop")
+		withKerningFont := "harfbuzz_reference/in-house/fonts/e39391c77a6321c2ac7a2d644de0396470cd4bfe.ttf"
+		b, _ := hd.Files.ReadFile(withKerningFont)
+		face, _ := font.ParseTTF(bytes.NewReader(b))
+
+		shaper := HarfbuzzShaper{}
+		input := Input{
+			Text:      textInput,
+			RunStart:  0,
+			RunEnd:    len(textInput),
+			Direction: di.DirectionLTR,
+			Face:      face,
+			Size:      16 * 72 * 10,
+			Script:    language.Latin,
+			Language:  language.NewLanguage("EN"),
+		}
+
+		horiz := shaper.Shape(input)
+		return horiz
+	}()
+	for _, horiz := range []Output{glyphs1, glyphs2} {
+		horiz.RecalculateAll()
+		vert := horiz
+		vert.rotate()
+		vert.RecalculateAll()
+
+		tu.Assert(t, vert.Direction.IsVertical())
+		tu.Assert(t, vert.Direction.Progression() == horiz.Direction.Progression())
+		// test that rotate actually preserve the bounds
+		tu.Assert(t, horiz.LineBounds == vert.LineBounds)
+		tu.Assert(t, horiz.GlyphBounds == vert.GlyphBounds)
+		tu.Assert(t, horiz.Advance == -vert.Advance)
 	}
 }

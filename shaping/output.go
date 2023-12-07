@@ -20,7 +20,8 @@ type Glyph struct {
 	// typically negative
 	Height fixed.Int26_6
 	// XBearing is the distance between the dot (with offset applied) and
-	// the glyph content, typically positive
+	// the glyph content, typically positive for horizontal text;
+	// often negative for vertical text.
 	XBearing fixed.Int26_6
 	// YBearing is the distance between the dot (with offset applied) and
 	// the top of the glyph content, typically positive
@@ -110,6 +111,7 @@ func (b Bounds) LineThickness() fixed.Int26_6 {
 // Output describes the dimensions and content of shaped text.
 type Output struct {
 	// Advance is the distance the Dot has advanced.
+	// It is typically positive for horizontal text, negative for vertical.
 	Advance fixed.Int26_6
 	// Size is copied from the shaping.Input.Size that produced this Output.
 	Size fixed.Int26_6
@@ -183,8 +185,8 @@ func (o *Output) advanceSpaceAware() fixed.Int26_6 {
 func (o *Output) RecalculateAll() {
 	var (
 		advance fixed.Int26_6
-		tallest fixed.Int26_6
-		lowest  fixed.Int26_6
+		ascent  fixed.Int26_6
+		descent fixed.Int26_6
 	)
 
 	if o.Direction.IsVertical() {
@@ -192,12 +194,12 @@ func (o *Output) RecalculateAll() {
 			g := &o.Glyphs[i]
 			advance += g.YAdvance
 			depth := g.XOffset + g.XBearing // start of the glyph
-			if depth < lowest {
-				lowest = depth
+			if depth < descent {
+				descent = depth
 			}
-			height := g.XOffset + g.Width // end of the glyph
-			if height > tallest {
-				tallest = height
+			height := depth + g.Width // end of the glyph
+			if height > ascent {
+				ascent = height
 			}
 		}
 	} else { // horizontal
@@ -205,18 +207,46 @@ func (o *Output) RecalculateAll() {
 			g := &o.Glyphs[i]
 			advance += g.XAdvance
 			height := g.YBearing + g.YOffset
-			if height > tallest {
-				tallest = height
+			if height > ascent {
+				ascent = height
 			}
 			depth := height + g.Height
-			if depth < lowest {
-				lowest = depth
+			if depth < descent {
+				descent = depth
 			}
 		}
 	}
 	o.Advance = advance
 	o.GlyphBounds = Bounds{
-		Ascent:  tallest,
-		Descent: lowest,
+		Ascent:  ascent,
+		Descent: descent,
 	}
+}
+
+// Assuming [Glyphs] comes from an horizontal shaping,
+// applies a 90°, clockwise rotation to the whole slice of glyphs,
+// to create 'sideways' vertical text.
+//
+// The [Direction] field is updated by switching the axis to vertical
+// and the orientation to "sideways".
+//
+// [RecalculateAll] should be called afterwards to update [Avance] and [GlyphBounds].
+func (out *Output) rotate() {
+	for i, g := range out.Glyphs {
+		// switch height and width
+		out.Glyphs[i].Width = -g.Height // height is negative
+		out.Glyphs[i].Height = -g.Width
+		// compute the bearings
+		out.Glyphs[i].XBearing = g.YBearing + g.Height
+		out.Glyphs[i].YBearing = g.XAdvance - g.XBearing
+		// switch advance direction
+		out.Glyphs[i].XAdvance = 0
+		out.Glyphs[i].YAdvance = -g.XAdvance // YAdvance is negative
+		// apply a rotation around the dot
+		out.Glyphs[i].XOffset = g.YOffset
+		out.Glyphs[i].YOffset = -g.XOffset
+	}
+
+	// adjust direction
+	out.Direction |= di.BAxisVertical | di.BVerticalOrientationSet & ^di.BVerticalUpright
 }
