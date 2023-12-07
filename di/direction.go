@@ -24,8 +24,8 @@ const (
 	// Otherwise, the segmenter will resolve the orientation based
 	// on unicode properties
 	BVerticalOrientationSet
-	// BVerticalUpright is set for 'upright', unset for 'sideways'
-	BVerticalUpright
+	// BVerticalSideways is set for 'sideways', unset for 'upright'
+	BVerticalSideways
 )
 
 // IsVertical returns whether d is laid out on a vertical
@@ -79,3 +79,7 @@ const (
 // When shaping vertical text, some glyphs are rotated
 // by 90°. This flag should be used by renderers to also
 // rotate the glyph when drawing.
+
+// IsSideways returns true if the direction has a 'sideways' vertical
+// orientation.
+func (d Direction) IsSideways() bool { return d&BVerticalSideways != 0 }

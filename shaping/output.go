@@ -231,7 +231,7 @@ func (o *Output) RecalculateAll() {
 // and the orientation to "sideways".
 //
 // [RecalculateAll] should be called afterwards to update [Avance] and [GlyphBounds].
-func (out *Output) rotate() {
+func (out *Output) sideways() {
 	for i, g := range out.Glyphs {
 		// switch height and width
 		out.Glyphs[i].Width = -g.Height // height is negative
@@ -248,5 +248,5 @@ func (out *Output) rotate() {
 	}
 
 	// adjust direction
-	out.Direction |= di.BAxisVertical | di.BVerticalOrientationSet & ^di.BVerticalUpright
+	out.Direction |= di.BAxisVertical | di.BVerticalOrientationSet | di.BVerticalSideways
 }

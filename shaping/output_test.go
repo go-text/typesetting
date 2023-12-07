@@ -217,7 +217,7 @@ func TestRotate(t *testing.T) {
 	for _, horiz := range []Output{glyphs1, glyphs2} {
 		horiz.RecalculateAll()
 		vert := horiz
-		vert.rotate()
+		vert.sideways()
 		vert.RecalculateAll()
 
 		tu.Assert(t, vert.Direction.IsVertical())

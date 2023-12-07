@@ -17,12 +17,14 @@ import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
+	"github.com/go-text/typesetting/opentype/api"
 	apiFont "github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
 	tu "github.com/go-text/typesetting/opentype/testutils"
 	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/math/fixed"
 )
 
 func TestShape(t *testing.T) {
@@ -508,7 +510,7 @@ func ExampleShaper_Shape() {
 		RunEnd:    len(textInput),
 		Direction: di.DirectionLTR,
 		Face:      face,
-		Size:      16 * 72 * 10,
+		Size:      fixed.I(16 * 1000 / 72),
 		Script:    language.Latin,
 		Language:  language.NewLanguage("EN"),
 	}
@@ -519,7 +521,7 @@ func ExampleShaper_Shape() {
 	input.Direction = di.DirectionTTB
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert.png"))
 
-	horiz.rotate()
+	horiz.sideways()
 	horiz.RecalculateAll()
 	drawVGlyphs(horiz, filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
 
@@ -546,6 +548,20 @@ func drawRect(img *image.RGBA, min, max image.Point, c color.RGBA) {
 	}
 }
 
+func drawPoint(img *image.RGBA, pt image.Point, c color.RGBA) {
+	drawRect(img, pt.Add(image.Pt(-1, -1)), pt.Add(image.Pt(1, 1)), c)
+}
+
+// dot includes the offset
+func drawGlyph(img *image.RGBA, dot image.Point, outlines api.GlyphOutline, factor float32, c color.RGBA) {
+	for _, seg := range outlines.Segments {
+		for _, point := range seg.ArgsSlice() {
+			x, y := int(point.X*factor), -int(point.Y*factor)
+			drawPoint(img, dot.Add(image.Pt(x, y)), c)
+		}
+	}
+}
+
 var (
 	red   = color.RGBA{R: 0xFF, A: 0xFF}
 	green = color.RGBA{G: 0xFF, A: 0xFF}
@@ -563,9 +579,11 @@ func drawHGlyphs(out Output, file string) {
 
 	drawHLine(img, image.Pt(0, baseline), width, black)
 
-	dot := 0
+	// to be applied to font units
+	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
+	dotX := 0
 	for _, g := range out.Glyphs {
-		minX := dot + g.XOffset.Round() + g.XBearing.Round()
+		minX := dotX + g.XOffset.Round() + g.XBearing.Round()
 		maxX := minX + g.Width.Round()
 		minY := baseline + g.YOffset.Round() - g.YBearing.Round()
 		maxY := minY - g.Height.Round()
@@ -573,11 +591,16 @@ func drawHGlyphs(out Output, file string) {
 		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
 
 		// draw the dot ...
-		drawRect(img, image.Pt(dot-1, baseline-1), image.Pt(dot+1, baseline+1), black)
+		dot := image.Pt(dotX, baseline)
+		drawPoint(img, dot, black)
+
+		// draw a sketch of the glyphs
+		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
+		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Ceil(), g.YOffset.Ceil())), glyphData, sizeFactor, black)
 
 		// ... and advance
-		dot += g.XAdvance.Round()
-		drawVLine(img, image.Pt(dot, 0), height, red)
+		dotX += g.XAdvance.Round()
+		drawVLine(img, image.Pt(dotX, 0), height, red)
 	}
 
 	f, _ := os.Create(file)
@@ -595,23 +618,32 @@ func drawVGlyphs(out Output, file string) {
 
 	drawVLine(img, image.Pt(baseline, 0), height, black)
 
-	dot := 0
+	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
+	dotY := 0
 	for _, g := range out.Glyphs {
-		dot += -g.YAdvance.Round()
+		dotY += -g.YAdvance.Round()
 
 		minX := baseline + g.XOffset.Round() + g.XBearing.Round()
 		maxX := minX + g.Width.Round()
 
-		minY := dot + g.YOffset.Round() - g.YBearing.Round()
+		minY := dotY + g.YOffset.Round() - g.YBearing.Round()
 		maxY := minY - g.Height.Round()
 
 		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
 
 		// draw the dot ...
-		drawRect(img, image.Pt(baseline-1, dot-1), image.Pt(baseline+1, dot+1), black)
+		dot := image.Pt(baseline, dotY)
+		drawPoint(img, dot, black)
+
+		// draw a sketch of the glyphs
+		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
+		if out.Direction.IsSideways() {
+			glyphData.Sideways(float32(-g.YAdvance.Round()) / sizeFactor)
+		}
+		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Ceil(), g.YOffset.Ceil())), glyphData, sizeFactor, black)
 
 		// ... and advance
-		drawHLine(img, image.Pt(0, dot), width, red)
+		drawHLine(img, image.Pt(0, dotY), width, red)
 	}
 
 	f, _ := os.Create(file)
