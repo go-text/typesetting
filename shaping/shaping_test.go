@@ -533,6 +533,30 @@ func TestShapeVertical(t *testing.T) {
 	}
 }
 
+func TestCFF2(t *testing.T) {
+	// regression test for https://github.com/go-text/typesetting/issues/118
+	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	face, err := font.ParseTTF(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	str := []rune("abcあいう")
+	input := Input{
+		Text:      str,
+		RunStart:  0,
+		RunEnd:    len(str),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(10),
+	}
+	out := (&HarfbuzzShaper{}).Shape(input)
+	for _, g := range out.Glyphs {
+		tu.Assert(t, g.Width > 0 && g.Height < 0)
+	}
+	tu.Assert(t, out.Advance > 0)
+}
+
 func ExampleShaper_Shape() {
 	textInput := []rune("abcdefghijklmnop")
 	withKerningFont := "harfbuzz_reference/in-house/fonts/e39391c77a6321c2ac7a2d644de0396470cd4bfe.ttf"

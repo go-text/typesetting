@@ -31,7 +31,7 @@ func TestParseTuple(t *testing.T) {
 	data := deHexStr("DE AD C0 00 20 00 DE AD")
 	got, _, err := ParseTuple(data[2:], 2)
 	tu.AssertNoErr(t, err)
-	expected := Tuple{Values: []float32{-1, 0.5}}
+	expected := Tuple{Values: []Coord{NewCoord(-1), NewCoord(0.5)}}
 	tu.AssertC(t, reflect.DeepEqual(got, expected), fmt.Sprintf("%v != %v", got, expected))
 
 	// Shared tuples in the 'gvar' table of the Skia font, as printed
@@ -42,14 +42,14 @@ func TestParseTuple(t *testing.T) {
 			"C0 00 C0 00 40 00 C0 00 40 00 40 00 C0 00 40 00")
 
 	skiaGvarSharedTuples := SharedTuples{[]Tuple{
-		{Values: []Float214{1.0, 0.0}},
-		{Values: []Float214{-1.0, 0.0}},
-		{Values: []Float214{0.0, 1.0}},
-		{Values: []Float214{0.0, -1.0}},
-		{Values: []Float214{-1.0, -1.0}},
-		{Values: []Float214{1.0, -1.0}},
-		{Values: []Float214{1.0, 1.0}},
-		{Values: []Float214{-1.0, 1.0}},
+		{Values: []Coord{NewCoord(1), NewCoord(0)}},
+		{Values: []Coord{NewCoord(-1), NewCoord(0)}},
+		{Values: []Coord{NewCoord(0), NewCoord(1)}},
+		{Values: []Coord{NewCoord(0), NewCoord(-1)}},
+		{Values: []Coord{NewCoord(-1), NewCoord(-1)}},
+		{Values: []Coord{NewCoord(1), NewCoord(-1)}},
+		{Values: []Coord{NewCoord(1), NewCoord(1)}},
+		{Values: []Coord{NewCoord(-1), NewCoord(1)}},
 	}}
 	sharedTuples, _, err := ParseSharedTuples(skiaGvarSharedTuplesData, 8, 2)
 	tu.AssertNoErr(t, err)
@@ -83,7 +83,7 @@ func TestParseGvar(t *testing.T) {
 		"00 " + //  51: padding
 		//
 		// 52: Glyph variation data for glyph //2, "I"
-		// ------------------------------------------
+		// -----------------------------------------float32-
 		"8002 001c " + //  52: tupleVariationCount=2|TUPLES_SHARE_POINT_NUMBERS, offsetToData=28(+52=80)
 		"0012 " + //  56: tvHeader[0].variationDataSize=18
 		"C000 " + //  58: tvHeader[0].tupleIndex=EMBEDDED_PEAK|INTERMEDIATE_REGION
@@ -121,23 +121,23 @@ func TestParseGvar(t *testing.T) {
 			{
 				VariationDataSize: 0x000A,
 				tupleIndex:        0x8000,
-				PeakTuple:         Tuple{[]float32{0, 0.7000122}},
+				PeakTuple:         Tuple{[]Coord{0, 0x2ccd}},
 			},
 		},
 		2: {
 			{
 				VariationDataSize: 0x0012,
 				tupleIndex:        0xC000,
-				PeakTuple:         Tuple{[]float32{0.5, 0}},
+				PeakTuple:         Tuple{[]Coord{NewCoord(0.5), 0}},
 				IntermediateTuples: [2]Tuple{
-					{[]float32{0, 0}},
-					{[]float32{1, 0}},
+					{[]Coord{0, 0}},
+					{[]Coord{NewCoord(1), 0}},
 				},
 			},
 			{
 				VariationDataSize: 0x0016,
 				tupleIndex:        0xA000,
-				PeakTuple:         Tuple{[]float32{-1, 0.7999878}},
+				PeakTuple:         Tuple{[]Coord{NewCoord(-1), NewCoord(0.8)}},
 			},
 		},
 	}
