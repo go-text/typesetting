@@ -562,6 +562,12 @@ func ExampleShaper_Shape() {
 	input.Direction.SetSideways()
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
 
+	input.Direction = di.DirectionBTT
+	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rev.png"))
+
+	input.Direction.SetSideways()
+	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rev_rotated.png"))
+
 	// Output:
 }
 
