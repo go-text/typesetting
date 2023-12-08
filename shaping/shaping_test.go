@@ -209,7 +209,7 @@ func TestCountClusters(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			countClusters(tc.glyphs, tc.textLen, tc.dir)
+			countClusters(tc.glyphs, tc.textLen, tc.dir.Progression())
 			for i := range tc.glyphs {
 				g := tc.glyphs[i]
 				e := tc.expected[i]
@@ -497,6 +497,44 @@ func TestFeatures(t *testing.T) {
 	tu.Assert(t, len(out.Glyphs) == 1)
 }
 
+func TestShapeVertical(t *testing.T) {
+	// consistency check on the internal axis switch
+	// for sideways vertical text
+	textInput := []rune("Lorem ipsum.")
+	face := benchEnFace
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionTTB,
+		Face:      face,
+		Size:      16 * 72,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	shaper := HarfbuzzShaper{}
+
+	for _, test := range []struct {
+		dir      di.Direction
+		sideways bool
+	}{
+		{di.DirectionTTB, false},
+		{di.DirectionTTB, true},
+		{di.DirectionBTT, false},
+		{di.DirectionBTT, true},
+	} {
+		input.Direction = test.dir
+		if test.sideways {
+			input.Direction.SetSideways()
+		}
+		out := shaper.Shape(input)
+		tu.Assert(t, out.Direction.Progression() == test.dir.Progression())
+		tu.Assert(t, out.Direction.IsSideways() == test.sideways)
+		tu.Assert(t, out.Advance < 0)
+		tu.Assert(t, out.GlyphBounds.Ascent > 0 && out.GlyphBounds.Descent < 0)
+	}
+}
+
 func ExampleShaper_Shape() {
 	textInput := []rune("abcdefghijklmnop")
 	withKerningFont := "harfbuzz_reference/in-house/fonts/e39391c77a6321c2ac7a2d644de0396470cd4bfe.ttf"
@@ -521,9 +559,8 @@ func ExampleShaper_Shape() {
 	input.Direction = di.DirectionTTB
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert.png"))
 
-	horiz.sideways()
-	horiz.RecalculateAll()
-	drawVGlyphs(horiz, filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
+	input.Direction.SetSideways()
+	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
 
 	// Output:
 }

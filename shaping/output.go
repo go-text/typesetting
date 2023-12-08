@@ -248,5 +248,5 @@ func (out *Output) sideways() {
 	}
 
 	// adjust direction
-	out.Direction |= di.BAxisVertical | di.BVerticalOrientationSet | di.BVerticalSideways
+	out.Direction.SetSideways()
 }

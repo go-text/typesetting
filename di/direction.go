@@ -1,5 +1,9 @@
 package di
 
+import (
+	"github.com/go-text/typesetting/harfbuzz"
+)
+
 // Direction indicates the layout direction of a piece of text.
 type Direction uint8
 
@@ -16,22 +20,23 @@ const (
 
 const (
 	progression Direction = 1 << iota
-	// BAxisVertical is the bit for the axis, 0 for horizontal, 1 for vertical
-	BAxisVertical
+	// axisVertical is the bit for the axis, 0 for horizontal, 1 for vertical
+	axisVertical
 
 	// If this flag is set, the orientation is chosen
-	// using the [BVerticalUpright] flag.
+	// using the [verticalSideways] flag.
 	// Otherwise, the segmenter will resolve the orientation based
 	// on unicode properties
-	BVerticalOrientationSet
-	// BVerticalSideways is set for 'sideways', unset for 'upright'
-	BVerticalSideways
+	verticalOrientationSet
+	// verticalSideways is set for 'sideways', unset for 'upright'
+	// It implies BVerticalOrientationSet is set
+	verticalSideways
 )
 
 // IsVertical returns whether d is laid out on a vertical
 // axis. If the return value is false, d is on the horizontal
 // axis.
-func (d Direction) IsVertical() bool { return d&BAxisVertical != 0 }
+func (d Direction) IsVertical() bool { return d&axisVertical != 0 }
 
 // Axis returns the layout axis for d.
 func (d Direction) Axis() Axis {
@@ -40,6 +45,10 @@ func (d Direction) Axis() Axis {
 	}
 	return Horizontal
 }
+
+// SwitchAwis switch from horizontal to vertical (and vice versa), preserving
+// the progression.
+func (d Direction) SwitchAxis() Direction { return d ^ axisVertical }
 
 // Progression returns the text layout progression for d.
 func (d Direction) Progression() Progression {
@@ -74,12 +83,30 @@ const (
 	TowardTopLeft Progression = true
 )
 
-// Orientation describes a glyph orientation.
-//
-// When shaping vertical text, some glyphs are rotated
-// by 90°. This flag should be used by renderers to also
-// rotate the glyph when drawing.
-
-// IsSideways returns true if the direction has a 'sideways' vertical
+// IsSideways returns true if the direction is vertical with a 'sideways'
 // orientation.
-func (d Direction) IsSideways() bool { return d&BVerticalSideways != 0 }
+//
+// When shaping vertical text, 'sideways' means that the glyphs are rotated
+// by 90°, clock-wise. This flag should be used by renderers to properly
+// rotate the glyphs when drawing.
+func (d Direction) IsSideways() bool { return d.IsVertical() && d&verticalSideways != 0 }
+
+// SetSideways makes d vertical with sideways orientation, preserving only the
+// progression.
+func (d *Direction) SetSideways() {
+	*d |= axisVertical | verticalOrientationSet | verticalSideways
+}
+
+// Harfbuzz returns the equivalent direction used by harfbuzz.
+func (d Direction) Harfbuzz() harfbuzz.Direction {
+	switch d & (progression | axisVertical) {
+	case DirectionRTL:
+		return harfbuzz.RightToLeft
+	case DirectionBTT:
+		return harfbuzz.BottomToTop
+	case DirectionTTB:
+		return harfbuzz.TopToBottom
+	default:
+		return harfbuzz.LeftToRight
+	}
+}
