@@ -261,6 +261,13 @@ func TestSplitBidi(t *testing.T) {
 		},
 		{
 			text:             ltrSource,
+			defaultDirection: di.DirectionTTB,
+			expectedRuns: []run{
+				{0, len(ltrSource), di.DirectionTTB},
+			},
+		},
+		{
+			text:             ltrSource,
 			defaultDirection: di.DirectionRTL,
 			expectedRuns: []run{
 				{0, len(ltrSource) - 1, di.DirectionLTR},
@@ -268,10 +275,25 @@ func TestSplitBidi(t *testing.T) {
 			},
 		},
 		{
+			text:             ltrSource,
+			defaultDirection: di.DirectionBTT,
+			expectedRuns: []run{
+				{0, len(ltrSource) - 1, di.DirectionTTB},
+				{len(ltrSource) - 1, len(ltrSource), di.DirectionBTT},
+			},
+		},
+		{
 			text:             rtlSource,
 			defaultDirection: di.DirectionRTL,
 			expectedRuns: []run{
 				{0, len(rtlSource), di.DirectionRTL},
+			},
+		},
+		{
+			text:             rtlSource,
+			defaultDirection: di.DirectionBTT,
+			expectedRuns: []run{
+				{0, len(rtlSource), di.DirectionBTT},
 			},
 		},
 		{
@@ -301,10 +323,9 @@ func TestSplitBidi(t *testing.T) {
 	} {
 		var seg Segmenter
 		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: test.defaultDirection})
-		inputs := seg.buffer1
-		tu.AssertC(t, len(inputs) == len(test.expectedRuns), string(test.text))
+		tu.AssertC(t, len(seg.output) == len(test.expectedRuns), string(test.text))
 		for i, run := range test.expectedRuns {
-			got := inputs[i]
+			got := seg.output[i]
 			tu.Assert(t, got.RunStart == run.start)
 			tu.Assert(t, got.RunEnd == run.end)
 			tu.Assert(t, got.Direction == run.dir)
@@ -360,17 +381,71 @@ func TestSplitScript(t *testing.T) {
 		}},
 	} {
 		var seg Segmenter
-		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR}) // fills buffer1
-		tu.Assert(t, len(seg.buffer1) == 1)
+		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR})
+		tu.Assert(t, len(seg.output) == 1)
+		seg.input, seg.output = seg.output, seg.input
 
 		seg.splitByScript()
-		inputs := seg.buffer2
-		tu.Assert(t, len(inputs) == len(test.expectedRuns))
+		tu.Assert(t, len(seg.output) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {
-			got := inputs[i]
+			got := seg.output[i]
 			tu.Assert(t, got.RunStart == run.start)
 			tu.Assert(t, got.RunEnd == run.end)
 			tu.Assert(t, got.Script == run.script)
+		}
+	}
+}
+
+func TestSplitVertOrientation(t *testing.T) {
+	type run struct {
+		start, end int
+		sideways   bool
+	}
+	for _, test := range []struct {
+		text         []rune
+		expectedRuns []run
+	}{
+		{
+			[]rune("A regular latin sentence."),
+			[]run{
+				{0, 25, true},
+			},
+		},
+		{
+			[]rune("ごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみ"),
+			[]run{
+				{0, 44, false}, // Hiragana is upright
+			},
+		},
+		{
+			[]rune("ごさざ.しじす;ずせ"),
+			[]run{
+				{0, 10, false}, // Hiragana is upright
+			},
+		},
+		{
+			[]rune("もつ青いそら…"),
+			[]run{
+				{0, 2, false}, // Hiragana is upright
+				{2, 3, false},
+				{3, 7, false}, // Hiragana is upright
+			},
+		},
+	} {
+		var seg Segmenter
+		seg.input = []Input{{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionTTB}}
+
+		seg.splitByScript()
+		seg.input, seg.output = seg.output, seg.input
+		seg.output = seg.output[:0]
+		seg.splitByVertOrientation()
+		tu.Assert(t, len(seg.output) == len(test.expectedRuns))
+		for i, run := range test.expectedRuns {
+			got := seg.output[i]
+			tu.Assert(t, got.RunStart == run.start)
+			tu.Assert(t, got.RunEnd == run.end)
+			tu.Assert(t, got.Direction.HasVerticalOrientation())
+			tu.Assert(t, got.Direction.IsSideways() == run.sideways)
 		}
 	}
 }
@@ -379,6 +454,10 @@ func TestSplit(t *testing.T) {
 	latinFont := loadOpentypeFont(t, "../font/testdata/Roboto-Regular.ttf")
 	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")
 	fm := fixedFontmap{latinFont, arabicFont}
+
+	sideways, upright := di.DirectionTTB, di.DirectionTTB
+	sideways.SetSideways(true)
+	upright.SetSideways(false)
 
 	var seg Segmenter
 
@@ -390,22 +469,27 @@ func TestSplit(t *testing.T) {
 	}
 	for _, test := range []struct {
 		text         string
+		dir          di.Direction
 		expectedRuns []run
 	}{
 		{
 			"",
+			di.DirectionLTR,
 			[]run{{0, 0, di.DirectionLTR, language.Common, nil}},
 		},
 		{
 			"The quick brown fox jumps over the lazy dog.",
+			di.DirectionLTR,
 			[]run{{0, 44, di.DirectionLTR, language.Latin, latinFont}},
 		},
 		{
 			"الحب سماء لا تمط غير الأحلام",
+			di.DirectionLTR,
 			[]run{{0, 28, di.DirectionRTL, language.Arabic, arabicFont}},
 		},
 		{
 			"The quick سماء שלום لا fox تمط שלום غير the lazy dog.",
+			di.DirectionLTR,
 			[]run{
 				{0, 10, di.DirectionLTR, language.Latin, latinFont},
 				{10, 15, di.DirectionRTL, language.Arabic, arabicFont},
@@ -420,6 +504,7 @@ func TestSplit(t *testing.T) {
 		},
 		{
 			"الحب سماء brown привет fox تمط jumps привет over غير الأحلام",
+			di.DirectionLTR,
 			[]run{
 				{0, 10, di.DirectionRTL, language.Arabic, arabicFont},
 				{10, 16, di.DirectionLTR, language.Latin, latinFont},
@@ -432,11 +517,41 @@ func TestSplit(t *testing.T) {
 				{48, 60, di.DirectionRTL, language.Arabic, arabicFont},
 			},
 		},
+		// vertical text
+		{
+			"A french word",
+			di.DirectionTTB,
+			[]run{
+				{0, 13, sideways, language.Latin, latinFont},
+			},
+		},
+		{
+			"A french word",
+			upright,
+			[]run{
+				{0, 13, upright, language.Latin, latinFont},
+			},
+		},
+		{
+			"with upright \uff21\uff22\uff23",
+			di.DirectionTTB,
+			[]run{
+				{0, 13, sideways, language.Latin, latinFont},
+				{13, 16, upright, language.Latin, latinFont},
+			},
+		},
+		{
+			"ᠬᠦᠮᠦᠨ ᠪᠦ",
+			di.DirectionTTB,
+			[]run{
+				{0, 8, sideways, language.Mongolian, latinFont},
+			},
+		},
 	} {
 		inputs := seg.Split(Input{
 			Text:      []rune(test.text),
 			RunEnd:    len([]rune(test.text)),
-			Direction: di.DirectionLTR,
+			Direction: test.dir,
 
 			Size:     10,
 			Language: "fr",
@@ -459,7 +574,7 @@ func TestSplit(t *testing.T) {
 			Text:      []rune("DUMMY" + test.text + "DUMMY"),
 			RunStart:  5,
 			RunEnd:    5 + len([]rune(test.text)),
-			Direction: di.DirectionLTR,
+			Direction: test.dir,
 		}, fm)
 		tu.Assert(t, len(inputs) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {

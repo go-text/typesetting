@@ -524,9 +524,7 @@ func TestShapeVertical(t *testing.T) {
 		{di.DirectionBTT, true},
 	} {
 		input.Direction = test.dir
-		if test.sideways {
-			input.Direction.SetSideways()
-		}
+		input.Direction.SetSideways(test.sideways)
 		out := shaper.Shape(input)
 		tu.Assert(t, out.Direction.Progression() == test.dir.Progression())
 		tu.Assert(t, out.Direction.IsSideways() == test.sideways)
@@ -559,13 +557,13 @@ func ExampleShaper_Shape() {
 	input.Direction = di.DirectionTTB
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert.png"))
 
-	input.Direction.SetSideways()
+	input.Direction.SetSideways(true)
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
 
 	input.Direction = di.DirectionBTT
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rev.png"))
 
-	input.Direction.SetSideways()
+	input.Direction.SetSideways(true)
 	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rev_rotated.png"))
 
 	// Output:

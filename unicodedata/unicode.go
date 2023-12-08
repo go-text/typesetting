@@ -191,7 +191,9 @@ func LookupVerticalOrientation(s language.Script) ScriptVerticalOrientation {
 }
 
 // Orientation returns the prefered orientation
-// for the given rune (which should be in the script).
+// for the given rune.
+// If the rune does not belong to this script, the default orientation of this script
+// is returned (regardless of the actual script of the given rune).
 func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 	if sv.exceptions == nil || !unicode.Is(sv.exceptions, r) {
 		return sv.isMainSideways

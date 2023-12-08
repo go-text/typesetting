@@ -58,6 +58,15 @@ func (d Direction) Progression() Progression {
 	return TowardTopLeft
 }
 
+// SetProgression sets the progression, preserving the others bits.
+func (d *Direction) SetProgression(p Progression) {
+	if p == FromTopLeft {
+		*d &= ^progression
+	} else {
+		*d |= progression
+	}
+}
+
 // Axis indicates the axis of layout for a piece of text.
 type Axis bool
 
@@ -83,6 +92,10 @@ const (
 	TowardTopLeft Progression = true
 )
 
+// HasVerticalOrientation returns true if the direction has set up
+// an orientation for vertical text (typically using [SetSideways] or [SetUpright])
+func (d Direction) HasVerticalOrientation() bool { return d&verticalOrientationSet != 0 }
+
 // IsSideways returns true if the direction is vertical with a 'sideways'
 // orientation.
 //
@@ -91,10 +104,15 @@ const (
 // rotate the glyphs when drawing.
 func (d Direction) IsSideways() bool { return d.IsVertical() && d&verticalSideways != 0 }
 
-// SetSideways makes d vertical with sideways orientation, preserving only the
+// SetSideways makes d vertical with 'sideways' or 'upright' orientation, preserving only the
 // progression.
-func (d *Direction) SetSideways() {
-	*d |= axisVertical | verticalOrientationSet | verticalSideways
+func (d *Direction) SetSideways(sideways bool) {
+	*d |= axisVertical | verticalOrientationSet
+	if sideways {
+		*d |= verticalSideways
+	} else {
+		*d &= ^verticalSideways
+	}
 }
 
 // Harfbuzz returns the equivalent direction used by harfbuzz.

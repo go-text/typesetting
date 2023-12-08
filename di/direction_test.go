@@ -35,16 +35,31 @@ func TestDirection(t *testing.T) {
 	tu.Assert(t, DirectionTTB.Harfbuzz() == harfbuzz.TopToBottom)
 	tu.Assert(t, DirectionBTT.Harfbuzz() == harfbuzz.BottomToTop)
 
-	d := DirectionTTB
-	d.SetSideways()
-	tu.Assert(t, d.IsSideways())
-	tu.Assert(t, d.Axis() == Vertical)
-	tu.Assert(t, d.Progression() == FromTopLeft)
-	tu.Assert(t, d.Harfbuzz() == harfbuzz.TopToBottom)
-	d = DirectionBTT
-	d.SetSideways()
-	tu.Assert(t, d.IsSideways())
-	tu.Assert(t, d.Axis() == Vertical)
-	tu.Assert(t, d.Progression() == TowardTopLeft)
-	tu.Assert(t, d.Harfbuzz() == harfbuzz.BottomToTop)
+	tu.Assert(t, !DirectionLTR.HasVerticalOrientation())
+	tu.Assert(t, !DirectionRTL.HasVerticalOrientation())
+	tu.Assert(t, !DirectionTTB.HasVerticalOrientation())
+	tu.Assert(t, !DirectionBTT.HasVerticalOrientation())
+
+	for _, test := range []struct {
+		sideways    bool
+		progression Progression
+		hb          harfbuzz.Direction
+	}{
+		{true, FromTopLeft, harfbuzz.TopToBottom},
+		{true, TowardTopLeft, harfbuzz.BottomToTop},
+		{false, FromTopLeft, harfbuzz.TopToBottom},
+		{false, TowardTopLeft, harfbuzz.BottomToTop},
+	} {
+		d := axisVertical
+		d.SetProgression(test.progression)
+
+		tu.Assert(t, !d.HasVerticalOrientation())
+		d.SetSideways(test.sideways)
+
+		tu.Assert(t, d.HasVerticalOrientation())
+		tu.Assert(t, d.IsSideways() == test.sideways)
+		tu.Assert(t, d.Axis() == Vertical)
+		tu.Assert(t, d.Progression() == test.progression)
+		tu.Assert(t, d.Harfbuzz() == test.hb)
+	}
 }

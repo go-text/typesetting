@@ -248,5 +248,5 @@ func (out *Output) sideways() {
 	}
 
 	// adjust direction
-	out.Direction.SetSideways()
+	out.Direction.SetSideways(true)
 }
