@@ -186,13 +186,11 @@ type cff2CharstringHandler struct {
 
 func (cff2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
 
-// returns true if variations are activated
-func (met *cff2CharstringHandler) isVar() bool {
-	return len(met.coords) != 0 && len(met.vars.ItemVariationDatas) != 0
-}
-
 func (met *cff2CharstringHandler) setVSIndex(index int) error {
-	if !met.isVar() {
+	// if the font has variations, always build the scalar
+	// slice, even if no variations are activated by the user:
+	// the blend operator needs to know how many args to skip.
+	if len(met.vars.ItemVariationDatas) == 0 {
 		return nil
 	}
 
@@ -221,7 +219,8 @@ func (met *cff2CharstringHandler) blend(state *ps.Machine) error {
 		return errors.New("missing arguments for blend operator")
 	}
 
-	if met.isVar() {
+	// actually apply the deltas only if the user has activated variations
+	if len(met.coords) != 0 {
 		args := state.ArgStack.Vals[state.ArgStack.Top-n*(k+1) : state.ArgStack.Top]
 		// the first n values are the 'default' arguments
 		for i := int32(0); i < n; i++ {
