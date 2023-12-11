@@ -3,10 +3,6 @@ package shaping
 import (
 	"bytes"
 	"fmt"
-	"image"
-	"image/color"
-	"image/draw"
-	"image/png"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,7 +13,6 @@ import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api"
 	apiFont "github.com/go-text/typesetting/opentype/api/font"
 	"github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
@@ -557,6 +552,63 @@ func TestCFF2(t *testing.T) {
 	tu.Assert(t, out.Advance > 0)
 }
 
+func TestShapeVerticalScripts(t *testing.T) {
+	b, _ := td.Files.ReadFile("common/NotoSansMongolian-Regular.ttf")
+	monF, _ := font.ParseTTF(bytes.NewReader(b))
+	b, _ = td.Files.ReadFile("common/mplus-1p-regular.ttf")
+	japF, _ := font.ParseTTF(bytes.NewReader(b))
+
+	monT := []rune("ᠬᠦᠮᠦᠨ ᠪᠦᠷ ᠲᠥᠷᠥᠵᠦ ᠮᠡᠨᠳᠡᠯᠡᠬᠦ")
+	japT := []rune("もつ青いそら…")
+	mixedT := []rune("あHello World.あ")
+
+	var (
+		seg    Segmenter
+		shaper HarfbuzzShaper
+	)
+
+	{
+		runs := seg.Split(Input{
+			Text:      monT,
+			RunEnd:    len(monT),
+			Language:  language.NewLanguage("mn"),
+			Size:      fixed.I(12 * 16),
+			Direction: di.DirectionTTB,
+		}, fixedFontmap{monF})
+		tu.Assert(t, len(runs) == 1)
+
+		line := Line{shaper.Shape(runs[0])}
+		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian.png"))
+		tu.AssertNoErr(t, err)
+	}
+	{
+		runs := seg.Split(Input{
+			Text:      japT,
+			RunEnd:    len(japT),
+			Language:  language.NewLanguage("ja"),
+			Size:      fixed.I(12 * 16),
+			Direction: di.DirectionTTB,
+		}, fixedFontmap{japF})
+		tu.Assert(t, len(runs) == 3)
+		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1]), shaper.Shape(runs[2])}
+		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_japanese.png"))
+		tu.AssertNoErr(t, err)
+	}
+	{
+		runs := seg.Split(Input{
+			Text:      mixedT,
+			RunEnd:    len(mixedT),
+			Language:  language.NewLanguage("ja"),
+			Size:      fixed.I(12 * 16),
+			Direction: di.DirectionTTB,
+		}, fixedFontmap{japF})
+		tu.Assert(t, len(runs) == 3)
+		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1]), shaper.Shape(runs[2])}
+		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed.png"))
+		tu.AssertNoErr(t, err)
+	}
+}
+
 func ExampleShaper_Shape() {
 	textInput := []rune("abcdefghijklmnop")
 	withKerningFont := "harfbuzz_reference/in-house/fonts/e39391c77a6321c2ac7a2d644de0396470cd4bfe.ttf"
@@ -576,141 +628,19 @@ func ExampleShaper_Shape() {
 	}
 
 	horiz := shaper.Shape(input)
-	drawHGlyphs(horiz, filepath.Join(os.TempDir(), "shape_horiz.png"))
+	drawTextLine(Line{horiz}, filepath.Join(os.TempDir(), "shape_horiz.png"))
 
 	input.Direction = di.DirectionTTB
-	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert.png"))
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert.png"))
 
 	input.Direction.SetSideways(true)
-	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
 
 	input.Direction = di.DirectionBTT
-	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rev.png"))
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert_rev.png"))
 
 	input.Direction.SetSideways(true)
-	drawVGlyphs(shaper.Shape(input), filepath.Join(os.TempDir(), "shape_vert_rev_rotated.png"))
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert_rev_rotated.png"))
 
 	// Output:
-}
-
-func drawVLine(img *image.RGBA, start image.Point, height int, c color.RGBA) {
-	for y := start.Y; y <= start.Y+height; y++ {
-		img.SetRGBA(start.X, y, c)
-	}
-}
-
-func drawHLine(img *image.RGBA, start image.Point, width int, c color.RGBA) {
-	for x := start.X; x <= start.X+width; x++ {
-		img.SetRGBA(x, start.Y, c)
-	}
-}
-
-func drawRect(img *image.RGBA, min, max image.Point, c color.RGBA) {
-	for x := min.X; x <= max.X; x++ {
-		for y := min.Y; y <= max.Y; y++ {
-			img.SetRGBA(x, y, c)
-		}
-	}
-}
-
-func drawPoint(img *image.RGBA, pt image.Point, c color.RGBA) {
-	drawRect(img, pt.Add(image.Pt(-1, -1)), pt.Add(image.Pt(1, 1)), c)
-}
-
-// dot includes the offset
-func drawGlyph(img *image.RGBA, dot image.Point, outlines api.GlyphOutline, factor float32, c color.RGBA) {
-	for _, seg := range outlines.Segments {
-		for _, point := range seg.ArgsSlice() {
-			x, y := int(point.X*factor), -int(point.Y*factor)
-			drawPoint(img, dot.Add(image.Pt(x, y)), c)
-		}
-	}
-}
-
-var (
-	red   = color.RGBA{R: 0xFF, A: 0xFF}
-	green = color.RGBA{G: 0xFF, A: 0xFF}
-	black = color.RGBA{A: 0xFF}
-)
-
-// assume horizontal direction
-func drawHGlyphs(out Output, file string) {
-	baseline := out.GlyphBounds.Ascent.Round()
-	height := out.GlyphBounds.LineThickness().Round()
-	width := out.Advance.Round()
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	// white background
-	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
-
-	drawHLine(img, image.Pt(0, baseline), width, black)
-
-	// to be applied to font units
-	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
-	dotX := 0
-	for _, g := range out.Glyphs {
-		minX := dotX + g.XOffset.Round() + g.XBearing.Round()
-		maxX := minX + g.Width.Round()
-		minY := baseline + g.YOffset.Round() - g.YBearing.Round()
-		maxY := minY - g.Height.Round()
-
-		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
-
-		// draw the dot ...
-		dot := image.Pt(dotX, baseline)
-		drawPoint(img, dot, black)
-
-		// draw a sketch of the glyphs
-		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
-		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Ceil(), g.YOffset.Ceil())), glyphData, sizeFactor, black)
-
-		// ... and advance
-		dotX += g.XAdvance.Round()
-		drawVLine(img, image.Pt(dotX, 0), height, red)
-	}
-
-	f, _ := os.Create(file)
-	_ = png.Encode(f, img)
-}
-
-// assume vertical direction
-func drawVGlyphs(out Output, file string) {
-	baseline := -out.GlyphBounds.Descent.Round()
-	width := out.GlyphBounds.LineThickness().Round()
-	height := -out.Advance.Round()
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	// white background
-	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
-
-	drawVLine(img, image.Pt(baseline, 0), height, black)
-
-	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
-	dotY := 0
-	for _, g := range out.Glyphs {
-		dotY += -g.YAdvance.Round()
-
-		minX := baseline + g.XOffset.Round() + g.XBearing.Round()
-		maxX := minX + g.Width.Round()
-
-		minY := dotY + g.YOffset.Round() - g.YBearing.Round()
-		maxY := minY - g.Height.Round()
-
-		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
-
-		// draw the dot ...
-		dot := image.Pt(baseline, dotY)
-		drawPoint(img, dot, black)
-
-		// draw a sketch of the glyphs
-		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
-		if out.Direction.IsSideways() {
-			glyphData.Sideways(float32(-g.YAdvance.Round()) / sizeFactor)
-		}
-		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Ceil(), g.YOffset.Ceil())), glyphData, sizeFactor, black)
-
-		// ... and advance
-		drawHLine(img, image.Pt(0, dotY), width, red)
-	}
-
-	f, _ := os.Create(file)
-	_ = png.Encode(f, img)
 }
