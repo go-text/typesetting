@@ -558,8 +558,8 @@ func TestShapeVerticalScripts(t *testing.T) {
 	b, _ = td.Files.ReadFile("common/mplus-1p-regular.ttf")
 	japF, _ := font.ParseTTF(bytes.NewReader(b))
 
-	monT := []rune("ᠬᠦᠮᠦᠨ ᠪᠦᠷ ᠲᠥᠷᠥᠵᠦ ᠮᠡᠨᠳᠡᠯᠡᠬᠦ")
-	japT := []rune("もつ青いそら…")
+	monT := []rune("ᠬᠦᠮᠦᠨ ᠪᠦᠷ ᠲᠥᠷᠥᠵᠦ")
+	japT := []rune("青いそら…")
 	mixedT := []rune("あHello World.あ")
 
 	var (
@@ -589,8 +589,8 @@ func TestShapeVerticalScripts(t *testing.T) {
 			Size:      fixed.I(12 * 16),
 			Direction: di.DirectionTTB,
 		}, fixedFontmap{japF})
-		tu.Assert(t, len(runs) == 3)
-		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1]), shaper.Shape(runs[2])}
+		tu.Assert(t, len(runs) == 2)
+		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1])}
 		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_japanese.png"))
 		tu.AssertNoErr(t, err)
 	}
