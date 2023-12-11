@@ -136,3 +136,22 @@ func TestParseCFF2(t *testing.T) {
 		tu.AssertNoErr(t, err)
 	}
 }
+
+func TestIssue122(t *testing.T) {
+	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	ft, err := loader.NewLoader(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	table, err := ft.RawTable(loader.MustNewTag("CFF2"))
+	tu.AssertNoErr(t, err)
+
+	out, err := ParseCFF2(table)
+	tu.AssertNoErr(t, err)
+
+	// check that the correct number of segments are
+	// computed, even if the user has not activated variations
+	segments, _, _ := out.LoadGlyph(38, nil)
+	tu.Assert(t, len(segments) == 12)
+}
