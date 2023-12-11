@@ -281,8 +281,8 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 //
 // The order of calls to [AddFont] and [AddFace] determines relative priority
 // of manually loaded fonts. See [ResolveFace] for details about when this matters.
-func (fm *FontMap) AddFace(face font.Face, md meta.Description) {
-	fp := newFootprintFromFont(face.Font, md)
+func (fm *FontMap) AddFace(face font.Face, location Location, md meta.Description) {
+	fp := newFootprintFromFont(face.Font, location, md)
 	fm.cache(fp, face)
 
 	fm.appendFootprints(fp)

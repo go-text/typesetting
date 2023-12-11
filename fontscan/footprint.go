@@ -50,12 +50,12 @@ type footprint struct {
 	isUserProvided bool
 }
 
-func newFootprintFromFont(f font.Font, md meta.Description) (out footprint) {
+func newFootprintFromFont(f font.Font, location Location, md meta.Description) (out footprint) {
 	out.Runes, out.scripts, _ = newCoveragesFromCmap(f.Cmap, nil)
 	out.langs = newLangsetFromCoverage(out.Runes)
 	out.Family = meta.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
-	out.Location.File = fmt.Sprintf("%v", md)
+	out.Location = location
 	out.isUserProvided = true
 	return out
 }
