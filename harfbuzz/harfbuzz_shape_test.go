@@ -22,6 +22,14 @@ import (
 
 func TestShapeExpected(t *testing.T) {
 	tests := collectTests(t)
+
+	// add tests based on the C++ binary
+	tests = append(tests,
+		// check we properly scale the offset values
+		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=2000;U+0061,U+0062;[gid70=0@-544,-1700+0,-2343|gid71=1@-562,-1912+0,-2343]"),
+		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=3000;U+0061,U+0062;[gid70=0@-816,-2550+0,-3515|gid71=1@-842,-2868+0,-3515]"),
+	)
+
 	fmt.Printf("Running %d tests...\n", len(tests))
 
 	for _, testD := range tests {
