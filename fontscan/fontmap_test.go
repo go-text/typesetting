@@ -52,7 +52,7 @@ func ExampleFontMap_AddFace() {
 	md := meta.Metadata(ld)
 	f, _ := fontapi.NewFont(ld) // error handling omitted
 	fontMap := NewFontMap(log.Default())
-	fontMap.AddFace(&fontapi.Face{Font: f}, md)
+	fontMap.AddFace(&fontapi.Face{Font: f}, Location{File: fmt.Sprint(md)}, md)
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
