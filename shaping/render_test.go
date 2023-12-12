@@ -128,9 +128,12 @@ func drawTextLine(runs []Output, file string) error {
 func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
 	for _, g := range out.Glyphs {
-		minX := dot.X + g.XOffset.Round() + g.XBearing.Round()
+		// image has Y axis pointing down
+		dotWithOffset := dot.Add(image.Pt(g.XOffset.Round(), -g.YOffset.Round()))
+
+		minX := dotWithOffset.X + g.XBearing.Round()
 		maxX := minX + g.Width.Round()
-		minY := dot.Y + g.YOffset.Round() - g.YBearing.Round()
+		minY := dotWithOffset.Y - g.YBearing.Round()
 		maxY := minY - g.Height.Round()
 
 		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
@@ -140,7 +143,7 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 
 		// draw a sketch of the glyphs
 		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
-		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Ceil(), g.YOffset.Ceil())), glyphData, sizeFactor, black)
+		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Round(), g.YOffset.Round())), glyphData, sizeFactor, black)
 
 		dot.X += g.XAdvance.Round()
 		// draw the advance
@@ -154,12 +157,12 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 func drawVRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
 	for _, g := range out.Glyphs {
-		dot.Y += -g.YAdvance.Round()
+		// image has Y axis pointing down
+		dotWithOffset := dot.Add(image.Pt(g.XOffset.Round(), -g.YOffset.Round()))
 
-		minX := dot.X + g.XOffset.Round() + g.XBearing.Round()
+		minX := dotWithOffset.X + g.XBearing.Round()
 		maxX := minX + g.Width.Round()
-
-		minY := dot.Y + g.YOffset.Round() - g.YBearing.Round()
+		minY := dotWithOffset.Y - g.YBearing.Round()
 		maxY := minY - g.Height.Round()
 
 		drawRect(img, image.Pt(minX, minY), image.Pt(maxX, maxY), green)
@@ -172,7 +175,9 @@ func drawVRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 		if out.Direction.IsSideways() {
 			glyphData.Sideways(float32(-g.YAdvance.Round()) / sizeFactor)
 		}
-		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Ceil(), g.YOffset.Ceil())), glyphData, sizeFactor, black)
+		drawGlyph(img, dotWithOffset, glyphData, sizeFactor, black)
+
+		dot.Y += -g.YAdvance.Round()
 
 		// draw the advance
 		drawHLine(img, image.Pt(0, dot.Y), img.Bounds().Dx(), red)
