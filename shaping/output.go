@@ -35,6 +35,8 @@ type Glyph struct {
 
 	// Offsets to be applied to the dot before actually drawing
 	// the glyph.
+	// For vertical text, YOffset is typically used to position the glyph
+	// below the horizontal line at the dot
 	XOffset, YOffset fixed.Int26_6
 
 	// ClusterIndex is the lowest rune index of all runes shaped into
@@ -138,6 +140,17 @@ type Output struct {
 	Face font.Face
 }
 
+// ToFontUnit converts a metrics (typically found in [Glyph] fields)
+// to unscaled font units.
+func (o *Output) ToFontUnit(v fixed.Int26_6) float32 {
+	return float32(v) / float32(o.Size) * float32(o.Face.Upem())
+}
+
+// FromFontUnit converts an unscaled font value to the current [Size]
+func (o *Output) FromFontUnit(v float32) fixed.Int26_6 {
+	return fixed.Int26_6(v * float32(o.Size) / float32(o.Face.Upem()))
+}
+
 // RecomputeAdvance updates only the Advance field based on the current
 // contents of the Glyphs field. It is faster than RecalculateAll(),
 // and can be used to speed up line wrapping logic.
@@ -238,13 +251,14 @@ func (out *Output) sideways() {
 		out.Glyphs[i].Height = -g.Width
 		// compute the bearings
 		out.Glyphs[i].XBearing = g.YBearing + g.Height
-		out.Glyphs[i].YBearing = g.XAdvance - g.XBearing
+		out.Glyphs[i].YBearing = g.Width
 		// switch advance direction
 		out.Glyphs[i].XAdvance = 0
 		out.Glyphs[i].YAdvance = -g.XAdvance // YAdvance is negative
-		// apply a rotation around the dot
+		// apply a rotation around the dot, and position the glyph
+		// below the dot
 		out.Glyphs[i].XOffset = g.YOffset
-		out.Glyphs[i].YOffset = -g.XOffset
+		out.Glyphs[i].YOffset = -(g.XOffset + g.XBearing + g.Width)
 	}
 
 	// adjust direction

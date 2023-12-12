@@ -38,12 +38,12 @@ func drawPoint(img *image.RGBA, pt image.Point, c color.RGBA) {
 }
 
 // dot includes the offset
-func drawGlyph(img *image.RGBA, dot image.Point, outlines api.GlyphOutline, factor float32, c color.RGBA) {
+func drawGlyph(out *Output, img *image.RGBA, dot image.Point, outlines api.GlyphOutline, c color.RGBA) {
 	var current api.SegmentPoint
 	for _, seg := range outlines.Segments {
 		points := seg.ArgsSlice()
 		for _, point := range points {
-			x, y := int(point.X*factor), -int(point.Y*factor)
+			x, y := out.FromFontUnit(point.X).Round(), -out.FromFontUnit(point.Y).Round()
 			drawPoint(img, dot.Add(image.Pt(x, y)), c)
 		}
 
@@ -51,8 +51,8 @@ func drawGlyph(img *image.RGBA, dot image.Point, outlines api.GlyphOutline, fact
 
 		if seg.Op == api.SegmentOpLineTo {
 			for t := float32(0); t < 1; t += 0.2 {
-				middleX := int((t*current.X + (1-t)*last.X) * factor)
-				middleY := -int((t*current.Y + (1-t)*last.Y) * factor)
+				middleX := out.FromFontUnit(t*current.X + (1-t)*last.X).Round()
+				middleY := -out.FromFontUnit(t*current.Y + (1-t)*last.Y).Round()
 				drawPoint(img, dot.Add(image.Pt(middleX, middleY)), c)
 			}
 		}
@@ -72,7 +72,7 @@ func imageDims(line []Output) (width, height, baseline int) {
 	if firstRun.Direction.IsVertical() {
 		baseline = -firstRun.GlyphBounds.Descent.Round()
 		for _, run := range line {
-			if w := run.GlyphBounds.LineThickness().Round(); w > width {
+			if w := run.GlyphBounds.Ascent.Round() + baseline; w > width {
 				width = w
 			}
 			height += -run.Advance.Round()
@@ -80,7 +80,7 @@ func imageDims(line []Output) (width, height, baseline int) {
 	} else {
 		baseline = firstRun.GlyphBounds.Ascent.Round()
 		for _, run := range line {
-			if h := run.GlyphBounds.LineThickness().Round(); h > height {
+			if h := -run.GlyphBounds.Descent.Round() + baseline; h > height {
 				height = h
 			}
 			width += run.Advance.Round()
@@ -126,7 +126,6 @@ func drawTextLine(runs []Output, file string) error {
 
 // assume horizontal direction
 func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
-	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
 	for _, g := range out.Glyphs {
 		// image has Y axis pointing down
 		dotWithOffset := dot.Add(image.Pt(g.XOffset.Round(), -g.YOffset.Round()))
@@ -143,7 +142,7 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 
 		// draw a sketch of the glyphs
 		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
-		drawGlyph(img, dot.Add(image.Pt(g.XOffset.Round(), g.YOffset.Round())), glyphData, sizeFactor, black)
+		drawGlyph(&out, img, dot.Add(image.Pt(g.XOffset.Round(), g.YOffset.Round())), glyphData, black)
 
 		dot.X += g.XAdvance.Round()
 		// draw the advance
@@ -155,7 +154,6 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 
 // assume vertical direction
 func drawVRun(out Output, img *image.RGBA, dot image.Point) image.Point {
-	sizeFactor := float32(out.Size.Round()) / float32(out.Face.Upem())
 	for _, g := range out.Glyphs {
 		// image has Y axis pointing down
 		dotWithOffset := dot.Add(image.Pt(g.XOffset.Round(), -g.YOffset.Round()))
@@ -173,9 +171,9 @@ func drawVRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 		// draw a sketch of the glyphs
 		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
 		if out.Direction.IsSideways() {
-			glyphData.Sideways(float32(-g.YAdvance.Round()) / sizeFactor)
+			glyphData.Sideways(out.ToFontUnit(-g.YOffset))
 		}
-		drawGlyph(img, dotWithOffset, glyphData, sizeFactor, black)
+		drawGlyph(&out, img, dotWithOffset, glyphData, black)
 
 		dot.Y += -g.YAdvance.Round()
 

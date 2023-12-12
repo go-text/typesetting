@@ -228,3 +228,26 @@ func TestRotate(t *testing.T) {
 		tu.Assert(t, horiz.Advance == -vert.Advance)
 	}
 }
+
+func TestConvertUnit(t *testing.T) {
+	f := benchEnFace
+	tu.Assert(t, f.Upem() == 2048)
+
+	for _, test := range []struct {
+		size   fixed.Int26_6
+		font   float32
+		scaled fixed.Int26_6
+	}{
+		{fixed.I(100), 2048, fixed.I(100)},
+		{fixed.I(100), 1024, fixed.I(50)},
+		{fixed.I(100), 204.8, fixed.I(10)},
+		{fixed.I(30), 2048, fixed.I(30)},
+		{fixed.I(30), 1024, fixed.I(15)},
+		{fixed.I(12), 1024, fixed.I(6)},
+		{fixed.Int26_6(1<<6 + 20), 1024, fixed.Int26_6(1<<6+20) / 2},
+	} {
+		o := Output{Size: test.size, Face: f}
+		tu.Assert(t, o.FromFontUnit(test.font) == test.scaled)
+		tu.Assert(t, o.ToFontUnit(test.scaled) == test.font)
+	}
+}

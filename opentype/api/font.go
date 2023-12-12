@@ -110,9 +110,9 @@ type GlyphOutline struct {
 // Sideways udpates the coordinates of the outline by applying
 // a 90° clockwise rotation, and adding [yOffset] afterwards.
 //
-// If [yOffset] is zero, the resulting glyph will typically be displayed
-// under the baseline. To position the glyph over the baseline, pass
-// the YAdvance as [yOffset] (a positive value to lift the glyph up).
+// When used for vertical text, pass
+// -Glyph.YOffset, converted in font units, as [yOffset]
+// (a positive value to lift the glyph up).
 func (o GlyphOutline) Sideways(yOffset float32) {
 	for i := range o.Segments {
 		target := o.Segments[i].Args[:]
