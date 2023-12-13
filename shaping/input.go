@@ -246,7 +246,7 @@ func (seg *Segmenter) splitByScript() {
 			// we register paired delimiters
 
 			delimIndex := -1
-			if rScript == language.Common {
+			if rScript == language.Common || rScript == language.Inherited {
 				delimIndex = lookupDelimIndex(r)
 			}
 
@@ -274,7 +274,7 @@ func (seg *Segmenter) splitByScript() {
 			}
 
 			// check if we have a 'real' change of script, or not
-			if rScript == language.Common || rScript == currentInput.Script {
+			if rScript == language.Common || rScript == language.Inherited || rScript == currentInput.Script {
 				// no change
 				continue
 			} else if currentInput.Script == language.Common {
