@@ -320,6 +320,7 @@ func TestSplitScript(t *testing.T) {
 	commonSource := []rune("()[](][ gamma") // Common at first
 	commonSource2 := []rune("gamma (Γ) est une lettre")
 	commonSource3 := []rune("gamma (Γ [п] Γ) est une lettre") // nested delimiters
+	withInherited := []rune("لمّا")
 	type run struct {
 		start, end int
 		script     language.Script
@@ -357,6 +358,9 @@ func TestSplitScript(t *testing.T) {
 			{10, 11, language.Cyrillic},
 			{11, 14, language.Greek},
 			{14, 30, language.Latin},
+		}},
+		{withInherited, []run{
+			{0, 4, language.Arabic},
 		}},
 	} {
 		var seg Segmenter
@@ -471,4 +475,20 @@ func TestSplit(t *testing.T) {
 			tu.Assert(t, got.Face == run.face)
 		}
 	}
+}
+
+func TestIssue127(t *testing.T) {
+	// regression test for https://github.com/go-text/typesetting/issues/127
+	str := []rune("لمّا")
+	input := Input{
+		Text:      str,
+		RunStart:  0,
+		RunEnd:    len(str),
+		Direction: di.DirectionRTL,
+		Language:  language.NewLanguage("ar"),
+	}
+
+	inputs := (&Segmenter{}).Split(input, fixedFontmap{benchArFace})
+	// make sure Inherited script does no create a new run
+	tu.Assert(t, len(inputs) == 1)
 }
