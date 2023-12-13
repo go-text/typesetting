@@ -142,7 +142,7 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 
 		// draw a sketch of the glyphs
 		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
-		drawGlyph(&out, img, dot.Add(image.Pt(g.XOffset.Round(), g.YOffset.Round())), glyphData, black)
+		drawGlyph(&out, img, dotWithOffset, glyphData, black)
 
 		dot.X += g.XAdvance.Round()
 		// draw the advance
