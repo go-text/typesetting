@@ -107,7 +107,7 @@ type GlyphOutline struct {
 	Segments []Segment
 }
 
-// Sideways udpates the coordinates of the outline by applying
+// Sideways updates the coordinates of the outline by applying
 // a 90° clockwise rotation, and adding [yOffset] afterwards.
 //
 // When used for vertical text, pass
