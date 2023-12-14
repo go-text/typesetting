@@ -25,13 +25,30 @@ var (
 	_ CmapIter = (*cmap13Iter)(nil)
 )
 
-// cmapID groups the platform and encoding of a Cmap subtable.
-type cmapID struct {
-	platform tables.PlatformID
-	encoding tables.EncodingID
+// CmapIter is an interator over a Cmap.
+type CmapIter interface {
+	// Next returns true if the iterator still has data to yield
+	Next() bool
+
+	// Char must be called only when `Next` has returned `true`
+	Char() (rune, GID)
 }
 
-func (c cmapID) key() uint32 { return uint32(c.platform)<<16 | uint32(c.encoding) }
+// Cmap stores a compact representation of a cmap,
+// offering both on-demand rune lookup and full rune range.
+// It is conceptually equivalent to a map[rune]GID, but is often
+// implemented more efficiently.
+type Cmap interface {
+	// Iter returns a new iterator over the cmap
+	// Multiple iterators may be used over the same cmap
+	// The returned interface is garanted not to be nil.
+	Iter() CmapIter
+
+	// Lookup avoid the construction of a map and provides
+	// an alternative when only few runes need to be fetched.
+	// It returns a default value and false when no glyph is provided.
+	Lookup(rune) (GID, bool)
+}
 
 // ProcessCmap sanitize the given 'cmap' subtable, and select the best encoding
 // when several subtables are given.
@@ -134,6 +151,14 @@ func ProcessCmap(cmap tables.Cmap, os2FontPage tables.FontPage) (Cmap, UnicodeVa
 	}
 	return nil, nil, errors.New("unsupported cmap table")
 }
+
+// cmapID groups the platform and encoding of a Cmap subtable.
+type cmapID struct {
+	platform tables.PlatformID
+	encoding tables.EncodingID
+}
+
+func (c cmapID) key() uint32 { return uint32(c.platform)<<16 | uint32(c.encoding) }
 
 // findSubtable returns the cmap index for the given platform and encoding, or -1 if not found.
 func findSubtable(id cmapID, cmaps []cmapID) int {

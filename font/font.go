@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Unlicense OR BSD-3-Clause
 
+// Package font provides an high level API to access
+// Opentype font properties.
+// See packages [opentype] and [opentype/tables] for a lower level, more detailled API.
 package font
 
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/go-text/typesetting/font/cff"
 	ot "github.com/go-text/typesetting/font/opentype"
@@ -12,10 +16,119 @@ import (
 )
 
 type (
+	// GID is used to identify glyphs in a font.
+	// It is mostly internal to the font and should not be confused with
+	// Unicode code points.
+	// Note that, despite Opentype font files using uint16, we choose to use uint32,
+	// to allow room for future extension.
+	GID = ot.GID
+
+	// Tag represents an open-type name.
+	// These are technically uint32's, but are usually
+	// displayed in ASCII as they are all acronyms.
+	// See https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview
 	Tag = ot.Tag
-	// Variation coordinates
+
+	// VarCoord stores font variation coordinates,
+	// which are real numbers in [-1;1], stored as fixed 2.14 integer.
 	VarCoord = tables.Coord
+
+	// Resource is a combination of io.Reader, io.Seeker and io.ReaderAt.
+	// This interface is satisfied by most things that you'd want
+	// to parse, for example *os.File, io.SectionReader or *bytes.Reader.
+	Resource = ot.Resource
+
+	// GlyphExtents exposes extent values, measured in font units.
+	// Note that height is negative in coordinate systems that grow up.
+	GlyphExtents = ot.GlyphExtents
 )
+
+// ParseTTF parse an Opentype font file (.otf, .ttf).
+// See ParseTTC for support for collections.
+func ParseTTF(file Resource) (*Face, error) {
+	ld, err := ot.NewLoader(file)
+	if err != nil {
+		return nil, err
+	}
+	ft, err := NewFont(ld)
+	if err != nil {
+		return nil, err
+	}
+	return &Face{Font: ft}, nil
+}
+
+// ParseTTC parse an Opentype font file, with support for collections.
+// Single font files are supported, returning a slice with length 1.
+func ParseTTC(file Resource) ([]*Face, error) {
+	lds, err := ot.NewLoaders(file)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*Face, len(lds))
+	for i, ld := range lds {
+		ft, err := NewFont(ld)
+		if err != nil {
+			return nil, fmt.Errorf("reading font %d of collection: %s", i, err)
+		}
+		out[i] = &Face{Font: ft}
+	}
+
+	return out, nil
+}
+
+// EmptyGlyph represents an invisible glyph, which should not be drawn,
+// but whose advance and offsets should still be accounted for when rendering.
+const EmptyGlyph GID = math.MaxUint32
+
+// FontExtents exposes font-wide extent values, measured in font units.
+// Note that typically ascender is positive and descender negative in coordinate systems that grow up.
+type FontExtents struct {
+	Ascender  float32 // Typographic ascender.
+	Descender float32 // Typographic descender.
+	LineGap   float32 // Suggested line spacing gap.
+}
+
+// LineMetric identifies one metric about the font.
+type LineMetric uint8
+
+const (
+	// Distance above the baseline of the top of the underline.
+	// Since most fonts have underline positions beneath the baseline, this value is typically negative.
+	UnderlinePosition LineMetric = iota
+
+	// Suggested thickness to draw for the underline.
+	UnderlineThickness
+
+	// Distance above the baseline of the top of the strikethrough.
+	StrikethroughPosition
+
+	// Suggested thickness to draw for the strikethrough.
+	StrikethroughThickness
+
+	SuperscriptEmYSize
+	SuperscriptEmXOffset
+
+	SubscriptEmYSize
+	SubscriptEmYOffset
+	SubscriptEmXOffset
+
+	CapHeight
+	XHeight
+)
+
+// FontID represents an identifier of a font (possibly in a collection),
+// and an optional variable instance.
+type FontID struct {
+	File string // The filename or identifier of the font file.
+
+	// The index of the face in a collection. It is always 0 for
+	// single font files.
+	Index uint16
+
+	// For variable fonts, stores 1 + the instance index.
+	// It is set to 0 to ignore variations, or for non variable fonts.
+	Instance uint16
+}
 
 // Font represents one Opentype font file (or one sub font of a collection).
 // It is an educated view of the underlying font file, optimized for quick access

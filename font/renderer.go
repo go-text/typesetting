@@ -17,6 +17,79 @@ var (
 	errEmptyBitmapTable = errors.New("empty bitmap table")
 )
 
+type (
+	Segment      = ot.Segment
+	SegmentPoint = ot.SegmentPoint
+)
+
+// GlyphData describe how to graw a glyph.
+// It is either an GlyphOutline, GlyphSVG or GlyphBitmap.
+type GlyphData interface {
+	isGlyphData()
+}
+
+func (GlyphOutline) isGlyphData() {}
+func (GlyphSVG) isGlyphData()     {}
+func (GlyphBitmap) isGlyphData()  {}
+
+// GlyphOutline exposes the path to draw for
+// vector glyph.
+// Coordinates are expressed in fonts units.
+type GlyphOutline struct {
+	Segments []Segment
+}
+
+// GlyphSVG is an SVG description for the glyph,
+// as found in Opentype SVG table.
+type GlyphSVG struct {
+	// The SVG image content, decompressed if needed.
+	// The actual glyph description is an SVG element
+	// with id="glyph<GID>" (as in id="glyph12"),
+	// and several glyphs may share the same Source
+	Source []byte
+
+	// According to the specification, a fallback outline
+	// should be specified for each SVG glyphs
+	Outline GlyphOutline
+}
+
+type GlyphBitmap struct {
+	// The actual image content, whose interpretation depends
+	// on the Format field.
+	Data          []byte
+	Format        BitmapFormat
+	Width, Height int // number of columns and rows
+
+	// Outline may be specified to be drawn with bitmap
+	Outline *GlyphOutline
+}
+
+// BitmapFormat identifies the format on the glyph
+// raw data. Across the various font files, many formats
+// may be encountered : black and white bitmaps, PNG, TIFF, JPG.
+type BitmapFormat uint8
+
+const (
+	_ BitmapFormat = iota
+	// The [GlyphBitmap.Data] slice stores a black or white (0/1)
+	// bit image, whose length L satisfies
+	// L * 8 >= [GlyphBitmap.Width] * [GlyphBitmap.Height]
+	BlackAndWhite
+	// The [GlyphBitmap.Data] slice stores a PNG encoded image
+	PNG
+	// The [GlyphBitmap.Data] slice stores a JPG encoded image
+	JPG
+	// The [GlyphBitmap.Data] slice stores a TIFF encoded image
+	TIFF
+)
+
+// BitmapSize expose the size of bitmap glyphs.
+// One font may contain several sizes.
+type BitmapSize struct {
+	Height, Width uint16
+	XPpem, YPpem  uint16
+}
+
 // GlyphData returns the glyph content for [gid], or nil if
 // not found.
 func (f *Face) GlyphData(gid GID) GlyphData {

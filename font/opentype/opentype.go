@@ -8,10 +8,6 @@
 // For the parsing of the various tables, see package [tables].
 package opentype
 
-// Tag represents an open-type name.
-// These are technically uint32's, but are usually
-// displayed in ASCII as they are all acronyms.
-// See https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview
 type Tag uint32
 
 // NewTag returns the tag for <abcd>.
@@ -39,15 +35,8 @@ func (t Tag) String() string {
 	})
 }
 
-// GID is used to identify glyphs in a font.
-// It is mostly internal to the font and should not be confused with
-// Unicode code points.
-// Note that, despite Opentype font files using uint16, we choose to use uint32,
-// to allow room for future extension.
 type GID uint32
 
-// GlyphExtents exposes extent values, measured in font units.
-// Note that height is negative in coordinate systems that grow up.
 type GlyphExtents struct {
 	XBearing float32 // Left side of glyph from origin
 	YBearing float32 // Top side of glyph from origin
