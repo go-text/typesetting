@@ -88,9 +88,9 @@ func newFootprintFromLoader(ld *ot.Loader, isUserProvided bool, buffer scanBuffe
 
 	out.langs = newLangsetFromCoverage(out.Runes)
 
-	family, aspect, raw := font.Describe(ld, raw)
-	out.Family = font.NormalizeFamily(family)
-	out.Aspect = aspect
+	desc, raw := font.Describe(ld, raw)
+	out.Family = font.NormalizeFamily(desc.Family)
+	out.Aspect = desc.Aspect
 	out.isUserProvided = isUserProvided
 
 	buffer.tableBuffer = raw

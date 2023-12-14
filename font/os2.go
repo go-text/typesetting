@@ -13,6 +13,8 @@ type os2 struct {
 	version       uint16
 	xAvgCharWidth uint16
 
+	*os2Desc
+
 	useTypoMetrics bool // true if the field sTypoAscender, sTypoDescender and sTypoLineGap are valid.
 
 	ySubscriptXSize     float32
@@ -35,6 +37,7 @@ func newOs2(os tables.Os2) (os2, error) {
 	out := os2{
 		version:             os.Version,
 		xAvgCharWidth:       os.XAvgCharWidth,
+		os2Desc:             newOS2Desc(os),
 		ySubscriptXSize:     float32(os.YSubscriptXSize),
 		ySubscriptYSize:     float32(os.YSubscriptYSize),
 		ySubscriptXOffset:   float32(os.YSubscriptXOffset),

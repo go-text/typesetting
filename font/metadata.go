@@ -149,9 +149,9 @@ type Aspect struct {
 	Stretch Stretch
 }
 
-// Aspect returns the [Aspect] of the font,
+// aspect returns the [aspect] of the font,
 // defaulting to regular style.
-func (fd *fontDescriptor) Aspect() Aspect {
+func (fd *fontDescriptor) aspect() Aspect {
 	// use rawAspect and additionalStyle to infer the Aspect
 
 	out := fd.rawAspect() // load the aspect properties ...
@@ -208,7 +208,7 @@ func (as *Aspect) SetDefaults() {
 
 func (fd *fontDescriptor) additionalStyle() string {
 	var style string
-	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
+	if fd.os2 != nil && fd.os2.fsSelection&256 != 0 {
 		style = fd.names.Name(namePreferredSubfamily)
 		if style == "" {
 			style = fd.names.Name(nameFontSubfamily)
@@ -237,13 +237,13 @@ func (fd *fontDescriptor) rawAspect() Aspect {
 		// We have an OS/2 table; use the `fsSelection' field.  Bit 9
 		// indicates an oblique font face.  This flag has been
 		// introduced in version 1.5 of the OpenType specification.
-		if fd.os2.FsSelection&(1<<9) != 0 || fd.os2.FsSelection&1 != 0 {
+		if fd.os2.fsSelection&(1<<9) != 0 || fd.os2.fsSelection&1 != 0 {
 			style = StyleItalic
 		}
 
-		weight = Weight(fd.os2.USWeightClass)
+		weight = Weight(fd.os2.usWeightClass)
 
-		switch fd.os2.USWidthClass {
+		switch fd.os2.usWidthClass {
 		case 1:
 			stretch = StretchUltraCondensed
 		case 2:
@@ -302,17 +302,25 @@ const (
 	nameWWSSubfamily       tables.NameID = 22 //
 )
 
-type os2Table struct {
-	USWeightClass uint16
-	USWidthClass  uint16
-	FsSelection   uint16
+type os2Desc struct {
+	usWeightClass uint16
+	usWidthClass  uint16
+	fsSelection   uint16
+}
+
+func newOS2Desc(os tables.Os2) *os2Desc {
+	return &os2Desc{
+		usWeightClass: os.USWeightClass,
+		usWidthClass:  os.USWidthClass,
+		fsSelection:   os.FsSelection,
+	}
 }
 
 // fontDescriptor provides access to family and aspect
 type fontDescriptor struct {
 	// these tables are required both in Family
 	// and Aspect
-	os2   *os2Table // optional
+	os2   *os2Desc // optional
 	names tables.Name
 	head  tables.Head
 }
@@ -323,11 +331,7 @@ func newFontDescriptor(ld *ot.Loader, buffer []byte) (fontDescriptor, []byte) {
 	// load tables, all considered optional
 	buffer, _ = ld.RawTableTo(ot.MustNewTag("OS/2"), buffer)
 	if os2, _, err := tables.ParseOs2(buffer); err == nil {
-		desc.os2 = &os2Table{
-			USWeightClass: os2.USWeightClass,
-			USWidthClass:  os2.USWidthClass,
-			FsSelection:   os2.FsSelection,
-		}
+		desc.os2 = newOS2Desc(os2)
 	}
 
 	desc.head, buffer, _ = loadHeadTable(ld, buffer)
@@ -338,17 +342,10 @@ func newFontDescriptor(ld *ot.Loader, buffer []byte) (fontDescriptor, []byte) {
 	return desc, buffer
 }
 
-// Describe provides access to family and aspect.
-// 'buffer' may be provided to reduce allocations.
-func Describe(ld *ot.Loader, buffer []byte) (family string, aspect Aspect, _ []byte) {
-	desc, buffer := newFontDescriptor(ld, buffer)
-	return desc.Family(), desc.Aspect(), buffer
-}
-
-// Family returns the font family name.
-func (fd *fontDescriptor) Family() string {
+// family returns the font family name.
+func (fd *fontDescriptor) family() string {
 	var family string
-	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
+	if fd.os2 != nil && fd.os2.fsSelection&256 != 0 {
 		family = fd.names.Name(namePreferredFamily)
 		if family == "" {
 			family = fd.names.Name(nameFontFamily)
@@ -363,22 +360,6 @@ func (fd *fontDescriptor) Family() string {
 		}
 	}
 	return family
-}
-
-type fontMetrics struct {
-	metrics tables.Hmtx
-	post    tables.Post
-}
-
-func newFontMetrics(ld *ot.Loader) (out fontMetrics) {
-	raw, _ := ld.RawTable(ot.MustNewTag("post"))
-	out.post, _, _ = tables.ParsePost(raw)
-
-	raw, _ = ld.RawTable(ot.MustNewTag("maxp"))
-	maxp, _, _ := tables.ParseMaxp(raw)
-	_, out.metrics, _ = loadHmtx(ld, int(maxp.NumGlyphs))
-
-	return out
 }
 
 func max(a, b int) int {
@@ -397,26 +378,28 @@ func abs(x int) int {
 
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
-func (fd *fontMetrics) isMonospace() bool {
+// IsMonospace returns 'true' if the font is monospace,
+// by inspecting the horizontal advances of its glyphs.
+func (fd *Font) IsMonospace() bool {
 	// code adapted from fontconfig
 
 	// try the fast shortcuts
-	if fd.post.IsFixedPitch != 0 {
+	if fd.post.isFixedPitch {
 		return true
 	}
 
-	if fd.metrics.IsEmpty() {
+	if fd.hmtx.IsEmpty() {
 		// we can't be sure, so be conservative
 		return false
 	}
 
-	if len(fd.metrics.Metrics) == 1 {
+	if len(fd.hmtx.Metrics) == 1 {
 		return true
 	}
 
 	// directly read the advances in the 'hmtx' table
 	var firstAdvance int
-	for gid, metric := range fd.metrics.Metrics {
+	for gid, metric := range fd.hmtx.Metrics {
 		if gid == 0 { // ignore the 'unset' glyph, which may be different
 			continue
 		}
@@ -443,20 +426,28 @@ func (fd *fontMetrics) isMonospace() bool {
 
 // Description provides font metadata.
 type Description struct {
-	Family      string
-	Aspect      Aspect
-	IsMonospace bool
+	Family string
+	Aspect Aspect
 }
 
-// Metadata queries the family and the aspect properties of the
-// font loaded under [font]
-func Metadata(font *ot.Loader) Description {
-	var out Description
+// Describe provides access to family and aspect.
+//
+// 'buffer' may be provided to reduce allocations.
+//
+// It provides an efficient API, loading only the mininum
+// tables required. See also the method [Font.Describe]
+// if you already have loaded the font.
+func Describe(ld *ot.Loader, buffer []byte) (Description, []byte) {
+	desc, buffer := newFontDescriptor(ld, buffer)
+	return Description{desc.family(), desc.aspect()}, buffer
+}
 
-	out.Family, out.Aspect, _ = Describe(font, nil)
-
-	metrics := newFontMetrics(font)
-	out.IsMonospace = metrics.isMonospace()
-
-	return out
+// Describe provides access to family and aspect.
+//
+// See also the package level function [Describe],
+// which is more efficient if you only need the font
+// metadata.
+func (ft *Font) Describe() Description {
+	desc := fontDescriptor{ft.os2.os2Desc, ft.names, ft.head}
+	return Description{desc.family(), desc.aspect()}
 }

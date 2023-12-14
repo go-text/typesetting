@@ -40,13 +40,18 @@ func TestMetadata(t *testing.T) {
 		ld, err := ot.NewLoader(bytes.NewReader(f))
 		tu.AssertNoErr(t, err)
 
-		got := Metadata(ld)
+		got, _ := Describe(ld, nil)
 		tu.AssertC(t, got.Aspect == test.aspect, fmt.Sprint(got.Aspect))
 		tu.AssertC(t, got.Family == test.family, got.Family)
+
+		// check the two APIs are consistent
+		ft, err := NewFont(ld)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, ft.Describe() == got)
 	}
 }
 
-func Test_isMonospace(t *testing.T) {
+func Test_IsMonospace(t *testing.T) {
 	for _, file := range tu.Filenames(t, "common") {
 		f, err := td.Files.ReadFile(file)
 		tu.AssertNoErr(t, err)
@@ -54,11 +59,12 @@ func Test_isMonospace(t *testing.T) {
 		ld, err := ot.NewLoader(bytes.NewReader(f))
 		tu.AssertNoErr(t, err)
 
-		fd := newFontMetrics(ld)
-		tu.AssertC(t, td.Monospace[file] == fd.isMonospace(), file)
+		fd, err := NewFont(ld)
+		tu.AssertNoErr(t, err)
+		tu.AssertC(t, td.Monospace[file] == fd.IsMonospace(), file)
 	}
 
-	tu.Assert(t, !(&fontMetrics{}).isMonospace()) // check it does not crash
+	tu.Assert(t, !(&Font{}).IsMonospace()) // check it does not crash
 }
 
 func TestAspect_inferFromStyle(t *testing.T) {

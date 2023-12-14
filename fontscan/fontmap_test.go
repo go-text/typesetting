@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-text/typesetting/font"
-	fontapi "github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/shaping"
 	tu "github.com/go-text/typesetting/testutils"
@@ -48,10 +47,10 @@ func ExampleFontMap_AddFace() {
 
 	// Load it and its metadata.
 	ld, _ := ot.NewLoader(fontFile) // error handling omitted
-	md := font.Metadata(ld)
-	f, _ := fontapi.NewFont(ld) // error handling omitted
+	f, _ := font.NewFont(ld)        // error handling omitted
+	md := f.Describe()
 	fontMap := NewFontMap(log.Default())
-	fontMap.AddFace(&fontapi.Face{Font: f}, Location{File: fmt.Sprint(md)}, md)
+	fontMap.AddFace(&font.Face{Font: f}, Location{File: fmt.Sprint(md)}, md)
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect

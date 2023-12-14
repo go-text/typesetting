@@ -50,7 +50,9 @@ type Font struct {
 	bitmap bitmap
 	sbix   sbix
 
-	os2 os2
+	os2   os2
+	names tables.Name
+	head  tables.Head
 
 	// Advanced layout tables.
 
@@ -64,8 +66,6 @@ type Font struct {
 	Kerx Kernx
 	GSUB GSUB // An absent table has a nil slice of lookups
 	GPOS GPOS // An absent table has a nil slice of lookups
-
-	head tables.Head
 
 	upem uint16 // cached value
 }
@@ -182,6 +182,9 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	if err == nil {
 		out.vorg = &vorg
 	}
+
+	raw, _ = ld.RawTable(ot.MustNewTag("name"))
+	out.names, _, _ = tables.ParseName(raw)
 
 	// layout tables
 	out.GDEF, _ = loadGDEF(ld, len(out.fvar))

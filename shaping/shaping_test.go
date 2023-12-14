@@ -16,7 +16,6 @@ import (
 	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
-	apiFont "github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/language"
 	tu "github.com/go-text/typesetting/testutils"
@@ -330,7 +329,7 @@ func BenchmarkFontMetadata(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				ld, _ := ot.NewLoader(reader)
-				_ = font.Metadata(ld)
+				_, _ = font.Describe(ld, nil)
 			}
 		})
 	}
@@ -374,8 +373,8 @@ func BenchmarkFontMetadataAndParse(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				ld, _ := ot.NewLoader(reader)
-				_ = font.Metadata(ld)
-				_, _ = apiFont.NewFont(ld)
+				ft, _ := font.NewFont(ld)
+				_ = ft.Describe()
 			}
 		})
 	}

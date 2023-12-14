@@ -308,6 +308,9 @@ func (fm *FontMap) FontLocation(ft *font.Font) Location {
 // FontMetadata returns a description of the provided font. If the font was not
 // previously returned from this FontMap by a call to ResolveFace, the zero
 // value will be returned instead.
+//
+// Note that, for fonts added with [AddFace], it is the user provided description
+// that is returned, not the one returned by [Font.Describe]
 func (fm *FontMap) FontMetadata(ft *font.Font) (family string, aspect font.Aspect) {
 	item := fm.metaCache[ft]
 	return item.Family, item.Aspect

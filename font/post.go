@@ -282,12 +282,15 @@ type post struct {
 	underlineThickness float32
 
 	names postGlyphNames
+
+	isFixedPitch bool
 }
 
 func newPost(pst tables.Post) (post, error) {
 	out := post{
 		underlinePosition:  float32(pst.UnderlinePosition),
 		underlineThickness: float32(pst.UnderlineThickness),
+		isFixedPitch:       pst.IsFixedPitch != 0,
 	}
 	switch names := pst.Names.(type) {
 	case tables.PostNames10:
