@@ -70,21 +70,31 @@ var (
 func imageDims(line []Output) (width, height, baseline int) {
 	firstRun := line[0]
 	if firstRun.Direction.IsVertical() {
-		baseline = -firstRun.GlyphBounds.Descent.Round()
+		ascent, descent := 0, 0
 		for _, run := range line {
-			if w := run.GlyphBounds.Ascent.Round() + baseline; w > width {
-				width = w
+			if a := run.GlyphBounds.Ascent.Round(); a > ascent {
+				ascent = a
+			}
+			if d := run.GlyphBounds.Descent.Round(); d < descent {
+				descent = d
 			}
 			height += -run.Advance.Round()
 		}
+		baseline = -descent
+		width = ascent - descent
 	} else {
-		baseline = firstRun.GlyphBounds.Ascent.Round()
+		ascent, descent := 0, 0
 		for _, run := range line {
-			if h := -run.GlyphBounds.Descent.Round() + baseline; h > height {
-				height = h
+			if a := run.GlyphBounds.Ascent.Round(); a > ascent {
+				ascent = a
+			}
+			if d := run.GlyphBounds.Descent.Round(); d < descent {
+				descent = d
 			}
 			width += run.Advance.Round()
 		}
+		baseline = ascent
+		height = ascent - descent
 	}
 	return
 }
