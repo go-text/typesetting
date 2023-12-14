@@ -560,7 +560,7 @@ func TestShapeVerticalScripts(t *testing.T) {
 
 	monT := []rune("ᠬᠦᠮᠦᠨ ᠪᠦᠷ ᠲᠥᠷᠥᠵᠦ")
 	japT := []rune("青いそら…")
-	mixedT := []rune("あHello World.あ")
+	mixedT := []rune("あHelloあUne phrase")
 
 	var (
 		seg    Segmenter
@@ -579,6 +579,10 @@ func TestShapeVerticalScripts(t *testing.T) {
 
 		line := Line{shaper.Shape(runs[0])}
 		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian.png"))
+		tu.AssertNoErr(t, err)
+
+		line.AdjustBaseline()
+		err = drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian_adjusted.png"))
 		tu.AssertNoErr(t, err)
 	}
 	{
@@ -602,9 +606,13 @@ func TestShapeVerticalScripts(t *testing.T) {
 			Size:      fixed.I(12 * 16),
 			Direction: di.DirectionTTB,
 		}, fixedFontmap{japF})
-		tu.Assert(t, len(runs) == 3)
-		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1]), shaper.Shape(runs[2])}
+		tu.Assert(t, len(runs) == 4)
+		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1]), shaper.Shape(runs[2]), shaper.Shape(runs[3])}
 		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed.png"))
+		tu.AssertNoErr(t, err)
+
+		line.AdjustBaseline()
+		err = drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed_adjusted.png"))
 		tu.AssertNoErr(t, err)
 	}
 }

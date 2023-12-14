@@ -125,6 +125,8 @@ type Output struct {
 	// GlyphBounds describes a tight bounding box on the specific glyphs contained
 	// within this output. The dimensions may not be sufficient to contain all
 	// glyphs within the chosen font.
+	//
+	// Its [Gap] field is always zero.
 	GlyphBounds Bounds
 
 	// Direction is the direction used to shape the text,
@@ -263,4 +265,66 @@ func (out *Output) sideways() {
 
 	// adjust direction
 	out.Direction.SetSideways(true)
+}
+
+// properly update [GlyphBounds]
+func (out *Output) moveCrossAxis(d fixed.Int26_6) {
+	if out.Direction.IsVertical() {
+		for i := range out.Glyphs {
+			out.Glyphs[i].XOffset += d
+		}
+	} else {
+		for i := range out.Glyphs {
+			out.Glyphs[i].YOffset += d
+		}
+	}
+	out.GlyphBounds.Ascent += d
+	out.GlyphBounds.Descent += d
+}
+
+// AdjustBaseline aligns runs with different baselines.
+//
+// For vertical text, it centralizes 'sideways' runs, so
+// that text with mixed 'upright' and
+// 'sideways' orientation is better aligned.
+//
+// This is currently a no-op for horizontal text.
+//
+// Note that this method only update cross-axis metrics,
+// so that the advance is preserved. As such, it is valid
+// to call this method after line wrapping, for instance.
+func (l Line) AdjustBaseline() {
+	if len(l) == 0 {
+		return
+	}
+	firstRun := l[0]
+
+	if firstRun.Direction.Axis() == di.Horizontal {
+		return
+	}
+
+	// Centralize sideways runs, to better align
+	// with upright ones, which are usually visually centered.
+	// We want to shift all the runs by the same amount, to
+	// avoid breaking alignment of similar runs (consider "A あ is a pretty char.")
+	var sidewaysBounds Bounds
+	for _, run := range l {
+		if !run.Direction.IsSideways() {
+			continue
+		}
+		if a := run.GlyphBounds.Ascent; a > sidewaysBounds.Ascent {
+			sidewaysBounds.Ascent = a
+		}
+		if d := run.GlyphBounds.Descent; d < sidewaysBounds.Descent {
+			sidewaysBounds.Descent = d
+		}
+	}
+	// Place the middle of sideways run at the baseline (the zero)
+	middle := sidewaysBounds.Descent + sidewaysBounds.LineThickness()/2
+	for i := range l {
+		if !l[i].Direction.IsSideways() {
+			continue
+		}
+		l[i].moveCrossAxis(-middle)
+	}
 }

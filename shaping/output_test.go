@@ -251,3 +251,57 @@ func TestConvertUnit(t *testing.T) {
 		tu.Assert(t, o.ToFontUnit(test.scaled) == test.font)
 	}
 }
+
+func TestLine_AdjustBaseline(t *testing.T) {
+	var sideways di.Direction
+	sideways.SetSideways(true)
+
+	glyph := func(offset, width int) Glyph { return Glyph{Width: fixed.I(width), XOffset: fixed.I(offset)} }
+	tests := []struct {
+		l        Line
+		ascents  []int
+		descents []int
+	}{
+		{Line{}, []int{}, []int{}},                               // no-op
+		{Line{{Direction: di.DirectionLTR}}, []int{0}, []int{0}}, // no-op
+		{Line{
+			{
+				Direction:   di.DirectionTTB,
+				Glyphs:      []Glyph{glyph(0, 20), glyph(0, 30)},
+				GlyphBounds: Bounds{Ascent: fixed.I(30), Descent: fixed.I(0)},
+			},
+			{
+				Direction:   sideways,
+				Glyphs:      []Glyph{glyph(-10, 20), glyph(-10, 40)},
+				GlyphBounds: Bounds{Ascent: fixed.I(40), Descent: fixed.I(-10)},
+			},
+		}, []int{30, 25}, []int{0, -25}}, // no-op
+		{Line{
+			{
+				Direction:   sideways,
+				Glyphs:      []Glyph{glyph(-10, 20), glyph(-10, 20)},
+				GlyphBounds: Bounds{Ascent: fixed.I(20), Descent: fixed.I(-10)},
+			},
+			{
+				Direction:   di.DirectionTTB,
+				Glyphs:      []Glyph{glyph(0, 20), glyph(0, 30)},
+				GlyphBounds: Bounds{Ascent: fixed.I(30), Descent: fixed.I(0)},
+			},
+			{
+				Direction:   sideways,
+				Glyphs:      []Glyph{glyph(0, 20), glyph(0, 40)},
+				GlyphBounds: Bounds{Ascent: fixed.I(40), Descent: fixed.I(0)},
+			},
+		}, []int{5, 30, 25}, []int{-25, 0, -15}}, // no-op
+
+	}
+	for _, tt := range tests {
+		tt.l.AdjustBaseline()
+		for i, exp := range tt.ascents {
+			tu.Assert(t, tt.l[i].GlyphBounds.Ascent == fixed.I(exp))
+		}
+		for i, exp := range tt.descents {
+			tu.Assert(t, tt.l[i].GlyphBounds.Descent == fixed.I(exp))
+		}
+	}
+}
