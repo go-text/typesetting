@@ -8,10 +8,9 @@ import (
 
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
+	oFont "github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api"
-	oFont "github.com/go-text/typesetting/opentype/api/font"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func Test_ignoreFaceChange(t *testing.T) {
@@ -37,23 +36,23 @@ func Test_ignoreFaceChange(t *testing.T) {
 }
 
 // support any rune
-type universalCmap struct{ api.Cmap }
+type universalCmap struct{ font.Cmap }
 
 func (universalCmap) Lookup(rune) (font.GID, bool) { return 0, true }
 
-type upperCmap struct{ api.Cmap }
+type upperCmap struct{ font.Cmap }
 
 func (upperCmap) Lookup(r rune) (font.GID, bool) {
 	return 0, unicode.IsUpper(r)
 }
 
-type lowerCmap struct{ api.Cmap }
+type lowerCmap struct{ font.Cmap }
 
 func (lowerCmap) Lookup(r rune) (font.GID, bool) {
 	return 0, unicode.IsLower(r)
 }
 
-func loadOpentypeFont(t testing.TB, filename string) font.Face {
+func loadOpentypeFont(t testing.TB, filename string) *font.Face {
 	file, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("opening font file: %s", err)
@@ -68,7 +67,7 @@ func loadOpentypeFont(t testing.TB, filename string) font.Face {
 func TestSplitByFontGlyphs(t *testing.T) {
 	type args struct {
 		input          Input
-		availableFaces []font.Face
+		availableFaces []*font.Face
 	}
 
 	universalFont := &oFont.Face{Font: &oFont.Font{Cmap: universalCmap{}}}
@@ -91,7 +90,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("a simple text"),
 					RunStart: 0, RunEnd: len("a simple text"),
 				},
-				availableFaces: []font.Face{universalFont},
+				availableFaces: []*font.Face{universalFont},
 			},
 			[]Input{
 				{
@@ -108,7 +107,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("aaaAAA"),
 					RunStart: 0, RunEnd: len("aaaAAA"),
 				},
-				availableFaces: []font.Face{lowerFont, upperFont},
+				availableFaces: []*font.Face{lowerFont, upperFont},
 			},
 			[]Input{
 				{
@@ -130,7 +129,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("aaa AAA "),
 					RunStart: 0, RunEnd: len("aaa AAA "),
 				},
-				availableFaces: []font.Face{lowerFont, upperFont},
+				availableFaces: []*font.Face{lowerFont, upperFont},
 			},
 			[]Input{
 				{
@@ -152,7 +151,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: len("__"),
 				},
-				availableFaces: []font.Face{lowerFont, upperFont},
+				availableFaces: []*font.Face{lowerFont, upperFont},
 			},
 			[]Input{
 				{
@@ -169,7 +168,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("__"),
 					RunStart: 0, RunEnd: len("__"),
 				},
-				availableFaces: []font.Face{upperFont, lowerFont},
+				availableFaces: []*font.Face{upperFont, lowerFont},
 			},
 			[]Input{
 				{
@@ -186,7 +185,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     englishArabic,
 					RunStart: 0, RunEnd: len(englishArabic),
 				},
-				availableFaces: []font.Face{latinFont, arabicFont},
+				availableFaces: []*font.Face{latinFont, arabicFont},
 			},
 			[]Input{
 				{
@@ -218,7 +217,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune(" غير الأحلام"),
 					RunStart: 0, RunEnd: len([]rune(" غير الأحلام")),
 				},
-				availableFaces: []font.Face{latinFont, arabicFont},
+				availableFaces: []*font.Face{latinFont, arabicFont},
 			},
 			[]Input{
 				{
@@ -390,7 +389,7 @@ func TestSplit(t *testing.T) {
 		start, end int
 		dir        di.Direction
 		script     language.Script
-		face       font.Face
+		face       *font.Face
 	}
 	for _, test := range []struct {
 		text         string

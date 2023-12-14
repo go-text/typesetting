@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	meta "github.com/go-text/typesetting/opentype/api/metadata"
+	"github.com/go-text/typesetting/font"
 )
 
 // defines the routines to serialize a font set to
@@ -53,7 +53,7 @@ func deserializeString(s *string, data []byte) (int, error) {
 const aspectSize = 1 + 4 + 4
 
 // serializeTo serialize the Aspect in binary format
-func serializeAspect(as meta.Aspect) []byte {
+func serializeAspect(as font.Aspect) []byte {
 	var buffer [aspectSize]byte
 	buffer[0] = byte(as.Style)
 	serializeFloat(float32(as.Weight), buffer[1:])
@@ -63,13 +63,13 @@ func serializeAspect(as meta.Aspect) []byte {
 
 // deserializeFrom reads the binary format produced by serializeTo
 // it returns the number of bytes read from `data`
-func deserializeAspectFrom(data []byte, as *meta.Aspect) (int, error) {
+func deserializeAspectFrom(data []byte, as *font.Aspect) (int, error) {
 	if len(data) < aspectSize {
 		return 0, errors.New("invalid Aspect (EOF)")
 	}
-	as.Style = meta.Style(data[0])
-	as.Weight = meta.Weight(deserializeFloat(data[1:]))
-	as.Stretch = meta.Stretch(deserializeFloat(data[5:]))
+	as.Style = font.Style(data[0])
+	as.Weight = font.Weight(deserializeFloat(data[1:]))
+	as.Stretch = font.Stretch(deserializeFloat(data[5:]))
 	return aspectSize, nil
 }
 

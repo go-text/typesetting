@@ -5,14 +5,12 @@ import (
 	"os"
 
 	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/opentype/api"
-	meta "github.com/go-text/typesetting/opentype/api/metadata"
-	"github.com/go-text/typesetting/opentype/loader"
-	"github.com/go-text/typesetting/opentype/tables"
+	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
 // Location identifies where a font.Face is stored.
-type Location = api.FontID
+type Location = font.FontID
 
 // footprint is a condensed summary of the main information
 // about a font, serving as a lightweight surrogate
@@ -38,7 +36,7 @@ type footprint struct {
 
 	// Aspect precises the visual characteristics
 	// of the font among a family, like "Bold Italic"
-	Aspect meta.Aspect
+	Aspect font.Aspect
 
 	// isUserProvided is set to true for fonts add manually to
 	// a FontMap
@@ -50,22 +48,22 @@ type footprint struct {
 	isUserProvided bool
 }
 
-func newFootprintFromFont(f font.Font, location Location, md meta.Description) (out footprint) {
+func newFootprintFromFont(f *font.Font, location Location, md font.Description) (out footprint) {
 	out.Runes, out.scripts, _ = newCoveragesFromCmap(f.Cmap, nil)
 	out.langs = newLangsetFromCoverage(out.Runes)
-	out.Family = meta.NormalizeFamily(md.Family)
+	out.Family = font.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
 	out.Location = location
 	out.isUserProvided = true
 	return out
 }
 
-func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanBuffer) (out footprint, _ scanBuffer, err error) {
+func newFootprintFromLoader(ld *ot.Loader, isUserProvided bool, buffer scanBuffer) (out footprint, _ scanBuffer, err error) {
 	raw := buffer.tableBuffer
 
 	// since raw is shared, special car must be taken in the parsing order
 
-	raw, _ = ld.RawTableTo(loader.MustNewTag("OS/2"), raw)
+	raw, _ = ld.RawTableTo(ot.MustNewTag("OS/2"), raw)
 	fp := tables.FPNone
 	if os2, _, err := tables.ParseOs2(raw); err != nil {
 		fp = os2.FontPage()
@@ -73,7 +71,7 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 
 	// we can use the buffer since ProcessCmap do not keep any reference on
 	// the input slice
-	raw, err = ld.RawTableTo(loader.MustNewTag("cmap"), raw)
+	raw, err = ld.RawTableTo(ot.MustNewTag("cmap"), raw)
 	if err != nil {
 		return footprint{}, buffer, err
 	}
@@ -81,7 +79,7 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 	if err != nil {
 		return footprint{}, buffer, err
 	}
-	cmap, _, err := api.ProcessCmap(tb, fp)
+	cmap, _, err := font.ProcessCmap(tb, fp)
 	if err != nil {
 		return footprint{}, buffer, err
 	}
@@ -90,8 +88,8 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 
 	out.langs = newLangsetFromCoverage(out.Runes)
 
-	family, aspect, raw := meta.Describe(ld, raw)
-	out.Family = meta.NormalizeFamily(family)
+	family, aspect, raw := font.Describe(ld, raw)
+	out.Family = font.NormalizeFamily(family)
 	out.Aspect = aspect
 	out.isUserProvided = isUserProvided
 
@@ -101,7 +99,7 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 }
 
 // loadFromDisk assume the footprint location refers to the file system
-func (fp *footprint) loadFromDisk() (font.Face, error) {
+func (fp *footprint) loadFromDisk() (*font.Face, error) {
 	location := fp.Location
 
 	file, err := os.Open(location.File)

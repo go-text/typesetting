@@ -5,9 +5,9 @@ import (
 	"sort"
 	"testing"
 
+	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/loader"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestAssertSorted(t *testing.T) {
@@ -54,7 +54,7 @@ func TestNewLangset(t *testing.T) {
 	file2, err := os.Open("../font/testdata/UbuntuMono-R.ttf")
 	tu.AssertNoErr(t, err)
 	defer file2.Close()
-	ld, err := loader.NewLoader(file2)
+	ld, err := ot.NewLoader(file2)
 	tu.AssertNoErr(t, err)
 	fp, _, err := newFootprintFromLoader(ld, true, scanBuffer{})
 	tu.AssertNoErr(t, err)

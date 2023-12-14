@@ -16,11 +16,10 @@ import (
 	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
+	apiFont "github.com/go-text/typesetting/font"
+	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/language"
-	apiFont "github.com/go-text/typesetting/opentype/api/font"
-	"github.com/go-text/typesetting/opentype/api/metadata"
-	"github.com/go-text/typesetting/opentype/loader"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
@@ -330,8 +329,8 @@ func BenchmarkFontMetadata(b *testing.B) {
 			reader := bytes.NewReader(bc.fontData)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ld, _ := loader.NewLoader(reader)
-				_ = metadata.Metadata(ld)
+				ld, _ := ot.NewLoader(reader)
+				_ = font.Metadata(ld)
 			}
 		})
 	}
@@ -374,8 +373,8 @@ func BenchmarkFontMetadataAndParse(b *testing.B) {
 			reader := bytes.NewReader(bc.fontData)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ld, _ := loader.NewLoader(reader)
-				_ = metadata.Metadata(ld)
+				ld, _ := ot.NewLoader(reader)
+				_ = font.Metadata(ld)
 				_, _ = apiFont.NewFont(ld)
 			}
 		})
@@ -491,7 +490,7 @@ func TestFeatures(t *testing.T) {
 	tu.Assert(t, len(out.Glyphs) == 3)
 
 	// now with 'frac' enabled
-	input.FontFeatures = []FontFeature{{Tag: loader.MustNewTag("frac"), Value: 1}}
+	input.FontFeatures = []FontFeature{{Tag: ot.MustNewTag("frac"), Value: 1}}
 	out = shaper.Shape(input)
 	tu.Assert(t, len(out.Glyphs) == 1)
 }

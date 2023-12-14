@@ -47,7 +47,7 @@ type Glyph struct {
 	// GlyphCount is the number of glyphs in this output glyph cluster.
 	GlyphCount int
 	GlyphID    font.GID
-	Mask       font.GlyphMask
+	Mask       uint32
 }
 
 // LeftSideBearing returns the distance from the glyph's X origin to
@@ -133,7 +133,7 @@ type Output struct {
 	// Face is the font face that this output is rendered in. This is needed in
 	// the output in order to render each run in a multi-font sequence in the
 	// correct font.
-	Face font.Face
+	Face *font.Face
 }
 
 // RecomputeAdvance updates only the Advance field based on the current
