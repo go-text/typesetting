@@ -296,7 +296,7 @@ func TestLine_AdjustBaseline(t *testing.T) {
 
 	}
 	for _, tt := range tests {
-		tt.l.AdjustBaseline()
+		tt.l.AdjustBaselines()
 		for i, exp := range tt.ascents {
 			tu.Assert(t, tt.l[i].GlyphBounds.Ascent == fixed.I(exp))
 		}

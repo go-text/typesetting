@@ -46,7 +46,7 @@ func (d Direction) Axis() Axis {
 	return Horizontal
 }
 
-// SwitchAwis switch from horizontal to vertical (and vice versa), preserving
+// SwitchAxis switches from horizontal to vertical (and vice versa), preserving
 // the progression.
 func (d Direction) SwitchAxis() Direction { return d ^ axisVertical }
 

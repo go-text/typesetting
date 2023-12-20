@@ -282,7 +282,7 @@ func (out *Output) moveCrossAxis(d fixed.Int26_6) {
 	out.GlyphBounds.Descent += d
 }
 
-// AdjustBaseline aligns runs with different baselines.
+// AdjustBaselines aligns runs with different baselines.
 //
 // For vertical text, it centralizes 'sideways' runs, so
 // that text with mixed 'upright' and
@@ -293,7 +293,7 @@ func (out *Output) moveCrossAxis(d fixed.Int26_6) {
 // Note that this method only update cross-axis metrics,
 // so that the advance is preserved. As such, it is valid
 // to call this method after line wrapping, for instance.
-func (l Line) AdjustBaseline() {
+func (l Line) AdjustBaselines() {
 	if len(l) == 0 {
 		return
 	}

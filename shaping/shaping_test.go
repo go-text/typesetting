@@ -581,7 +581,7 @@ func TestShapeVerticalScripts(t *testing.T) {
 		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian.png"))
 		tu.AssertNoErr(t, err)
 
-		line.AdjustBaseline()
+		line.AdjustBaselines()
 		err = drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian_adjusted.png"))
 		tu.AssertNoErr(t, err)
 	}
@@ -611,7 +611,7 @@ func TestShapeVerticalScripts(t *testing.T) {
 		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed.png"))
 		tu.AssertNoErr(t, err)
 
-		line.AdjustBaseline()
+		line.AdjustBaselines()
 		err = drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed_adjusted.png"))
 		tu.AssertNoErr(t, err)
 	}
