@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-text/typesetting/harfbuzz"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestDirection(t *testing.T) {
