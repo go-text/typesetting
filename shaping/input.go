@@ -10,6 +10,7 @@ import (
 	"github.com/go-text/typesetting/harfbuzz"
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/loader"
+	"github.com/go-text/typesetting/unicodedata"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/unicode/bidi"
 )
@@ -112,8 +113,8 @@ func SplitByFace(input Input, availableFaces Fontmap) []Input {
 // script, and face.
 type Segmenter struct {
 	// pools of inputs, used to reduce allocations,
-	// which are alternatively considered as input/output of the segmentation
-	buffer1, buffer2 []Input
+	// which are alternatively swapped between each step of the segmentation
+	input, output []Input
 
 	// used to handle Common script
 	delimStack []delimEntry
@@ -130,6 +131,7 @@ type delimEntry struct {
 // Split segments the given pre-configured input according to:
 //   - text direction
 //   - script
+//   - (vertical text only) glyph orientation
 //   - face, as defined by [faces]
 //
 // Only the input runes in the range [text.RunStart] to [text.RunEnd] will be split.
@@ -143,38 +145,54 @@ type delimEntry struct {
 // [text.Direction] is used during bidi ordering, and should refer to the general
 // context [text] is used in (typically the user system preference for GUI apps.)
 //
+// For vertical text, if its orientation is set, is copied as it is; otherwise, the
+// orientation is resolved using the Unicode recommendations (see https://www.unicode.org/reports/tr50/).
+//
 // The returned sliced is owned by the [Segmenter] and is only valid until
 // the next call to [Split].
 func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	seg.reset()
-	seg.splitByBidi(text)
+	seg.splitByBidi(text) // fills output
+
+	seg.input, seg.output = seg.output, seg.input // output is empty
 	seg.splitByScript()
+
+	// if needed, resolve text orientation for vertical text
+	if text.Direction.IsVertical() && !text.Direction.HasVerticalOrientation() {
+		seg.input, seg.output = seg.output, seg.input
+		seg.output = seg.output[:0]
+		seg.splitByVertOrientation()
+	}
+
+	seg.input, seg.output = seg.output, seg.input
+	seg.output = seg.output[:0]
 	seg.splitByFace(faces)
-	return seg.buffer1
+
+	return seg.output
 }
 
 func (seg *Segmenter) reset() {
 	// zero the slices to avoid 'memory leak' on pointer slice fields
-	for i := range seg.buffer1 {
-		seg.buffer1[i].Text = nil
-		seg.buffer1[i].FontFeatures = nil
+	for i := range seg.input {
+		seg.input[i].Text = nil
+		seg.input[i].FontFeatures = nil
 	}
-	for i := range seg.buffer2 {
-		seg.buffer2[i].Text = nil
-		seg.buffer2[i].FontFeatures = nil
+	for i := range seg.output {
+		seg.output[i].Text = nil
+		seg.output[i].FontFeatures = nil
 	}
-	seg.buffer1 = seg.buffer1[:0]
-	seg.buffer2 = seg.buffer2[:0]
+	seg.input = seg.input[:0]
+	seg.output = seg.output[:0]
 
 	// bidiParagraph is reset when using SetString
 
 	seg.delimStack = seg.delimStack[:0]
 }
 
-// fills buffer1
 func (seg *Segmenter) splitByBidi(text Input) {
-	if text.Direction.Axis() != di.Horizontal || text.RunStart >= text.RunEnd {
-		seg.buffer1 = append(seg.buffer1, text)
+	// split vertical text like horizontal one
+	if text.RunStart >= text.RunEnd {
+		seg.output = append(seg.output, text)
 		return
 	}
 	def := bidi.LeftToRight
@@ -184,7 +202,7 @@ func (seg *Segmenter) splitByBidi(text Input) {
 	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
 	out, err := seg.bidiParagraph.Order()
 	if err != nil {
-		seg.buffer1 = append(seg.buffer1, text)
+		seg.output = append(seg.output, text)
 		return
 	}
 
@@ -199,12 +217,12 @@ func (seg *Segmenter) splitByBidi(text Input) {
 
 		// override the direction
 		if dir == bidi.RightToLeft {
-			currentInput.Direction = di.DirectionRTL
+			currentInput.Direction.SetProgression(di.TowardTopLeft)
 		} else {
-			currentInput.Direction = di.DirectionLTR
+			currentInput.Direction.SetProgression(di.FromTopLeft)
 		}
 
-		seg.buffer1 = append(seg.buffer1, currentInput)
+		seg.output = append(seg.output, currentInput)
 		input.RunStart = currentInput.RunEnd
 	}
 }
@@ -230,11 +248,9 @@ func lookupDelimIndex(ch rune) int {
 	return -1
 }
 
-// uses buffer1 as input and fills buffer2
-//
 // See https://unicode.org/reports/tr24/#Common for reference
 func (seg *Segmenter) splitByScript() {
-	for _, input := range seg.buffer1 {
+	for _, input := range seg.input {
 		currentInput := input
 		currentInput.Script = language.Common
 
@@ -289,7 +305,7 @@ func (seg *Segmenter) splitByScript() {
 				// split to a new run
 				if i != input.RunStart { // push the existing one
 					currentInput.RunEnd = i
-					seg.buffer2 = append(seg.buffer2, currentInput)
+					seg.output = append(seg.output, currentInput)
 				}
 
 				currentInput.RunStart = i
@@ -298,15 +314,46 @@ func (seg *Segmenter) splitByScript() {
 		}
 		// close and add the last input
 		currentInput.RunEnd = input.RunEnd
-		seg.buffer2 = append(seg.buffer2, currentInput)
+		seg.output = append(seg.output, currentInput)
 	}
 }
 
-// uses buffer2 as input, resets and fills buffer1
+// assume the script has been resolved
+func (seg *Segmenter) splitByVertOrientation() {
+	for _, input := range seg.input {
+		vo := unicodedata.LookupVerticalOrientation(input.Script)
+		currentInput := input
+
+		for i := input.RunStart; i < input.RunEnd; i++ {
+			r := input.Text[i]
+			sideways := vo.Orientation(r)
+			if i == input.RunStart {
+				// first run : update the orientation,
+				// but do not create a new run
+				currentInput.Direction.SetSideways(sideways)
+				continue
+			}
+
+			if sideways != currentInput.Direction.IsSideways() {
+				// create new run : push the current one ...
+				currentInput.RunEnd = i
+				seg.output = append(seg.output, currentInput)
+
+				// ... and update the 'new'
+				currentInput.RunStart = i
+				currentInput.Direction.SetSideways(sideways)
+			}
+		}
+
+		// close and add the last input
+		currentInput.RunEnd = input.RunEnd
+		seg.output = append(seg.output, currentInput)
+	}
+}
+
 func (seg *Segmenter) splitByFace(faces Fontmap) {
-	seg.buffer1 = seg.buffer1[:0]
-	for _, input := range seg.buffer2 {
-		seg.buffer1 = splitByFace(input, faces, seg.buffer1)
+	for _, input := range seg.input {
+		seg.output = splitByFace(input, faces, seg.output)
 	}
 }
 

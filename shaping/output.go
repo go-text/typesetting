@@ -20,7 +20,8 @@ type Glyph struct {
 	// typically negative
 	Height fixed.Int26_6
 	// XBearing is the distance between the dot (with offset applied) and
-	// the glyph content, typically positive
+	// the glyph content, typically positive for horizontal text;
+	// often negative for vertical text.
 	XBearing fixed.Int26_6
 	// YBearing is the distance between the dot (with offset applied) and
 	// the top of the glyph content, typically positive
@@ -34,6 +35,8 @@ type Glyph struct {
 
 	// Offsets to be applied to the dot before actually drawing
 	// the glyph.
+	// For vertical text, YOffset is typically used to position the glyph
+	// below the horizontal line at the dot
 	XOffset, YOffset fixed.Int26_6
 
 	// ClusterIndex is the lowest rune index of all runes shaped into
@@ -110,6 +113,7 @@ func (b Bounds) LineThickness() fixed.Int26_6 {
 // Output describes the dimensions and content of shaped text.
 type Output struct {
 	// Advance is the distance the Dot has advanced.
+	// It is typically positive for horizontal text, negative for vertical.
 	Advance fixed.Int26_6
 	// Size is copied from the shaping.Input.Size that produced this Output.
 	Size fixed.Int26_6
@@ -121,6 +125,8 @@ type Output struct {
 	// GlyphBounds describes a tight bounding box on the specific glyphs contained
 	// within this output. The dimensions may not be sufficient to contain all
 	// glyphs within the chosen font.
+	//
+	// Its [Gap] field is always zero.
 	GlyphBounds Bounds
 
 	// Direction is the direction used to shape the text,
@@ -134,6 +140,17 @@ type Output struct {
 	// the output in order to render each run in a multi-font sequence in the
 	// correct font.
 	Face font.Face
+}
+
+// ToFontUnit converts a metrics (typically found in [Glyph] fields)
+// to unscaled font units.
+func (o *Output) ToFontUnit(v fixed.Int26_6) float32 {
+	return float32(v) / float32(o.Size) * float32(o.Face.Upem())
+}
+
+// FromFontUnit converts an unscaled font value to the current [Size]
+func (o *Output) FromFontUnit(v float32) fixed.Int26_6 {
+	return fixed.Int26_6(v * float32(o.Size) / float32(o.Face.Upem()))
 }
 
 // RecomputeAdvance updates only the Advance field based on the current
@@ -183,8 +200,8 @@ func (o *Output) advanceSpaceAware() fixed.Int26_6 {
 func (o *Output) RecalculateAll() {
 	var (
 		advance fixed.Int26_6
-		tallest fixed.Int26_6
-		lowest  fixed.Int26_6
+		ascent  fixed.Int26_6
+		descent fixed.Int26_6
 	)
 
 	if o.Direction.IsVertical() {
@@ -192,12 +209,12 @@ func (o *Output) RecalculateAll() {
 			g := &o.Glyphs[i]
 			advance += g.YAdvance
 			depth := g.XOffset + g.XBearing // start of the glyph
-			if depth < lowest {
-				lowest = depth
+			if depth < descent {
+				descent = depth
 			}
-			height := g.XOffset + g.Width // end of the glyph
-			if height > tallest {
-				tallest = height
+			height := depth + g.Width // end of the glyph
+			if height > ascent {
+				ascent = height
 			}
 		}
 	} else { // horizontal
@@ -205,18 +222,109 @@ func (o *Output) RecalculateAll() {
 			g := &o.Glyphs[i]
 			advance += g.XAdvance
 			height := g.YBearing + g.YOffset
-			if height > tallest {
-				tallest = height
+			if height > ascent {
+				ascent = height
 			}
 			depth := height + g.Height
-			if depth < lowest {
-				lowest = depth
+			if depth < descent {
+				descent = depth
 			}
 		}
 	}
 	o.Advance = advance
 	o.GlyphBounds = Bounds{
-		Ascent:  tallest,
-		Descent: lowest,
+		Ascent:  ascent,
+		Descent: descent,
+	}
+}
+
+// Assuming [Glyphs] comes from an horizontal shaping,
+// applies a 90°, clockwise rotation to the whole slice of glyphs,
+// to create 'sideways' vertical text.
+//
+// The [Direction] field is updated by switching the axis to vertical
+// and the orientation to "sideways".
+//
+// [RecalculateAll] should be called afterwards to update [Avance] and [GlyphBounds].
+func (out *Output) sideways() {
+	for i, g := range out.Glyphs {
+		// switch height and width
+		out.Glyphs[i].Width = -g.Height // height is negative
+		out.Glyphs[i].Height = -g.Width
+		// compute the bearings
+		out.Glyphs[i].XBearing = g.YBearing + g.Height
+		out.Glyphs[i].YBearing = g.Width
+		// switch advance direction
+		out.Glyphs[i].XAdvance = 0
+		out.Glyphs[i].YAdvance = -g.XAdvance // YAdvance is negative
+		// apply a rotation around the dot, and position the glyph
+		// below the dot
+		out.Glyphs[i].XOffset = g.YOffset
+		out.Glyphs[i].YOffset = -(g.XOffset + g.XBearing + g.Width)
+	}
+
+	// adjust direction
+	out.Direction.SetSideways(true)
+}
+
+// properly update [GlyphBounds]
+func (out *Output) moveCrossAxis(d fixed.Int26_6) {
+	if out.Direction.IsVertical() {
+		for i := range out.Glyphs {
+			out.Glyphs[i].XOffset += d
+		}
+	} else {
+		for i := range out.Glyphs {
+			out.Glyphs[i].YOffset += d
+		}
+	}
+	out.GlyphBounds.Ascent += d
+	out.GlyphBounds.Descent += d
+}
+
+// AdjustBaselines aligns runs with different baselines.
+//
+// For vertical text, it centralizes 'sideways' runs, so
+// that text with mixed 'upright' and
+// 'sideways' orientation is better aligned.
+//
+// This is currently a no-op for horizontal text.
+//
+// Note that this method only update cross-axis metrics,
+// so that the advance is preserved. As such, it is valid
+// to call this method after line wrapping, for instance.
+func (l Line) AdjustBaselines() {
+	if len(l) == 0 {
+		return
+	}
+	firstRun := l[0]
+
+	if firstRun.Direction.Axis() == di.Horizontal {
+		return
+	}
+
+	// Centralize sideways runs, to better align
+	// with upright ones, which are usually visually centered.
+	// We want to shift all the runs by the same amount, to
+	// avoid breaking alignment of similar runs (consider "A あ is a pretty char.")
+	var sidewaysBounds Bounds
+	for _, run := range l {
+		if !run.Direction.IsSideways() {
+			continue
+		}
+		if a := run.GlyphBounds.Ascent; a > sidewaysBounds.Ascent {
+			sidewaysBounds.Ascent = a
+		}
+		if d := run.GlyphBounds.Descent; d < sidewaysBounds.Descent {
+			sidewaysBounds.Descent = d
+		}
+	}
+	// Place the middle of sideways run at the baseline (the zero)
+	middle := sidewaysBounds.Descent + sidewaysBounds.LineThickness()/2
+	for i := range l {
+		if !l[i].Direction.IsSideways() {
+			continue
+		}
+		l[i].moveCrossAxis(-middle)
 	}
 }
