@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"unicode"
+
+	"github.com/go-text/typesetting/language"
 )
 
 func TestUnicodeNormalization(t *testing.T) {
@@ -584,6 +586,26 @@ func TestLookupMirrorChar(t *testing.T) {
 		}
 		if got1 != tt.want1 {
 			t.Errorf("LookupMirrorChar() got1 = %v, want %v", got1, tt.want1)
+		}
+	}
+}
+
+func TestLookupVerticalOrientation(t *testing.T) {
+	tests := []struct {
+		s              language.Script
+		r              rune
+		wantIsSideways bool
+	}{
+		{language.Cyrillic, '\u0400', true},
+		{language.Latin, 'A', true},
+		{language.Latin, '\uFF21', false},
+		{language.Katakana, 'も', false},
+		{language.Katakana, '\uFF89', true},
+		{language.Hangul, '\uFFAB', true},
+	}
+	for _, tt := range tests {
+		if gotIsSideways := LookupVerticalOrientation(tt.s).Orientation(tt.r); gotIsSideways != tt.wantIsSideways {
+			t.Errorf("LookupVerticalOrientation(%s) = %v, want %v", string(tt.r), gotIsSideways, tt.wantIsSideways)
 		}
 	}
 }

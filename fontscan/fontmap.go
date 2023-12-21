@@ -336,6 +336,22 @@ func (fm *FontMap) FindSystemFont(family string) (Location, bool) {
 	return Location{}, false
 }
 
+// FindSystemFonts is the same as FindSystemFont, but returns all matched fonts.
+func (fm *FontMap) FindSystemFonts(family string) []Location {
+	var locations []Location
+	family = meta.NormalizeFamily(family)
+	for _, footprint := range fm.database {
+		if footprint.isUserProvided {
+			continue
+		}
+		if footprint.Family == family {
+			locations = append(locations, footprint.Location)
+		}
+	}
+
+	return locations
+}
+
 // SetQuery set the families and aspect required, influencing subsequent
 // `ResolveFace` calls.
 func (fm *FontMap) SetQuery(query Query) {
