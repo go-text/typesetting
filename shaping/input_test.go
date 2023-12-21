@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
-	oFont "github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
 	tu "github.com/go-text/typesetting/testutils"
 )
@@ -70,9 +69,9 @@ func TestSplitByFontGlyphs(t *testing.T) {
 		availableFaces []*font.Face
 	}
 
-	universalFont := &oFont.Face{Font: &oFont.Font{Cmap: universalCmap{}}}
-	lowerFont := &oFont.Face{Font: &oFont.Font{Cmap: lowerCmap{}}}
-	upperFont := &oFont.Face{Font: &oFont.Font{Cmap: upperCmap{}}}
+	universalFont := &font.Face{Font: &font.Font{Cmap: universalCmap{}}}
+	lowerFont := &font.Face{Font: &font.Font{Cmap: lowerCmap{}}}
+	upperFont := &font.Face{Font: &font.Font{Cmap: upperCmap{}}}
 
 	latinFont := loadOpentypeFont(t, "../font/testdata/Roboto-Regular.ttf")
 	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")
