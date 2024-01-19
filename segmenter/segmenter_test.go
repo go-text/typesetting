@@ -41,11 +41,21 @@ func collectGraphemes(s *Segmenter, input []rune) []string {
 	return out
 }
 
+func collectWords(s *Segmenter, input []rune) []string {
+	s.Init(input)
+	iter := s.WordIterator()
+	var out []string
+	for iter.Next() {
+		out = append(out, string(iter.Word().Text))
+	}
+	return out
+}
+
 func collectWordBoundaries(s *Segmenter, input []rune) []bool {
 	s.Init(input)
 	out := make([]bool, len(s.attributes))
 	for i, a := range s.attributes {
-		out[i] = a&WordBoundary != 0
+		out[i] = a&wordBoundary != 0
 	}
 	return out
 }
@@ -152,6 +162,23 @@ func TestWordBreakUnicodeReference(t *testing.T) {
 		actualBoundaries := collectWordBoundaries(&seg1, text)
 		if !reflect.DeepEqual(expectedBoundaries, actualBoundaries) {
 			t.Errorf("line %d [%s]: expected %#v, got %#v", i+1, hex(text), expectedBoundaries, actualBoundaries)
+		}
+	}
+}
+
+func TestWordSegmenter(t *testing.T) {
+	var seg Segmenter
+	for _, test := range []struct {
+		input string
+		words []string
+	}{
+		{"My name is Cris", []string{"My", "name", "is", "Cris"}},
+		{"Je m'appelle Benoit.", []string{"Je", "m'appelle", "Benoit"}},
+		{"Hi : nice ?! suit !", []string{"Hi", "nice", "suit"}},
+	} {
+		got := collectWords(&seg, []rune(test.input))
+		if !reflect.DeepEqual(test.words, got) {
+			t.Errorf("for %s, expected %v, got %v", test.input, test.words, got)
 		}
 	}
 }
