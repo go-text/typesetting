@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
+	hd "github.com/go-text/typesetting-utils/harfbuzz"
 	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
@@ -17,6 +19,7 @@ import (
 	tu "github.com/go-text/typesetting/opentype/testutils"
 	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/math/fixed"
 )
 
 func TestShape(t *testing.T) {
@@ -201,7 +204,7 @@ func TestCountClusters(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			countClusters(tc.glyphs, tc.textLen, tc.dir)
+			countClusters(tc.glyphs, tc.textLen, tc.dir.Progression())
 			for i := range tc.glyphs {
 				g := tc.glyphs[i]
 				e := tc.expected[i]
@@ -487,4 +490,165 @@ func TestFeatures(t *testing.T) {
 	input.FontFeatures = []FontFeature{{Tag: loader.MustNewTag("frac"), Value: 1}}
 	out = shaper.Shape(input)
 	tu.Assert(t, len(out.Glyphs) == 1)
+}
+
+func TestShapeVertical(t *testing.T) {
+	// consistency check on the internal axis switch
+	// for sideways vertical text
+	textInput := []rune("Lorem ipsum.")
+	face := benchEnFace
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionTTB,
+		Face:      face,
+		Size:      16 * 72,
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+	shaper := HarfbuzzShaper{}
+
+	for _, test := range []struct {
+		dir      di.Direction
+		sideways bool
+	}{
+		{di.DirectionTTB, false},
+		{di.DirectionTTB, true},
+		{di.DirectionBTT, false},
+		{di.DirectionBTT, true},
+	} {
+		input.Direction = test.dir
+		input.Direction.SetSideways(test.sideways)
+		out := shaper.Shape(input)
+		tu.Assert(t, out.Direction.Progression() == test.dir.Progression())
+		tu.Assert(t, out.Direction.IsSideways() == test.sideways)
+		tu.Assert(t, out.Advance < 0)
+		tu.Assert(t, out.GlyphBounds.Ascent > 0 && out.GlyphBounds.Descent < 0)
+	}
+}
+
+func TestCFF2(t *testing.T) {
+	// regression test for https://github.com/go-text/typesetting/issues/118
+	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	face, err := font.ParseTTF(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	str := []rune("abcあいう")
+	input := Input{
+		Text:      str,
+		RunStart:  0,
+		RunEnd:    len(str),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(10),
+	}
+	out := (&HarfbuzzShaper{}).Shape(input)
+	for _, g := range out.Glyphs {
+		tu.Assert(t, g.Width > 0 && g.Height < 0)
+	}
+	tu.Assert(t, out.Advance > 0)
+}
+
+func TestShapeVerticalScripts(t *testing.T) {
+	b, _ := td.Files.ReadFile("common/NotoSansMongolian-Regular.ttf")
+	monF, _ := font.ParseTTF(bytes.NewReader(b))
+	b, _ = td.Files.ReadFile("common/mplus-1p-regular.ttf")
+	japF, _ := font.ParseTTF(bytes.NewReader(b))
+
+	monT := []rune("ᠬᠦᠮᠦᠨ ᠪᠦᠷ ᠲᠥᠷᠥᠵᠦ")
+	japT := []rune("青いそら…")
+	mixedT := []rune("あHelloあUne phrase")
+
+	var (
+		seg    Segmenter
+		shaper HarfbuzzShaper
+	)
+
+	{
+		runs := seg.Split(Input{
+			Text:      monT,
+			RunEnd:    len(monT),
+			Language:  language.NewLanguage("mn"),
+			Size:      fixed.I(12 * 16),
+			Direction: di.DirectionTTB,
+		}, fixedFontmap{monF})
+		tu.Assert(t, len(runs) == 1)
+
+		line := Line{shaper.Shape(runs[0])}
+		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian.png"))
+		tu.AssertNoErr(t, err)
+
+		line.AdjustBaselines()
+		err = drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mongolian_adjusted.png"))
+		tu.AssertNoErr(t, err)
+	}
+	{
+		runs := seg.Split(Input{
+			Text:      japT,
+			RunEnd:    len(japT),
+			Language:  language.NewLanguage("ja"),
+			Size:      fixed.I(12 * 16),
+			Direction: di.DirectionTTB,
+		}, fixedFontmap{japF})
+		tu.Assert(t, len(runs) == 2)
+		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1])}
+		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_japanese.png"))
+		tu.AssertNoErr(t, err)
+	}
+	{
+		runs := seg.Split(Input{
+			Text:      mixedT,
+			RunEnd:    len(mixedT),
+			Language:  language.NewLanguage("ja"),
+			Size:      fixed.I(12 * 16),
+			Direction: di.DirectionTTB,
+		}, fixedFontmap{japF})
+		tu.Assert(t, len(runs) == 4)
+		line := Line{shaper.Shape(runs[0]), shaper.Shape(runs[1]), shaper.Shape(runs[2]), shaper.Shape(runs[3])}
+		err := drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed.png"))
+		tu.AssertNoErr(t, err)
+
+		line.AdjustBaselines()
+		err = drawTextLine(line, filepath.Join(os.TempDir(), "shape_vert_mixed_adjusted.png"))
+		tu.AssertNoErr(t, err)
+	}
+}
+
+func ExampleShaper_Shape() {
+	textInput := []rune("abcdefghijklmnop")
+	withKerningFont := "harfbuzz_reference/in-house/fonts/e39391c77a6321c2ac7a2d644de0396470cd4bfe.ttf"
+	b, _ := hd.Files.ReadFile(withKerningFont)
+	face, _ := font.ParseTTF(bytes.NewReader(b))
+
+	shaper := HarfbuzzShaper{}
+	input := Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(16 * 1000 / 72),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+
+	horiz := shaper.Shape(input)
+	drawTextLine(Line{horiz}, filepath.Join(os.TempDir(), "shape_horiz.png"))
+
+	input.Direction = di.DirectionTTB
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert.png"))
+
+	input.Direction.SetSideways(true)
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert_rotated.png"))
+
+	input.Direction = di.DirectionBTT
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert_rev.png"))
+
+	input.Direction.SetSideways(true)
+	drawTextLine(Line{shaper.Shape(input)}, filepath.Join(os.TempDir(), "shape_vert_rev_rotated.png"))
+
+	// Output:
 }

@@ -3,9 +3,12 @@
 package font
 
 import (
+	"bytes"
 	"testing"
 
+	td "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/opentype/api"
+	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
 	tu "github.com/go-text/typesetting/opentype/testutils"
 )
@@ -88,4 +91,18 @@ func TestMaxpAndHmtx(t *testing.T) {
 	tu.Assert(t, hmtx.Advance(9) == 0)
 	tu.Assert(t, hmtx.Advance(10) == 0)
 	tu.Assert(t, hmtx.Advance(11) == 0)
+}
+
+func TestLoadCFF2(t *testing.T) {
+	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	ft, err := loader.NewLoader(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	font, err := NewFont(ft)
+	tu.AssertNoErr(t, err)
+
+	tu.Assert(t, font.cff2 != nil)
+	tu.Assert(t, font.cff2.VarStore.AxisCount() == 1)
 }

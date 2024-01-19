@@ -52,7 +52,7 @@ func ExampleFontMap_AddFace() {
 	md := meta.Metadata(ld)
 	f, _ := fontapi.NewFont(ld) // error handling omitted
 	fontMap := NewFontMap(log.Default())
-	fontMap.AddFace(&fontapi.Face{Font: f}, md)
+	fontMap.AddFace(&fontapi.Face{Font: f}, Location{File: fmt.Sprint(md)}, md)
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
@@ -63,11 +63,14 @@ func ExampleFontMap_AddFace() {
 var _ shaping.Fontmap = (*FontMap)(nil)
 
 func TestResolveFont(t *testing.T) {
+	en, _ := NewLangID("en")
+
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "", 0)
 	fm := NewFontMap(logger)
 
 	tu.AssertC(t, fm.ResolveFace(0x20) == nil, "expected no face found in an empty FontMap")
+	tu.AssertC(t, fm.ResolveFaceForLang(en) == nil, "expected no face found in an empty FontMap")
 
 	err := fm.UseSystemFonts(t.TempDir())
 	tu.AssertNoErr(t, err)
@@ -103,6 +106,20 @@ func TestResolveFont(t *testing.T) {
 	}
 }
 
+func TestResolveForLang(t *testing.T) {
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+
+	err := fm.UseSystemFonts(t.TempDir())
+	tu.AssertNoErr(t, err)
+
+	fm.SetQuery(Query{Families: []string{"helvetica"}})
+
+	// all system fonts should have support for english
+	en, _ := NewLangID("en")
+	face := fm.ResolveFaceForLang(en)
+	tu.AssertC(t, face != nil, "expected EN to be supported by system fonts")
+}
+
 func TestResolveFallbackManual(t *testing.T) {
 	logger := log.New(os.Stdout, "", 0)
 	fm := NewFontMap(logger)
@@ -123,6 +140,10 @@ func TestResolveFallbackManual(t *testing.T) {
 	fm.SetQuery(Query{}) // no families
 	face := fm.ResolveFace('c')
 	tu.Assert(t, fm.FontLocation(face.Font).File == "user:Amiri")
+
+	en, _ := NewLangID("en")
+	face = fm.ResolveFaceForLang(en)
+	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Amiri")
 }
 
 func TestRevolveFamilyConflict(t *testing.T) {
@@ -136,7 +157,7 @@ func TestRevolveFamilyConflict(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	defer file1.Close()
 
-	// This tests is effective on platforms with an Arimo font
+	// This test is effective on platforms with an Arimo font
 	fm.AddFont(file1, "user:amiri", "Arimo")
 
 	fm.SetQuery(Query{Families: []string{"Arimo"}})
@@ -238,4 +259,57 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"MyRoboto"}})
 	face := fm.ResolveFace(0x20)
 	tu.Assert(t, fm.FontLocation(face.Font).File == "Roboto2")
+}
+
+func TestQueryHelveticaLinux(t *testing.T) {
+	// This is a regression test which asserts that
+	// our behavior is similar than fontconfig
+
+	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file1.Close()
+
+	fm := NewFontMap(nil)
+	err = fm.AddFont(file1, "file1", "Nimbus Sans")
+	tu.AssertNoErr(t, err)
+
+	err = fm.AddFont(file1, "file2", "Bitstream Vera Sans")
+	tu.AssertNoErr(t, err)
+
+	fm.SetQuery(Query{Families: []string{
+		"BlinkMacSystemFont", // 'unknown' family
+		"Helvetica",
+	}})
+	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
+	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
+}
+
+func TestFindSytemFont(t *testing.T) {
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+	_, ok := fm.FindSystemFont("Nimbus")
+	tu.Assert(t, !ok) // no match on an empty fontmap
+
+	// simulate system fonts
+	fm.appendFootprints(footprint{
+		Family:   meta.NormalizeFamily("Nimbus"),
+		Location: Location{File: "nimbus.ttf"},
+	},
+		footprint{
+			Family:         meta.NormalizeFamily("Noto Sans"),
+			Location:       Location{File: "noto.ttf"},
+			isUserProvided: true,
+		},
+	)
+
+	nimbus, ok := fm.FindSystemFont("Nimbus")
+	tu.Assert(t, ok && nimbus.File == "nimbus.ttf")
+
+	_, ok = fm.FindSystemFont("nimbus ")
+	tu.Assert(t, ok)
+
+	_, ok = fm.FindSystemFont("Arial")
+	tu.Assert(t, !ok)
+
+	_, ok = fm.FindSystemFont("Noto Sans")
+	tu.Assert(t, !ok) // user provided font are ignored
 }

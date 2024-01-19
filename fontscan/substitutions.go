@@ -27,23 +27,26 @@ func init() {
 	}
 }
 
-// we want to easily insert at the start,
+// familyList is a list of normalized families to match, order
+// by user preference (first is best).
+// It also implements helpers to insert at the start,
 // the end and "around" an element
-type familyList struct {
-	items []string
-}
+type familyList []string
 
-func newFamilyList(families []string) *familyList {
-	fl := &familyList{}
+// normalize the families
+func newFamilyList(families []string) familyList {
 	// we'll guess that we end up with about ~140 items
-	fl.items = make([]string, 0, 140)
-	fl.items = append(fl.items, families...)
+	fl := make([]string, 0, 140)
+	fl = append(fl, families...)
+	for i, f := range fl {
+		fl[i] = meta.NormalizeFamily(f)
+	}
 	return fl
 }
 
 // returns the node equal to `family` or -1, if not found
-func (fl *familyList) elementEquals(family string) int {
-	for i, v := range fl.items {
+func (fl familyList) elementEquals(family string) int {
+	for i, v := range fl {
 		if v == family {
 			return i
 		}
@@ -52,8 +55,8 @@ func (fl *familyList) elementEquals(family string) int {
 }
 
 // returns the first node containing `family` or -1, if not found
-func (fl *familyList) elementContains(family string) int {
-	for i, v := range fl.items {
+func (fl familyList) elementContains(family string) int {
+	for i, v := range fl {
 		if strings.Contains(v, family) {
 			return i
 		}
@@ -62,8 +65,8 @@ func (fl *familyList) elementContains(family string) int {
 }
 
 // return the crible corresponding to the order
-func (fl *familyList) compileTo(dst familyCrible) {
-	for i, family := range fl.items {
+func (fl familyList) compileTo(dst familyCrible) {
+	for i, family := range fl {
 		if _, has := dst[family]; !has { // for duplicated entries, keep the first (best) score
 			dst[family] = i
 		}
@@ -71,25 +74,25 @@ func (fl *familyList) compileTo(dst familyCrible) {
 }
 
 func (fl *familyList) insertStart(families []string) {
-	fl.items = insertAt(fl.items, 0, families)
+	*fl = insertAt(*fl, 0, families)
 }
 
 func (fl *familyList) insertEnd(families []string) {
-	fl.items = insertAt(fl.items, len(fl.items), families)
+	*fl = insertAt(*fl, len(*fl), families)
 }
 
 // insertAfter inserts families right after element
 func (fl *familyList) insertAfter(element int, families []string) {
-	fl.items = insertAt(fl.items, element+1, families)
+	*fl = insertAt(*fl, element+1, families)
 }
 
 // insertBefore inserts families right before element
 func (fl *familyList) insertBefore(element int, families []string) {
-	fl.items = insertAt(fl.items, element, families)
+	*fl = insertAt(*fl, element, families)
 }
 
 func (fl *familyList) replace(element int, families []string) {
-	fl.items = replaceAt(fl.items, element, element+1, families)
+	*fl = replaceAt(*fl, element, element+1, families)
 }
 
 // ----- substitutions ------
@@ -109,9 +112,9 @@ const (
 type substitutionTest interface {
 	// returns >= 0 if the substitution should be applied
 	// for opAppendLast and opPrependFirst an arbitrary value could be returned
-	test(list *familyList) int
+	test(list familyList) int
 
-	// return a copy where families have been normalize
+	// return a copy where families have been normalized
 	// to their no blank no case version
 	normalize() substitutionTest
 }
@@ -119,7 +122,7 @@ type substitutionTest interface {
 // a family in the list must equal 'mf'
 type familyEquals string
 
-func (mf familyEquals) test(list *familyList) int {
+func (mf familyEquals) test(list familyList) int {
 	return list.elementEquals(string(mf))
 }
 
@@ -130,7 +133,7 @@ func (mf familyEquals) normalize() substitutionTest {
 // a family in the list must contain 'mf'
 type familyContains string
 
-func (mf familyContains) test(list *familyList) int {
+func (mf familyContains) test(list familyList) int {
 	return list.elementContains(string(mf))
 }
 
@@ -141,8 +144,8 @@ func (mf familyContains) normalize() substitutionTest {
 // the family list has no "serif", "sans-serif" or "monospace" generic fallback
 type noGenericFamily struct{}
 
-func (noGenericFamily) test(list *familyList) int {
-	for _, v := range list.items {
+func (noGenericFamily) test(list familyList) int {
+	for _, v := range list {
 		switch v {
 		case "serif", "sans-serif", "monospace":
 			return -1
@@ -163,7 +166,7 @@ type langAndFamilyEqual struct {
 }
 
 // TODO: for now, these tests language base tests are ignored
-func (langAndFamilyEqual) test(list *familyList) int {
+func (langAndFamilyEqual) test(list familyList) int {
 	return -1
 }
 
@@ -180,7 +183,7 @@ type langContainsAndFamilyEquals struct {
 }
 
 // TODO: for now, these tests language base tests are ignored
-func (langContainsAndFamilyEquals) test(list *familyList) int {
+func (langContainsAndFamilyEquals) test(list familyList) int {
 	return -1
 }
 
@@ -197,7 +200,7 @@ type langEqualsAndNoFamily struct {
 }
 
 // TODO: for now, these tests language base tests are ignored
-func (langEqualsAndNoFamily) test(list *familyList) int {
+func (langEqualsAndNoFamily) test(list familyList) int {
 	return -1
 }
 
@@ -213,7 +216,7 @@ type substitution struct {
 }
 
 func (fl *familyList) execute(subs substitution) {
-	element := subs.test.test(fl)
+	element := subs.test.test(*fl)
 	if element < 0 {
 		return
 	}

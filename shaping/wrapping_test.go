@@ -734,8 +734,9 @@ func splitShapedAt(shaped Output, indices ...glyphIndex) []Output {
 
 func TestWrapLine(t *testing.T) {
 	type expected struct {
-		line Line
-		done bool
+		line     Line
+		nextLine int
+		done     bool
 	}
 	type testcase struct {
 		name      string
@@ -752,20 +753,24 @@ func TestWrapLine(t *testing.T) {
 			maxWidth:  40,
 			expected: []expected{
 				{
-					line: []Output{splitShapedAt(shapedText1, 5)[0]},
-					done: false,
+					line:     []Output{splitShapedAt(shapedText1, 5)[0]},
+					nextLine: 5,
+					done:     false,
 				},
 				{
-					line: []Output{splitShapedAt(shapedText1, 5, 9)[1]},
-					done: false,
+					line:     []Output{splitShapedAt(shapedText1, 5, 9)[1]},
+					nextLine: 9,
+					done:     false,
 				},
 				{
-					line: []Output{splitShapedAt(shapedText1, 9, 12)[1]},
-					done: false,
+					line:     []Output{splitShapedAt(shapedText1, 9, 12)[1]},
+					nextLine: 12,
+					done:     false,
 				},
 				{
-					line: []Output{splitShapedAt(shapedText1, 12)[1]},
-					done: true,
+					line:     []Output{splitShapedAt(shapedText1, 12)[1]},
+					nextLine: 15,
+					done:     true,
 				},
 			},
 		},
@@ -779,8 +784,9 @@ func TestWrapLine(t *testing.T) {
 			maxWidth:  40,
 			expected: []expected{
 				{
-					line: splitShapedAt(shapedText1, 1, 2, 3, 4, 5)[:5],
-					done: false,
+					line:     splitShapedAt(shapedText1, 1, 2, 3, 4, 5)[:5],
+					nextLine: 5,
+					done:     false,
 				},
 			},
 		},
@@ -794,12 +800,14 @@ func TestWrapLine(t *testing.T) {
 			maxWidth:  40,
 			expected: []expected{
 				{
-					line: splitShapedAt(shapedText1, 3, 5)[:2],
-					done: false,
+					line:     splitShapedAt(shapedText1, 3, 5)[:2],
+					nextLine: 5,
+					done:     false,
 				},
 				{
-					line: splitShapedAt(shapedText1, 5, 6, 9)[1:3],
-					done: false,
+					line:     splitShapedAt(shapedText1, 5, 6, 9)[1:3],
+					nextLine: 9,
+					done:     false,
 				},
 			},
 		},
@@ -814,28 +822,32 @@ func TestWrapLine(t *testing.T) {
 						withRange(splitShapedAt(shapedText3, 10)[1],
 							Range{Count: 5}),
 					},
-					done: false,
+					nextLine: 5,
+					done:     false,
 				},
 				{
 					line: []Output{
 						withRange(splitShapedAt(shapedText3, 7, 10)[1],
 							Range{Offset: 5, Count: 5}),
 					},
-					done: false,
+					nextLine: 10,
+					done:     false,
 				},
 				{
 					line: []Output{
 						withRange(splitShapedAt(shapedText3, 2, 7)[1],
 							Range{Offset: 10, Count: 5}),
 					},
-					done: false,
+					nextLine: 15,
+					done:     false,
 				},
 				{
 					line: []Output{
 						withRange(splitShapedAt(shapedText3, 2)[0],
 							Range{Offset: 15, Count: 4}),
 					},
-					done: true,
+					nextLine: 19,
+					done:     true,
 				},
 			},
 		},
@@ -851,7 +863,8 @@ func TestWrapLine(t *testing.T) {
 						withRange(splitShapedAt(shapedBidiText1[1], 5)[1],
 							Range{Offset: 6, Count: 5}),
 					},
-					done: false,
+					nextLine: 11,
+					done:     false,
 				},
 				{
 					line: []Output{
@@ -859,7 +872,8 @@ func TestWrapLine(t *testing.T) {
 							Range{Offset: 11, Count: 5}),
 						shapedBidiText1[2],
 					},
-					done: true,
+					nextLine: 20,
+					done:     true,
 				},
 			},
 		},
@@ -876,7 +890,8 @@ func TestWrapLine(t *testing.T) {
 					line: []Output{
 						shapedOneWord,
 					},
-					done: true,
+					nextLine: 4,
+					done:     true,
 				},
 			},
 		},
@@ -887,15 +902,16 @@ func TestWrapLine(t *testing.T) {
 			maxWidth:  200,
 			expected: []expected{
 				{
-					line: Line{shapedText1},
-					done: true,
+					line:     Line{shapedText1},
+					nextLine: 15,
+					done:     true,
 				},
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				line Line
+				line WrappedLine
 				done bool
 				l    LineWrapper
 			)
@@ -904,16 +920,18 @@ func TestWrapLine(t *testing.T) {
 			// allows test cases to be exhaustive if they need to wihtout forcing
 			// every case to wrap entire paragraphs.
 			for lineNumber, expected := range tc.expected {
-				line, _, done = l.WrapNextLine(tc.maxWidth)
-				compareLines(t, lineNumber, expected.line, line)
+				line, done = l.WrapNextLine(tc.maxWidth)
+				compareLines(t, lineNumber, expected.line, line.Line)
 				if done != expected.done {
 					t.Errorf("done mismatch! expected %v, got %v", expected.done, done)
 				}
 
+				tu.AssertC(t, line.NextLine == expected.nextLine, fmt.Sprintf("expected %d, got %d", expected.nextLine, line.NextLine))
+
 				if expected.done { // check WrapNextLine is now a no-op
-					line, _, done = l.WrapNextLine(200)
-					if line != nil || !done {
-						t.Errorf("expect nil output for WrapNextLine, got %p and %v", line, done)
+					line, done = l.WrapNextLine(200)
+					if line.Line != nil || !done {
+						t.Errorf("expect nil output for WrapNextLine, got %p and %v", line.Line, done)
 					}
 				}
 			}
