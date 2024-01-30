@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/go-text/typesetting/language"
+	tu "github.com/go-text/typesetting/opentype/testutils"
 )
 
 func TestUnicodeNormalization(t *testing.T) {
@@ -144,11 +145,11 @@ func TestLookupLineBreakClass(t *testing.T) {
 		{'\u24EA', BreakAI},
 		{'\u2780', BreakAI},
 		// AL: Ordinary Alphabetic and Symbol Characters (XP)
-		{'\u0600', BreakAL},     //   ARABIC NUMBER SIGN
-		{'\u06DD', BreakAL},     //  	ARABIC END OF AYAH
+		{'\u0600', BreakNU},     //   ARABIC NUMBER SIGN
+		{'\u06DD', BreakNU},     //  	ARABIC END OF AYAH
 		{'\u070F', BreakAL},     //  	SYRIAC ABBREVIATION MARK
 		{'\u2061', BreakAL},     //   	FUNCTION APPLICATION
-		{'\U000110BD', BreakAL}, //  	KAITHI NUMBER SIGN
+		{'\U000110BD', BreakNU}, //  	KAITHI NUMBER SIGN
 		// BA: Break After (A)
 		{'\u1680', BreakBA},     // OGHAM SPACE MARK
 		{'\u2000', BreakBA},     // EN QUAD
@@ -565,6 +566,12 @@ func TestLookupGraphemeBreakClass(t *testing.T) {
 			t.Errorf("LookupGraphemeBreakClass(%x) = %p, want %p", tt.args, got, tt.want)
 		}
 	}
+}
+
+func TestLookupWordBreakClass(t *testing.T) {
+	// these runes have changed from Unicode v15.0 to 15.1
+	tu.Assert(t, LookupWordBreakClass(0x6DD) == WordBreakNumeric)
+	tu.Assert(t, LookupWordBreakClass(0x661) == WordBreakNumeric)
 }
 
 func TestLookupMirrorChar(t *testing.T) {
