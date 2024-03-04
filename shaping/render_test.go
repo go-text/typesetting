@@ -7,7 +7,8 @@ import (
 	"image/png"
 	"os"
 
-	"github.com/go-text/typesetting/opentype/api"
+	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/font/opentype"
 )
 
 // this file implements a very primitive "rasterizer", which can
@@ -38,8 +39,8 @@ func drawPoint(img *image.RGBA, pt image.Point, c color.RGBA) {
 }
 
 // dot includes the offset
-func drawGlyph(out *Output, img *image.RGBA, dot image.Point, outlines api.GlyphOutline, c color.RGBA) {
-	var current api.SegmentPoint
+func drawGlyph(out *Output, img *image.RGBA, dot image.Point, outlines font.GlyphOutline, c color.RGBA) {
+	var current font.SegmentPoint
 	for _, seg := range outlines.Segments {
 		points := seg.ArgsSlice()
 		for _, point := range points {
@@ -49,7 +50,7 @@ func drawGlyph(out *Output, img *image.RGBA, dot image.Point, outlines api.Glyph
 
 		last := points[len(points)-1]
 
-		if seg.Op == api.SegmentOpLineTo {
+		if seg.Op == opentype.SegmentOpLineTo {
 			for t := float32(0); t < 1; t += 0.2 {
 				middleX := out.FromFontUnit(t*current.X + (1-t)*last.X).Round()
 				middleY := -out.FromFontUnit(t*current.Y + (1-t)*last.Y).Round()
@@ -151,7 +152,7 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 		drawPoint(img, dot, black)
 
 		// draw a sketch of the glyphs
-		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
+		glyphData := out.Face.GlyphData(g.GlyphID).(font.GlyphOutline)
 		drawGlyph(&out, img, dotWithOffset, glyphData, black)
 
 		dot.X += g.XAdvance.Round()
@@ -179,7 +180,7 @@ func drawVRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 		drawPoint(img, dot, black)
 
 		// draw a sketch of the glyphs
-		glyphData := out.Face.GlyphData(g.GlyphID).(api.GlyphOutline)
+		glyphData := out.Face.GlyphData(g.GlyphID).(font.GlyphOutline)
 		if out.Direction.IsSideways() {
 			glyphData.Sideways(out.ToFontUnit(-g.YOffset))
 		}

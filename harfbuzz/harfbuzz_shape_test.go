@@ -9,10 +9,9 @@ import (
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/harfbuzz"
-	"github.com/go-text/typesetting/opentype/api"
-	"github.com/go-text/typesetting/opentype/api/font"
-	"github.com/go-text/typesetting/opentype/loader"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	"github.com/go-text/typesetting/font"
+	ot "github.com/go-text/typesetting/font/opentype"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // This is the main test suite for harfbuzz, which parses and runs
@@ -120,7 +119,7 @@ func (fo *fontOpts) loadFont(t *testing.T) *Font {
 	f, err := td.Files.ReadFile(fo.fontRef.File)
 	tu.AssertNoErr(t, err)
 
-	fonts, err := loader.NewLoaders(bytes.NewReader(f))
+	fonts, err := ot.NewLoaders(bytes.NewReader(f))
 	tu.AssertNoErr(t, err)
 
 	tu.Assert(t, int(fo.fontRef.Index) < len(fonts))
@@ -288,11 +287,11 @@ func (mft testInput) shape(t *testing.T, verify bool) (string, error) {
 // harfbuzz seems to be OK with an invalid font
 // in pratice, it seems useless to do shaping without
 // font, so we dont support it, meaning we skip this test
-func skipInvalidFontIndex(t *testing.T, ft api.FontID) bool {
+func skipInvalidFontIndex(t *testing.T, ft font.FontID) bool {
 	f, err := td.Files.ReadFile(ft.File)
 	tu.AssertNoErr(t, err)
 
-	fonts, err := loader.NewLoaders(bytes.NewReader(f))
+	fonts, err := ot.NewLoaders(bytes.NewReader(f))
 	tu.AssertNoErr(t, err)
 
 	if int(ft.Index) >= len(fonts) {

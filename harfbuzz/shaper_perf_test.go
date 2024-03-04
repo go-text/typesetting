@@ -4,9 +4,9 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api/font"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // ported from harfbuzz/perf

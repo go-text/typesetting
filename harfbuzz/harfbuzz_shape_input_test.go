@@ -10,10 +10,9 @@ import (
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/harfbuzz"
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api"
-	"github.com/go-text/typesetting/opentype/api/font"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // collectTests walk through the tests directories, parsing .tests files
@@ -328,7 +327,7 @@ func (opts *shapeOpts) parseFeatures() ([]Feature, error) {
 }
 
 type fontOpts struct {
-	fontRef    api.FontID
+	fontRef    font.FontID
 	variations []font.Variation
 
 	subpixelBits         int

@@ -6,8 +6,8 @@ import (
 	"math/bits"
 	"sort"
 
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api"
 )
 
 // Rune coverage implementation, inspired by the fontconfig FcCharset type.
@@ -50,8 +50,8 @@ type runeSet []runePage
 // newCoveragesFromCmap iterates through the given `cmap`
 // to build the corresponding rune set.
 // buffer may be provided to reduce allocations, and is returned
-func newCoveragesFromCmap(cmap api.Cmap, buffer [][2]rune) (runeSet, scriptSet, [][2]rune) {
-	if ranger, ok := cmap.(api.CmapRuneRanger); ok { // use the fast range implementation
+func newCoveragesFromCmap(cmap font.Cmap, buffer [][2]rune) (runeSet, scriptSet, [][2]rune) {
+	if ranger, ok := cmap.(font.CmapRuneRanger); ok { // use the fast range implementation
 		return newCoveragesFromCmapRange(ranger, buffer)
 	}
 
@@ -104,7 +104,7 @@ func addRangeToPage(page *pageSet, start, end byte) {
 
 // newCoveragesFromCmapRange iterates through the given `cmap`
 // to build the corresponding rune set.
-func newCoveragesFromCmapRange(cmap api.CmapRuneRanger, buffer [][2]rune) (runeSet, scriptSet, [][2]rune) {
+func newCoveragesFromCmapRange(cmap font.CmapRuneRanger, buffer [][2]rune) (runeSet, scriptSet, [][2]rune) {
 	buffer = cmap.RuneRanges(buffer)
 
 	ss := scriptsFromRanges(buffer)
