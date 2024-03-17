@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/opentype/api/font"
 	tu "github.com/go-text/typesetting/opentype/testutils"
 )
@@ -258,4 +259,17 @@ func TestNames(t *testing.T) {
 	tu.Assert(t, ft.GlyphName(2) == "A")
 	/* beyond last glyph */
 	tu.Assert(t, ft.GlyphName(2000) == "")
+}
+
+func TestUnifont(t *testing.T) {
+	// https://github.com/go-text/typesetting/issues/140
+	ft := openFontFileTT(t, "bitmap/unifont-15.1.05.otf")
+
+	buf := NewBuffer()
+	buf.Props.Language = "en-us"
+	buf.Props.Script = language.Latin
+	buf.Props.Direction = LeftToRight
+	buf.AddRunes([]rune{'a'}, 0, 1)
+	font := NewFont(&font.Face{Font: ft})
+	buf.Shape(font, nil) // just check for crashes
 }
