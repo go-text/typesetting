@@ -91,8 +91,7 @@ func (fm *FontMap) SetRuneCacheSize(size int) {
 }
 
 // UseSystemFonts loads the system fonts and adds them to the font map.
-// This method is safe for concurrent use, but should only be called once
-// per font map.
+//
 // The first call of this method trigger a rather long scan.
 // A per-application on-disk cache is used to speed up subsequent initialisations.
 // Callers can provide an appropriate directory path within which this cache may be
@@ -101,6 +100,9 @@ func (fm *FontMap) SetRuneCacheSize(size int) {
 //
 // NOTE: On Android, callers *must* provide a writable path manually, as it cannot
 // be inferred without access to the Java runtime environment of the application.
+//
+// Multiple font maps may call this method concurrently, without duplicating
+// the work of finding the system fonts.
 func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	// safe for concurrent use; subsequent calls are no-ops
 	err := initSystemFonts(fm.logger, cacheDir)
