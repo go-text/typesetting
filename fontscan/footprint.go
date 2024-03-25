@@ -108,7 +108,8 @@ func (fp *footprint) loadFromDisk() (font.Face, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	defer file.Close()
+	
 	faces, err := font.ParseTTC(file)
 	if err != nil {
 		return nil, err
