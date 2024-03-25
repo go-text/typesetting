@@ -183,7 +183,7 @@ func (sfi systemFontsIndex) flatten() fontSet {
 func (sfi systemFontsIndex) assertValid() error {
 	for _, file := range sfi {
 		for _, fp := range file.footprints {
-			_, err := fp.loadFromDisk()
+			_, _, err := fp.loadFromDisk()
 			if err == nil {
 				return nil
 			}

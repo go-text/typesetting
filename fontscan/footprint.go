@@ -100,26 +100,26 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 	return out, buffer, nil
 }
 
-// loadFromDisk assume the footprint location refers to the file system
-func (fp *footprint) loadFromDisk() (font.Face, error) {
+// loadFromDisk assume the footprint location refers to the file system.
+func (fp *footprint) loadFromDisk() (font.Face, []font.Face, error) {
 	location := fp.Location
 
 	file, err := os.Open(location.File)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
-	
+
 	faces, err := font.ParseTTC(file)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if index := int(location.Index); len(faces) <= index {
 		// this should only happen if the font file as changed
 		// since the last scan (very unlikely)
-		return nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(faces))
+		return nil, nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(faces))
 	}
 
-	return faces[location.Index], nil
+	return faces[location.Index], faces, nil
 }

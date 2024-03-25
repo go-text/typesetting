@@ -603,13 +603,16 @@ func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
 
 	// since user provided fonts are added to `faceCache`
 	// we may now assume the font is stored on the file system
-	face, err := fp.loadFromDisk()
+	face, faces, err := fp.loadFromDisk()
 	if err != nil {
 		return nil, err
 	}
 
-	// add the face to the cache
-	fm.cache(fp, face)
+	// make sure to add all the faces to the cache,
+	// to avoid reading font collections several times
+	for _, face := range faces {
+		fm.cache(fp, face)
+	}
 
 	return face, nil
 }
