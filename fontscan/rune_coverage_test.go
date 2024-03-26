@@ -15,8 +15,8 @@ import (
 )
 
 // newRuneSet builds a set containing the given runes.
-func newRuneSet(runes ...rune) runeSet {
-	var rs runeSet
+func newRuneSet(runes ...rune) RuneSet {
+	var rs RuneSet
 	for _, r := range runes {
 		rs.Add(r)
 	}
@@ -67,7 +67,7 @@ func runesFromRanges(ranges [][2]rune) []rune {
 }
 
 // runes returns a copy of the runes in the set.
-func (rs runeSet) runes() (out []rune) {
+func (rs RuneSet) runes() (out []rune) {
 	for _, page := range rs {
 		pageLow := rune(page.ref) << 8
 		for j, set := range page.set {
@@ -157,7 +157,7 @@ func TestBinaryFormat(t *testing.T) {
 		cov := newRuneSet(randomRunes()...)
 		b := cov.serialize()
 
-		var got runeSet
+		var got RuneSet
 		n, err := got.deserializeFrom(b)
 		if err != nil {
 			t.Fatalf("Coverage.deserializeFrom: %s", err)
@@ -174,7 +174,7 @@ func TestBinaryFormat(t *testing.T) {
 }
 
 func TestDeserializeFrom(t *testing.T) {
-	var cov runeSet
+	var cov RuneSet
 
 	if _, err := cov.deserializeFrom(nil); err == nil {
 		t.Fatal("exepcted error on invalid input")
@@ -219,7 +219,7 @@ func (s CmapSimple) Lookup(r rune) (api.GID, bool) {
 func TestNewRuneSetFromCmap(t *testing.T) {
 	tests := []struct {
 		args api.Cmap
-		want runeSet
+		want RuneSet
 	}{
 		{CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, newRuneSet(0, 1, 2, 0xfff)},
 		{CmapSimple{0: 0, 1: 0, 2: 0, 800: 0, 801: 0, 1000: 0}, newRuneSet(0, 1, 2, 800, 801, 1000)},
@@ -323,7 +323,7 @@ func TestScriptSet(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			set := make(scriptSet, 0, 1)
+			set := make(ScriptSet, 0, 1)
 			for _, s := range tc.toInsert {
 				set.insert(s)
 			}
@@ -387,13 +387,13 @@ func TestRuneSetScripts(t *testing.T) {
 }
 
 // slow but easy implementation, used as a reference
-func (rs runeSet) scriptsNaive() scriptSet {
+func (rs RuneSet) scriptsNaive() ScriptSet {
 	tmp := make(map[language.Script]bool)
 	for _, r := range rs.runes() {
 		s := language.LookupScript(r)
 		tmp[s] = true
 	}
-	out := make(scriptSet, 0, len(tmp))
+	out := make(ScriptSet, 0, len(tmp))
 	for s := range tmp {
 		out = append(out, s)
 	}
@@ -428,8 +428,8 @@ func TestScriptsFromRanges(t *testing.T) {
 // It works by sampling the coverage set for the first covered rune in every page and
 // mapping that to a supported script. This means that it can miss some supported
 // scripts.
-func (rs runeSet) approximateScripts() []language.Script {
-	scripts := make(scriptSet, 0, 1)
+func (rs RuneSet) approximateScripts() []language.Script {
+	scripts := make(ScriptSet, 0, 1)
 	for _, pageSet := range rs {
 	pageSearch:
 		for pageIdx, page := range pageSet.set {
@@ -453,7 +453,7 @@ func (rs runeSet) approximateScripts() []language.Script {
 func BenchmarkScriptSet(b *testing.B) {
 	type test struct {
 		ranges [][2]rune
-		set    runeSet
+		set    RuneSet
 	}
 	var cases []test
 	for range [200]int{} {
@@ -487,7 +487,7 @@ func BenchmarkScriptSet(b *testing.B) {
 	})
 }
 
-func (a runeSet) includesNaive(b runeSet) bool {
+func (a RuneSet) includesNaive(b RuneSet) bool {
 	ar := a.runes()
 	br := b.runes()
 	aSet := make(map[rune]bool)

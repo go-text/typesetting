@@ -30,6 +30,25 @@ type Logger interface {
 // The family substitution algorithm is copied from fontconfig
 // and the match algorithm is inspired from Rust font-kit library
 
+// SystemFonts loads the system fonts, using an index stored in [cacheDir].
+// See [FontMap.UseSystemFonts] for more details.
+//
+// If [logger] is nil, log.Default() is used.
+func SystemFonts(logger Logger, cacheDir string) ([]Footprint, error) {
+	if logger == nil {
+		logger = log.New(log.Writer(), "fontscan", log.Flags())
+	}
+
+	// safe for concurrent use; subsequent calls are no-ops
+	err := initSystemFonts(logger, cacheDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// systemFonts is read-only, so may be used concurrently
+	return systemFonts.flatten(), nil
+}
+
 // FontMap provides a mechanism to select a [font.Face] from a font description.
 // It supports system and user-provided fonts, and implements the CSS font substitutions
 // rules.
@@ -121,13 +140,13 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 
 // appendFootprints adds the provided footprints to the database and maps their script
 // coverage.
-func (fm *FontMap) appendFootprints(footprints ...footprint) {
+func (fm *FontMap) appendFootprints(footprints ...Footprint) {
 	startIdx := len(fm.database)
 	fm.database = append(fm.database, footprints...)
 	// Insert entries into scriptMap for each footprint's covered scripts.
 	for i, fp := range footprints {
 		dbIdx := startIdx + i
-		for _, script := range fp.scripts {
+		for _, script := range fp.Scripts {
 			fm.scriptMap[script] = append(fm.scriptMap[script], dbIdx)
 		}
 	}
@@ -245,7 +264,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 		panic("internal error: inconsistent font descriptors and loader")
 	}
 
-	var addedFonts []footprint
+	var addedFonts []Footprint
 	for i, fontDesc := range loaders {
 		fp, _, err := newFootprintFromLoader(fontDesc, true, scanBuffer{})
 		// the font won't be usable, just ignore it
@@ -293,7 +312,7 @@ func (fm *FontMap) AddFace(face font.Face, location Location, md meta.Descriptio
 	fm.lru.Clear()
 }
 
-func (fm *FontMap) cache(fp footprint, face font.Face) {
+func (fm *FontMap) cache(fp Footprint, face font.Face) {
 	if fm.firstFace == nil {
 		fm.firstFace = face
 	}
@@ -460,7 +479,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 func (fm *FontMap) resolveForLang(candidates []int, lang LangID) font.Face {
 	for _, footprintIndex := range candidates {
 		// check the coverage
-		if fp := fm.database[footprintIndex]; fp.langs.contains(lang) {
+		if fp := fm.database[footprintIndex]; fp.Langs.Contains(lang) {
 			// try to use the font
 			face, err := fm.loadFont(fp)
 			if err != nil { // very unlikely; try another family
@@ -596,7 +615,7 @@ func (fm *FontMap) ResolveFaceForLang(lang LangID) font.Face {
 	return nil
 }
 
-func (fm *FontMap) loadFont(fp footprint) (font.Face, error) {
+func (fm *FontMap) loadFont(fp Footprint) (font.Face, error) {
 	if face, hasCached := fm.faceCache[fp.Location]; hasCached {
 		return face, nil
 	}
