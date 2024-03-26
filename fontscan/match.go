@@ -23,7 +23,7 @@ type Query struct {
 // It is usually build from a system font index or by manually appending
 // fonts.
 // footprint family names are normalized
-type fontSet []footprint
+type fontSet []Footprint
 
 // stores the possible matches with their score:
 // lower is better

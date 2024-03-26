@@ -47,7 +47,7 @@ func Test_newFamilyCrible(t *testing.T) {
 
 func fontsFromFamilies(families ...string) (out fontSet) {
 	for _, family := range families {
-		out = append(out, footprint{Family: meta.NormalizeFamily(family)})
+		out = append(out, Footprint{Family: meta.NormalizeFamily(family)})
 	}
 	return out
 }
@@ -121,21 +121,21 @@ func TestFontMap_selectByFamilyList(t *testing.T) {
 
 func fontsetFromStretches(sts ...meta.Stretch) (out fontSet) {
 	for _, stretch := range sts {
-		out = append(out, footprint{Aspect: meta.Aspect{Stretch: stretch}})
+		out = append(out, Footprint{Aspect: meta.Aspect{Stretch: stretch}})
 	}
 	return out
 }
 
 func fontsetFromStyles(sts ...meta.Style) (out fontSet) {
 	for _, style := range sts {
-		out = append(out, footprint{Aspect: meta.Aspect{Style: style}})
+		out = append(out, Footprint{Aspect: meta.Aspect{Style: style}})
 	}
 	return out
 }
 
 func fontsetFromWeights(sts ...meta.Weight) (out fontSet) {
 	for _, weight := range sts {
-		out = append(out, footprint{Aspect: meta.Aspect{Weight: weight}})
+		out = append(out, Footprint{Aspect: meta.Aspect{Weight: weight}})
 	}
 	return out
 }
@@ -214,7 +214,7 @@ func TestFontSet_matchWeight(t *testing.T) {
 
 func fontsetFromAspects(as ...meta.Aspect) (out fontSet) {
 	for _, a := range as {
-		out = append(out, footprint{Aspect: a})
+		out = append(out, Footprint{Aspect: a})
 	}
 	return out
 }
@@ -229,13 +229,13 @@ func TestFontSet_selectBestMatch(t *testing.T) {
 		name string
 		fs   fontSet
 		args meta.Aspect
-		want footprint
+		want Footprint
 	}{
-		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), defaultAspect, footprint{Aspect: defaultAspect}},
-		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), boldAspect, footprint{Aspect: boldAspect}},
-		{"exact match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), boldItalicAspect, footprint{Aspect: boldItalicAspect}},
-		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), meta.Aspect{Style: styleOblique}, footprint{Aspect: boldItalicAspect}},
-		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect, narrowAspect), meta.Aspect{Stretch: meta.StretchExtraCondensed}, footprint{Aspect: narrowAspect}},
+		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), defaultAspect, Footprint{Aspect: defaultAspect}},
+		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), boldAspect, Footprint{Aspect: boldAspect}},
+		{"exact match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), boldItalicAspect, Footprint{Aspect: boldItalicAspect}},
+		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect), meta.Aspect{Style: styleOblique}, Footprint{Aspect: boldItalicAspect}},
+		{"approximate match", fontsetFromAspects(defaultAspect, boldItalicAspect, boldAspect, narrowAspect), meta.Aspect{Stretch: meta.StretchExtraCondensed}, Footprint{Aspect: narrowAspect}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

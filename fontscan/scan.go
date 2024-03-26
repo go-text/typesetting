@@ -197,7 +197,7 @@ func (sfi systemFontsIndex) assertValid() error {
 type fileFootprints struct {
 	path string // file path
 
-	footprints []footprint // font content for the path
+	footprints []Footprint // font content for the path
 
 	// modification time for the file
 	modTime timeStamp
@@ -254,7 +254,7 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 	loaders, _ := loader.NewLoaders(file)
 
 	for i, ld := range loaders {
-		var fp footprint
+		var fp Footprint
 		fp, fa.scanBuffer, err = newFootprintFromLoader(ld, false, fa.scanBuffer)
 		// the font won't be usable, just ignore it
 		if err != nil {

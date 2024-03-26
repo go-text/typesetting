@@ -14,10 +14,10 @@ import (
 // Location identifies where a font.Face is stored.
 type Location = api.FontID
 
-// footprint is a condensed summary of the main information
+// Footprint is a condensed summary of the main information
 // about a font, serving as a lightweight surrogate
 // for the original font file.
-type footprint struct {
+type Footprint struct {
 	// Location stores the adress of the font resource.
 	Location Location
 
@@ -28,13 +28,13 @@ type footprint struct {
 	Family string
 
 	// Runes is the set of runes supported by the font.
-	Runes runeSet
+	Runes RuneSet
 
-	// set of scripts deduced from Runes
-	scripts scriptSet
+	// Scripts is the set of scripts deduced from [Runes]
+	Scripts ScriptSet
 
-	// set of languages deduced from Runes
-	langs langSet
+	// Langs is the set of languages deduced from [Runes]
+	Langs LangSet
 
 	// Aspect precises the visual characteristics
 	// of the font among a family, like "Bold Italic"
@@ -50,9 +50,9 @@ type footprint struct {
 	isUserProvided bool
 }
 
-func newFootprintFromFont(f font.Font, location Location, md meta.Description) (out footprint) {
-	out.Runes, out.scripts, _ = newCoveragesFromCmap(f.Cmap, nil)
-	out.langs = newLangsetFromCoverage(out.Runes)
+func newFootprintFromFont(f font.Font, location Location, md meta.Description) (out Footprint) {
+	out.Runes, out.Scripts, _ = newCoveragesFromCmap(f.Cmap, nil)
+	out.Langs = newLangsetFromCoverage(out.Runes)
 	out.Family = meta.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
 	out.Location = location
@@ -60,7 +60,7 @@ func newFootprintFromFont(f font.Font, location Location, md meta.Description) (
 	return out
 }
 
-func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanBuffer) (out footprint, _ scanBuffer, err error) {
+func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanBuffer) (out Footprint, _ scanBuffer, err error) {
 	raw := buffer.tableBuffer
 
 	// since raw is shared, special car must be taken in the parsing order
@@ -75,20 +75,20 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 	// the input slice
 	raw, err = ld.RawTableTo(loader.MustNewTag("cmap"), raw)
 	if err != nil {
-		return footprint{}, buffer, err
+		return Footprint{}, buffer, err
 	}
 	tb, _, err := tables.ParseCmap(raw)
 	if err != nil {
-		return footprint{}, buffer, err
+		return Footprint{}, buffer, err
 	}
 	cmap, _, err := api.ProcessCmap(tb, fp)
 	if err != nil {
-		return footprint{}, buffer, err
+		return Footprint{}, buffer, err
 	}
 
-	out.Runes, out.scripts, buffer.cmapBuffer = newCoveragesFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
+	out.Runes, out.Scripts, buffer.cmapBuffer = newCoveragesFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
 
-	out.langs = newLangsetFromCoverage(out.Runes)
+	out.Langs = newLangsetFromCoverage(out.Runes)
 
 	family, aspect, raw := meta.Describe(ld, raw)
 	out.Family = meta.NormalizeFamily(family)
@@ -101,7 +101,7 @@ func newFootprintFromLoader(ld *loader.Loader, isUserProvided bool, buffer scanB
 }
 
 // loadFromDisk assume the footprint location refers to the file system
-func (fp *footprint) loadFromDisk() (font.Face, error) {
+func (fp *Footprint) loadFromDisk() (font.Face, error) {
 	location := fp.Location
 
 	file, err := os.Open(location.File)
@@ -109,7 +109,7 @@ func (fp *footprint) loadFromDisk() (font.Face, error) {
 		return nil, err
 	}
 	defer file.Close()
-	
+
 	faces, err := font.ParseTTC(file)
 	if err != nil {
 		return nil, err
