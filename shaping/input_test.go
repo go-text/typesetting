@@ -245,6 +245,23 @@ func TestSplitByFontGlyphs(t *testing.T) {
 				},
 			},
 		},
+		{
+			"no change on ending space",
+			args{
+				input: Input{
+					Text:     []rune(" غير الأحلام "),
+					RunStart: 0, RunEnd: len([]rune(" غير الأحلام ")),
+				},
+				availableFaces: []font.Face{latinFont, arabicFont},
+			},
+			[]Input{
+				{
+					Text:     []rune(" غير الأحلام "),
+					RunStart: 0, RunEnd: len([]rune(" غير الأحلام ")),
+					Face: arabicFont,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
