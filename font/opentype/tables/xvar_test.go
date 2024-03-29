@@ -236,3 +236,26 @@ func TestCoordBits(t *testing.T) {
 	tu.Assert(t, abs(NewCoord(0.123)) < abs(NewCoord(-0.56)))
 	tu.Assert(t, abs(NewCoord(-0.123)) < abs(NewCoord(-0.56)))
 }
+
+func TestParseSTAT(t *testing.T) {
+	for _, path := range td.WithAvar {
+		fp := readFontFile(t, path)
+
+		names, _, err := ParseName(readTable(t, fp, "name"))
+		tu.AssertNoErr(t, err)
+
+		stat, _, err := ParseSTAT(readTable(t, fp, "STAT"))
+		tu.AssertNoErr(t, err)
+
+		for index, axis := range stat.designAxes {
+			fmt.Println(axis, names.Name(axis.NameID))
+
+			for _, value := range stat.axisValues.Values {
+				if value.index() == uint16(index) {
+					fmt.Println(names.Name(value.name()), value)
+				}
+			}
+		}
+		fmt.Println(stat)
+	}
+}
