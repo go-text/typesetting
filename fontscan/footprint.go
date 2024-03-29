@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/opentype/api"
+	otFont "github.com/go-text/typesetting/opentype/api/font"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
 	"github.com/go-text/typesetting/opentype/tables"
@@ -110,16 +111,21 @@ func (fp *Footprint) loadFromDisk() (font.Face, error) {
 	}
 	defer file.Close()
 
-	faces, err := font.ParseTTC(file)
+	loaders, err := loader.NewLoaders(file)
 	if err != nil {
 		return nil, err
 	}
 
-	if index := int(location.Index); len(faces) <= index {
+	if index := int(location.Index); len(loaders) <= index {
 		// this should only happen if the font file as changed
 		// since the last scan (very unlikely)
-		return nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(faces))
+		return nil, fmt.Errorf("invalid font index in collection: %d >= %d", index, len(loaders))
 	}
 
-	return faces[location.Index], nil
+	ft, err := otFont.NewFont(loaders[location.Index])
+	if err != nil {
+		return nil, fmt.Errorf("reading font at %s: %s", location.File, err)
+	}
+
+	return &otFont.Face{Font: ft}, nil
 }
