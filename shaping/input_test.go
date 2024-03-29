@@ -228,6 +228,23 @@ func TestSplitByFontGlyphs(t *testing.T) {
 				},
 			},
 		},
+		{
+			"entirely whitespace",
+			args{
+				input: Input{
+					Text:     []rune("   "),
+					RunStart: 0, RunEnd: 3,
+				},
+				availableFaces: []font.Face{latinFont, arabicFont},
+			},
+			[]Input{
+				{
+					Text:     []rune("   "),
+					RunStart: 0, RunEnd: 3,
+					Face: latinFont,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
