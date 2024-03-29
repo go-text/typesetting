@@ -578,3 +578,115 @@ type VarValueRecord struct {
 	ValueTag Tag                 // Four-byte tag identifying a font-wide measure.
 	Index    VariationStoreIndex // A delta-set index — used to select an item variation data subtable within the item variation store.
 }
+
+// ------------------------------------------------- STAT -------------------------------------------------
+
+// STAT is the Style Attributes Table
+// See https://learn.microsoft.com/en-us/typography/opentype/spec/stat
+type STAT struct {
+	majorVersion         uint16         // Major version number of the style attributes table — set to 1.
+	minorVersion         uint16         // Minor version number of the style attributes table — set to 2.
+	designAxisSize       uint16         // The size in bytes of each axis record.
+	designAxisCount      uint16         // The number of axis records. In a font with an 'fvar' table, this value must be greater than or equal to the axisCount value in the 'fvar' table. In all fonts, must be greater than zero if axisValueCount is greater than zero.
+	designAxes           []AxisRecord   `offsetSize:"Offset32" arrayCount:"ComputedField-designAxisCount"` // Offset in bytes from the beginning of the STAT table to the start of the design axes array. If designAxisCount is zero, set to zero; if designAxisCount is greater than zero, must be greater than zero.
+	axisValueCount       uint16         // The number of axis value tables.
+	axisValues           AxisValueArray `offsetSize:"Offset32" arguments:"valuesCount=.axisValueCount"` // Offset in bytes from the beginning of the STAT table to the start of the design axes value offsets array. If axisValueCount is zero, set to zero; if axisValueCount is greater than zero, must be greater than zero.
+	elidedFallbackNameID uint16         // Name ID used as fallback when projection of names into a particular font model produces a subfamily name containing only elidable elements.
+}
+
+func (st *STAT) getAxisIndex(tag Tag) (uint16, bool) {
+	for index, record := range st.designAxes {
+		if record.Tag == tag {
+			return uint16(index), true
+		}
+	}
+	return 0, false
+}
+
+func (st STAT) Value(tag Tag) (float32, bool) {
+	axisIndex, ok := st.getAxisIndex(tag)
+	if !ok {
+		return 0, false
+	}
+
+	for _, axisValue := range st.axisValues.Values {
+		if axisValue.index() == axisIndex {
+			return axisValue.valueFor(axisIndex), true
+		}
+	}
+
+	return 0, false
+}
+
+type AxisRecord struct {
+	Tag      Tag    // A tag identifying the axis of design variation.
+	NameID   NameID // The name ID for entries in the 'name' table that provide a display string for this axis.
+	Ordering uint16 // A value that applications can use to determine primary sorting of face names, or for ordering of labels when composing family or face names.
+}
+
+type AxisValueArray struct {
+	Values []AxisValue `offsetsArray:"Offset16"` // Offset in bytes from the beginning of the STAT table to the start of the design axes value offsets array. If axisValueCount is zero, set to zero; if axisValueCount is greater than zero, must be greater than zero.
+}
+
+type AxisValue interface {
+	name() NameID
+	index() uint16
+	valueFor(index uint16) float32
+}
+
+func (av AxisValue1) name() NameID { return av.valueNameID }
+func (av AxisValue2) name() NameID { return av.valueNameID }
+func (av AxisValue3) name() NameID { return av.valueNameID }
+func (av AxisValue4) name() NameID { return av.valueNameID }
+
+func (av AxisValue1) index() uint16 { return av.axisIndex }
+func (av AxisValue2) index() uint16 { return av.axisIndex }
+func (av AxisValue3) index() uint16 { return av.axisIndex }
+func (av AxisValue4) index() uint16 { return 0xFFFF }
+
+func (av AxisValue1) valueFor(index uint16) float32 { return av.value }
+func (av AxisValue2) valueFor(index uint16) float32 { return av.nominalValue }
+func (av AxisValue3) valueFor(index uint16) float32 { return av.value }
+func (av AxisValue4) valueFor(index uint16) float32 {
+	return av.axisValues[index].value
+}
+
+type AxisValue1 struct {
+	format      uint16    `unionTag:"1"` // Format identifier — set to 1.
+	axisIndex   uint16    // Zero-base index into the axis record array identifying the axis of design variation to which the axis value table applies. Must be less than designAxisCount.
+	flags       uint16    // Flags — see below for details.
+	valueNameID NameID    // The name ID for entries in the 'name' table that provide a display string for this attribute value.
+	value       Float1616 // A numeric value for this attribute value.
+}
+
+type AxisValue2 struct {
+	format        uint16    `unionTag:"2"` // Format identifier — set to 2.
+	axisIndex     uint16    // Zero-base index into the axis record array identifying the axis of design variation to which the axis value table applies. Must be less than designAxisCount.
+	flags         uint16    // Flags — see below for details.
+	valueNameID   NameID    // The name ID for entries in the 'name' table that provide a display string for this attribute value.
+	nominalValue  Float1616 // A nominal numeric value for this attribute value.
+	rangeMinValue Float1616 // The minimum value for a range associated with the specified name ID.
+	rangeMaxValue Float1616 // The maximum value for a range associated with the specified name ID
+}
+
+type AxisValue3 struct {
+	format      uint16    `unionTag:"3"` // Format identifier — set to 3.
+	axisIndex   uint16    // Zero-base index into the axis record array identifying the axis of design variation to which the axis value table applies. Must be less than designAxisCount.
+	flags       uint16    // Flags — see below for details.
+	valueNameID NameID    // The name ID for entries in the 'name' table that provide a display string for this attribute value.
+	value       Float1616 // A numeric value for this attribute value.
+	linkedValue Float1616 // The numeric value for a style-linked mapping from this value.
+}
+
+type AxisValue4 struct {
+	format      uint16            `unionTag:"4"` //	Format identifier — set to 4.
+	axisCount   uint16            // The total number of axes contributing to this axis-values combination.
+	flags       uint16            // Flags — see below for details.
+	valueNameID NameID            // The name ID for entries in the 'name' table that provide a display string for this combination of axis values.
+	axisValues  []AxisValueRecord `arrayCount:"ComputedField-axisCount"` //[axisCount]	Array of AxisValue records that provide the combination of axis values, one for each contributing axis.
+}
+
+type AxisValueRecord struct {
+	axisIndex uint16    //	Zero-base index into the axis record array identifying the axis to which this value applies. Must be less than designAxisCount.
+	value     Float1616 //	A numeric value for this attribute value.
+}
