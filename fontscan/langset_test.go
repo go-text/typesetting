@@ -48,7 +48,7 @@ func TestNewLangset(t *testing.T) {
 	// trivial check
 	for id, lang := range languagesRunes {
 		ls := newLangsetFromCoverage(lang.runes)
-		tu.Assert(t, ls.contains(LangID(id)))
+		tu.Assert(t, ls.Contains(LangID(id)))
 	}
 
 	file2, err := os.Open("../font/testdata/UbuntuMono-R.ttf")
@@ -64,5 +64,5 @@ func TestNewLangset(t *testing.T) {
 	fr, _ := NewLangID(language.NewLanguage("fr"))
 	ar, _ := NewLangID(language.NewLanguage("ar"))
 	ta, _ := NewLangID(language.NewLanguage("ta"))
-	tu.Assert(t, ls.contains(en) && ls.contains(fr) && !ls.contains(ar) && !ls.contains(ta))
+	tu.Assert(t, ls.Contains(en) && ls.Contains(fr) && !ls.Contains(ar) && !ls.Contains(ta))
 }
