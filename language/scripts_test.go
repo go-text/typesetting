@@ -16,6 +16,10 @@ func TestParseScript(t *testing.T) {
 		{"bamu_to_long", Bamum, false},
 		{"cyrl", Cyrillic, false},
 		{"samr", Samaritan, false},
+		{"ARAB", Arabic, false},
+		{"arab", Arabic, false},
+		{"Arab", Arabic, false},
+		{"Samr", Samaritan, false},
 	}
 	for _, tt := range tests {
 		got, err := ParseScript(tt.args)
@@ -30,7 +34,7 @@ func TestParseScript(t *testing.T) {
 }
 
 func TestScript_String(t *testing.T) {
-	if Bamum.String() != "bamu" {
+	if Bamum.String() != "Bamu" {
 		t.Fatal()
 	}
 }
