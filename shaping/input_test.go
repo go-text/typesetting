@@ -233,7 +233,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune("   "),
 					RunStart: 0, RunEnd: 3,
 				},
-				availableFaces: []font.Face{latinFont, arabicFont},
+				availableFaces: []*font.Face{latinFont, arabicFont},
 			},
 			[]Input{
 				{
@@ -250,7 +250,7 @@ func TestSplitByFontGlyphs(t *testing.T) {
 					Text:     []rune(" غير الأحلام "),
 					RunStart: 0, RunEnd: len([]rune(" غير الأحلام ")),
 				},
-				availableFaces: []font.Face{latinFont, arabicFont},
+				availableFaces: []*font.Face{latinFont, arabicFont},
 			},
 			[]Input{
 				{

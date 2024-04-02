@@ -228,7 +228,7 @@ func TestFontSet_selectBestMatch(t *testing.T) {
 	tests := []struct {
 		name string
 		fs   fontSet
-		args meta.Aspect
+		args font.Aspect
 		want Footprint
 	}{
 		{"exact match", fontsetFromAspects(defaultAspect, defaultAspect, boldAspect), defaultAspect, Footprint{Aspect: defaultAspect}},
