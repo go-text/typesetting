@@ -361,7 +361,10 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
 	currentInput := input
 	for i := input.RunStart; i < input.RunEnd; i++ {
 		r := input.Text[i]
-		if ignoreFaceChange(r) {
+		// We can safely ignore characters if we have a face or if there is more text,
+		// but we must force the choice of a face if we still don't have one and we reach
+		// the final rune. Otherwise strings like all-whitespace are never assigned a face.
+		if ignoreFaceChange(r) && (currentInput.Face != nil || i < input.RunEnd-1) {
 			// add the rune to the current input
 			continue
 		}

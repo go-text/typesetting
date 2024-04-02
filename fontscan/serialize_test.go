@@ -16,16 +16,16 @@ import (
 )
 
 func Test_serializeFootprints(t *testing.T) {
-	input := []footprint{
+	input := []Footprint{
 		{
 			Family:  "a strange one",
 			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			scripts: scriptSet{0, 1, 5, 0xffffff, language.Nabataean, language.Unknown},
+			Scripts: ScriptSet{0, 1, 5, 0xffffff, language.Nabataean, language.Unknown},
 			Aspect:  font.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
 		},
 		{
-			Runes:   runeSet{},
-			scripts: scriptSet{},
+			Runes:   RuneSet{},
+			Scripts: ScriptSet{},
 		},
 	}
 	dump := serializeFootprintsTo(input, nil)
@@ -42,7 +42,7 @@ func Test_serializeFootprints(t *testing.T) {
 
 // Test_serializeEmpty ensures that serializing an empty index is safe.
 func Test_serializeEmpty(t *testing.T) {
-	input := []footprint{}
+	input := []Footprint{}
 	dump := serializeFootprintsTo(input, nil)
 
 	got, err := deserializeFootprints(dump)
@@ -55,7 +55,7 @@ func Test_serializeEmpty(t *testing.T) {
 	}
 }
 
-func assertFontsetEquals(expected, got []footprint) error {
+func assertFontsetEquals(expected, got []Footprint) error {
 	if len(expected) != len(got) {
 		return fmt.Errorf("invalid length: expected %d, got %d", len(expected), len(got))
 	}
@@ -69,21 +69,21 @@ func assertFontsetEquals(expected, got []footprint) error {
 }
 
 func TestSerializeDeserialize(t *testing.T) {
-	for _, fp := range []footprint{
+	for _, fp := range []Footprint{
 		{
 			Family:  "a strange one",
 			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
-			scripts: scriptSet{0, 1, 5, 0xffffff},
+			Scripts: ScriptSet{0, 1, 5, 0xffffff},
 			Aspect:  font.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
 		},
 		{
-			Runes:   runeSet{},
-			scripts: scriptSet{},
+			Runes:   RuneSet{},
+			Scripts: ScriptSet{},
 		},
 	} {
 		b := fp.serializeTo(nil)
 
-		var got footprint
+		var got Footprint
 		n, err := got.deserializeFrom(b)
 		if err != nil {
 			t.Fatal(err)
@@ -115,7 +115,7 @@ func TestDeserializeInvalid(t *testing.T) {
 			binary.BigEndian.PutUint32(src[2:], 0)
 			src = src[:8] // truncate to simulate a broken input
 		}
-		var fp footprint
+		var fp Footprint
 		_, err := fp.deserializeFrom(src)
 		if err == nil {
 			t.Fatal("expected error on random input")

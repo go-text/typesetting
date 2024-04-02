@@ -221,6 +221,13 @@ func TestInitSystemFonts(t *testing.T) {
 	tu.AssertC(t, len(systemFonts.flatten()) != 0, "systemFonts should not be empty")
 }
 
+func TestSystemFonts(t *testing.T) {
+	fonts, err := SystemFonts(nil, t.TempDir())
+	tu.AssertNoErr(t, err)
+
+	tu.AssertC(t, len(fonts) != 0, "systemFonts should not be empty")
+}
+
 func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	file1, err := os.Open("../font/testdata/Amiri-Regular.ttf")
 	tu.AssertNoErr(t, err)
@@ -288,11 +295,11 @@ func TestFindSytemFont(t *testing.T) {
 	tu.Assert(t, !ok) // no match on an empty fontmap
 
 	// simulate system fonts
-	fm.appendFootprints(footprint{
+	fm.appendFootprints(Footprint{
 		Family:   font.NormalizeFamily("Nimbus"),
 		Location: Location{File: "nimbus.ttf"},
 	},
-		footprint{
+		Footprint{
 			Family:         font.NormalizeFamily("Noto Sans"),
 			Location:       Location{File: "noto.ttf"},
 			isUserProvided: true,

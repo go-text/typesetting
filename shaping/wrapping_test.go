@@ -2621,7 +2621,7 @@ func TestGraphemeBreakLigature(t *testing.T) {
 		simpleGlyph(12),     // l
 		simpleGlyph(13),     // e
 	)
-	shapedText1 = Output{
+	shapedText := Output{
 		Advance: fixed.I(10 * len(gls)),
 		Runes:   Range{Count: len([]rune(text1))},
 		Glyphs:  gls,
@@ -2636,7 +2636,7 @@ func TestGraphemeBreakLigature(t *testing.T) {
 		},
 	}
 	var w LineWrapper
-	lines, _ := w.WrapParagraph(WrapConfig{BreakPolicy: Always}, 90, []rune(text1), NewSliceIterator([]Output{shapedText1}))
+	lines, _ := w.WrapParagraph(WrapConfig{BreakPolicy: Always}, 90, []rune(text1), NewSliceIterator([]Output{shapedText}))
 	if L := lines[0][0].Runes.Count; L != 10 {
 		t.Errorf("invalid break with ligature %d", L)
 	}

@@ -75,7 +75,7 @@ func deserializeAspectFrom(data []byte, as *font.Aspect) (int, error) {
 
 // serializeTo serialize the Footprint in binary format,
 // by appending to `dst` and returning the slice
-func (fp footprint) serializeTo(dst []byte) []byte {
+func (fp Footprint) serializeTo(dst []byte) []byte {
 	dst = append(dst, serializeString(fp.Location.File)...)
 
 	var buffer [4]byte
@@ -85,8 +85,8 @@ func (fp footprint) serializeTo(dst []byte) []byte {
 
 	dst = append(dst, serializeString(fp.Family)...)
 	dst = append(dst, fp.Runes.serialize()...)
-	dst = append(dst, fp.scripts.serialize()...)
-	dst = append(dst, fp.langs.serialize()...)
+	dst = append(dst, fp.Scripts.serialize()...)
+	dst = append(dst, fp.Langs.serialize()...)
 	dst = append(dst, serializeAspect(fp.Aspect)...)
 
 	return dst
@@ -94,7 +94,7 @@ func (fp footprint) serializeTo(dst []byte) []byte {
 
 // deserializeFrom reads the binary format produced by serializeTo
 // it returns the number of bytes read from `data`
-func (fp *footprint) deserializeFrom(data []byte) (int, error) {
+func (fp *Footprint) deserializeFrom(data []byte) (int, error) {
 	n, err := deserializeString(&fp.Location.File, data)
 	if err != nil {
 		return 0, err
@@ -116,12 +116,12 @@ func (fp *footprint) deserializeFrom(data []byte) (int, error) {
 		return 0, err
 	}
 	n += read
-	read, err = fp.scripts.deserializeFrom(data[n:])
+	read, err = fp.Scripts.deserializeFrom(data[n:])
 	if err != nil {
 		return 0, err
 	}
 	n += read
-	read, err = fp.langs.deserializeFrom(data[n:])
+	read, err = fp.Langs.deserializeFrom(data[n:])
 	if err != nil {
 		return 0, err
 	}
@@ -137,7 +137,7 @@ func (fp *footprint) deserializeFrom(data []byte) (int, error) {
 
 // serialize into binary format, appending to `dst` and returning
 // the updated slice
-func serializeFootprintsTo(footprints []footprint, dst []byte) []byte {
+func serializeFootprintsTo(footprints []Footprint, dst []byte) []byte {
 	for _, fp := range footprints {
 		dst = fp.serializeTo(dst)
 	}
@@ -145,9 +145,9 @@ func serializeFootprintsTo(footprints []footprint, dst []byte) []byte {
 }
 
 // parses the format written by `serializeFootprints`
-func deserializeFootprints(src []byte) (out []footprint, err error) {
+func deserializeFootprints(src []byte) (out []Footprint, err error) {
 	for totalRead := 0; totalRead < len(src); {
-		var fp footprint
+		var fp Footprint
 		read, err := fp.deserializeFrom(src[totalRead:])
 		if err != nil {
 			return nil, fmt.Errorf("invalid footprints: %s", err)

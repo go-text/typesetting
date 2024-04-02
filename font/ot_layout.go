@@ -12,11 +12,18 @@ type Layout struct {
 }
 
 func newLayout(table tables.Layout) Layout {
+	fCount := len(table.FeatureList.Features)
 	out := Layout{
 		Scripts:  make([]Script, len(table.ScriptList.Scripts)),
-		Features: make([]Feature, len(table.FeatureList.Features)),
+		Features: make([]Feature, fCount),
 	}
 	for i, s := range table.ScriptList.Scripts {
+		if langSys := s.DefaultLangSys; langSys != nil {
+			sanitizeLangSys(langSys, fCount)
+		}
+		for i := range s.LangSys {
+			sanitizeLangSys(&s.LangSys[i], fCount)
+		}
 		out.Scripts[i] = Script{
 			Script: s,
 			Tag:    table.ScriptList.Records[i].Tag,
@@ -32,6 +39,13 @@ func newLayout(table tables.Layout) Layout {
 		out.FeatureVariations = table.FeatureVariations.FeatureVariationRecords
 	}
 	return out
+}
+
+func sanitizeLangSys(langSys *tables.LangSys, featuresCount int) {
+	if int(langSys.RequiredFeatureIndex) >= featuresCount {
+		// invalid index : replace it by the sentinel value
+		langSys.RequiredFeatureIndex = 0xFFFF
+	}
 }
 
 type Script struct {
