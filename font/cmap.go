@@ -25,7 +25,7 @@ var (
 	_ CmapIter = (*cmap13Iter)(nil)
 )
 
-// CmapIter is an interator over a Cmap.
+// CmapIter is an iterator over a Cmap.
 type CmapIter interface {
 	// Next returns true if the iterator still has data to yield
 	Next() bool
