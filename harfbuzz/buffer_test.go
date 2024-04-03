@@ -41,7 +41,7 @@ func testBufferProperties(b *Buffer, t *testing.T) {
 
 	tu.Assert(t, b.Props.Direction == 0)
 	tu.Assert(t, b.Props.Script == 0)
-	tu.Assert(t, b.Props.Language == "")
+	tu.Assert(t, b.Props.Language.String() == "")
 
 	b.Props.Language = language.NewLanguage("fa")
 	tu.Assert(t, b.Props.Language == language.NewLanguage("Fa"))
@@ -55,7 +55,7 @@ func testBufferProperties(b *Buffer, t *testing.T) {
 
 	tu.Assert(t, b.Props.Direction == 0)
 	tu.Assert(t, b.Props.Script == 0)
-	tu.Assert(t, b.Props.Language == "")
+	tu.Assert(t, b.Props.Language.String() == "")
 	tu.Assert(t, b.Flags == 0)
 	tu.Assert(t, b.NotFound == 0)
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 	fontapi "github.com/go-text/typesetting/opentype/api/font"
 	meta "github.com/go-text/typesetting/opentype/api/metadata"
 	"github.com/go-text/typesetting/opentype/loader"
@@ -63,7 +64,7 @@ func ExampleFontMap_AddFace() {
 var _ shaping.Fontmap = (*FontMap)(nil)
 
 func TestResolveFont(t *testing.T) {
-	en, _ := NewLangID("en")
+	en, _ := NewLangID(language.NewLanguage("en"))
 
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "", 0)
@@ -115,7 +116,7 @@ func TestResolveForLang(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"helvetica"}})
 
 	// all system fonts should have support for english
-	en, _ := NewLangID("en")
+	en, _ := NewLangID(language.NewLanguage("en"))
 	face := fm.ResolveFaceForLang(en)
 	tu.AssertC(t, face != nil, "expected EN to be supported by system fonts")
 }
@@ -141,7 +142,7 @@ func TestResolveFallbackManual(t *testing.T) {
 	face := fm.ResolveFace('c')
 	tu.Assert(t, fm.FontLocation(face.Font).File == "user:Amiri")
 
-	en, _ := NewLangID("en")
+	en, _ := NewLangID(language.NewLanguage("en"))
 	face = fm.ResolveFaceForLang(en)
 	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Amiri")
 }

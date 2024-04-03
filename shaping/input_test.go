@@ -592,7 +592,7 @@ func TestSplit(t *testing.T) {
 			Direction: test.dir,
 
 			Size:     10,
-			Language: "fr",
+			Language: language.NewLanguage("fr"),
 		}, fm)
 		tu.Assert(t, len(inputs) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {
@@ -604,7 +604,7 @@ func TestSplit(t *testing.T) {
 			tu.Assert(t, got.Face == run.face)
 			// check that input properties are properly copied
 			tu.Assert(t, got.Size == 10)
-			tu.Assert(t, got.Language == "fr")
+			tu.Assert(t, got.Language.String() == "fr")
 		}
 
 		// check that spliting a "middle" text slice is supported

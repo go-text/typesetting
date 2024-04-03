@@ -18,9 +18,11 @@ var canonMap = [256]byte{
 	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 0, 0, 0, 0, 0,
 }
 
-// Language store the canonicalized BCP 47 tag,
+// Language store the canonicalized BCP 47 tag of a language,
 // which has the generic form <lang>-<country>-<other tags>...
-type Language string
+type Language struct {
+	lang string
+}
 
 // NewLanguage canonicalizes the language input (as a BCP 47 language tag), by converting it to
 // lowercase, mapping '_' to '-', and stripping all characters other
@@ -36,14 +38,17 @@ func NewLanguage(language string) Language {
 			out = append(out, can)
 		}
 	}
-	return Language(out)
+	return Language{string(out)}
 }
 
+// String returns the canonicalized BCP 47 representation of the language.
+func (l Language) String() string { return l.lang }
+ 
 // Primary returns the root language of l, that is
 // the part before the first '-' separator
 func (l Language) Primary() Language {
-	if index := strings.IndexByte(string(l), '-'); index != -1 {
-		l = l[:index]
+	if index := strings.IndexByte(l.lang, '-'); index != -1 {
+		return Language{l.lang[:index]}
 	}
 	return l
 }
@@ -52,10 +57,10 @@ func (l Language) Primary() Language {
 // The resulting slice starts with the given whole language.
 // See http://www.unicode.org/reports/tr35/#Locale_Inheritance for more information.
 func (l Language) SimpleInheritance() []Language {
-	tags := strings.Split(string(l), "-")
+	tags := strings.Split(l.lang, "-")
 	out := make([]Language, 0, len(tags))
 	for len(tags) != 0 {
-		out = append(out, Language(strings.Join(tags, "-")))
+		out = append(out, Language{strings.Join(tags, "-")})
 		tags = tags[:len(tags)-1]
 	}
 	return out
@@ -67,7 +72,7 @@ func (l Language) IsDerivedFrom(root Language) bool { return l.Primary() == root
 
 // IsUndetermined returns `true` if its primary language is "und".
 // It is a shortcut for IsDerivedFrom("und").
-func (l Language) IsUndetermined() bool { return l.IsDerivedFrom("und") }
+func (l Language) IsUndetermined() bool { return l.IsDerivedFrom(Language{"und"}) }
 
 // SplitExtensionTags splits the language at the extension and private-use subtags, which are
 // marked by a "-<one char>-" pattern.
@@ -75,28 +80,29 @@ func (l Language) IsUndetermined() bool { return l.IsDerivedFrom("und") }
 //
 // (l, "") is returned if the language has no extension or private-use tag.
 func (l Language) SplitExtensionTags() (prefix, private Language) {
-	if len(l) >= 2 && l[0] == 'x' && l[1] == '-' { // x-<....> 'fully' private
-		return "", l
+	la := l.lang
+	if len(la) >= 2 && la[0] == 'x' && la[1] == '-' { // x-<....> 'fully' private
+		return Language{""}, l
 	}
 
 	firstExtension := -1
-	for i := 0; i+3 < len(l); i++ {
-		if l[i] == '-' && l[i+2] == '-' {
+	for i := 0; i+3 < len(la); i++ {
+		if la[i] == '-' && la[i+2] == '-' {
 			if firstExtension == -1 { // mark the end of the prefix
 				firstExtension = i
 			}
 
-			if l[i+1] == 'x' { // private-use tag
-				return l[:firstExtension], l[i+1:]
+			if la[i+1] == 'x' { // private-use tag
+				return Language{la[:firstExtension]}, Language{la[i+1:]}
 			}
 			// else keep looking for private sub tags
 		}
 	}
 
 	if firstExtension == -1 {
-		return l, ""
+		return l, Language{""}
 	}
-	return l[:firstExtension], ""
+	return Language{la[:firstExtension]}, Language{""}
 }
 
 // LanguageComparison is a three state enum resulting from comparing two languages
@@ -123,7 +129,7 @@ func (l Language) Compare(other Language) LanguageComparison {
 	}
 
 	// check for the undetermined special case
-	if primary1 == "und" {
+	if primary1.lang == "und" {
 		return LanguagesDiffer
 	}
 	return LanguagePrimaryMatch
@@ -154,5 +160,5 @@ func DefaultLanguage() Language {
 		return languageFromLocale(p)
 	}
 
-	return ""
+	return Language{""}
 }

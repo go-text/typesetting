@@ -2318,164 +2318,164 @@ func tagsFromComplexLanguage(langStr string) []loader.Tag {
 func ambiguousTagToLanguage(tag loader.Tag) language.Language {
 	switch tag {
 	case 0x414c5420: /* Altai */
-		return "alt" /* language.NewLanguage("alt") Southern Altai */
+		return language.NewLanguage("alt") /* Southern Altai */
 	case 0x41505048: /*  */
-		return "und-fonnapa" /* language.NewLanguage("und-fonnapa") Undetermined; North American Phonetic Alphabet */
+		return language.NewLanguage("und-fonnapa") /* Undetermined; North American Phonetic Alphabet */
 	case 0x41524120: /* Arabic */
-		return "ar" /* language.NewLanguage("ar") Arabic [macrolanguage] */
+		return language.NewLanguage("ar") /* Arabic [macrolanguage] */
 	case 0x41524b20: /* Rakhine */
-		return "rki" /* language.NewLanguage("rki") Rakhine */
+		return language.NewLanguage("rki") /* Rakhine */
 	case 0x41544820: /* Athapaskan */
-		return "ath" /* language.NewLanguage("ath") Athapascan [collection] */
+		return language.NewLanguage("ath") /* Athapascan [collection] */
 	case 0x42425220: /* Berber */
-		return "ber" /* language.NewLanguage("ber") Berber [collection] */
+		return language.NewLanguage("ber") /* Berber [collection] */
 	case 0x42494b20: /* Bikol */
-		return "bik" /* language.NewLanguage("bik") Bikol [macrolanguage] */
+		return language.NewLanguage("bik") /* Bikol [macrolanguage] */
 	case 0x42544b20: /* Batak */
-		return "btk" /* language.NewLanguage("btk") Batak [collection] */
+		return language.NewLanguage("btk") /* Batak [collection] */
 	case 0x43505020: /* Creoles */
-		return "crp" /* language.NewLanguage("crp") Creoles and pidgins [collection] */
+		return language.NewLanguage("crp") /* Creoles and pidgins [collection] */
 	case 0x43525220: /* Carrier */
-		return "crx" /* language.NewLanguage("crx") Carrier */
+		return language.NewLanguage("crx") /* Carrier */
 	case 0x44475220: /* Dogri (macrolanguage) */
-		return "doi" /* language.NewLanguage("doi") Dogri [macrolanguage] */
+		return language.NewLanguage("doi") /* Dogri [macrolanguage] */
 	case 0x444e4b20: /* Dinka */
-		return "din" /* language.NewLanguage("din") Dinka [macrolanguage] */
+		return language.NewLanguage("din") /* Dinka [macrolanguage] */
 	case 0x44524920: /* Dari */
-		return "prs" /* language.NewLanguage("prs") Dari */
+		return language.NewLanguage("prs") /* Dari */
 	case 0x445a4e20: /* Dzongkha */
-		return "dz" /* language.NewLanguage("dz") Dzongkha */
+		return language.NewLanguage("dz") /* Dzongkha */
 	case 0x45544920: /* Estonian */
-		return "et" /* language.NewLanguage("et") Estonian [macrolanguage] */
+		return language.NewLanguage("et") /* Estonian [macrolanguage] */
 	case 0x46415220: /* Persian */
-		return "fa" /* language.NewLanguage("fa") Persian [macrolanguage] */
+		return language.NewLanguage("fa") /* Persian [macrolanguage] */
 	case 0x474f4e20: /* Gondi */
-		return "gon" /* language.NewLanguage("gon") Gondi [macrolanguage] */
+		return language.NewLanguage("gon") /* Gondi [macrolanguage] */
 	case 0x484d4120: /* High Mari */
-		return "mrj" /* language.NewLanguage("mrj") Western Mari */
+		return language.NewLanguage("mrj") /* Western Mari */
 	case 0x484d4e20: /* Hmong */
-		return "hmn" /* language.NewLanguage("hmn") Hmong [macrolanguage] */
+		return language.NewLanguage("hmn") /* Hmong [macrolanguage] */
 	case 0x484e4420: /* Hindko */
-		return "hnd" /* language.NewLanguage("hnd") Southern Hindko */
+		return language.NewLanguage("hnd") /* Southern Hindko */
 	case 0x48594520: /* Armenian */
-		return "hyw" /* language.NewLanguage("hyw") Western Armenian */
+		return language.NewLanguage("hyw") /* Western Armenian */
 	case 0x49424120: /* Iban */
-		return "iba" /* language.NewLanguage("iba") Iban */
+		return language.NewLanguage("iba") /* Iban */
 	case 0x494a4f20: /* Ijo */
-		return "ijo" /* language.NewLanguage("ijo") Ijo [collection] */
+		return language.NewLanguage("ijo") /* Ijo [collection] */
 	case 0x494e5520: /* Inuktitut */
-		return "iu" /* language.NewLanguage("iu") Inuktitut [macrolanguage] */
+		return language.NewLanguage("iu") /* Inuktitut [macrolanguage] */
 	case 0x49504b20: /* Inupiat */
-		return "ik" /* language.NewLanguage("ik") Inupiaq [macrolanguage] */
+		return language.NewLanguage("ik") /* Inupiaq [macrolanguage] */
 	case 0x49505048: /*  */
-		return "und-fonipa" /* language.NewLanguage("und-fonipa") Undetermined; International Phonetic Alphabet */
+		return language.NewLanguage("und-fonipa") /* Undetermined; International Phonetic Alphabet */
 	case 0x49525420: /* Irish Traditional */
-		return "ga-latg" /* language.NewLanguage("ga-Latg") Irish;  */
+		return language.NewLanguage("ga-latg") /* Irish;  */
 	case 0x4a494920: /* Yiddish */
-		return "yi" /* language.NewLanguage("yi") Yiddish [macrolanguage] */
+		return language.NewLanguage("yi") /* Yiddish [macrolanguage] */
 	case 0x4b414c20: /* Kalenjin */
-		return "kln" /* language.NewLanguage("kln") Kalenjin [macrolanguage] */
+		return language.NewLanguage("kln") /* Kalenjin [macrolanguage] */
 	case 0x4b474520: /* Khutsuri Georgian */
-		return "und-geok" /* language.NewLanguage("und-Geok") Undetermined;  */
+		return language.NewLanguage("und-geok") /* Undetermined;  */
 	case 0x4b4e5220: /* Kanuri */
-		return "kr" /* language.NewLanguage("kr") Kanuri [macrolanguage] */
+		return language.NewLanguage("kr") /* Kanuri [macrolanguage] */
 	case 0x4b4f4820: /* Korean Old Hangul */
-		return "okm" /* language.NewLanguage("okm") Middle Korean (10th-16th cent.) */
+		return language.NewLanguage("okm") /* Middle Korean (10th-16th cent.) */
 	case 0x4b4f4b20: /* Konkani */
-		return "kok" /* language.NewLanguage("kok") Konkani [macrolanguage] */
+		return language.NewLanguage("kok") /* Konkani [macrolanguage] */
 	case 0x4b4f4d20: /* Komi */
-		return "kv" /* language.NewLanguage("kv") Komi [macrolanguage] */
+		return language.NewLanguage("kv") /* Komi [macrolanguage] */
 	case 0x4b504c20: /* Kpelle */
-		return "kpe" /* language.NewLanguage("kpe") Kpelle [macrolanguage] */
+		return language.NewLanguage("kpe") /* Kpelle [macrolanguage] */
 	case 0x4b524e20: /* Karen */
-		return "kar" /* language.NewLanguage("kar") Karen [collection] */
+		return language.NewLanguage("kar") /* Karen [collection] */
 	case 0x4b554920: /* Kui */
-		return "uki" /* language.NewLanguage("uki") Kui (India) */
+		return language.NewLanguage("uki") /* Kui (India) */
 	case 0x4b555220: /* Kurdish */
-		return "ku" /* language.NewLanguage("ku") Kurdish [macrolanguage] */
+		return language.NewLanguage("ku") /* Kurdish [macrolanguage] */
 	case 0x4c4d4120: /* Low Mari */
-		return "mhr" /* language.NewLanguage("mhr") Eastern Mari */
+		return language.NewLanguage("mhr") /* Eastern Mari */
 	case 0x4c554820: /* Luyia */
-		return "luy" /* language.NewLanguage("luy") Luyia [macrolanguage] */
+		return language.NewLanguage("luy") /* Luyia [macrolanguage] */
 	case 0x4c564920: /* Latvian */
-		return "lv" /* language.NewLanguage("lv") Latvian [macrolanguage] */
+		return language.NewLanguage("lv") /* Latvian [macrolanguage] */
 	case 0x4d415720: /* Marwari */
-		return "mwr" /* language.NewLanguage("mwr") Marwari [macrolanguage] */
+		return language.NewLanguage("mwr") /* Marwari [macrolanguage] */
 	case 0x4d4c4720: /* Malagasy */
-		return "mg" /* language.NewLanguage("mg") Malagasy [macrolanguage] */
+		return language.NewLanguage("mg") /* Malagasy [macrolanguage] */
 	case 0x4d4c5920: /* Malay */
-		return "ms" /* language.NewLanguage("ms") Malay [macrolanguage] */
+		return language.NewLanguage("ms") /* Malay [macrolanguage] */
 	case 0x4d4e4720: /* Mongolian */
-		return "mn" /* language.NewLanguage("mn") Mongolian [macrolanguage] */
+		return language.NewLanguage("mn") /* Mongolian [macrolanguage] */
 	case 0x4d4e4b20: /* Maninka */
-		return "man" /* language.NewLanguage("man") Mandingo [macrolanguage] */
+		return language.NewLanguage("man") /* Mandingo [macrolanguage] */
 	case 0x4d4f4c20: /* Moldavian */
-		return "ro-md" /* language.NewLanguage("ro-MD") Romanian; Moldova */
+		return language.NewLanguage("ro-md") /* Romanian; Moldova */
 	case 0x4d4f4e54: /* Thailand Mon */
-		return "mnw-th" /* language.NewLanguage("mnw-TH") Mon; Thailand */
+		return language.NewLanguage("mnw-th") /* Mon; Thailand */
 	case 0x4d594e20: /* Mayan */
-		return "myn" /* language.NewLanguage("myn") Mayan [collection] */
+		return language.NewLanguage("myn") /* Mayan [collection] */
 	case 0x4e414820: /* Nahuatl */
-		return "nah" /* language.NewLanguage("nah") Nahuatl [collection] */
+		return language.NewLanguage("nah") /* Nahuatl [collection] */
 	case 0x4e455020: /* Nepali */
-		return "ne" /* language.NewLanguage("ne") Nepali [macrolanguage] */
+		return language.NewLanguage("ne") /* Nepali [macrolanguage] */
 	case 0x4e495320: /* Nisi */
-		return "njz" /* language.NewLanguage("njz") Nyishi */
+		return language.NewLanguage("njz") /* Nyishi */
 	case 0x4e4f5220: /* Norwegian */
-		return "no" /* language.NewLanguage("no") Norwegian [macrolanguage] */
+		return language.NewLanguage("no") /* Norwegian [macrolanguage] */
 	case 0x4f4a4220: /* Ojibway */
-		return "oj" /* language.NewLanguage("oj") Ojibwa [macrolanguage] */
+		return language.NewLanguage("oj") /* Ojibwa [macrolanguage] */
 	case 0x4f524f20: /* Oromo */
-		return "om" /* language.NewLanguage("om") Oromo [macrolanguage] */
+		return language.NewLanguage("om") /* Oromo [macrolanguage] */
 	case 0x50415320: /* Pashto */
-		return "ps" /* language.NewLanguage("ps") Pashto [macrolanguage] */
+		return language.NewLanguage("ps") /* Pashto [macrolanguage] */
 	case 0x50475220: /* Polytonic Greek */
-		return "el-polyton" /* language.NewLanguage("el-polyton") Modern Greek (1453-); Polytonic Greek */
+		return language.NewLanguage("el-polyton") /* Modern Greek (1453-); Polytonic Greek */
 	case 0x50524f20: /* Provençal / Old Provençal */
-		return "pro" /* language.NewLanguage("pro") Old Provençal (to 1500) */
+		return language.NewLanguage("pro") /* Old Provençal (to 1500) */
 	case 0x51554820: /* Quechua (Bolivia) */
-		return "quh" /* language.NewLanguage("quh") South Bolivian Quechua */
+		return language.NewLanguage("quh") /* South Bolivian Quechua */
 	case 0x51555a20: /* Quechua */
-		return "qu" /* language.NewLanguage("qu") Quechua [macrolanguage] */
+		return language.NewLanguage("qu") /* Quechua [macrolanguage] */
 	case 0x51564920: /* Quechua (Ecuador) */
-		return "qvi" /* language.NewLanguage("qvi") Imbabura Highland Quichua */
+		return language.NewLanguage("qvi") /* Imbabura Highland Quichua */
 	case 0x51574820: /* Quechua (Peru) */
-		return "qwh" /* language.NewLanguage("qwh") Huaylas Ancash Quechua */
+		return language.NewLanguage("qwh") /* Huaylas Ancash Quechua */
 	case 0x52414a20: /* Rajasthani */
-		return "raj" /* language.NewLanguage("raj") Rajasthani [macrolanguage] */
+		return language.NewLanguage("raj") /* Rajasthani [macrolanguage] */
 	case 0x524f4d20: /* Romanian */
-		return "ro" /* language.NewLanguage("ro") Romanian */
+		return language.NewLanguage("ro") /* Romanian */
 	case 0x524f5920: /* Romany */
-		return "rom" /* language.NewLanguage("rom") Romany [macrolanguage] */
+		return language.NewLanguage("rom") /* Romany [macrolanguage] */
 	case 0x53514920: /* Albanian */
-		return "sq" /* language.NewLanguage("sq") Albanian [macrolanguage] */
+		return language.NewLanguage("sq") /* Albanian [macrolanguage] */
 	case 0x53524220: /* Serbian */
-		return "sr" /* language.NewLanguage("sr") Serbian */
+		return language.NewLanguage("sr") /* Serbian */
 	case 0x53585420: /* Sutu */
-		return "xnj" /* language.NewLanguage("xnj") Ngoni (Tanzania) */
+		return language.NewLanguage("xnj") /* Ngoni (Tanzania) */
 	case 0x53595220: /* Syriac */
-		return "syr" /* language.NewLanguage("syr") Syriac [macrolanguage] */
+		return language.NewLanguage("syr") /* Syriac [macrolanguage] */
 	case 0x53595245: /* Syriac, Estrangela script-variant (equivalent to ISO 15924 'Syre') */
-		return "und-syre" /* language.NewLanguage("und-Syre") Undetermined;  */
+		return language.NewLanguage("und-syre") /* Undetermined;  */
 	case 0x5359524a: /* Syriac, Western script-variant (equivalent to ISO 15924 'Syrj') */
-		return "und-syrj" /* language.NewLanguage("und-Syrj") Undetermined;  */
+		return language.NewLanguage("und-syrj") /* Undetermined;  */
 	case 0x5359524e: /* Syriac, Eastern script-variant (equivalent to ISO 15924 'Syrn') */
-		return "und-syrn" /* language.NewLanguage("und-Syrn") Undetermined;  */
+		return language.NewLanguage("und-syrn") /* Undetermined;  */
 	case 0x544d4820: /* Tamashek */
-		return "tmh" /* language.NewLanguage("tmh") Tamashek [macrolanguage] */
+		return language.NewLanguage("tmh") /* Tamashek [macrolanguage] */
 	case 0x544f4420: /* Todo */
-		return "xwo" /* language.NewLanguage("xwo") Written Oirat */
+		return language.NewLanguage("xwo") /* Written Oirat */
 	case 0x5a484820: /* Chinese, Traditional, Hong Kong SAR */
-		return "zh-hk" /* language.NewLanguage("zh-HK") Chinese [macrolanguage]; Hong Kong */
+		return language.NewLanguage("zh-hk") /* Chinese [macrolanguage]; Hong Kong */
 	case 0x5a485320: /* Chinese, Simplified */
-		return "zh-hans" /* language.NewLanguage("zh-Hans") Chinese [macrolanguage];  */
+		return language.NewLanguage("zh-hans") /* Chinese [macrolanguage];  */
 	case 0x5a485420: /* Chinese, Traditional */
-		return "zh-hant" /* language.NewLanguage("zh-Hant") Chinese [macrolanguage];  */
+		return language.NewLanguage("zh-hant") /* Chinese [macrolanguage];  */
 	case 0x5a48544d: /* Chinese, Traditional, Macao SAR */
-		return "zh-mo" /* language.NewLanguage("zh-MO") Chinese [macrolanguage]; Macao */
+		return language.NewLanguage("zh-mo") /* Chinese [macrolanguage]; Macao */
 	case 0x5a5a4120: /* Zazaki */
-		return "zza" /* language.NewLanguage("zza") Zazaki [macrolanguage] */
+		return language.NewLanguage("zza") /* Zazaki [macrolanguage] */
 	default:
-		return ""
+		return language.NewLanguage("")
 	}
 }

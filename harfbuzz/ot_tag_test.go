@@ -23,7 +23,7 @@ func assertEqualTag(t *testing.T, t1, t2 tables.Tag) {
 func testSimpleTags(t *testing.T, s string, script language.Script) {
 	tag := loader.MustNewTag(s)
 
-	tags, _ := newOTTagsFromScriptAndLanguage(script, "")
+	tags, _ := newOTTagsFromScriptAndLanguage(script, language.NewLanguage(""))
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tags[0], tag)
@@ -50,7 +50,7 @@ func testIndicTags(t *testing.T, s1, s2, s3 string, script language.Script) {
 	tag2 := loader.MustNewTag(s2)
 	tag3 := loader.MustNewTag(s3)
 
-	tags, _ := newOTTagsFromScriptAndLanguage(script, "")
+	tags, _ := newOTTagsFromScriptAndLanguage(script, language.NewLanguage(""))
 
 	assertEqualInt(t, len(tags), 3)
 	assertEqualTag(t, tags[0], tag1)
@@ -64,7 +64,7 @@ func TestOtTagScriptDegenerate(t *testing.T) {
 	/* HIRAGANA and KATAKANA both map to 'kana' */
 	testSimpleTags(t, "kana", language.Katakana)
 
-	tags, _ := newOTTagsFromScriptAndLanguage(language.Hiragana, "")
+	tags, _ := newOTTagsFromScriptAndLanguage(language.Hiragana, language.NewLanguage(""))
 
 	assertEqualInt(t, len(tags), 1)
 	assertEqualTag(t, tags[0], loader.MustNewTag("kana"))
@@ -425,7 +425,7 @@ func TestOtTagFull(t *testing.T) {
 }
 
 func TestOtTagFromLanguage(t *testing.T) {
-	scs, _ := newOTTagsFromScriptAndLanguage(language.Tai_Tham, "")
+	scs, _ := newOTTagsFromScriptAndLanguage(language.Tai_Tham, language.NewLanguage(""))
 	if len(scs) != 1 && scs[0] != 1818324577 {
 		t.Fatalf("exected [lana], got %v", scs)
 	}
