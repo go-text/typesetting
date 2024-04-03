@@ -22,7 +22,7 @@ type (
 	SegmentPoint = ot.SegmentPoint
 )
 
-// GlyphData describe how to graw a glyph.
+// GlyphData describe how to draw a glyph.
 // It is either an GlyphOutline, GlyphSVG or GlyphBitmap.
 type GlyphData interface {
 	isGlyphData()
