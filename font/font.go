@@ -148,15 +148,6 @@ type Font struct {
 	post post         // optional
 	svg  svg          // optional
 
-	// Optional, only present in variable fonts
-
-	fvar fvar         // optional
-	hvar *tables.HVAR // optional
-	vvar *tables.VVAR // optional
-	avar tables.Avar
-	mvar mvar
-	gvar gvar
-
 	glyf   tables.Glyf
 	hmtx   tables.Hmtx
 	vmtx   tables.Vmtx
@@ -166,6 +157,15 @@ type Font struct {
 	os2   os2
 	names tables.Name
 	head  tables.Head
+
+	// Optional, only present in variable fonts
+
+	fvar fvar         // optional
+	hvar *tables.HVAR // optional
+	vvar *tables.VVAR // optional
+	avar tables.Avar
+	mvar mvar
+	gvar gvar
 
 	// Advanced layout tables.
 
