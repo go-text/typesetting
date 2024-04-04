@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api/font"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // Unit tests for glyph advance Widths and extents of TrueType variable fonts

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestParseFontconfig(t *testing.T) {

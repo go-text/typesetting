@@ -10,16 +10,15 @@ import (
 	"sync"
 
 	"github.com/go-text/typesetting/font"
+	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/language"
-	meta "github.com/go-text/typesetting/opentype/api/metadata"
-	"github.com/go-text/typesetting/opentype/loader"
 )
 
 type cacheEntry struct {
 	Location
 
 	Family string
-	meta.Aspect
+	font.Aspect
 }
 
 // Logger is a type that can log warnings.
@@ -61,9 +60,9 @@ func SystemFonts(logger Logger, cacheDir string) ([]Footprint, error) {
 type FontMap struct {
 	logger Logger
 	// caches of already loaded faceCache : the two maps are updated conjointly
-	firstFace font.Face
-	faceCache map[Location]font.Face
-	metaCache map[font.Font]cacheEntry
+	firstFace *font.Face
+	faceCache map[Location]*font.Face
+	metaCache map[*font.Font]cacheEntry
 
 	// the database to query, either loaded from an index
 	// or populated with the [UseSystemFonts], [AddFont], and/or [AddFace] method.
@@ -92,8 +91,8 @@ func NewFontMap(logger Logger) *FontMap {
 	}
 	fm := &FontMap{
 		logger:       logger,
-		faceCache:    make(map[Location]font.Face),
-		metaCache:    make(map[font.Font]cacheEntry),
+		faceCache:    make(map[Location]*font.Face),
+		metaCache:    make(map[*font.Font]cacheEntry),
 		cribleBuffer: make(familyCrible, 150),
 		scriptMap:    make(map[language.Script][]int),
 	}
@@ -247,7 +246,7 @@ func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex,
 // The order of calls to [AddFont] and [AddFace] determines relative priority
 // of manually loaded fonts. See [ResolveFace] for details about when this matters.
 func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) error {
-	loaders, err := loader.NewLoaders(fontFile)
+	loaders, err := ot.NewLoaders(fontFile)
 	if err != nil {
 		return fmt.Errorf("unsupported font resource: %s", err)
 	}
@@ -278,7 +277,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 		if familyName != "" {
 			// give priority to the user provided family
-			fp.Family = meta.NormalizeFamily(familyName)
+			fp.Family = font.NormalizeFamily(familyName)
 		}
 
 		addedFonts = append(addedFonts, fp)
@@ -302,7 +301,7 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 //
 // The order of calls to [AddFont] and [AddFace] determines relative priority
 // of manually loaded fonts. See [ResolveFace] for details about when this matters.
-func (fm *FontMap) AddFace(face font.Face, location Location, md meta.Description) {
+func (fm *FontMap) AddFace(face *font.Face, location Location, md font.Description) {
 	fp := newFootprintFromFont(face.Font, location, md)
 	fm.cache(fp, face)
 
@@ -312,7 +311,7 @@ func (fm *FontMap) AddFace(face font.Face, location Location, md meta.Descriptio
 	fm.lru.Clear()
 }
 
-func (fm *FontMap) cache(fp Footprint, face font.Face) {
+func (fm *FontMap) cache(fp Footprint, face *font.Face) {
 	if fm.firstFace == nil {
 		fm.firstFace = face
 	}
@@ -323,14 +322,17 @@ func (fm *FontMap) cache(fp Footprint, face font.Face) {
 // FontLocation returns the origin of the provided font. If the font was not
 // previously returned from this FontMap by a call to ResolveFace, the zero
 // value will be returned instead.
-func (fm *FontMap) FontLocation(ft font.Font) Location {
+func (fm *FontMap) FontLocation(ft *font.Font) Location {
 	return fm.metaCache[ft].Location
 }
 
 // FontMetadata returns a description of the provided font. If the font was not
 // previously returned from this FontMap by a call to ResolveFace, the zero
 // value will be returned instead.
-func (fm *FontMap) FontMetadata(ft font.Font) (family string, aspect meta.Aspect) {
+//
+// Note that, for fonts added with [AddFace], it is the user provided description
+// that is returned, not the one returned by [Font.Describe]
+func (fm *FontMap) FontMetadata(ft *font.Font) (family string, aspect font.Aspect) {
 	item := fm.metaCache[ft]
 	return item.Family, item.Aspect
 }
@@ -341,9 +343,9 @@ func (fm *FontMap) FontMetadata(ft font.Font) (family string, aspect meta.Aspect
 // User added fonts are ignored, and the [FontMap] must have been
 // initialized with [UseSystemFonts] or this method will always return false.
 //
-// Family names are compared through [meta.Normalize].
+// Family names are compared through [font.Normalize].
 func (fm *FontMap) FindSystemFont(family string) (Location, bool) {
-	family = meta.NormalizeFamily(family)
+	family = font.NormalizeFamily(family)
 	for _, footprint := range fm.database {
 		if footprint.isUserProvided {
 			continue
@@ -358,7 +360,7 @@ func (fm *FontMap) FindSystemFont(family string) (Location, bool) {
 // FindSystemFonts is the same as FindSystemFont, but returns all matched fonts.
 func (fm *FontMap) FindSystemFonts(family string) []Location {
 	var locations []Location
-	family = meta.NormalizeFamily(family)
+	family = font.NormalizeFamily(family)
 	for _, footprint := range fm.database {
 		if footprint.isUserProvided {
 			continue
@@ -457,7 +459,7 @@ func (fm *FontMap) buildCandidates() {
 }
 
 // returns nil if not candidates supports the rune `r`
-func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
+func (fm *FontMap) resolveForRune(candidates []int, r rune) *font.Face {
 	for _, footprintIndex := range candidates {
 		// check the coverage
 		if fp := fm.database[footprintIndex]; fp.Runes.Contains(r) {
@@ -476,7 +478,7 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) font.Face {
 }
 
 // returns nil if no candidates support the language `lang`
-func (fm *FontMap) resolveForLang(candidates []int, lang LangID) font.Face {
+func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 	for _, footprintIndex := range candidates {
 		// check the coverage
 		if fp := fm.database[footprintIndex]; fp.Langs.Contains(lang) {
@@ -505,7 +507,7 @@ func (fm *FontMap) resolveForLang(candidates []int, lang LangID) font.Face {
 // for the provided rune. The first font covering the requested rune will be returned.
 //
 // If no fonts match after the manual font search, an arbitrary face will be returned.
-func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
+func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
 	key := fm.lru.KeyFor(fm.query, r)
 	face, ok := fm.lru.Get(key, fm.query)
 	if ok {
@@ -592,7 +594,7 @@ func (fm *FontMap) ResolveFace(r rune) (face font.Face) {
 // (for the actual query), or nil if no one is found.
 //
 // The matching logic is similar to the one used by [ResolveFace].
-func (fm *FontMap) ResolveFaceForLang(lang LangID) font.Face {
+func (fm *FontMap) ResolveFaceForLang(lang LangID) *font.Face {
 	// no-op if already built
 	fm.buildCandidates()
 
@@ -615,7 +617,7 @@ func (fm *FontMap) ResolveFaceForLang(lang LangID) font.Face {
 	return nil
 }
 
-func (fm *FontMap) loadFont(fp Footprint) (font.Face, error) {
+func (fm *FontMap) loadFont(fp Footprint) (*font.Face, error) {
 	if face, hasCached := fm.faceCache[fp.Location]; hasCached {
 		return face, nil
 	}

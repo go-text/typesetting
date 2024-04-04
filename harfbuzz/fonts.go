@@ -1,9 +1,8 @@
 package harfbuzz
 
 import (
-	"github.com/go-text/typesetting/opentype/api"
-	"github.com/go-text/typesetting/opentype/api/font"
-	"github.com/go-text/typesetting/opentype/tables"
+	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
@@ -272,7 +271,7 @@ func (f *Font) getGlyphContourPointForOrigin(glyph GID, pointIndex uint16, direc
 	return x, y, ok
 }
 
-func (f *Font) fontHExtentsWithFallback() api.FontExtents {
+func (f *Font) fontHExtentsWithFallback() font.FontExtents {
 	extents, ok := f.face.FontHExtents()
 	extents.Ascender = float32(f.emScalefY(extents.Ascender))
 	extents.Descender = float32(f.emScalefY(extents.Descender))
@@ -290,9 +289,9 @@ func (f *Font) fontHExtentsWithFallback() api.FontExtents {
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of `direction`.
-func (f *Font) ExtentsForDirection(direction Direction) api.FontExtents {
+func (f *Font) ExtentsForDirection(direction Direction) font.FontExtents {
 	var (
-		extents api.FontExtents
+		extents font.FontExtents
 		ok      bool
 	)
 	if direction.isHorizontal() {

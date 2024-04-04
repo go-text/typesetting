@@ -10,8 +10,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/api"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // newRuneSet builds a set containing the given runes.
@@ -185,7 +184,7 @@ func TestDeserializeFrom(t *testing.T) {
 }
 
 // CmapSimple is a map based Cmap implementation.
-type CmapSimple map[rune]api.GID
+type CmapSimple map[rune]font.GID
 
 type cmap0Iter struct {
 	data CmapSimple
@@ -197,13 +196,13 @@ func (it *cmap0Iter) Next() bool {
 	return it.pos < len(it.keys)
 }
 
-func (it *cmap0Iter) Char() (rune, api.GID) {
+func (it *cmap0Iter) Char() (rune, font.GID) {
 	r := it.keys[it.pos]
 	it.pos++
 	return r, it.data[r]
 }
 
-func (s CmapSimple) Iter() api.CmapIter {
+func (s CmapSimple) Iter() font.CmapIter {
 	keys := make([]rune, 0, len(s))
 	for k := range s {
 		keys = append(keys, k)
@@ -211,14 +210,14 @@ func (s CmapSimple) Iter() api.CmapIter {
 	return &cmap0Iter{data: s, keys: keys}
 }
 
-func (s CmapSimple) Lookup(r rune) (api.GID, bool) {
+func (s CmapSimple) Lookup(r rune) (font.GID, bool) {
 	v, ok := s[r] // will be 0 if r is not in s
 	return v, ok
 }
 
 func TestNewRuneSetFromCmap(t *testing.T) {
 	tests := []struct {
-		args api.Cmap
+		args font.Cmap
 		want RuneSet
 	}{
 		{CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, newRuneSet(0, 1, 2, 0xfff)},

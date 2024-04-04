@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestDefaultDirs(t *testing.T) {
