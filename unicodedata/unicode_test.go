@@ -6,7 +6,7 @@ import (
 	"unicode"
 
 	"github.com/go-text/typesetting/language"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestUnicodeNormalization(t *testing.T) {

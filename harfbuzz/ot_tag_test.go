@@ -3,9 +3,9 @@ package harfbuzz
 import (
 	"testing"
 
+	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/go-text/typesetting/font/opentype/tables"
 	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/opentype/loader"
-	"github.com/go-text/typesetting/opentype/tables"
 )
 
 // ported from harfbuzz/test/api/test-ot-tag.c Copyright © 2011  Google, Inc. Behdad Esfahbod
@@ -21,21 +21,21 @@ func assertEqualTag(t *testing.T, t1, t2 tables.Tag) {
 /* https://docs.microsoft.com/en-us/typography/opentype/spec/scripttags */
 
 func testSimpleTags(t *testing.T, s string, script language.Script) {
-	tag := loader.MustNewTag(s)
+	tag := ot.MustNewTag(s)
 
 	tags, _ := newOTTagsFromScriptAndLanguage(script, language.NewLanguage(""))
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tags[0], tag)
 	} else {
-		assertEqualTag(t, loader.MustNewTag("DFLT"), tag)
+		assertEqualTag(t, ot.MustNewTag("DFLT"), tag)
 	}
 }
 
 func testScriptTagsFromLanguage(t *testing.T, s, langS string, script language.Script) {
 	var tag tables.Tag
 	if s != "" {
-		tag = loader.MustNewTag(s)
+		tag = ot.MustNewTag(s)
 	}
 
 	tags, _ := newOTTagsFromScriptAndLanguage(script, language.NewLanguage(langS))
@@ -46,9 +46,9 @@ func testScriptTagsFromLanguage(t *testing.T, s, langS string, script language.S
 }
 
 func testIndicTags(t *testing.T, s1, s2, s3 string, script language.Script) {
-	tag1 := loader.MustNewTag(s1)
-	tag2 := loader.MustNewTag(s2)
-	tag3 := loader.MustNewTag(s3)
+	tag1 := ot.MustNewTag(s1)
+	tag2 := ot.MustNewTag(s2)
+	tag3 := ot.MustNewTag(s3)
 
 	tags, _ := newOTTagsFromScriptAndLanguage(script, language.NewLanguage(""))
 
@@ -59,7 +59,7 @@ func testIndicTags(t *testing.T, s1, s2, s3 string, script language.Script) {
 }
 
 func TestOtTagScriptDegenerate(t *testing.T) {
-	assertEqualTag(t, loader.MustNewTag("DFLT"), tagDefaultScript)
+	assertEqualTag(t, ot.MustNewTag("DFLT"), tagDefaultScript)
 
 	/* HIRAGANA and KATAKANA both map to 'kana' */
 	testSimpleTags(t, "kana", language.Katakana)
@@ -67,12 +67,12 @@ func TestOtTagScriptDegenerate(t *testing.T) {
 	tags, _ := newOTTagsFromScriptAndLanguage(language.Hiragana, language.NewLanguage(""))
 
 	assertEqualInt(t, len(tags), 1)
-	assertEqualTag(t, tags[0], loader.MustNewTag("kana"))
+	assertEqualTag(t, tags[0], ot.MustNewTag("kana"))
 
 	testSimpleTags(t, "DFLT", 0)
 
 	/* Spaces are replaced */
-	// assertEqualInt(t, hb_ot_tag_to_script(loader.MustNewTag("be  ")), hb_script_from_string("Beee", -1))
+	// assertEqualInt(t, hb_ot_tag_to_script(ot.MustNewTag("be  ")), hb_script_from_string("Beee", -1))
 }
 
 func TestOtTagScriptSimple(t *testing.T) {
@@ -154,14 +154,14 @@ func TestOtTagScriptIndic(t *testing.T) {
 
 func testLanguageTwoWay(t *testing.T, tagS, langS string) {
 	lang := language.NewLanguage(langS)
-	tag := loader.MustNewTag(tagS)
+	tag := ot.MustNewTag(tagS)
 
 	_, tags := newOTTagsFromScriptAndLanguage(0, lang)
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tag, tags[0])
 	} else {
-		assertEqualTag(t, tag, loader.MustNewTag("dflt"))
+		assertEqualTag(t, tag, ot.MustNewTag("dflt"))
 	}
 }
 
@@ -169,19 +169,19 @@ func testTagFromLanguage(t *testing.T, tagS, langS string) {
 	t.Helper()
 
 	lang := language.NewLanguage(langS)
-	tag := loader.MustNewTag(tagS)
+	tag := ot.MustNewTag(tagS)
 
 	_, tags := newOTTagsFromScriptAndLanguage(0, lang)
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tag, tags[0])
 	} else {
-		assertEqualTag(t, tag, loader.MustNewTag("dflt"))
+		assertEqualTag(t, tag, ot.MustNewTag("dflt"))
 	}
 }
 
 func TestOtTagLanguage(t *testing.T) {
-	assertEqualInt(t, int(loader.MustNewTag("dflt")), int(tagDefaultLanguage))
+	assertEqualInt(t, int(ot.MustNewTag("dflt")), int(tagDefaultLanguage))
 	testLanguageTwoWay(t, "dflt", "")
 
 	testLanguageTwoWay(t, "ALT ", "alt")
@@ -400,7 +400,7 @@ func testTags(t *testing.T, script language.Script, langS string, expectedScript
 	assertEqualInt(t, len(languageTags), expectedLanguageCount)
 
 	for i, s := range expected {
-		expectedTag := loader.MustNewTag(s)
+		expectedTag := ot.MustNewTag(s)
 		var actualTag tables.Tag
 		if i < expectedScriptCount {
 			actualTag = scriptTags[i]

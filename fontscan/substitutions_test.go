@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	meta "github.com/go-text/typesetting/opentype/api/metadata"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	"github.com/go-text/typesetting/font"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func Test_familyList_insertStart(t *testing.T) {
@@ -245,11 +245,11 @@ func BenchmarkNewFamilyCrible(b *testing.B) {
 
 func TestSubstituteHelveticaOrder(t *testing.T) {
 	c := make(familyCrible)
-	c.fillWithSubstitutionsList([]string{meta.NormalizeFamily("BlinkMacSystemFont"), meta.NormalizeFamily("Helvetica")})
+	c.fillWithSubstitutionsList([]string{font.NormalizeFamily("BlinkMacSystemFont"), font.NormalizeFamily("Helvetica")})
 	// BlinkMacSystemFont is not known by the library, so it is expanded with generic sans-serif,
 	// but with lower priority then Helvetica
 	l := c.families()
-	tu.Assert(t, l[0] == meta.NormalizeFamily("BlinkMacSystemFont"))
-	tu.Assert(t, l[1] == meta.NormalizeFamily("Helvetica"))
-	tu.Assert(t, l[2] == meta.NormalizeFamily("Nimbus Sans")) // from Helvetica
+	tu.Assert(t, l[0] == font.NormalizeFamily("BlinkMacSystemFont"))
+	tu.Assert(t, l[1] == font.NormalizeFamily("Helvetica"))
+	tu.Assert(t, l[2] == font.NormalizeFamily("Nimbus Sans")) // from Helvetica
 }

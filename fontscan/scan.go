@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-text/typesetting/opentype/loader"
+	ot "github.com/go-text/typesetting/font/opentype"
 )
 
 // DefaultFontDirectories return the OS-dependent usual directories for
@@ -251,7 +251,7 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 
 	// fetch the loaders for the given font file, or nil if is not
 	// an Opentype font.
-	loaders, _ := loader.NewLoaders(file)
+	loaders, _ := ot.NewLoaders(file)
 
 	for i, ld := range loaders {
 		var fp Footprint

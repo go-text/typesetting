@@ -4,8 +4,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/go-text/typesetting/opentype/tables"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	"github.com/go-text/typesetting/font/opentype/tables"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // ported from harfbuzz/test/api/test-aat-layout.c Copyright © 2018  Ebrahim Byagowi

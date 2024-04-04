@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-text/typesetting/language"
-	tu "github.com/go-text/typesetting/opentype/testutils"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // ported from harfbuzz/test/api/test-buffer.c Copyright © 2011  Google, Inc. Behdad Esfahbod

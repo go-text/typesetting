@@ -11,12 +11,10 @@ import (
 	"time"
 
 	"github.com/go-text/typesetting/font"
+	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/language"
-	fontapi "github.com/go-text/typesetting/opentype/api/font"
-	meta "github.com/go-text/typesetting/opentype/api/metadata"
-	"github.com/go-text/typesetting/opentype/loader"
-	tu "github.com/go-text/typesetting/opentype/testutils"
 	"github.com/go-text/typesetting/shaping"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func ExampleFontMap_UseSystemFonts() {
@@ -49,11 +47,11 @@ func ExampleFontMap_AddFace() {
 	defer fontFile.Close()
 
 	// Load it and its metadata.
-	ld, _ := loader.NewLoader(fontFile) // error handling omitted
-	md := meta.Metadata(ld)
-	f, _ := fontapi.NewFont(ld) // error handling omitted
+	ld, _ := ot.NewLoader(fontFile) // error handling omitted
+	f, _ := font.NewFont(ld)        // error handling omitted
+	md := f.Describe()
 	fontMap := NewFontMap(log.Default())
-	fontMap.AddFace(&fontapi.Face{Font: f}, Location{File: fmt.Sprint(md)}, md)
+	fontMap.AddFace(&font.Face{Font: f}, Location{File: fmt.Sprint(md)}, md)
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
@@ -78,8 +76,8 @@ func TestResolveFont(t *testing.T) {
 
 	logOutput.Reset()
 
-	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
-	foundFace := map[font.Face]bool{}
+	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: font.Aspect{Weight: font.WeightBold}})
+	foundFace := map[*font.Face]bool{}
 	for _, r := range "Hello " + "تثذرزسشص" + "world" + "لمنهويء" {
 		face := fm.ResolveFace(r)
 		if face == nil {
@@ -172,7 +170,7 @@ func BenchmarkResolveFont(b *testing.B) {
 	err := fm.UseSystemFonts(b.TempDir())
 	tu.AssertNoErr(b, err)
 
-	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: meta.Aspect{Weight: meta.WeightBold}})
+	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: font.Aspect{Weight: font.WeightBold}})
 
 	b.ResetTimer()
 
@@ -196,7 +194,7 @@ func BenchmarkSetQuery(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		fm.SetQuery(Query{
 			Families: []string{"helvetica", "DejaVu", "monospace"},
-			Aspect:   meta.Aspect{Style: meta.StyleItalic, Weight: meta.WeightBold},
+			Aspect:   font.Aspect{Style: font.StyleItalic, Weight: font.WeightBold},
 		})
 	}
 }
@@ -289,7 +287,7 @@ func TestQueryHelveticaLinux(t *testing.T) {
 		"Helvetica",
 	}})
 	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
-	tu.Assert(t, family == meta.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
+	tu.Assert(t, family == font.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
 }
 
 func TestFindSytemFont(t *testing.T) {
@@ -299,11 +297,11 @@ func TestFindSytemFont(t *testing.T) {
 
 	// simulate system fonts
 	fm.appendFootprints(Footprint{
-		Family:   meta.NormalizeFamily("Nimbus"),
+		Family:   font.NormalizeFamily("Nimbus"),
 		Location: Location{File: "nimbus.ttf"},
 	},
 		Footprint{
-			Family:         meta.NormalizeFamily("Noto Sans"),
+			Family:         font.NormalizeFamily("Noto Sans"),
 			Location:       Location{File: "noto.ttf"},
 			isUserProvided: true,
 		},

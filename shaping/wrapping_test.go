@@ -12,8 +12,8 @@ import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
-	tu "github.com/go-text/typesetting/opentype/testutils"
 	"github.com/go-text/typesetting/segmenter"
+	tu "github.com/go-text/typesetting/testutils"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
 )
@@ -2319,7 +2319,7 @@ type benchLangInfo struct {
 	dir    di.Direction
 	script language.Script
 	lang   language.Language
-	face   font.Face
+	face   *font.Face
 	text   []rune
 }
 
@@ -2331,7 +2331,7 @@ type benchSizeConfig struct {
 }
 
 // benchArFace is an arabic font face for use in benchmarks.
-var benchArFace = func() font.Face {
+var benchArFace = func() *font.Face {
 	data, err := os.ReadFile("../font/testdata/Amiri-Regular.ttf")
 	if err != nil {
 		panic(err)
@@ -2344,7 +2344,7 @@ var benchArFace = func() font.Face {
 }()
 
 // benchEnFace is a latin font face for use in benchmarks.
-var benchEnFace = func() font.Face {
+var benchEnFace = func() *font.Face {
 	enFace, err := font.ParseTTF(bytes.NewReader(goregular.TTF))
 	if err != nil {
 		panic(err)
