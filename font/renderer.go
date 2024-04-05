@@ -109,7 +109,7 @@ type BitmapSize struct {
 // not found.
 func (f *Face) GlyphData(gid GID) GlyphData {
 	// since outline may be specified for SVG and bitmaps, check it at the end
-	outB, err := f.sbix.glyphData(gID(gid), f.XPpem, f.YPpem)
+	outB, err := f.sbix.glyphData(gID(gid), f.xPpem, f.yPpem)
 	if err == nil {
 		outline, ok := f.outlineGlyphData(gID(gid))
 		if ok {
@@ -118,7 +118,7 @@ func (f *Face) GlyphData(gid GID) GlyphData {
 		return outB
 	}
 
-	outB, err = f.bitmap.glyphData(gID(gid), f.XPpem, f.YPpem)
+	outB, err = f.bitmap.glyphData(gID(gid), f.xPpem, f.yPpem)
 	if err == nil {
 		outline, ok := f.outlineGlyphData(gID(gid))
 		if ok {
@@ -401,7 +401,7 @@ func (f *Face) glyphDataFromCFF2(glyph gID) (GlyphOutline, error) {
 	if f.cff2 == nil {
 		return GlyphOutline{}, errNoCFF2Table
 	}
-	segments, _, err := f.cff2.LoadGlyph(glyph, f.Coords)
+	segments, _, err := f.cff2.LoadGlyph(glyph, f.coords)
 	if err != nil {
 		return GlyphOutline{}, err
 	}

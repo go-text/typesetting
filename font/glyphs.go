@@ -77,7 +77,7 @@ func (f *Face) getPointsForGlyph(gid tables.GlyphID, currentDepth int, allPoints
 	phantoms[phantomBottom].Y = vOrig - vAdv
 
 	if f.isVar() {
-		f.gvar.applyDeltasToPoints(gid, f.Coords, points)
+		f.gvar.applyDeltasToPoints(gid, f.coords, points)
 	}
 
 	switch data := g.Data.(type) {

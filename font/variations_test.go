@@ -42,11 +42,11 @@ func TestVar(t *testing.T) {
 
 	face := Face{Font: font}
 	face.SetVariations([]Variation{{ot.MustNewTag("wght"), 206.}})
-	tu.Assert(t, len(face.Coords) == 1)
-	tu.Assert(t, face.Coords[0] == -16117)
+	tu.Assert(t, len(face.coords) == 1)
+	tu.Assert(t, face.coords[0] == -16117)
 
 	face.SetVariations(nil)
-	tu.Assert(t, len(face.Coords) == 0)
+	tu.Assert(t, len(face.coords) == 0)
 
 	font = loadFont(t, "common/NotoSansCJKjp-VF.otf")
 	for _, test := range []struct {
@@ -75,7 +75,8 @@ func TestGlyphExtentsVar(t *testing.T) {
 		{900, GlyphExtents{XBearing: 44, YBearing: 662, Width: 630, Height: -674}},
 	} {
 		coords := font.NormalizeVariations([]float32{test.coord})
-		face := Face{Font: font, Coords: coords}
+		face := NewFace(font)
+		face.coords = coords
 
 		ext, _ := face.GlyphExtents(2)
 

@@ -505,14 +505,14 @@ func TestGlyphDataCrash(t *testing.T) {
 
 func TestSbixGlyph(t *testing.T) {
 	ft := loadFont(t, "toys/Feat.ttf")
-	face := Face{Font: ft, XPpem: 100, YPpem: 100}
+	face := Face{Font: ft, xPpem: 100, yPpem: 100}
 	data := face.GlyphData(1)
 	asBitmap, ok := data.(GlyphBitmap)
 	tu.Assert(t, ok)
 	tu.Assert(t, asBitmap.Format == PNG)
 
 	ft = loadFont(t, "toys/Sbix3.ttf")
-	face = Face{Font: ft, XPpem: 100, YPpem: 100}
+	face = Face{Font: ft, xPpem: 100, yPpem: 100}
 	data = face.GlyphData(4)
 	asBitmap, ok = data.(GlyphBitmap)
 	tu.Assert(t, ok)
@@ -522,7 +522,7 @@ func TestSbixGlyph(t *testing.T) {
 func TestCblcGlyph(t *testing.T) {
 	for _, filename := range td.WithCBLC {
 		font := loadFont(t, filename.Path)
-		face := Face{Font: font, XPpem: 94, YPpem: 94}
+		face := Face{Font: font, xPpem: 94, yPpem: 94}
 
 		for gid := filename.GlyphRange[0]; gid <= filename.GlyphRange[1]; gid++ {
 			data := face.GlyphData(GID(gid))
@@ -579,7 +579,7 @@ func TestAppleBitmapGlyph(t *testing.T) {
 	ft, err := NewFont(fonts[0])
 	tu.AssertNoErr(t, err)
 
-	face := Face{Font: ft, XPpem: 94, YPpem: 94}
+	face := Face{Font: ft, xPpem: 94, yPpem: 94}
 
 	runes := "The quick brown fox jumps over the lazy dog"
 	for _, r := range runes {
@@ -601,7 +601,7 @@ func TestMixedGlyphs(t *testing.T) {
 		font := loadFont(t, filename)
 		space, ok := font.NominalGlyph(' ')
 		tu.Assert(t, ok)
-		face := Face{Font: font, XPpem: 94, YPpem: 94}
+		face := Face{Font: font, xPpem: 94, yPpem: 94}
 
 		gd := face.GlyphData(space)
 		tu.Assert(t, gd != nil)
