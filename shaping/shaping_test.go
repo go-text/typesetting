@@ -650,3 +650,43 @@ func ExampleShaper_Shape() {
 
 	// Output:
 }
+
+func BenchmarkGlyphExtents(b *testing.B) {
+	shaper := HarfbuzzShaper{}
+	input := Input{
+		Text:      []rune(benchParagraphLatin),
+		RunStart:  0,
+		RunEnd:    len([]rune(benchParagraphLatin)),
+		Direction: di.DirectionLTR,
+		Size:      fixed.I(16 * 1000 / 72),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	}
+
+	for i, file := range []string{
+		"common/DejaVuSans.ttf",
+		"common/Raleway-v4020-Regular.otf",
+		"common/Commissioner-VF.ttf",
+		"common/Commissioner-VF.ttf", // with variations
+	} {
+		r, _ := td.Files.ReadFile(file)
+		face, err := font.ParseTTF(bytes.NewReader(r))
+		tu.AssertNoErr(b, err)
+
+		if i == 3 {
+			face.SetVariations([]font.Variation{
+				{Tag: ot.MustNewTag("wght"), Value: 200},
+				{Tag: ot.MustNewTag("slnt"), Value: -8},
+				{Tag: ot.MustNewTag("FLAR"), Value: 30},
+				{Tag: ot.MustNewTag("VOLM"), Value: 80},
+			})
+		}
+		input.Face = face
+
+		b.Run(file, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = shaper.Shape(input)
+			}
+		})
+	}
+}
