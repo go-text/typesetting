@@ -54,7 +54,7 @@ func ParseTTF(file Resource) (*Face, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Face{Font: ft}, nil
+	return NewFace(ft), nil
 }
 
 // ParseTTC parse an Opentype font file, with support for collections.
@@ -70,7 +70,7 @@ func ParseTTC(file Resource) ([]*Face, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading font %d of collection: %s", i, err)
 		}
-		out[i] = &Face{Font: ft}
+		out[i] = NewFace(ft)
 	}
 
 	return out, nil
@@ -180,7 +180,8 @@ type Font struct {
 	GSUB GSUB // An absent table has a nil slice of lookups
 	GPOS GPOS // An absent table has a nil slice of lookups
 
-	upem uint16 // cached value
+	upem    uint16 // cached value
+	nGlyphs int
 }
 
 // NewFont loads all the font tables, sanitizing them.
@@ -224,6 +225,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	if err != nil {
 		return nil, err
 	}
+	out.nGlyphs = int(maxp.NumGlyphs)
 
 	// We considerer all the following tables as optional,
 	// since, in practice, users won't have much control on the
@@ -243,7 +245,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 
 	raw, _ = ld.RawTable(ot.MustNewTag("glyf"))
 	locaRaw, _ := ld.RawTable(ot.MustNewTag("loca"))
-	loca, err := tables.ParseLoca(locaRaw, int(maxp.NumGlyphs), out.head.IndexToLocFormat == 1)
+	loca, err := tables.ParseLoca(locaRaw, out.nGlyphs, out.head.IndexToLocFormat == 1)
 	if err == nil { // ParseGlyf panics if len(loca) == 0
 		out.glyf, _ = tables.ParseGlyf(raw, loca)
 	}
@@ -251,11 +253,11 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	out.bitmap = selectBitmapTable(ld)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("sbix"))
-	sbix, _, _ := tables.ParseSbix(raw, int(maxp.NumGlyphs))
+	sbix, _, _ := tables.ParseSbix(raw, out.nGlyphs)
 	out.sbix = newSbix(sbix)
 
-	out.cff, _ = loadCff(ld, int(maxp.NumGlyphs))
-	out.cff2, _ = loadCff2(ld, int(maxp.NumGlyphs), len(out.fvar))
+	out.cff, _ = loadCff(ld, out.nGlyphs)
+	out.cff2, _ = loadCff2(ld, out.nGlyphs, len(out.fvar))
 
 	raw, _ = ld.RawTable(ot.MustNewTag("post"))
 	post, _, _ := tables.ParsePost(raw)
@@ -265,8 +267,8 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	svg, _, _ := tables.ParseSVG(raw)
 	out.svg, _ = newSvg(svg)
 
-	out.hhea, out.hmtx, _ = loadHmtx(ld, int(maxp.NumGlyphs))
-	out.vhea, out.vmtx, _ = loadVmtx(ld, int(maxp.NumGlyphs))
+	out.hhea, out.hmtx, _ = loadHmtx(ld, out.nGlyphs)
+	out.vhea, out.vmtx, _ = loadVmtx(ld, out.nGlyphs)
 
 	if axisCount := len(out.fvar); axisCount != 0 {
 		raw, _ = ld.RawTable(ot.MustNewTag("MVAR"))
@@ -317,11 +319,11 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	}
 
 	raw, _ = ld.RawTable(ot.MustNewTag("morx"))
-	morx, _, _ := tables.ParseMorx(raw, int(maxp.NumGlyphs))
+	morx, _, _ := tables.ParseMorx(raw, out.nGlyphs)
 	out.Morx = newMorx(morx)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("kerx"))
-	kerx, _, _ := tables.ParseKerx(raw, int(maxp.NumGlyphs))
+	kerx, _, _ := tables.ParseKerx(raw, out.nGlyphs)
 	out.Kerx = newKernxFromKerx(kerx)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("kern"))
@@ -329,7 +331,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	out.Kern = newKernxFromKern(kern)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("ankr"))
-	out.Ankr, _, _ = tables.ParseAnkr(raw, int(maxp.NumGlyphs))
+	out.Ankr, _, _ = tables.ParseAnkr(raw, out.nGlyphs)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("trak"))
 	out.Trak, _, _ = tables.ParseTrak(raw)
@@ -483,15 +485,40 @@ func loadGDEF(ld *ot.Loader, axisCount int) (tables.GDEF, error) {
 }
 
 // Face is a font with user-provided settings.
-// It is a lightweight wrapper around [*Font], NOT safe for concurrent use.
+// Contrary to the [*Font] objects, Faces are NOT safe for concurrent use.
+// A Face caches glyph extents and should be reused when possible.
 type Face struct {
 	*Font
 
-	// Coords are the current variable coordinates, expressed in normalized units.
-	// It is empty for non variable fonts.
-	// Use `SetVariations` to convert from design (user) space units.
-	Coords []tables.Coord
+	extentsCache extentsCache
 
-	// Horizontal and vertical pixels-per-em (ppem), used to select bitmap sizes.
-	XPpem, YPpem uint16
+	coords       []tables.Coord
+	xPpem, yPpem uint16
+}
+
+// NewFace wraps [font] and initializes glyph caches.
+func NewFace(font *Font) *Face {
+	return &Face{Font: font, extentsCache: make(extentsCache, font.nGlyphs)}
+}
+
+// Ppem returns the horizontal and vertical pixels-per-em (ppem), used to select bitmap sizes.
+func (f *Face) Ppem() (x, y uint16) { return f.xPpem, f.yPpem }
+
+// SetPpem applies horizontal and vertical pixels-per-em (ppem).
+func (f *Face) SetPpem(x, y uint16) {
+	f.xPpem, f.yPpem = x, y
+	// invalid the cache
+	f.extentsCache.reset()
+}
+
+// Coords return a read-only slice of the current variable coordinates, expressed in normalized units.
+// It is empty for non variable fonts.
+func (f *Face) Coords() []tables.Coord { return f.coords }
+
+// SetCoords applies a list of variation coordinates, expressed in normalized units.
+// Use [NormalizeVariations] to convert from design (user) space units.
+func (f *Face) SetCoords(coords []tables.Coord) {
+	f.coords = coords
+	// invalid the cache
+	f.extentsCache.reset()
 }

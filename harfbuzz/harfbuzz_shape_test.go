@@ -127,10 +127,11 @@ func (fo *fontOpts) loadFont(t *testing.T) *Font {
 	tu.AssertNoErr(t, err)
 
 	// create the face
-	face := font.Face{Font: ft, XPpem: fo.xPpem, YPpem: fo.yPpem}
+	face := font.NewFace(ft)
+	face.SetPpem(fo.xPpem, fo.yPpem)
 	face.SetVariations(fo.variations)
 
-	font := NewFont(&face)
+	font := NewFont(face)
 
 	if fo.fontSizeX == fontSizeUpem {
 		fo.fontSizeX = int(font.faceUpem)

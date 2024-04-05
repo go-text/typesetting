@@ -516,19 +516,19 @@ type Variation struct {
 // Note that passing an empty slice will instead remove the coordinates.
 func (face *Face) SetVariations(variations []Variation) {
 	if len(variations) == 0 {
-		face.Coords = nil
+		face.SetCoords(nil)
 		return
 	}
 
 	fv := face.Font.fvar
 	if len(fv) == 0 { // the font is not variable...
-		face.Coords = nil
+		face.SetCoords(nil)
 		return
 	}
 
 	designCoords := fv.getDesignCoordsDefault(variations)
 
-	face.Coords = face.Font.NormalizeVariations(designCoords)
+	face.SetCoords(face.NormalizeVariations(designCoords))
 }
 
 // getDesignCoordsDefault returns the design coordinates corresponding to the given pairs of axis/value.

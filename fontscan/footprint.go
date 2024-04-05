@@ -124,5 +124,5 @@ func (fp *Footprint) loadFromDisk() (*font.Face, error) {
 		return nil, fmt.Errorf("reading font at %s: %s", location.File, err)
 	}
 
-	return &font.Face{Font: ft}, nil
+	return font.NewFace(ft), nil
 }

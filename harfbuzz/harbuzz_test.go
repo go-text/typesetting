@@ -179,7 +179,7 @@ func TestExample(t *testing.T) {
 	runes := []rune{0x0633, 0x064F, 0x0644, 0x064E, 0x0651, 0x0627, 0x0651, 0x0650, 0x0645, 0x062A, 0x06CC}
 	buffer.AddRunes(runes, 0, -1)
 
-	face := &font.Face{Font: ft}
+	face := font.NewFace(ft)
 	font := NewFont(face)
 	buffer.GuessSegmentProperties()
 	buffer.Shape(font, nil)

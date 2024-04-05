@@ -15,7 +15,7 @@ import (
 
 func TestExtentsTtVar(t *testing.T) {
 	ft := openFontFile(t, "fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	extents, result := font.GlyphExtents(2)
 	tu.Assert(t, result)
@@ -38,7 +38,7 @@ func TestExtentsTtVar(t *testing.T) {
 
 func TestAdvanceTtVarNohvar(t *testing.T) {
 	ft := openFontFile(t, "fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	x, y := font.GlyphAdvanceForDirection(2, LeftToRight)
 
@@ -64,7 +64,7 @@ func TestAdvanceTtVarNohvar(t *testing.T) {
 
 func TestAdvanceTtVarHvarvvar(t *testing.T) {
 	ft := openFontFile(t, "fonts/SourceSerifVariable-Roman-VVAR.abc.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	x, y := font.GlyphAdvanceForDirection(1, LeftToRight)
 
@@ -91,7 +91,7 @@ func TestAdvanceTtVarHvarvvar(t *testing.T) {
 
 func TestAdvanceTtVarAnchor(t *testing.T) {
 	ft := openFontFile(t, "fonts/SourceSansVariable-Roman.anchor.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	extents, result := font.GlyphExtents(2)
 	tu.Assert(t, result)
@@ -114,7 +114,7 @@ func TestAdvanceTtVarAnchor(t *testing.T) {
 
 func TestExtentsTtVarComp(t *testing.T) {
 	ft := openFontFile(t, "fonts/SourceSansVariable-Roman.modcomp.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	coords := []float32{800.0}
 	font.SetVarCoordsDesign(coords)
@@ -146,7 +146,7 @@ func TestExtentsTtVarComp(t *testing.T) {
 
 func TestAdvanceTtVarCompV(t *testing.T) {
 	ft := openFontFile(t, "fonts/SourceSansVariable-Roman.modcomp.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	coords := []float32{800.0}
 	font.SetVarCoordsDesign(coords)
@@ -166,7 +166,8 @@ func TestAdvanceTtVarGvarInfer(t *testing.T) {
 	ft := openFontFile(t, "fonts/TestGVAREight.ttf")
 	coords := []font.VarCoord{100}
 
-	face := &font.Face{Font: ft, Coords: coords}
+	face := font.NewFace(ft)
+	face.SetCoords(coords)
 	font := NewFont(face)
 	_, ok := font.GlyphExtents(4)
 	tu.Assert(t, ok)
@@ -174,7 +175,7 @@ func TestAdvanceTtVarGvarInfer(t *testing.T) {
 
 func TestLigCarets(t *testing.T) {
 	ft := openFontFile(t, "fonts/NotoNastaliqUrdu-Regular.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 	font.XScale, font.YScale = int32(ft.Upem())*2, int32(ft.Upem())*4
 
 	/* call with no result */
@@ -217,7 +218,7 @@ func TestColorGlyphExtents(t *testing.T) {
 	 * 0,0,0,0 and not meaningless numbers.
 	 */
 	ft := openFontFile(t, "fonts/adwaita.ttf")
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	for _, test := range []struct {
 		gid     GID
@@ -270,6 +271,6 @@ func TestUnifont(t *testing.T) {
 	buf.Props.Script = language.Latin
 	buf.Props.Direction = LeftToRight
 	buf.AddRunes([]rune{'a'}, 0, 1)
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 	buf.Shape(font, nil) // just check for crashes
 }

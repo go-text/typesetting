@@ -90,7 +90,7 @@ func NewFont(face Face) *Font {
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
 func (f *Font) SetVarCoordsDesign(coords []float32) {
-	f.face.Coords = f.face.NormalizeVariations(coords)
+	f.face.SetCoords(f.face.NormalizeVariations(coords))
 }
 
 // Face returns the underlying face.
@@ -310,12 +310,13 @@ func (f *Font) ExtentsForDirection(direction Direction) font.FontExtents {
 	return extents
 }
 
-func (font *Font) varCoords() []tables.Coord { return font.face.Coords }
+func (font *Font) varCoords() []tables.Coord { return font.face.Coords() }
 
 func (font *Font) getXDelta(varStore tables.ItemVarStore, device tables.DeviceTable) Position {
 	switch device := device.(type) {
 	case tables.DeviceHinting:
-		return device.GetDelta(font.face.XPpem, font.XScale)
+		xPpem, _ := font.face.Ppem()
+		return device.GetDelta(xPpem, font.XScale)
 	case tables.DeviceVariation:
 		return font.emScalefX(varStore.GetDelta(tables.VariationStoreIndex(device), font.varCoords()))
 	default:
@@ -326,7 +327,8 @@ func (font *Font) getXDelta(varStore tables.ItemVarStore, device tables.DeviceTa
 func (font *Font) getYDelta(varStore tables.ItemVarStore, device tables.DeviceTable) Position {
 	switch device := device.(type) {
 	case tables.DeviceHinting:
-		return device.GetDelta(font.face.YPpem, font.YScale)
+		_, yPpem := font.face.Ppem()
+		return device.GetDelta(yPpem, font.YScale)
 	case tables.DeviceVariation:
 		return font.emScalefY(varStore.GetDelta(tables.VariationStoreIndex(device), font.varCoords()))
 	default:

@@ -76,7 +76,7 @@ func BenchmarkShaping(b *testing.B) {
 func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, script language.Script) {
 	ft := openFontFile(b, fontFile)
 
-	font := NewFont(&font.Face{Font: ft})
+	font := NewFont(font.NewFace(ft))
 
 	textB, err := ioutil.ReadFile(textFile)
 	tu.AssertNoErr(b, err)
