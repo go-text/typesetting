@@ -450,11 +450,15 @@ func TestFontLoadHeapSize(t *testing.T) {
 		},
 	} {
 		onDiskSize := len(bc.fontData)
-		allocBefore := heapSize()
-		face, _ := font.ParseTTF(bytes.NewReader(bc.fontData))
-		allocAfter := heapSize()
-		additionnalAlloc := allocAfter - allocBefore
-		fmt.Printf("%s On disk: %v KB, additional memory: %v KB\n", bc.name, onDiskSize/1024, additionnalAlloc/1024)
+		hs := heapSize()
+
+		loader, _ := ot.NewLoader(bytes.NewReader(bc.fontData))
+		ft, _ := font.NewFont(loader)
+		fontSize := heapSize() - hs
+		hs = heapSize()
+		face := font.NewFace(ft)
+		faceSize := heapSize() - hs
+		fmt.Printf("%s On disk: %v KB, font memory: %v KB, face memory %v KB\n", bc.name, onDiskSize/1024, fontSize/1024, faceSize/1024)
 		_ = face.Upem()
 	}
 }
