@@ -16,6 +16,9 @@ func (ec extentsCache) get(gid GID) (GlyphExtents, bool) {
 }
 
 func (ec extentsCache) set(gid GID, extents GlyphExtents) {
+	if int(gid) >= len(ec) {
+		return
+	}
 	ec[gid].valid = true
 	ec[gid].extents = extents
 }
