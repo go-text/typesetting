@@ -57,6 +57,9 @@ func TestParseBasicTables(t *testing.T) {
 
 		_, _, err = ParseName(readTable(t, fp, "name"))
 		tu.AssertNoErr(t, err)
+
+		_, _, err = ParsePost(readTable(t, fp, "post"))
+		tu.AssertNoErr(t, err)
 	}
 }
 
