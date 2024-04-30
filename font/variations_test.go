@@ -179,7 +179,7 @@ func TestInvalidGVAR(t *testing.T) {
 	ld, err := ot.NewLoader(f)
 	tu.AssertNoErr(t, err)
 
-	head, _, _ := loadHeadTable(ld, nil)
+	head, _, _ := LoadHeadTable(ld, nil)
 	raw, _ := ld.RawTable(ot.MustNewTag("maxp"))
 	maxp, _, _ := tables.ParseMaxp(raw)
 	raw, _ = ld.RawTable(ot.MustNewTag("glyf"))
