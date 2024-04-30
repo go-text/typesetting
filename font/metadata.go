@@ -334,7 +334,7 @@ func newFontDescriptor(ld *ot.Loader, buffer []byte) (fontDescriptor, []byte) {
 		desc.os2 = newOS2Desc(os2)
 	}
 
-	desc.head, buffer, _ = loadHeadTable(ld, buffer)
+	desc.head, buffer, _ = LoadHeadTable(ld, buffer)
 
 	buffer, _ = ld.RawTableTo(ot.MustNewTag("name"), buffer)
 	desc.names, _, _ = tables.ParseName(buffer)

@@ -212,7 +212,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 		return nil, err
 	}
 
-	out.head, _, err = loadHeadTable(ld, nil)
+	out.head, _, err = LoadHeadTable(ld, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -347,13 +347,14 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 
 var bhedTag = ot.MustNewTag("bhed")
 
-// loadHeadTable loads the table corresponding to the 'head' tag.
+// LoadHeadTable loads the 'head' or the 'bhed' table.
+//
 // If a 'bhed' Apple table is present, it replaces the 'head' one.
 //
-// 'buffer' may be provided to reduce allocations; the return Head is guaranteed
-// not to retain any reference on 'buffer'.
-// If 'buffer' is nil or has not enough capacity, a new slice is allocated (and returned).
-func loadHeadTable(ld *ot.Loader, buffer []byte) (tables.Head, []byte, error) {
+// [buffer] may be provided to reduce allocations; the returned [tables.Head] is guaranteed
+// not to retain any reference on [buffer].
+// If [buffer] is nil or has not enough capacity, a new slice is allocated (and returned).
+func LoadHeadTable(ld *ot.Loader, buffer []byte) (tables.Head, []byte, error) {
 	var err error
 	// check 'bhed' first
 	if ld.HasTable(bhedTag) {

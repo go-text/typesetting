@@ -5,6 +5,7 @@ package tables
 // TableHead contains critical information about the rest of the font.
 // https://learn.microsoft.com/en-us/typography/opentype/spec/head
 // https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6head.html
+// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6bhed.html
 type Head struct {
 	majorVersion       uint16
 	minorVersion       uint16
