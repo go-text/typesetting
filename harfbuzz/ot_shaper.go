@@ -763,14 +763,13 @@ type shaperOpentype struct {
 
 type otShapePlanKey = [2]int // -1 for not found
 
-func newShaperOpentype(tables *font.Font, coords []tables.Coord) *shaperOpentype {
-	var out shaperOpentype
-	out.key = otShapePlanKey{
+func (sp *shaperOpentype) init(tables *font.Font, coords []tables.Coord) {
+	sp.plan = otShapePlan{}
+	sp.key = otShapePlanKey{
 		0: tables.GSUB.FindVariationIndex(coords),
 		1: tables.GPOS.FindVariationIndex(coords),
 	}
-	out.tables = tables
-	return &out
+	sp.tables = tables
 }
 
 func (sp *shaperOpentype) compile(props SegmentProperties, userFeatures []Feature) {
