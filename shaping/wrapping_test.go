@@ -2196,7 +2196,7 @@ func TestTruncationWithBreaking(t *testing.T) {
 				BreakPolicy:        tc.policy,
 				TruncateAfterLines: 1,
 				Truncator:          truncator,
-			}, tc.width, inputText, NewSliceIterator([]Output{output}))
+			}, tc.width, inputText, NewSliceIterator([]Output{output.copy()}))
 			if truncated != tc.truncated {
 				t.Errorf("expected %d truncated runes, got %d (total %d)", tc.truncated, truncated, len(inputText))
 			}
@@ -2233,7 +2233,11 @@ func TestGraphemeBreakingRegression(t *testing.T) {
 	// Wrap at increasingly unreasonable widths, checking for sane wrapping decisions.
 	for maxWidth := maxWidth; maxWidth > 0; maxWidth-- {
 		t.Run(fmt.Sprintf("maxWidth=%d", maxWidth), func(t *testing.T) {
-			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(shaped))
+			runs := make([]Output, len(shaped))
+			for i, run := range shaped {
+				runs[i] = run.copy()
+			}
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(runs))
 			checkRuneCounts(t, bidiText2, lines, truncated)
 
 			for i, baseLine := range lines[:len(lines)-1] {
@@ -2642,6 +2646,12 @@ func TestGraphemeBreakLigature(t *testing.T) {
 	}
 }
 
+func (out Output) copy() Output {
+	copy := out
+	copy.Glyphs = append([]Glyph(nil), out.Glyphs...)
+	return copy
+}
+
 func TestLineWrapperBreakSpecific(t *testing.T) {
 	type expectation struct {
 		name           string
@@ -2974,7 +2984,7 @@ func TestLineWrapperBreakSpecific(t *testing.T) {
 			for _, expec := range tc.expectations {
 				t.Run(expec.name, func(t *testing.T) {
 					expec.config.Truncator = shapedTrunc
-					lines, truncated := w.WrapParagraph(expec.config, tc.maxWidth, tc.paragraph, NewSliceIterator([]Output{out}))
+					lines, truncated := w.WrapParagraph(expec.config, tc.maxWidth, tc.paragraph, NewSliceIterator([]Output{out.copy()}))
 					actualCounts := checkRuneCounts(t, tc.paragraph, lines, truncated)
 					if truncated != expec.truncatedCount {
 						t.Errorf("expected %d truncated runes, got %d", expec.truncatedCount, truncated)
