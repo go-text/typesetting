@@ -838,12 +838,13 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 		// zero trailing whitespace advance,
 		// to be coherent with Output.advanceSpaceAware
 		if L := len(finalRun.Glyphs); L != 0 {
+			g := &finalRun.Glyphs[L-1]
 			if finalRun.Direction.IsVertical() {
-				if g := &finalRun.Glyphs[L-1]; g.Height == 0 {
+				if g.Height == 0 {
 					g.YAdvance = 0
 				}
 			} else { // horizontal
-				if g := finalRun.Glyphs[L-1]; g.Width == 0 {
+				if g.Width == 0 {
 					g.XAdvance = 0
 				}
 			}
