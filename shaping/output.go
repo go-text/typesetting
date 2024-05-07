@@ -51,6 +51,12 @@ type Glyph struct {
 	GlyphCount int
 	GlyphID    font.GID
 	Mask       uint32
+
+	// startLetterSpacing and endLetterSpacing are set when letter spacing is applied,
+	// measuring the whitespace added on one side (half of the user provided letter spacing)
+	// The line wrapper will ignore [endLetterSpacing] when deciding where to break,
+	// and will trim [startLetterSpacing] at the start of the lines
+	startLetterSpacing, endLetterSpacing fixed.Int26_6
 }
 
 // LeftSideBearing returns the distance from the glyph's X origin to
@@ -172,6 +178,8 @@ func (o *Output) RecomputeAdvance() {
 
 // advanceSpaceAware adjust the value in [Advance]
 // if a white space character ends the run.
+// Any end letter spacing (on the last glyph) is also removed
+//
 // TODO: should we take into account multiple spaces ?
 func (o *Output) advanceSpaceAware() fixed.Int26_6 {
 	L := len(o.Glyphs)
@@ -180,17 +188,17 @@ func (o *Output) advanceSpaceAware() fixed.Int26_6 {
 	}
 
 	// adjust the last to account for spaces
+	lastG := o.Glyphs[L-1]
 	if o.Direction.IsVertical() {
-		if g := o.Glyphs[L-1]; g.Height == 0 {
-			return o.Advance - g.YAdvance
+		if lastG.Height == 0 {
+			return o.Advance - lastG.YAdvance
 		}
 	} else { // horizontal
-		if g := o.Glyphs[L-1]; g.Width == 0 {
-			return o.Advance - g.XAdvance
+		if lastG.Width == 0 {
+			return o.Advance - lastG.XAdvance
 		}
 	}
-
-	return o.Advance
+	return o.Advance - lastG.endLetterSpacing
 }
 
 // RecalculateAll updates the all other fields of the Output

@@ -221,7 +221,8 @@ func inclusiveGlyphRange(dir di.Direction, start, breakAfter int, runeToGlyph []
 
 // cutRun returns the sub-run of run containing glyphs corresponding to the provided
 // _inclusive_ rune range.
-func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
+// if [trimStart] is true, the leading letter spacing is removed
+func cutRun(run Output, mapping []glyphIndex, startRune, endRune int, trimStart bool) Output {
 	// Convert the rune range of interest into an inclusive range within the
 	// current run's runes.
 	runeStart := startRune - run.Runes.Offset
@@ -240,9 +241,12 @@ func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
 
 	// Construct a run out of the inclusive glyph range.
 	run.Glyphs = run.Glyphs[glyphStart : glyphEnd+1]
-	run.RecomputeAdvance()
-	run.Runes.Offset = run.Runes.Offset + runeStart
 	run.Runes.Count = runeEnd - runeStart + 1
+	run.Runes.Offset = run.Runes.Offset + runeStart
+	if trimStart {
+		run.trimStartLetterSpacing()
+	}
+	run.RecomputeAdvance()
 	return run
 }
 
@@ -795,7 +799,8 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) {
 			// If part of this run has already been used on a previous line, trim
 			// the runes corresponding to those glyphs off.
 			l.mapper.mapRun(currRunIndex, run)
-			run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset)
+			isFirstInLine := len(l.scratch.alt) == 0
+			run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset, isFirstInLine)
 		}
 		// While the run being processed doesn't contain the current line breaking
 		// candidate, just append it to the candidate line.
@@ -1093,7 +1098,8 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		// Reject invalid line break candidate and acquire a new one.
 		return breakInvalid, Output{}
 	}
-	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune)
+	isFirstInLine := len(l.scratch.alt) == 0
+	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	candidateLineWidth := (candidateRun.advanceSpaceAware() + l.scratch.candidateAdvance()).Ceil()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
