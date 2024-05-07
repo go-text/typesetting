@@ -1,22 +1,24 @@
 package shaping
 
 import (
-	"github.com/go-text/typesetting/di"
 	"golang.org/x/image/math/fixed"
 )
 
 // AddWordSpacing alters the run, adding [additionalSpacing] on each
 // word separator.
 // [text] is the input slice used to create the run.
+// Note that space is always added, even on boundaries.
 //
+// See also the convenience function [AddSpacing] to handle a slice of runs.
+
 // See also https://www.w3.org/TR/css-text-3/#word-separator
 func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) {
 	isVertical := run.Direction.IsVertical()
 	for i, g := range run.Glyphs {
 		// find the corresponding runes :
-		// to simplify, we assume the words separators are not produced by ligatures
-		// so that the cluster "rune-length" is 1
-		if g.RuneCount != 1 {
+		// to simplify, we assume a simple one to one rune/glyph mapping
+		// which should be common in practice for word separators
+		if !(g.RuneCount == 1 && g.GlyphCount == 1) {
 			continue
 		}
 		r := text[g.ClusterIndex]
@@ -38,7 +40,7 @@ func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 			run.Glyphs[i].YOffset += additionalSpacing / 2
 		} else {
 			run.Glyphs[i].XAdvance += additionalSpacing
-			run.Glyphs[i].XOffset += additionalSpacing / 2 // distribute space around the char
+			run.Glyphs[i].XOffset += additionalSpacing / 2
 		}
 	}
 	run.RecomputeAdvance()
@@ -47,12 +49,12 @@ func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 // AddLetterSpacing alters the run, adding [additionalSpacing] between
 // each Harfbuzz clusters.
 //
-// Space it also included before the first cluster and after the last cluster.
+// Space is added at the boundaries if and only if there is an adjacent run, as specified by [isStartRun] and [isEndRun].
 //
-// See [Line.TrimLetterSpacing] to trim unwanted space at line boundaries.
+// See also the convenience function [AddSpacing] to handle a slice of runs.
 //
 // See also https://www.w3.org/TR/css-text-3/#letter-spacing-property
-func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6) {
+func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun, isEndRun bool) {
 	isVertical := run.Direction.IsVertical()
 
 	halfSpacing := additionalSpacing / 2
@@ -60,18 +62,27 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6) {
 		startGlyph := run.Glyphs[startGIdx]
 		endGIdx := startGIdx + startGlyph.GlyphCount - 1
 
-		if isVertical {
-			run.Glyphs[startGIdx].YAdvance += halfSpacing
-			run.Glyphs[startGIdx].YOffset += halfSpacing
-		} else {
-			run.Glyphs[startGIdx].XAdvance += halfSpacing
-			run.Glyphs[startGIdx].XOffset += halfSpacing
+		// start : apply spacing at boundary only if the run is not the first
+		if startGIdx > 0 || !isStartRun {
+			if isVertical {
+				run.Glyphs[startGIdx].YAdvance += halfSpacing
+				run.Glyphs[startGIdx].YOffset += halfSpacing
+			} else {
+				run.Glyphs[startGIdx].XAdvance += halfSpacing
+				run.Glyphs[startGIdx].XOffset += halfSpacing
+			}
+			run.Glyphs[startGIdx].startLetterSpacing += halfSpacing
 		}
 
-		if isVertical {
-			run.Glyphs[endGIdx].YAdvance += halfSpacing
-		} else {
-			run.Glyphs[endGIdx].XAdvance += halfSpacing
+		// end : apply spacing at boundary only if the run is not the last
+		isLastCluster := startGIdx+startGlyph.GlyphCount >= len(run.Glyphs)
+		if !isLastCluster || !isEndRun {
+			if isVertical {
+				run.Glyphs[endGIdx].YAdvance += halfSpacing
+			} else {
+				run.Glyphs[endGIdx].XAdvance += halfSpacing
+			}
+			run.Glyphs[endGIdx].endLetterSpacing += halfSpacing
 		}
 
 		// go to next cluster
@@ -81,32 +92,36 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6) {
 	run.RecomputeAdvance()
 }
 
-// TrimLetterSpacing post-processes the line by removing the given [letterSpacing]
-// at the start and at the end of the line.
-//
-// This method should be used after wrapping runs altered by [Output.AddLetterSpacing],
-// with the same [letterSpacing] argument.
-func (line Line) TrimLetterSpacing(letterSpacing fixed.Int26_6) {
-	if len(line) == 0 {
+// does not run RecomputeAdvance
+func (run *Output) trimStartLetterSpacing() {
+	if len(run.Glyphs) == 0 {
 		return
 	}
-
-	halfSpacing := letterSpacing / 2
-	firstRun, lastRun := &line[0], &line[len(line)-1]
-	if firstRun.Direction.Axis() == di.Horizontal {
-		firstRun.Glyphs[0].XOffset -= halfSpacing
-		firstRun.Glyphs[0].XAdvance -= halfSpacing
-
-		L := len(lastRun.Glyphs)
-		firstRun.Glyphs[L-1].XAdvance -= halfSpacing
+	firstG := &run.Glyphs[0]
+	halfSpacing := firstG.startLetterSpacing
+	if run.Direction.IsVertical() {
+		firstG.YAdvance -= halfSpacing
+		firstG.YOffset -= halfSpacing
 	} else {
-		firstRun.Glyphs[0].YOffset -= halfSpacing
-		firstRun.Glyphs[0].YAdvance -= halfSpacing
-
-		L := len(lastRun.Glyphs)
-		firstRun.Glyphs[L-1].YAdvance -= halfSpacing
+		firstG.XAdvance -= halfSpacing
+		firstG.XOffset -= halfSpacing
 	}
+	firstG.startLetterSpacing = 0
+}
 
-	firstRun.RecomputeAdvance()
-	lastRun.RecomputeAdvance()
+// AddSpacing adds additionnal spacing between words and letters, mutating the given [runs].
+// [text] is the input slice the [runs] refer to.
+//
+// See the method [Output.AddWordSpacing] and [Output.AddLetterSpacing] for details
+// about what spacing actually is.
+func AddSpacing(runs []Output, text []rune, wordSpacing, letterSpacing fixed.Int26_6) {
+	for i := range runs {
+		isStartRun, isEndRun := i == 0, i == len(runs)-1
+		if wordSpacing != 0 {
+			runs[i].AddWordSpacing(text, wordSpacing)
+		}
+		if letterSpacing != 0 {
+			runs[i].AddLetterSpacing(letterSpacing, isStartRun, isEndRun)
+		}
+	}
 }
