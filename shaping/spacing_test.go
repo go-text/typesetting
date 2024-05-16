@@ -99,7 +99,7 @@ func TestCustomSpacing(t *testing.T) {
 	tu.Assert(t, out.Advance == withoutSpacing+5*wordSpacing+23*letterSpacing)
 }
 
-// make sure that additional letter spacing if properly removed
+// make sure that additional letter spacing is properly removed
 // at the start and end of wrapped lines
 func TestTrailingSpaces(t *testing.T) {
 	letterSpacing, charAdvance := fixed.I(8), fixed.I(90)
