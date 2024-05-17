@@ -650,6 +650,9 @@ func (w *wrapBuffer) startLine() {
 	w.bestInLine = false
 }
 
+// candidateLen returns the number of [Output]s in the current line wrapping candidate.
+func (w *wrapBuffer) candidateLen() int { return len(w.alt) }
+
 // candidateAppend adds the given run to the current line wrapping candidate.
 func (w *wrapBuffer) candidateAppend(run Output) {
 	w.alt = append(w.alt, run)
@@ -799,7 +802,7 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) {
 			// If part of this run has already been used on a previous line, trim
 			// the runes corresponding to those glyphs off.
 			l.mapper.mapRun(currRunIndex, run)
-			isFirstInLine := len(l.scratch.alt) == 0
+			isFirstInLine := l.scratch.candidateLen() == 0
 			run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset, isFirstInLine)
 		}
 		// While the run being processed doesn't contain the current line breaking
@@ -1098,7 +1101,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		// Reject invalid line break candidate and acquire a new one.
 		return breakInvalid, Output{}
 	}
-	isFirstInLine := len(l.scratch.alt) == 0
+	isFirstInLine := l.scratch.candidateLen() == 0
 	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	candidateLineWidth := (candidateRun.advanceSpaceAware() + l.scratch.candidateAdvance()).Ceil()
 	if candidateLineWidth > config.maxWidth {
