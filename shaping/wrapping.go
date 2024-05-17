@@ -567,7 +567,7 @@ func (r *shapedRunSlice) Restore() {
 // wrapBuffer, returned line wrapping results will use memory stored within
 // the buffer. This means that the same buffer cannot be reused for another
 // wrapping operation while the wrapped lines are still in use (unless they
-// are deeply copied). If necessary, using a multiple WrapBuffers can work
+// are deeply copied). If necessary, using multiple wrapBuffers can work
 // around this restriction.
 type wrapBuffer struct {
 	// paragraph is a buffer holding paragraph allocated (primarily) from subregions
