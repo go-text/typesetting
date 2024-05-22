@@ -221,7 +221,8 @@ func inclusiveGlyphRange(dir di.Direction, start, breakAfter int, runeToGlyph []
 
 // cutRun returns the sub-run of run containing glyphs corresponding to the provided
 // _inclusive_ rune range.
-func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
+// if [trimStart] is true, the leading letter spacing is removed
+func cutRun(run Output, mapping []glyphIndex, startRune, endRune int, trimStart bool) Output {
 	// Convert the rune range of interest into an inclusive range within the
 	// current run's runes.
 	runeStart := startRune - run.Runes.Offset
@@ -240,9 +241,12 @@ func cutRun(run Output, mapping []glyphIndex, startRune, endRune int) Output {
 
 	// Construct a run out of the inclusive glyph range.
 	run.Glyphs = run.Glyphs[glyphStart : glyphEnd+1]
-	run.RecomputeAdvance()
-	run.Runes.Offset = run.Runes.Offset + runeStart
 	run.Runes.Count = runeEnd - runeStart + 1
+	run.Runes.Offset = run.Runes.Offset + runeStart
+	if trimStart {
+		run.trimStartLetterSpacing()
+	}
+	run.RecomputeAdvance()
 	return run
 }
 
@@ -563,7 +567,7 @@ func (r *shapedRunSlice) Restore() {
 // wrapBuffer, returned line wrapping results will use memory stored within
 // the buffer. This means that the same buffer cannot be reused for another
 // wrapping operation while the wrapped lines are still in use (unless they
-// are deeply copied). If necessary, using a multiple WrapBuffers can work
+// are deeply copied). If necessary, using multiple wrapBuffers can work
 // around this restriction.
 type wrapBuffer struct {
 	// paragraph is a buffer holding paragraph allocated (primarily) from subregions
@@ -645,6 +649,9 @@ func (w *wrapBuffer) startLine() {
 	w.best = nil
 	w.bestInLine = false
 }
+
+// candidateLen returns the number of [Output]s in the current line wrapping candidate.
+func (w *wrapBuffer) candidateLen() int { return len(w.alt) }
 
 // candidateAppend adds the given run to the current line wrapping candidate.
 func (w *wrapBuffer) candidateAppend(run Output) {
@@ -795,7 +802,8 @@ func (l *LineWrapper) fillUntil(runs RunIterator, option breakOption) {
 			// If part of this run has already been used on a previous line, trim
 			// the runes corresponding to those glyphs off.
 			l.mapper.mapRun(currRunIndex, run)
-			run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset)
+			isFirstInLine := l.scratch.candidateLen() == 0
+			run = cutRun(run, l.mapper.mapping, l.lineStartRune, run.Runes.Count+run.Runes.Offset, isFirstInLine)
 		}
 		// While the run being processed doesn't contain the current line breaking
 		// candidate, just append it to the candidate line.
@@ -1093,7 +1101,8 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		// Reject invalid line break candidate and acquire a new one.
 		return breakInvalid, Output{}
 	}
-	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune)
+	isFirstInLine := l.scratch.candidateLen() == 0
+	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	candidateLineWidth := (candidateRun.advanceSpaceAware() + l.scratch.candidateAdvance()).Ceil()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.

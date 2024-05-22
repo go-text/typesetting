@@ -2379,17 +2379,17 @@ var benchSizes = []benchSizeConfig{
 	{runes: 1000, parts: []int{1, 10, 100, 1000}},
 }
 
-// cutRunInto divides the run into parts of size (with the last part absorbing any remainder).
+// cutRunInto divides the run into [parts] of same size (with the last part absorbing any remainder).
 func cutRunInto(run Output, parts int) []Output {
 	var outs []Output
 	mapping := mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, nil)
 	runesPerPart := run.Runes.Count / parts
 	partStart := 0
 	for i := 0; i < parts-1; i++ {
-		outs = append(outs, cutRun(run, mapping, partStart, partStart+runesPerPart-1))
+		outs = append(outs, cutRun(run, mapping, partStart, partStart+runesPerPart-1, false))
 		partStart += runesPerPart
 	}
-	outs = append(outs, cutRun(run, mapping, partStart, run.Runes.Count-1))
+	outs = append(outs, cutRun(run, mapping, partStart, run.Runes.Count-1, false))
 	return outs
 }
 
