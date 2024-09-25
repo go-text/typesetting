@@ -130,6 +130,19 @@ var (
 	tagCapHeight          = ot.MustNewTag("cpht")
 )
 
+// return the height from baseline (in font units)
+func (f *Face) runeHeight(r rune) float32 {
+	gid, ok := f.Font.NominalGlyph(r)
+	if !ok {
+		return 0
+	}
+	extents, ok := f.GlyphExtents(gid)
+	if !ok {
+		return 0
+	}
+	return extents.YBearing
+}
+
 // LineMetric returns the metric identified by `metric` (in fonts units).
 func (f *Face) LineMetric(metric LineMetric) float32 {
 	switch metric {
@@ -152,8 +165,18 @@ func (f *Face) LineMetric(metric LineMetric) float32 {
 	case SubscriptEmXOffset:
 		return float32(f.os2.ySubscriptXOffset) + f.mvar.getVar(tagSubscriptXOffset, f.coords)
 	case CapHeight:
+		if f.os2.version < 2 {
+			// sCapHeight may be set equal to the top of the unscaled and unhinted glyph
+			// bounding box of the glyph encoded at U+0048 (LATIN CAPITAL LETTER H).
+			return f.runeHeight('H')
+		}
 		return float32(f.os2.sCapHeight) + f.mvar.getVar(tagCapHeight, f.coords)
 	case XHeight:
+		if f.os2.version < 2 {
+			// sxHeight equal to the top of the unscaled and unhinted glyph bounding box
+			// of the glyph encoded at U+0078 (LATIN SMALL LETTER X).
+			return f.runeHeight('x')
+		}
 		return float32(f.os2.sxHeigh) + f.mvar.getVar(tagXHeight, f.coords)
 	default:
 		return 0
