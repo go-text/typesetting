@@ -10,7 +10,7 @@ import (
 // Note that space is always added, even on boundaries.
 //
 // See also the convenience function [AddSpacing] to handle a slice of runs.
-
+//
 // See also https://www.w3.org/TR/css-text-3/#word-separator
 func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) {
 	isVertical := run.Direction.IsVertical()
