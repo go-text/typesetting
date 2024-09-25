@@ -115,13 +115,9 @@ func TestMaxpAndHmtx(t *testing.T) {
 }
 
 func TestLoadCFF2(t *testing.T) {
-	b, err := td.Files.ReadFile("common/NotoSansCJKjp-VF.otf")
-	tu.AssertNoErr(t, err)
+	ld := readFontFile(t, "common/NotoSansCJKjp-VF.otf")
 
-	ft, err := ot.NewLoader(bytes.NewReader(b))
-	tu.AssertNoErr(t, err)
-
-	font, err := NewFont(ft)
+	font, err := NewFont(ld)
 	tu.AssertNoErr(t, err)
 
 	tu.Assert(t, font.cff2 != nil)
