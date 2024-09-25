@@ -123,3 +123,14 @@ func TestLoadCFF2(t *testing.T) {
 	tu.Assert(t, font.cff2 != nil)
 	tu.Assert(t, font.cff2.VarStore.AxisCount() == 1)
 }
+
+func TestCapHeight(t *testing.T) {
+	ld := readFontFile(t, "common/mplus-1p-regular.ttf")
+	font, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	face := NewFace(font)
+
+	// reference values from Harfbuzz
+	tu.Assert(t, face.LineMetric(CapHeight) == 730)
+	tu.Assert(t, face.LineMetric(XHeight) == 520)
+}
