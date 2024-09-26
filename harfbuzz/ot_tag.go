@@ -186,22 +186,22 @@ func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize fun
 // newOTTagsFromScriptAndLanguage converts a `Script` and a `Language`
 // to script and language tags.
 func newOTTagsFromScriptAndLanguage(script language.Script, language language.Language) (scriptTags, languageTags []tables.Tag) {
-	if language != "" {
+	if language.String() != "" {
 		prefix, privateUseSubtag := language.SplitExtensionTags()
 
-		s, hasScript := parsePrivateUseSubtag(string(privateUseSubtag), "-hbsc", toLower)
+		s, hasScript := parsePrivateUseSubtag(privateUseSubtag.String(), "-hbsc", toLower)
 		if hasScript {
 			scriptTags = []tables.Tag{s}
 		}
 
-		l, hasLanguage := parsePrivateUseSubtag(string(privateUseSubtag), "-hbot", toUpper)
+		l, hasLanguage := parsePrivateUseSubtag(privateUseSubtag.String(), "-hbot", toUpper)
 		if hasLanguage {
 			languageTags = append(languageTags, l)
 		} else {
-			if prefix == "" { // if the language is 'fully private'
+			if prefix.String() == "" { // if the language is 'fully private'
 				prefix = language
 			}
-			languageTags = otTagsFromLanguage(string(prefix)) // TODO:
+			languageTags = otTagsFromLanguage(prefix.String()) // TODO:
 		}
 	}
 

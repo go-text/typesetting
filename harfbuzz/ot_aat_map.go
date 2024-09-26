@@ -148,7 +148,7 @@ func (mb *aatMapBuilder) compileMorxFlag(chain font.MorxChain) GlyphMask {
 			type_ = aatLayoutFeatureTypeLowerCase
 			setting = aatLayoutFeatureSelectorLowerCaseSmallCaps
 			goto retry
-		} else if type_ == aatLayoutFeatureTypeLanguageTagType && setting != 0 && langMatches(string(mb.tables.Ltag.Language(setting-1)), string(mb.props.Language)) {
+		} else if type_ == aatLayoutFeatureTypeLanguageTagType && setting != 0 && langMatches(mb.tables.Ltag.Language(setting-1).String(), mb.props.Language.String()) {
 			flags &= feature.DisableFlags
 			flags |= feature.EnableFlags
 		}

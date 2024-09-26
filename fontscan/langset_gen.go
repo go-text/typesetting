@@ -1,7 +1,5 @@
 package fontscan
 
-import "github.com/go-text/typesetting/language"
-
 // Copyright © 2002 Keith Packard
 //
 // Permission to use, copy, modify, distribute, and sell this software and its
@@ -24,7 +22,7 @@ import "github.com/go-text/typesetting/language"
 
 // languagesRunes stores the runes commonly used to write a language
 var languagesRunes = [...]struct {
-	lang  language.Language
+	lang  string
 	runes RuneSet // sorted, inclusive ranges
 }{
 	{ /** index: 0 */
