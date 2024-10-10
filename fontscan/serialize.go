@@ -110,6 +110,7 @@ func (fp *Footprint) deserializeFrom(data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	fp.Family = font.NormalizeFamily(fp.Family)
 	n += read
 	read, err = fp.Runes.deserializeFrom(data[n:])
 	if err != nil {

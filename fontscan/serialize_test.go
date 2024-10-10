@@ -18,7 +18,7 @@ import (
 func Test_serializeFootprints(t *testing.T) {
 	input := []Footprint{
 		{
-			Family:  "a strange one",
+			Family:  font.NormalizeFamily("a strange \x00one"),
 			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
 			Scripts: ScriptSet{0, 1, 5, 0xffffff, language.Nabataean, language.Unknown},
 			Aspect:  font.Aspect{Style: 1, Weight: 200, Stretch: 0.45},
@@ -71,7 +71,7 @@ func assertFontsetEquals(expected, got []Footprint) error {
 func TestSerializeDeserialize(t *testing.T) {
 	for _, fp := range []Footprint{
 		{
-			Family:  "a strange one",
+			Family:  font.NormalizeFamily("a strange \x00one"),
 			Runes:   newRuneSet(1, 0, 2, 0x789, 0xfffee),
 			Scripts: ScriptSet{0, 1, 5, 0xffffff},
 			Aspect:  font.Aspect{Style: 1, Weight: 200, Stretch: 0.45},

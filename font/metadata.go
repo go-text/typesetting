@@ -277,7 +277,7 @@ func (fd *fontDescriptor) rawAspect() Aspect {
 	return Aspect{style, weight, stretch}
 }
 
-var rp = strings.NewReplacer(" ", "", "\t", "")
+var rp = strings.NewReplacer(" ", "", "\t", "", "\x00", "")
 
 // NormalizeFamily removes spaces and lower the given string.
 func NormalizeFamily(family string) string { return rp.Replace(strings.ToLower(family)) }
