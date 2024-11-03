@@ -140,8 +140,9 @@ func (names Name) decodeRecord(n nameRecord) string {
 	}
 	value := names.stringData[n.stringOffset:end]
 
-	if n.platformID == PlatformUnicode || (n.platformID == PlatformMicrosoft &&
-		n.encodingID == PEMicrosoftUnicodeCs) {
+	if n.platformID == PlatformUnicode ||
+		(n.platformID == PlatformMicrosoft &&
+			(n.encodingID == PEMicrosoftUnicodeCs || n.encodingID == PEMicrosoftUcs4 || n.encodingID == PEMicrosoftSymbolCs)) {
 		return decodeUtf16(value)
 	}
 
