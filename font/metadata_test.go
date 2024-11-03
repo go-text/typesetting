@@ -118,3 +118,14 @@ func TestAspectFromOS2(t *testing.T) {
 	inferred.inferFromStyle(fd.additionalStyle())
 	tu.Assert(t, inferred.Weight == 380)
 }
+
+func TestFamily(t *testing.T) {
+	f, err := td.Files.ReadFile("collections/msgothic.ttc")
+	tu.AssertNoErr(t, err)
+
+	faces, err := ParseTTC(bytes.NewReader(f))
+	tu.AssertNoErr(t, err)
+
+	tu.Assert(t, len(faces) == 3)
+	tu.Assert(t, faces[0].Describe().Family == "MS Gothic")
+}

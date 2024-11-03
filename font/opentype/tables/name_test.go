@@ -95,6 +95,15 @@ func TestFamilyNames(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	// NameFontFamily
 	tu.Assert(t, names.Name(1) == "Roboto")
+
+	// Windows font
+	f, err = td.Files.ReadFile("collections/msgothic.ttc")
+	tu.AssertNoErr(t, err)
+	fonts, err = ot.NewLoaders(bytes.NewReader(f))
+	tu.AssertNoErr(t, err)
+	names, _, err = ParseName(readTable(t, fonts[0], "name"))
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, names.Name(1) == "MS Gothic")
 }
 
 func TestNames(t *testing.T) {
