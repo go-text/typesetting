@@ -18,15 +18,16 @@ type LangID uint16
 // Derived languages not exactly supported are mapped to their primary part : for instance,
 // 'fr-be' is mapped to 'fr'
 func NewLangID(l language.Language) (LangID, bool) {
+	la := l.String()
 	const N = len(languagesRunes)
 	// binary search
 	i, j := 0, N
 	for i < j {
 		h := i + (j-i)/2
 		entry := languagesRunes[h]
-		if l < entry.lang {
+		if la < entry.lang {
 			j = h
-		} else if entry.lang < l {
+		} else if entry.lang < la {
 			i = h + 1
 		} else {
 			// extact match
@@ -35,7 +36,7 @@ func NewLangID(l language.Language) (LangID, bool) {
 	}
 	// i is the index where l should be :
 	// try to match the primary part
-	root := l.Primary()
+	root := l.Primary().String()
 	for ; i >= 0; i-- {
 		entry := languagesRunes[i]
 		if entry.lang > root { // keep going
@@ -76,7 +77,7 @@ func (ls LangSet) String() string {
 		for bit := 0; bit < 64; bit++ {
 			if page&(1<<bit) != 0 {
 				id := pageN<<6 | bit
-				chunks = append(chunks, string(languagesRunes[id].lang))
+				chunks = append(chunks, languagesRunes[id].lang)
 			}
 		}
 	}
