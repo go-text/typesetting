@@ -3284,3 +3284,104 @@ func TestTrailingSpace(t *testing.T) {
 		tu.Assert(t, s == expected[i])
 	}
 }
+
+func TestLineWrapPostProcess(t *testing.T) {
+	output := []Output{
+		{
+			Advance: 10,
+			Glyphs: []Glyph{
+				{
+					Width:        10,
+					XAdvance:     10,
+					ClusterIndex: 0,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+			},
+			Direction: di.DirectionLTR,
+			Runes: Range{
+				Offset: 0,
+				Count:  1,
+			},
+		},
+		{
+			Advance:   20,
+			Direction: di.DirectionRTL,
+			Glyphs: []Glyph{
+				{
+					XAdvance:     10,
+					Width:        10,
+					ClusterIndex: 1,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+				{
+					XAdvance:     10,
+					Width:        0,
+					ClusterIndex: 2,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+			},
+			Runes: Range{
+				Offset: 1,
+				Count:  2,
+			},
+		},
+		{
+			Advance:   10,
+			Direction: di.DirectionRTL,
+			Glyphs: []Glyph{
+				{
+					XAdvance:     10,
+					Width:        10,
+					ClusterIndex: 3,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+			},
+			Runes: Range{
+				Offset: 3,
+				Count:  1,
+			},
+		},
+	}
+	t.Run("LTR", func(t *testing.T) {
+		// Wrap as LTR, which places the space visually at the end of the line.
+		lines, _ := (&LineWrapper{}).WrapParagraph(
+			WrapConfig{
+				BreakPolicy: Always,
+				Direction:   di.DirectionLTR,
+			}, 50, []rune("XX X"), NewSliceIterator(output))
+		if len(lines) > 1 {
+			t.Errorf("expected %d lines, got %d", 1, len(lines))
+		}
+		line := lines[0]
+		adv := fixed.Int26_6(0)
+		for _, run := range line {
+			adv += run.Advance
+		}
+		if adv > fixed.Int26_6(30) {
+			t.Errorf("expected total advance %d, got %d", 30, int(adv))
+		}
+	})
+	t.Run("RTL", func(t *testing.T) {
+		// Wrap as RTL, which places the space visually within the line.
+		lines, _ := (&LineWrapper{}).WrapParagraph(
+			WrapConfig{
+				BreakPolicy: Always,
+				Direction:   di.DirectionRTL,
+			}, 50, []rune("XX X"), NewSliceIterator(output))
+		if len(lines) > 1 {
+			t.Errorf("expected %d lines, got %d", 1, len(lines))
+		}
+		line := lines[0]
+		adv := fixed.Int26_6(0)
+		for _, run := range line {
+			adv += run.Advance
+		}
+		if adv > fixed.Int26_6(40) {
+			t.Errorf("expected total advance %d, got %d", 30, int(adv))
+		}
+	})
+}
