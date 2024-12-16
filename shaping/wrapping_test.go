@@ -2239,7 +2239,10 @@ func TestGraphemeBreakingRegression(t *testing.T) {
 			for i, run := range shaped {
 				runs[i] = run.copy()
 			}
-			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(runs))
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{
+				BreakPolicy:                   Always,
+				DisableTrailingWhitespaceTrim: true,
+			}, maxWidth, bidiText2, NewSliceIterator(runs))
 			checkRuneCounts(t, bidiText2, lines, truncated)
 
 			for i, baseLine := range lines[:len(lines)-1] {
@@ -3384,4 +3387,104 @@ func TestLineWrapPostProcess(t *testing.T) {
 			t.Errorf("expected total advance %d, got %d", 30, int(adv))
 		}
 	})
+}
+
+func TestComputeBidiOrdering(t *testing.T) {
+	type testcase struct {
+		name                string
+		input               []Output
+		direction           di.Direction
+		expectedVisualOrder []int
+	}
+	for _, tc := range []testcase{
+		{
+			name:      "ltr",
+			direction: di.DirectionLTR,
+			input: []Output{
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+			},
+			expectedVisualOrder: []int{0, 1, 2},
+		},
+		{
+			name:      "rtl",
+			direction: di.DirectionRTL,
+			input: []Output{
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+			},
+			expectedVisualOrder: []int{2, 1, 0},
+		},
+		{
+			name:      "bidi-ltr",
+			direction: di.DirectionLTR,
+			input: []Output{
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+			},
+			expectedVisualOrder: []int{0, 3, 2, 1, 4},
+		},
+		{
+			name:      "bidi-ltr-complex",
+			direction: di.DirectionLTR,
+			input: []Output{
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+			},
+			expectedVisualOrder: []int{1, 0, 2, 4, 3, 5, 7, 6, 8, 10, 9},
+		},
+		{
+			name:      "bidi-rtl",
+			direction: di.DirectionRTL,
+			input: []Output{
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+			},
+			expectedVisualOrder: []int{4, 1, 2, 3, 0},
+		},
+		{
+			name:      "bidi-rtl-complex",
+			direction: di.DirectionRTL,
+			input: []Output{
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+			},
+			expectedVisualOrder: []int{9, 10, 8, 6, 7, 5, 3, 4, 2, 0, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			computeBidiOrdering(tc.direction, tc.input)
+			for visualIndex, logicalIndex := range tc.expectedVisualOrder {
+				if tc.input[logicalIndex].VisualIndex != int32(visualIndex) {
+					t.Errorf("line[%d]: expected visual index %v, got %v", logicalIndex, visualIndex, tc.input[logicalIndex].VisualIndex)
+				}
+			}
+		})
+	}
 }

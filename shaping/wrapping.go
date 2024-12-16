@@ -437,6 +437,11 @@ type WrapConfig struct {
 	// breaking in between UAX#14 line breaking candidates, or "within words" in
 	// many scripts.
 	BreakPolicy LineBreakPolicy
+	// DisableTrailingWhitespaceTrim turns off a feature that automatically sets the
+	// advance of trailing whitespace on a line to zero. In display contexts, you
+	// usually want this feature enabled, but for text editors it is frequently
+	// desirable to allow trailing whitespace to occupy space itself.
+	DisableTrailingWhitespaceTrim bool
 }
 
 // LineBreakPolicy specifies when considering a line break within a "word" or UAX#14
@@ -843,77 +848,83 @@ type WrappedLine struct {
 	NextLine int
 }
 
-// resolveBidi inverts the visual index of runs in line[start:end] and tracks the lowest and highest
-// known visual positions.
-func resolveBidi(line Line, start, end, maxVisual, minVisual int) (newMaxVisual, newMinVisual int) {
-	// Resove bidi from line[bidiStart:idx]
-	for bidiIdx := range line[start:end] {
+// resolveBidi inverts the visual index of runs in line[start:end].
+func resolveBidi(line Line, start, end int) {
+	// Resove bidi from line[start:end] by swapping pairs of visual indices across the midpoint
+	// of the range.
+	elementsCount := end - start
+	for bidiIdx := range line[start : start+elementsCount/2] {
 		absIndex := start + bidiIdx
-		visualIndex := len(line) - 1 - absIndex
-		line[absIndex].VisualIndex = int32(visualIndex)
-		if visualIndex > maxVisual {
-			maxVisual = absIndex
+		absIndex2 := start + (elementsCount - bidiIdx) - 1
+		line[absIndex].VisualIndex, line[absIndex2].VisualIndex = line[absIndex2].VisualIndex, line[absIndex].VisualIndex
+	}
+}
+
+func computeBidiOrdering(dir di.Direction, finalLine Line) {
+	// Here we populate the VisualIndex of each run.
+	bidiStart := -1
+	for idx, run := range finalLine {
+		basePosition := idx
+		if dir.Progression() == di.TowardTopLeft {
+			basePosition = len(finalLine) - 1 - idx
 		}
-		if visualIndex < minVisual {
-			minVisual = absIndex
+		finalLine[idx].VisualIndex = int32(basePosition)
+		if run.Direction == dir {
+			if bidiStart != -1 {
+				resolveBidi(finalLine, bidiStart, idx)
+				bidiStart = -1
+			}
+		} else if bidiStart == -1 {
+			bidiStart = idx
 		}
 	}
-	return maxVisual, minVisual
+	if bidiStart != -1 {
+		resolveBidi(finalLine, bidiStart, len(finalLine))
+	}
 }
 
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	if len(finalLine) > 0 {
-		// Here we populate the VisualIndex of each run and track the index of the first
-		// and last visual runs for the purpose of trimming off trailing whitespace.
-		bidiStart := -1
-		maxVisualRunIdx := -1
-		minVisualRunIdx := len(finalLine)
-		for idx, run := range finalLine {
-			if run.Direction == l.config.Direction {
-				if bidiStart != -1 {
-					maxVisualRunIdx, minVisualRunIdx = resolveBidi(finalLine, bidiStart, idx, maxVisualRunIdx, minVisualRunIdx)
-					bidiStart = -1
-				}
-				finalLine[idx].VisualIndex = int32(idx)
-				if idx > maxVisualRunIdx {
-					maxVisualRunIdx = idx
-				}
-				if idx < minVisualRunIdx {
-					minVisualRunIdx = idx
-				}
-			} else if bidiStart == -1 {
-				bidiStart = idx
+		computeBidiOrdering(l.config.Direction, finalLine)
+		if !l.config.DisableTrailingWhitespaceTrim {
+			// Here we find the last visual run in the line.
+			goalIdx := len(finalLine) - 1
+			if l.config.Direction.Progression() == di.TowardTopLeft {
+				goalIdx = 0
 			}
-		}
-		if bidiStart != -1 {
-			maxVisualRunIdx, minVisualRunIdx = resolveBidi(finalLine, bidiStart, len(finalLine), maxVisualRunIdx, minVisualRunIdx)
-		}
-		// This next block locates the first/last visual glyph on the line and
-		// zeroes its advance if it is whitespace.
-		var finalVisualRun *Output
-		var finalVisualGlyph *Glyph
-		if l.config.Direction.Progression() == di.FromTopLeft {
-			finalVisualRun = &finalLine[maxVisualRunIdx]
-		} else {
-			finalVisualRun = &finalLine[minVisualRunIdx]
-		}
-		if L := len(finalVisualRun.Glyphs); L > 0 {
+			for logicalIdx, run := range finalLine {
+				if run.VisualIndex == int32(goalIdx) {
+					goalIdx = logicalIdx
+					break
+				}
+			}
+			// This next block locates the first/last visual glyph on the line and
+			// zeroes its advance if it is whitespace.
+			var finalVisualRun *Output
+			var finalVisualGlyph *Glyph
 			if l.config.Direction.Progression() == di.FromTopLeft {
-				finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
+				finalVisualRun = &finalLine[goalIdx]
 			} else {
-				finalVisualGlyph = &finalVisualRun.Glyphs[0]
+				finalVisualRun = &finalLine[goalIdx]
 			}
+			if L := len(finalVisualRun.Glyphs); L > 0 {
+				if l.config.Direction.Progression() == di.FromTopLeft {
+					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
+				} else {
+					finalVisualGlyph = &finalVisualRun.Glyphs[0]
+				}
 
-			if finalVisualRun.Direction.IsVertical() {
-				if finalVisualGlyph.Height == 0 {
-					finalVisualGlyph.YAdvance = 0
+				if finalVisualRun.Direction.IsVertical() {
+					if finalVisualGlyph.Height == 0 {
+						finalVisualGlyph.YAdvance = 0
+					}
+				} else { // horizontal
+					if finalVisualGlyph.Width == 0 {
+						finalVisualGlyph.XAdvance = 0
+					}
 				}
-			} else { // horizontal
-				if finalVisualGlyph.Width == 0 {
-					finalVisualGlyph.XAdvance = 0
-				}
+				finalVisualRun.RecomputeAdvance()
 			}
-			finalVisualRun.RecomputeAdvance()
 		}
 
 		finalLogicalRun := finalLine[len(finalLine)-1]
