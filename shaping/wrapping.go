@@ -414,6 +414,10 @@ type Line []Output
 
 // WrapConfig provides line-wrapper settings.
 type WrapConfig struct {
+	// Direction describes the text layout of the overall paragraph, rather than
+	// individual runs of text. This is used to compute the correct visual order of
+	// bidirectional text runs.
+	Direction di.Direction
 	// TruncateAfterLines is the number of lines of text to allow before truncating
 	// the text. A value of zero means no limit.
 	TruncateAfterLines int
@@ -839,28 +843,82 @@ type WrappedLine struct {
 	NextLine int
 }
 
+// resolveBidi inverts the visual index of runs in line[start:end] and tracks the lowest and highest
+// known visual positions.
+func resolveBidi(line Line, start, end, maxVisual, minVisual int) (newMaxVisual, newMinVisual int) {
+	// Resove bidi from line[bidiStart:idx]
+	for bidiIdx := range line[start:end] {
+		absIndex := start + bidiIdx
+		visualIndex := len(line) - 1 - absIndex
+		line[absIndex].VisualIndex = int32(visualIndex)
+		if visualIndex > maxVisual {
+			maxVisual = absIndex
+		}
+		if visualIndex < minVisual {
+			minVisual = absIndex
+		}
+	}
+	return maxVisual, minVisual
+}
+
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	if len(finalLine) > 0 {
-		finalRun := finalLine[len(finalLine)-1]
+		// Here we populate the VisualIndex of each run and track the index of the first
+		// and last visual runs for the purpose of trimming off trailing whitespace.
+		bidiStart := -1
+		maxVisualRunIdx := -1
+		minVisualRunIdx := len(finalLine)
+		for idx, run := range finalLine {
+			if run.Direction == l.config.Direction {
+				if bidiStart != -1 {
+					maxVisualRunIdx, minVisualRunIdx = resolveBidi(finalLine, bidiStart, idx, maxVisualRunIdx, minVisualRunIdx)
+					bidiStart = -1
+				}
+				finalLine[idx].VisualIndex = int32(idx)
+				if idx > maxVisualRunIdx {
+					maxVisualRunIdx = idx
+				}
+				if idx < minVisualRunIdx {
+					minVisualRunIdx = idx
+				}
+			} else if bidiStart == -1 {
+				bidiStart = idx
+			}
+		}
+		if bidiStart != -1 {
+			maxVisualRunIdx, minVisualRunIdx = resolveBidi(finalLine, bidiStart, len(finalLine), maxVisualRunIdx, minVisualRunIdx)
+		}
+		// This next block locates the first/last visual glyph on the line and
+		// zeroes its advance if it is whitespace.
+		var finalVisualRun *Output
+		var finalVisualGlyph *Glyph
+		if l.config.Direction.Progression() == di.FromTopLeft {
+			finalVisualRun = &finalLine[maxVisualRunIdx]
+		} else {
+			finalVisualRun = &finalLine[minVisualRunIdx]
+		}
+		if L := len(finalVisualRun.Glyphs); L > 0 {
+			if l.config.Direction.Progression() == di.FromTopLeft {
+				finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
+			} else {
+				finalVisualGlyph = &finalVisualRun.Glyphs[0]
+			}
 
-		// zero trailing whitespace advance,
-		// to be coherent with Output.advanceSpaceAware
-		if L := len(finalRun.Glyphs); L != 0 {
-			g := &finalRun.Glyphs[L-1]
-			if finalRun.Direction.IsVertical() {
-				if g.Height == 0 {
-					g.YAdvance = 0
+			if finalVisualRun.Direction.IsVertical() {
+				if finalVisualGlyph.Height == 0 {
+					finalVisualGlyph.YAdvance = 0
 				}
 			} else { // horizontal
-				if g.Width == 0 {
-					g.XAdvance = 0
+				if finalVisualGlyph.Width == 0 {
+					finalVisualGlyph.XAdvance = 0
 				}
 			}
-			finalRun.RecomputeAdvance()
+			finalVisualRun.RecomputeAdvance()
 		}
 
+		finalLogicalRun := finalLine[len(finalLine)-1]
 		// Update the start position of the next line.
-		l.lineStartRune = finalRun.Runes.Count + finalRun.Runes.Offset
+		l.lineStartRune = finalLogicalRun.Runes.Count + finalLogicalRun.Runes.Offset
 	}
 
 	// Check whether we've exhausted the text.

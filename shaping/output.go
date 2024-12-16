@@ -146,6 +146,11 @@ type Output struct {
 	// the output in order to render each run in a multi-font sequence in the
 	// correct font.
 	Face *font.Face
+
+	// VisualIndex is the visual position of this run within its containing line where
+	// 0 indicates the leftmost run and increasing values move to the right. This is
+	// useful for sorting the runs for drawing purposes.
+	VisualIndex int32
 }
 
 // ToFontUnit converts a metrics (typically found in [Glyph] fields)
@@ -188,7 +193,12 @@ func (o *Output) advanceSpaceAware() fixed.Int26_6 {
 	}
 
 	// adjust the last to account for spaces
-	lastG := o.Glyphs[L-1]
+	var lastG Glyph
+	if o.Direction.Progression() == di.FromTopLeft {
+		lastG = o.Glyphs[L-1]
+	} else {
+		lastG = o.Glyphs[0]
+	}
 	if o.Direction.IsVertical() {
 		if lastG.Height == 0 {
 			return o.Advance - lastG.YAdvance

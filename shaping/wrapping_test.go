@@ -961,6 +961,7 @@ func compareLines(t *testing.T, lineNumber int, expected, actual Line) {
 		}
 		expected.Glyphs = nil
 		actual.Glyphs = nil
+		actual.VisualIndex = expected.VisualIndex
 		if !reflect.DeepEqual(expected, actual) {
 			t.Errorf("line %d: run %d: expected\n%#+v\ngot\n%#+v", lineNumber, i, expected, actual)
 		}
@@ -1532,6 +1533,7 @@ func TestLineWrap(t *testing.T) {
 					// compared the glyphs.
 					expectedRun.Glyphs = nil
 					actualRun.Glyphs = nil
+					actualRun.VisualIndex = expectedRun.VisualIndex
 					if !reflect.DeepEqual(expectedRun, actualRun) {
 						t.Errorf("line %d: expected: %#v, got %#v", runNum, expectedRun, actualRun)
 					}
