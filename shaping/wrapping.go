@@ -848,20 +848,18 @@ type WrappedLine struct {
 	NextLine int
 }
 
-// resolveBidi inverts the visual index of runs in line[start:end].
-func resolveBidi(line Line, start, end int) {
-	// Resove bidi from line[start:end] by swapping pairs of visual indices across the midpoint
-	// of the range.
-	elementsCount := end - start
-	for bidiIdx := range line[start : start+elementsCount/2] {
-		absIndex := start + bidiIdx
-		absIndex2 := start + (elementsCount - bidiIdx) - 1
-		line[absIndex].VisualIndex, line[absIndex2].VisualIndex = line[absIndex2].VisualIndex, line[absIndex].VisualIndex
+// swapVisualOrder inverts the visual index of runs in [subline], by swapping pairs of visual indices across the midpoint
+// of the slice.
+func swapVisualOrder(subline Line) {
+	L := len(subline)
+	for i := range subline[0 : L/2] {
+		j := (L - i) - 1
+		subline[i].VisualIndex, subline[j].VisualIndex = subline[j].VisualIndex, subline[i].VisualIndex
 	}
 }
 
+// computeBidiOrdering resolve the [VisualIndex] of each run.
 func computeBidiOrdering(dir di.Direction, finalLine Line) {
-	// Here we populate the VisualIndex of each run.
 	bidiStart := -1
 	for idx, run := range finalLine {
 		basePosition := idx
@@ -871,7 +869,7 @@ func computeBidiOrdering(dir di.Direction, finalLine Line) {
 		finalLine[idx].VisualIndex = int32(basePosition)
 		if run.Direction == dir {
 			if bidiStart != -1 {
-				resolveBidi(finalLine, bidiStart, idx)
+				swapVisualOrder(finalLine[bidiStart:idx])
 				bidiStart = -1
 			}
 		} else if bidiStart == -1 {
@@ -879,7 +877,7 @@ func computeBidiOrdering(dir di.Direction, finalLine Line) {
 		}
 	}
 	if bidiStart != -1 {
-		resolveBidi(finalLine, bidiStart, len(finalLine))
+		swapVisualOrder(finalLine[bidiStart:])
 	}
 }
 
