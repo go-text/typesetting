@@ -858,7 +858,7 @@ func swapVisualOrder(subline Line) {
 	}
 }
 
-// computeBidiOrdering resolve the [VisualIndex] of each run.
+// computeBidiOrdering resolves the [VisualIndex] of each run.
 func computeBidiOrdering(dir di.Direction, finalLine Line) {
 	bidiStart := -1
 	for idx, run := range finalLine {
