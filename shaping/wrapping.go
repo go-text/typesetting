@@ -1165,7 +1165,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	}
 	isFirstInLine := l.scratch.candidateLen() == 0
 	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
-	candidateLineWidth := (candidateRun.advanceSpaceAware() + l.scratch.candidateAdvance()).Ceil()
+	candidateLineWidth := (candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()).Ceil()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
