@@ -898,13 +898,8 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			}
 			// This next block locates the first/last visual glyph on the line and
 			// zeroes its advance if it is whitespace.
-			var finalVisualRun *Output
+			finalVisualRun := &finalLine[goalIdx]
 			var finalVisualGlyph *Glyph
-			if l.config.Direction.Progression() == di.FromTopLeft {
-				finalVisualRun = &finalLine[goalIdx]
-			} else {
-				finalVisualRun = &finalLine[goalIdx]
-			}
 			if L := len(finalVisualRun.Glyphs); L > 0 {
 				if l.config.Direction.Progression() == di.FromTopLeft {
 					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
