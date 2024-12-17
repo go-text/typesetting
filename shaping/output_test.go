@@ -305,3 +305,165 @@ func TestLine_AdjustBaseline(t *testing.T) {
 		}
 	}
 }
+
+func TestAdvanceSpaceAware(t *testing.T) {
+	type testcase struct {
+		name         string
+		paragraphDir di.Direction
+		run          Output
+		expected     fixed.Int26_6
+	}
+	for _, tc := range []testcase{
+		{
+			name:         "matching ltr no whitespace",
+			paragraphDir: di.DirectionLTR,
+			expected:     10,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      10,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionLTR,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "matching ltr with whitespace",
+			expected:     0,
+			paragraphDir: di.DirectionLTR,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      0,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionLTR,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "matching rtl no whitespace",
+			expected:     10,
+			paragraphDir: di.DirectionRTL,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      10,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionRTL,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "matching rtl with whitespace",
+			expected:     0,
+			paragraphDir: di.DirectionRTL,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      0,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionRTL,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "mismatched ltr no whitespace",
+			expected:     10,
+			paragraphDir: di.DirectionLTR,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      10,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionRTL,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "mismatched ltr with whitespace",
+			expected:     10,
+			paragraphDir: di.DirectionLTR,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      0,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionRTL,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "mismatched rtl no whitespace",
+			expected:     10,
+			paragraphDir: di.DirectionRTL,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      10,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionLTR,
+				Runes:     Range{Count: 1},
+			},
+		},
+		{
+			name:         "mismatched rtl with whitespace",
+			expected:     10,
+			paragraphDir: di.DirectionRTL,
+			run: Output{
+				Advance: 10,
+				Glyphs: []Glyph{
+					{
+						Width:      0,
+						XAdvance:   10,
+						RuneCount:  1,
+						GlyphCount: 1,
+					},
+				},
+				Direction: di.DirectionLTR,
+				Runes:     Range{Count: 1},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.run.advanceSpaceAware(tc.paragraphDir)
+			if actual != tc.expected {
+				t.Errorf("expected advance %d, got %d", tc.expected, actual)
+			}
+		})
+	}
+}

@@ -414,6 +414,10 @@ type Line []Output
 
 // WrapConfig provides line-wrapper settings.
 type WrapConfig struct {
+	// Direction describes the text layout of the overall paragraph, rather than
+	// individual runs of text. This is used to compute the correct visual order of
+	// bidirectional text runs.
+	Direction di.Direction
 	// TruncateAfterLines is the number of lines of text to allow before truncating
 	// the text. A value of zero means no limit.
 	TruncateAfterLines int
@@ -433,6 +437,11 @@ type WrapConfig struct {
 	// breaking in between UAX#14 line breaking candidates, or "within words" in
 	// many scripts.
 	BreakPolicy LineBreakPolicy
+	// DisableTrailingWhitespaceTrim turns off a feature that automatically sets the
+	// advance of trailing whitespace on a line to zero. In display contexts, you
+	// usually want this feature enabled, but for text editors it is frequently
+	// desirable to allow trailing whitespace to occupy space itself.
+	DisableTrailingWhitespaceTrim bool
 }
 
 // LineBreakPolicy specifies when considering a line break within a "word" or UAX#14
@@ -839,28 +848,81 @@ type WrappedLine struct {
 	NextLine int
 }
 
+// swapVisualOrder inverts the visual index of runs in [subline], by swapping pairs of visual indices across the midpoint
+// of the slice.
+func swapVisualOrder(subline Line) {
+	L := len(subline)
+	for i := range subline[0 : L/2] {
+		j := (L - i) - 1
+		subline[i].VisualIndex, subline[j].VisualIndex = subline[j].VisualIndex, subline[i].VisualIndex
+	}
+}
+
+// computeBidiOrdering resolves the [VisualIndex] of each run.
+func computeBidiOrdering(dir di.Direction, finalLine Line) {
+	bidiStart := -1
+	for idx, run := range finalLine {
+		basePosition := idx
+		if dir.Progression() == di.TowardTopLeft {
+			basePosition = len(finalLine) - 1 - idx
+		}
+		finalLine[idx].VisualIndex = int32(basePosition)
+		if run.Direction == dir {
+			if bidiStart != -1 {
+				swapVisualOrder(finalLine[bidiStart:idx])
+				bidiStart = -1
+			}
+		} else if bidiStart == -1 {
+			bidiStart = idx
+		}
+	}
+	if bidiStart != -1 {
+		swapVisualOrder(finalLine[bidiStart:])
+	}
+}
+
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	if len(finalLine) > 0 {
-		finalRun := finalLine[len(finalLine)-1]
-
-		// zero trailing whitespace advance,
-		// to be coherent with Output.advanceSpaceAware
-		if L := len(finalRun.Glyphs); L != 0 {
-			g := &finalRun.Glyphs[L-1]
-			if finalRun.Direction.IsVertical() {
-				if g.Height == 0 {
-					g.YAdvance = 0
-				}
-			} else { // horizontal
-				if g.Width == 0 {
-					g.XAdvance = 0
+		computeBidiOrdering(l.config.Direction, finalLine)
+		if !l.config.DisableTrailingWhitespaceTrim {
+			// Here we find the last visual run in the line.
+			goalIdx := len(finalLine) - 1
+			if l.config.Direction.Progression() == di.TowardTopLeft {
+				goalIdx = 0
+			}
+			for logicalIdx, run := range finalLine {
+				if run.VisualIndex == int32(goalIdx) {
+					goalIdx = logicalIdx
+					break
 				}
 			}
-			finalRun.RecomputeAdvance()
+			// This next block locates the first/last visual glyph on the line and
+			// zeroes its advance if it is whitespace.
+			finalVisualRun := &finalLine[goalIdx]
+			var finalVisualGlyph *Glyph
+			if L := len(finalVisualRun.Glyphs); L > 0 {
+				if l.config.Direction.Progression() == di.FromTopLeft {
+					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
+				} else {
+					finalVisualGlyph = &finalVisualRun.Glyphs[0]
+				}
+
+				if finalVisualRun.Direction.IsVertical() {
+					if finalVisualGlyph.Height == 0 {
+						finalVisualGlyph.YAdvance = 0
+					}
+				} else { // horizontal
+					if finalVisualGlyph.Width == 0 {
+						finalVisualGlyph.XAdvance = 0
+					}
+				}
+				finalVisualRun.RecomputeAdvance()
+			}
 		}
 
+		finalLogicalRun := finalLine[len(finalLine)-1]
 		// Update the start position of the next line.
-		l.lineStartRune = finalRun.Runes.Count + finalRun.Runes.Offset
+		l.lineStartRune = finalLogicalRun.Runes.Count + finalLogicalRun.Runes.Offset
 	}
 
 	// Check whether we've exhausted the text.
@@ -1103,7 +1165,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	}
 	isFirstInLine := l.scratch.candidateLen() == 0
 	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
-	candidateLineWidth := (candidateRun.advanceSpaceAware() + l.scratch.candidateAdvance()).Ceil()
+	candidateLineWidth := (candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()).Ceil()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {

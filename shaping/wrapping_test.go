@@ -961,6 +961,7 @@ func compareLines(t *testing.T, lineNumber int, expected, actual Line) {
 		}
 		expected.Glyphs = nil
 		actual.Glyphs = nil
+		actual.VisualIndex = expected.VisualIndex
 		if !reflect.DeepEqual(expected, actual) {
 			t.Errorf("line %d: run %d: expected\n%#+v\ngot\n%#+v", lineNumber, i, expected, actual)
 		}
@@ -1532,6 +1533,7 @@ func TestLineWrap(t *testing.T) {
 					// compared the glyphs.
 					expectedRun.Glyphs = nil
 					actualRun.Glyphs = nil
+					actualRun.VisualIndex = expectedRun.VisualIndex
 					if !reflect.DeepEqual(expectedRun, actualRun) {
 						t.Errorf("line %d: expected: %#v, got %#v", runNum, expectedRun, actualRun)
 					}
@@ -2237,7 +2239,10 @@ func TestGraphemeBreakingRegression(t *testing.T) {
 			for i, run := range shaped {
 				runs[i] = run.copy()
 			}
-			lines, truncated := wrapper.WrapParagraph(WrapConfig{BreakPolicy: Always}, maxWidth, bidiText2, NewSliceIterator(runs))
+			lines, truncated := wrapper.WrapParagraph(WrapConfig{
+				BreakPolicy:                   Always,
+				DisableTrailingWhitespaceTrim: true,
+			}, maxWidth, bidiText2, NewSliceIterator(runs))
 			checkRuneCounts(t, bidiText2, lines, truncated)
 
 			for i, baseLine := range lines[:len(lines)-1] {
@@ -3280,5 +3285,206 @@ func TestTrailingSpace(t *testing.T) {
 	for i, line := range lines {
 		s := shapedText(text, line)
 		tu.Assert(t, s == expected[i])
+	}
+}
+
+func TestLineWrapPostProcess(t *testing.T) {
+	output := []Output{
+		{
+			Advance: 10,
+			Glyphs: []Glyph{
+				{
+					Width:        10,
+					XAdvance:     10,
+					ClusterIndex: 0,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+			},
+			Direction: di.DirectionLTR,
+			Runes: Range{
+				Offset: 0,
+				Count:  1,
+			},
+		},
+		{
+			Advance:   20,
+			Direction: di.DirectionRTL,
+			Glyphs: []Glyph{
+				{
+					XAdvance:     10,
+					Width:        10,
+					ClusterIndex: 1,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+				{
+					XAdvance:     10,
+					Width:        0,
+					ClusterIndex: 2,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+			},
+			Runes: Range{
+				Offset: 1,
+				Count:  2,
+			},
+		},
+		{
+			Advance:   10,
+			Direction: di.DirectionRTL,
+			Glyphs: []Glyph{
+				{
+					XAdvance:     10,
+					Width:        10,
+					ClusterIndex: 3,
+					RuneCount:    1,
+					GlyphCount:   1,
+				},
+			},
+			Runes: Range{
+				Offset: 3,
+				Count:  1,
+			},
+		},
+	}
+	t.Run("LTR", func(t *testing.T) {
+		// Wrap as LTR, which places the space visually at the end of the line.
+		lines, _ := (&LineWrapper{}).WrapParagraph(
+			WrapConfig{
+				BreakPolicy: Always,
+				Direction:   di.DirectionLTR,
+			}, 50, []rune("XX X"), NewSliceIterator(output))
+		if len(lines) > 1 {
+			t.Errorf("expected %d lines, got %d", 1, len(lines))
+		}
+		line := lines[0]
+		adv := fixed.Int26_6(0)
+		for _, run := range line {
+			adv += run.Advance
+		}
+		if adv > fixed.Int26_6(30) {
+			t.Errorf("expected total advance %d, got %d", 30, int(adv))
+		}
+	})
+	t.Run("RTL", func(t *testing.T) {
+		// Wrap as RTL, which places the space visually within the line.
+		lines, _ := (&LineWrapper{}).WrapParagraph(
+			WrapConfig{
+				BreakPolicy: Always,
+				Direction:   di.DirectionRTL,
+			}, 50, []rune("XX X"), NewSliceIterator(output))
+		if len(lines) > 1 {
+			t.Errorf("expected %d lines, got %d", 1, len(lines))
+		}
+		line := lines[0]
+		adv := fixed.Int26_6(0)
+		for _, run := range line {
+			adv += run.Advance
+		}
+		if adv > fixed.Int26_6(40) {
+			t.Errorf("expected total advance %d, got %d", 30, int(adv))
+		}
+	})
+}
+
+func TestComputeBidiOrdering(t *testing.T) {
+	type testcase struct {
+		name                string
+		input               []Output
+		direction           di.Direction
+		expectedVisualOrder []int
+	}
+	for _, tc := range []testcase{
+		{
+			name:      "ltr",
+			direction: di.DirectionLTR,
+			input: []Output{
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+			},
+			expectedVisualOrder: []int{0, 1, 2},
+		},
+		{
+			name:      "rtl",
+			direction: di.DirectionRTL,
+			input: []Output{
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+			},
+			expectedVisualOrder: []int{2, 1, 0},
+		},
+		{
+			name:      "bidi-ltr",
+			direction: di.DirectionLTR,
+			input: []Output{
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+			},
+			expectedVisualOrder: []int{0, 3, 2, 1, 4},
+		},
+		{
+			name:      "bidi-ltr-complex",
+			direction: di.DirectionLTR,
+			input: []Output{
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionRTL},
+			},
+			expectedVisualOrder: []int{1, 0, 2, 4, 3, 5, 7, 6, 8, 10, 9},
+		},
+		{
+			name:      "bidi-rtl",
+			direction: di.DirectionRTL,
+			input: []Output{
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+			},
+			expectedVisualOrder: []int{4, 1, 2, 3, 0},
+		},
+		{
+			name:      "bidi-rtl-complex",
+			direction: di.DirectionRTL,
+			input: []Output{
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionRTL},
+				{Direction: di.DirectionLTR},
+				{Direction: di.DirectionLTR},
+			},
+			expectedVisualOrder: []int{9, 10, 8, 6, 7, 5, 3, 4, 2, 0, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			computeBidiOrdering(tc.direction, tc.input)
+			for visualIndex, logicalIndex := range tc.expectedVisualOrder {
+				if tc.input[logicalIndex].VisualIndex != int32(visualIndex) {
+					t.Errorf("line[%d]: expected visual index %v, got %v", logicalIndex, visualIndex, tc.input[logicalIndex].VisualIndex)
+				}
+			}
+		})
 	}
 }
