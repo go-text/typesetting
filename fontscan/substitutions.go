@@ -27,19 +27,24 @@ func init() {
 	}
 }
 
+type weightedFamily struct {
+	family string
+	strong bool // stronger then lang in match ?
+}
+
 // familyList is a list of normalized families to match, order
 // by user preference (first is best).
 // It also implements helpers to insert at the start,
 // the end and "around" an element
-type familyList []string
+type familyList []weightedFamily
 
-// normalize the families
+// normalize the families and add them with strong = true
 func newFamilyList(families []string) familyList {
 	// we'll guess that we end up with about ~140 items
-	fl := make([]string, 0, 140)
-	fl = append(fl, families...)
-	for i, f := range fl {
-		fl[i] = font.NormalizeFamily(f)
+	fl := make([]weightedFamily, 0, 140)
+	fl = append(fl, make([]weightedFamily, len(families))...)
+	for i, f := range families {
+		fl[i] = weightedFamily{font.NormalizeFamily(f), true}
 	}
 	return fl
 }
@@ -47,7 +52,7 @@ func newFamilyList(families []string) familyList {
 // returns the node equal to `family` or -1, if not found
 func (fl familyList) elementEquals(family string) int {
 	for i, v := range fl {
-		if v == family {
+		if v.family == family {
 			return i
 		}
 	}
@@ -57,7 +62,7 @@ func (fl familyList) elementEquals(family string) int {
 // returns the first node containing `family` or -1, if not found
 func (fl familyList) elementContains(family string) int {
 	for i, v := range fl {
-		if strings.Contains(v, family) {
+		if strings.Contains(v.family, family) {
 			return i
 		}
 	}
@@ -66,33 +71,50 @@ func (fl familyList) elementContains(family string) int {
 
 // return the crible corresponding to the order
 func (fl familyList) compileTo(dst familyCrible) {
-	for i, family := range fl {
-		if _, has := dst[family]; !has { // for duplicated entries, keep the first (best) score
-			dst[family] = i
+	for i, item := range fl {
+		current, has := dst[item.family]
+		if has {
+			// For duplicated families, keep the "best entry"
+			// (strong is better than weak, then lower index is better).
+			// The only replacement possible is if [current] is weak
+			// and [item] is strong
+			if !current.strong && item.strong {
+				dst[item.family] = scoreStrong{i, true}
+			}
+		} else {
+			dst[item.family] = scoreStrong{i, item.strong}
 		}
 	}
 }
 
-func (fl *familyList) insertStart(families []string) {
-	*fl = insertAt(*fl, 0, families)
+func withStrong(families []string, strong bool) familyList {
+	out := make(familyList, len(families))
+	for i, f := range families {
+		out[i] = weightedFamily{f, strong}
+	}
+	return out
 }
 
-func (fl *familyList) insertEnd(families []string) {
-	*fl = insertAt(*fl, len(*fl), families)
+func (fl *familyList) insertStart(families []string, strong bool) {
+	*fl = insertAt(*fl, 0, withStrong(families, strong))
+}
+
+func (fl *familyList) insertEnd(families []string, strong bool) {
+	*fl = insertAt(*fl, len(*fl), withStrong(families, strong))
 }
 
 // insertAfter inserts families right after element
-func (fl *familyList) insertAfter(element int, families []string) {
-	*fl = insertAt(*fl, element+1, families)
+func (fl *familyList) insertAfter(element int, families []string, strong bool) {
+	*fl = insertAt(*fl, element+1, withStrong(families, strong))
 }
 
 // insertBefore inserts families right before element
-func (fl *familyList) insertBefore(element int, families []string) {
-	*fl = insertAt(*fl, element, families)
+func (fl *familyList) insertBefore(element int, families []string, strong bool) {
+	*fl = insertAt(*fl, element, withStrong(families, strong))
 }
 
-func (fl *familyList) replace(element int, families []string) {
-	*fl = replaceAt(*fl, element, element+1, families)
+func (fl *familyList) replace(element int, families []string, strong bool) {
+	*fl = replaceAt(*fl, element, element+1, withStrong(families, strong))
 }
 
 // ----- substitutions ------
@@ -146,7 +168,7 @@ type noGenericFamily struct{}
 
 func (noGenericFamily) test(list familyList) int {
 	for _, v := range list {
-		switch v {
+		switch v.family {
 		case "serif", "sans-serif", "monospace":
 			return -1
 		}
@@ -213,6 +235,11 @@ type substitution struct {
 	test               substitutionTest // the condition to apply
 	additionalFamilies []string         // the families to add
 	op                 substitutionOp   // how to insert the families
+	// how important is the family with respect to lang/script
+	// 'e' (equals) : same as the replacement
+	// 's' (strong) : stronger than the lang
+	// 'w' (weak) : weaker than the lang
+	importance byte
 }
 
 func (fl *familyList) execute(subs substitution) {
@@ -221,25 +248,36 @@ func (fl *familyList) execute(subs substitution) {
 		return
 	}
 
+	// resolve importance
+	var strong bool
+	switch subs.importance {
+	case 'w':
+		strong = false
+	case 's':
+		strong = true
+	case 'e': // keep the same importance
+		strong = (*fl)[element].strong
+	}
+
 	switch subs.op {
 	case opAppend:
-		fl.insertAfter(element, subs.additionalFamilies)
+		fl.insertAfter(element, subs.additionalFamilies, strong)
 	case opAppendLast:
-		fl.insertEnd(subs.additionalFamilies)
+		fl.insertEnd(subs.additionalFamilies, strong)
 	case opPrepend:
-		fl.insertBefore(element, subs.additionalFamilies)
+		fl.insertBefore(element, subs.additionalFamilies, strong)
 	case opPrependFirst:
-		fl.insertStart(subs.additionalFamilies)
+		fl.insertStart(subs.additionalFamilies, strong)
 	case opReplace:
-		fl.replace(element, subs.additionalFamilies)
+		fl.replace(element, subs.additionalFamilies, strong)
 	default:
 		panic("exhaustive switch")
 	}
 }
 
-// ----- []string manipulation -----
+// ----- list manipulation -----
 
-func insertAt(s []string, i int, v []string) []string {
+func insertAt(s []weightedFamily, i int, v []weightedFamily) []weightedFamily {
 	if len(v) == 0 {
 		return s
 	}
@@ -248,7 +286,7 @@ func insertAt(s []string, i int, v []string) []string {
 	}
 	if len(s)+len(v) > cap(s) {
 		// create a new slice with sufficient capacity
-		r := append(s[:i], make([]string, len(s)+len(v)-i)...)
+		r := append(s[:i], make([]weightedFamily, len(s)+len(v)-i)...)
 		// copy the inserted values
 		copy(r[i:], v)
 		// copy rest of the items from source
@@ -265,7 +303,7 @@ func insertAt(s []string, i int, v []string) []string {
 	return s
 }
 
-func replaceAt(s []string, i, j int, v []string) []string {
+func replaceAt(s []weightedFamily, i, j int, v []weightedFamily) []weightedFamily {
 	// just cutting
 	if len(v) == 0 {
 		return append(s[:i], s[j:]...)
@@ -278,7 +316,7 @@ func replaceAt(s []string, i, j int, v []string) []string {
 	tot := len(s) + len(v) - (j - i)
 	if tot > cap(s) {
 		// create a new slice with sufficient capacity
-		r := append(s[:i], make([]string, tot-i)...)
+		r := append(s[:i], make([]weightedFamily, tot-i)...)
 		// copy the inserted values
 		copy(r[i:], v)
 		// add the tail from the source

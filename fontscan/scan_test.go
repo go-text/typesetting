@@ -30,12 +30,12 @@ func TestScanFontFootprints(t *testing.T) {
 	tu.AssertNoErr(t, err)
 
 	// Show some basic stats
-	families := familyCrible{}
+	families := map[string]bool{}
 	for _, font := range fontset.flatten() {
 		if font.Runes.Len() == 0 {
 			t.Fatalf("unexpected empty rune coverage for %s", font.Location.File)
 		}
-		families[font.Family] = 0
+		families[font.Family] = true
 	}
 
 	fmt.Printf("Found %d fonts (%d families) in %s\n",
