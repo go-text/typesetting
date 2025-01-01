@@ -415,5 +415,5 @@ func TestParseLtag(t *testing.T) {
 	tu.AssertNoErr(t, err)
 
 	tu.Assert(t, len(ltag.tagRange) == 1)
-	tu.Assert(t, ltag.Language(0) == "pl")
+	tu.Assert(t, ltag.Language(0).String() == "pl")
 }

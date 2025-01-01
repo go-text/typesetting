@@ -211,7 +211,7 @@ func (b *Buffer) GuessSegmentProperties() {
 	}
 
 	/* If language is not set, use default language from locale */
-	if b.Props.Language == "" {
+	if b.Props.Language.String() == "" {
 		b.Props.Language = language.DefaultLanguage()
 	}
 }

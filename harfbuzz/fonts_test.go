@@ -267,7 +267,7 @@ func TestUnifont(t *testing.T) {
 	ft := openFontFileTT(t, "bitmap/unifont-15.1.05.otf")
 
 	buf := NewBuffer()
-	buf.Props.Language = "en-us"
+	buf.Props.Language = language.NewLanguage("en-us")
 	buf.Props.Script = language.Latin
 	buf.Props.Direction = LeftToRight
 	buf.AddRunes([]rune{'a'}, 0, 1)

@@ -88,11 +88,11 @@ func TestTypesLanguage(t *testing.T) {
 	faIr := language.NewLanguage("fa-ir")
 	en := language.NewLanguage("en")
 
-	tu.Assert(t, fa != "")
-	tu.Assert(t, faIR != "")
+	tu.Assert(t, fa.String() != "")
+	tu.Assert(t, faIR.String() != "")
 	tu.Assert(t, faIR == faIr)
 
-	tu.Assert(t, en != "")
+	tu.Assert(t, en.String() != "")
 	tu.Assert(t, en != fa)
 
 	/* Test recall */
@@ -100,8 +100,8 @@ func TestTypesLanguage(t *testing.T) {
 	tu.Assert(t, en == language.NewLanguage("eN"))
 	tu.Assert(t, en == language.NewLanguage("En"))
 
-	tu.Assert(t, language.NewLanguage("") == "")
-	tu.Assert(t, language.NewLanguage("e") != "")
+	tu.Assert(t, language.NewLanguage("").String() == "")
+	tu.Assert(t, language.NewLanguage("e").String() != "")
 }
 
 func TestParseVariations(t *testing.T) {
