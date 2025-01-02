@@ -320,12 +320,16 @@ func TestFindSytemFont(t *testing.T) {
 }
 
 func TestResolve_ScriptBengali(t *testing.T) {
+	// we need a valid font file so that [ResolveFace] works;
+	// the actual content of the file is not used
+	dummyTestFont := "../font/testdata/Amiri-Regular.ttf"
+
 	// this sample fontset is build from a "typical linux" system,
 	// looking for Lohit-Bengali, NimbusSans, and Lohit-Devanagari
 	// families
 	bengaliFontSet := fontSet{
 		{
-			Location: Location{File: "/usr/share/fonts/opentype/urw-base35/NimbusSans-Bold.otf"},
+			Location: Location{File: dummyTestFont},
 			Family:   "nimbussans",
 			Runes: RuneSet{
 				{0x0, pageSet{0x0, 0xffffffff, 0xffffffff, 0x7fffffff, 0x0, 0xffffffff, 0xffffffff, 0xffffffff}},
@@ -350,7 +354,7 @@ func TestResolve_ScriptBengali(t *testing.T) {
 			Aspect:  font.Aspect{Style: 0x1, Weight: 700, Stretch: 1},
 		},
 		{
-			Location: Location{File: "/usr/share/fonts/opentype/urw-base35/NimbusSans-BoldItalic.otf"},
+			Location: Location{File: dummyTestFont},
 			Family:   "nimbussans",
 			Runes: RuneSet{
 				{0x0, pageSet{0x0, 0xffffffff, 0xffffffff, 0x7fffffff, 0x0, 0xffffffff, 0xffffffff, 0xffffffff}},
@@ -375,7 +379,7 @@ func TestResolve_ScriptBengali(t *testing.T) {
 			Aspect:  font.Aspect{Style: 0x2, Weight: 700, Stretch: 1},
 		},
 		{
-			Location: Location{File: "/usr/share/fonts/opentype/urw-base35/NimbusSans-Italic.otf"},
+			Location: Location{File: dummyTestFont},
 			Family:   "nimbussans",
 			Runes: RuneSet{
 				{0x0, pageSet{0x0, 0xffffffff, 0xffffffff, 0x7fffffff, 0x0, 0xffffffff, 0xffffffff, 0xffffffff}},
@@ -400,7 +404,7 @@ func TestResolve_ScriptBengali(t *testing.T) {
 			Aspect:  font.Aspect{Style: 0x2, Weight: 400, Stretch: 1},
 		},
 		{
-			Location: Location{File: "/usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf"},
+			Location: Location{File: dummyTestFont},
 			Family:   "nimbussans",
 			Runes: RuneSet{
 				{0x0, pageSet{0x0, 0xffffffff, 0xffffffff, 0x7fffffff, 0x0, 0xffffffff, 0xffffffff, 0xffffffff}},
@@ -425,7 +429,7 @@ func TestResolve_ScriptBengali(t *testing.T) {
 			Aspect:  font.Aspect{Style: 0x1, Weight: 400, Stretch: 1},
 		},
 		{
-			Location: Location{File: "/usr/share/fonts/truetype/lohit-bengali/Lohit-Bengali.ttf"},
+			Location: Location{File: dummyTestFont},
 			Family:   "lohitbengali",
 			Runes: RuneSet{
 				{0x0, pageSet{0x0, 0xffffffff, 0xf8000001, 0x78000001, 0x0, 0x4, 0x800000, 0x800000}},
@@ -440,7 +444,7 @@ func TestResolve_ScriptBengali(t *testing.T) {
 			Aspect:  font.Aspect{Style: 0x1, Weight: 400, Stretch: 1},
 		},
 		{
-			Location: Location{File: "/usr/share/fonts/truetype/lohit-devanagari/Lohit-Devanagari.ttf"},
+			Location: Location{File: dummyTestFont},
 			Family:   "lohitdevanagari",
 			Runes: RuneSet{
 				{0x0, pageSet{0x0, 0xffffffff, 0xffffffff, 0x7fffffff, 0x0, 0xffffdffe, 0xffffffff, 0xffffffff}},
@@ -471,5 +475,7 @@ func TestResolve_ScriptBengali(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
 	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
 	tu.Assert(t, len(runs) == 1)
-	tu.Assert(t, runs[0].Face.Describe().Family == "Lohit Bengali")
+	// only one font is loaded, so there is no clash
+	family, _ := fm.FontMetadata(runs[0].Face.Font)
+	tu.Assert(t, family == "lohitbengali")
 }
