@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 )
 
 // Query exposes the intention of an author about the
@@ -57,33 +58,64 @@ func (fc familyCrible) fillWithSubstitutionsList(families []string) {
 	fl.compileTo(fc)
 }
 
+// scoredFootprints is used to sort the fooprints (see the [Less] method)
 type scoredFootprints struct {
-	footprints []int
-	scores     []int
+	footprints []int         // indices into [database]
+	scores     []scoreStrong // with same length as footprints
 
 	database fontSet
+	script   language.Script
 }
 
 // keep the underlying storage
-func (sf *scoredFootprints) reset(fs fontSet) {
+func (sf *scoredFootprints) reset(fs fontSet, script language.Script) {
 	sf.footprints = sf.footprints[:0]
 	sf.scores = sf.scores[:0]
 
 	sf.database = fs
+	sf.script = script
 }
 
 // Len is the number of elements in the collection.
 func (sf scoredFootprints) Len() int { return len(sf.footprints) }
 
+// Less compares footprints following these rules :
+//   - 'strong' replacements come before 'weak' ones
+//   - among 'strong' families, only the score matters
+//   - among 'weak' families, the footprints compatible with the given script come first
+//   - in any case, if two footprints have the same score (meaning they have the same family),
+//     user provided ones come first
 func (sf scoredFootprints) Less(i int, j int) bool {
-	if sf.scores[i] < sf.scores[j] {
+	scorei, scorej := sf.scores[i], sf.scores[j]
+	fpi, fpj := sf.database[sf.footprints[i]], sf.database[sf.footprints[j]]
+	// strong better then weak
+	if scorei.strong && !scorej.strong {
 		return true
-	} else if sf.scores[i] > sf.scores[j] {
+	} else if !scorei.strong && scorej.strong {
 		return false
-	} else {
-		indexi, indexj := sf.footprints[i], sf.footprints[j]
-		return sf.database[indexi].isUserProvided && !sf.database[indexj].isUserProvided
 	}
+	if scorei.strong {
+		if scorei.score < scorej.score {
+			return true
+		} else if scorei.score > scorej.score {
+			return false
+		}
+		return fpi.isUserProvided && !fpj.isUserProvided
+	}
+	// among weak substitutions, sort by script ...
+	hasScripti, hasScriptj := fpi.Scripts.contains(sf.script), fpj.Scripts.contains(sf.script)
+	if hasScripti && !hasScriptj {
+		return true
+	} else if !hasScripti && hasScriptj {
+		return false
+	}
+	// ... then by score
+	if scorei.score < scorej.score {
+		return true
+	} else if scorei.score > scorej.score {
+		return false
+	}
+	return fpi.isUserProvided && !fpj.isUserProvided
 }
 
 // Swap swaps the elements with indexes i and j.
@@ -124,14 +156,15 @@ func isGenericFamily(family string) bool {
 // The returned slice may be empty if no font matches the given `family`.
 //
 // The buffers are used to reduce allocations and the returned slice is owned by them.
-func (fm fontSet) selectByFamilyExact(family string,
-	cribleBuffer familyCrible, bufferStrong, bufferWeak *scoredFootprints,
+func (fm fontSet) selectByFamilyExact(family string, script language.Script,
+	cribleBuffer familyCrible, footprintsBuffer *scoredFootprints,
 ) []int {
 	if isGenericFamily(family) {
 		// See the CSS spec (https://www.w3.org/TR/css-fonts-4/#font-style-matching) :
 		// "If the family name is a generic family keyword, the user agent looks up the appropriate
 		// font family name to be used. User agents may choose the generic font family to use
 		// based on the language of the containing element or the Unicode range of the character."
+		//
 		// and font-kit implementation :
 		// https://docs.rs/font-kit/latest/src/font_kit/sources/fontconfig.rs.html#119-152
 		//
@@ -143,72 +176,58 @@ func (fm fontSet) selectByFamilyExact(family string,
 		cribleBuffer.reset()
 		cribleBuffer.fillWithSubstitutions(family)
 
-		strong, weak := fm.selectByFamilies(cribleBuffer, bufferStrong, bufferWeak)
+		footprints := fm.selectByFamilies(cribleBuffer, script, footprintsBuffer)
 
 		// restrict to one 'concrete' family name
-		var notEmpty []int
-		if len(strong) != 0 {
-			notEmpty = strong
-		} else if len(weak) != 0 {
-			notEmpty = weak
-		} else {
+		if len(footprints) == 0 {
 			return nil
 		}
-		selectedFamily := fm[notEmpty[0]].Family
+		selectedFamily := fm[footprints[0]].Family
 		// only keep the first footprints with same family name
 		var i int
-		for ; i < len(notEmpty); i++ {
-			footprintIndex := notEmpty[i]
-			if fp := fm[footprintIndex]; fp.Family != selectedFamily {
+		for ; i < len(footprints); i++ {
+			if fp := fm[footprints[i]]; fp.Family != selectedFamily {
 				break
 			}
 		}
-		return notEmpty[:i]
+		return footprints[:i]
 	}
 
-	// regular family : perform a simple 'strong' match against the exact family name
+	// regular family : perform a simple match against the exact family name, without substitutions
 	cribleBuffer = familyCrible{font.NormalizeFamily(family): scoreStrong{0, true}}
-	strong, _ := fm.selectByFamilies(cribleBuffer, bufferStrong, bufferWeak)
-	return strong
+	return fm.selectByFamilies(cribleBuffer, script, footprintsBuffer)
 }
 
 // selectByFamilyExact returns all the fonts in the fontmap matching
 // the given query, with the best matches coming first.
 //
-// `query` is expanded with family substitutions
-func (fm fontSet) selectByFamilyWithSubs(query []string,
-	cribleBuffer familyCrible, bufferStrong, bufferWeak *scoredFootprints,
-) (strong, weak []int) {
+// `queryFamilies` is expanded with family substitutions
+func (fm fontSet) selectByFamilyWithSubs(queryFamilies []string, queryScript language.Script,
+	cribleBuffer familyCrible, footprintsBuffer *scoredFootprints,
+) []int {
 	// build the crible, handling substitutions
 	cribleBuffer.reset()
-	cribleBuffer.fillWithSubstitutionsList(query)
-	return fm.selectByFamilies(cribleBuffer, bufferStrong, bufferWeak)
+	cribleBuffer.fillWithSubstitutionsList(queryFamilies)
+	return fm.selectByFamilies(cribleBuffer, queryScript, footprintsBuffer)
 }
 
 // select the fonts in the fontSet matching [crible], returning their (sorted) indices.
-// [buffer1] and [buffer2] are used to reduce allocations.
-func (fm fontSet) selectByFamilies(crible familyCrible, bufferStrong, bufferWeak *scoredFootprints) (strong, weak []int) {
-	bufferStrong.reset(fm)
-	bufferWeak.reset(fm)
+// [footprintsBuffer] is used to reduce allocations.
+func (fm fontSet) selectByFamilies(crible familyCrible, script language.Script, footprintsBuffer *scoredFootprints) []int {
+	footprintsBuffer.reset(fm, script)
 
-	// loop through `footprints` and stores the matching fonts into `dst`
+	// loop through the font set and stores the matching fonts into the buffer
 	for index, footprint := range fm {
 		if score, has := crible[footprint.Family]; has {
-			dst := bufferWeak
-			if score.strong {
-				dst = bufferStrong
-			}
-
-			dst.footprints = append(dst.footprints, index)
-			dst.scores = append(dst.scores, score.score)
+			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
+			footprintsBuffer.scores = append(footprintsBuffer.scores, score)
 		}
 	}
 
-	// sort the matched fonts by score (lower is better)
-	sort.Stable(*bufferStrong)
-	sort.Stable(*bufferWeak)
+	// sort the matched fonts (see [scoredFootprints.Less])
+	sort.Stable(*footprintsBuffer)
 
-	return bufferStrong.footprints, bufferWeak.footprints
+	return footprintsBuffer.footprints
 }
 
 // matchStretch look for the given stretch in the font set,
@@ -367,7 +386,7 @@ func (fs fontSet) filterByWeight(candidates []int, weight font.Weight) []int {
 }
 
 // retainsBestMatches narrows `candidates` to the closest footprints to `query`, according to the CSS font rules
-// `candidates` is a slice of indexed into `fs`, which is mutated and returned
+// `candidates` is a slice of indexes into `fs`, which is mutated and returned
 // if `candidates` is not empty, the returned slice is guaranteed not to be empty
 func (fs fontSet) retainsBestMatches(candidates []int, query font.Aspect) []int {
 	// this follows CSS Fonts Level 3 § 5.2 [1].

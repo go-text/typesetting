@@ -320,6 +320,13 @@ func (rs *RuneSet) deserializeFrom(data []byte) (int, error) {
 // a sorted slice of unique, increasing scripts
 type ScriptSet []language.Script
 
+func (s ScriptSet) contains(script language.Script) bool {
+	scriptIdx := sort.Search(len([]language.Script(s)), func(i int) bool {
+		return (s)[i] >= script
+	})
+	return scriptIdx != len(s) && (s)[scriptIdx] == script
+}
+
 // insert adds the given script to the set if it is not already present.
 func (s *ScriptSet) insert(newScript language.Script) {
 	scriptIdx := sort.Search(len([]language.Script(*s)), func(i int) bool {

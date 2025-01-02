@@ -75,11 +75,13 @@ type FontMap struct {
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
 
-	// internal buffers used in SetQuery
+	// internal buffers used in [buildCandidates]
+
 	footprintsBuffer scoredFootprints
 	cribleBuffer     familyCrible
 
-	query Query // current query
+	query  Query           // current query
+	script language.Script // current script
 }
 
 // NewFontMap return a new font map, which should be filled with the `UseSystemFonts`
@@ -374,12 +376,19 @@ func (fm *FontMap) FindSystemFonts(family string) []Location {
 }
 
 // SetQuery set the families and aspect required, influencing subsequent
-// `ResolveFace` calls.
+// [ResolveFace] calls. See also [SetScript].
 func (fm *FontMap) SetQuery(query Query) {
 	if len(query.Families) == 0 {
 		query.Families = []string{""}
 	}
 	fm.query = query
+	fm.built = false
+}
+
+// SetScript set the script to which the (next) runes passed to [ResolveFace]
+// belongs, influencing the choice of fallback fonts.
+func (fm *FontMap) SetScript(s language.Script) {
+	fm.script = s
 	fm.built = false
 }
 
@@ -416,7 +425,7 @@ func (fm *FontMap) buildCandidates() {
 	// first pass for an exact match
 	{
 		for _, family := range fm.query.Families {
-			candidates := fm.database.selectByFamilyExact(family, &fm.footprintsBuffer, fm.cribleBuffer)
+			candidates := fm.database.selectByFamilyExact(family, fm.script, fm.cribleBuffer, &fm.footprintsBuffer)
 			if len(candidates) == 0 {
 				continue
 			}
@@ -424,7 +433,7 @@ func (fm *FontMap) buildCandidates() {
 			// select the correct aspects
 			candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
 
-			// when no systemFallback is required, the CSS spec says
+			// with no system fallback, the CSS spec says
 			// that only one font among the candidates must be tried
 			fm.candidates.withoutFallback = append(fm.candidates.withoutFallback, candidates[0])
 		}
@@ -432,7 +441,7 @@ func (fm *FontMap) buildCandidates() {
 
 	// second pass with substitutions
 	{
-		candidates := fm.database.selectByFamilyWithSubs(fm.query.Families, &fm.footprintsBuffer, fm.cribleBuffer)
+		candidates := fm.database.selectByFamilyWithSubs(fm.query.Families, fm.script, fm.cribleBuffer, &fm.footprintsBuffer)
 
 		// select the correct aspects
 		candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
@@ -452,7 +461,6 @@ func (fm *FontMap) buildCandidates() {
 	{
 		fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
 		fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
-
 	}
 
 	fm.built = true
@@ -508,7 +516,7 @@ func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 //
 // If no fonts match after the manual font search, an arbitrary face will be returned.
 func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
-	key := fm.lru.KeyFor(fm.query, r)
+	key := fm.lru.KeyFor(fm.query, fm.script, r)
 	face, ok := fm.lru.Get(key, fm.query)
 	if ok {
 		return face

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -317,4 +318,25 @@ func TestFindSytemFont(t *testing.T) {
 
 	_, ok = fm.FindSystemFont("Noto Sans")
 	tu.Assert(t, !ok) // user provided font are ignored
+}
+
+func TestResolveSameScript(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip()
+	}
+	// we assume the system contains at least these fonts :
+	//	lohit-bengali/Lohit-Bengali.ttf
+	//	urw-base35/NimbusSans-Regular.otf
+	//	lohit-devanagari/Lohit-Devanagari.ttf
+
+	// make sure the same font is selected for a given script, when possible
+	text := []rune("হয় না।")
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+	err := fm.UseSystemFonts(os.TempDir())
+	tu.AssertNoErr(t, err)
+
+	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
+	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
+	tu.Assert(t, len(runs) == 1)
+	tu.Assert(t, runs[0].Face.Describe().Family == "Lohit Bengali")
 }

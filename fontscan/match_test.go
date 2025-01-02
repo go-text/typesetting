@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 )
 
 func allIndices(fs fontSet) []int {
@@ -22,7 +23,7 @@ func fontsFromFamilies(families ...string) (out fontSet) {
 	return out
 }
 
-func TestFontMap_selectByFamilyExact(t *testing.T) {
+func TestFontSet_selectByFamilyExact(t *testing.T) {
 	tests := []struct {
 		fontset    fontSet
 		family     string
@@ -60,40 +61,62 @@ func TestFontMap_selectByFamilyExact(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamilyExact(tt.family, make(familyCrible), &scoredFootprints{}, &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("FontMap.selectByFamily(%s) = \n%v, want \n%v", tt.family, got, tt.want)
+		if got := tt.fontset.selectByFamilyExact(tt.family, 0, make(familyCrible), &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("fontSet.selectByFamilyExact(%s) = \n%v, want \n%v", tt.family, got, tt.want)
 		}
 	}
 }
 
-func TestFontMap_selectByFamilyList(t *testing.T) {
+func TestFontSet_selectByFamilyWithSubs(t *testing.T) {
 	tests := []struct {
-		fontset      fontSet
-		family       string
-		wantS, wantW []int
+		fontset fontSet
+		family  string
+		script  language.Script
+		want    []int
 	}{
-		{nil, "", nil, nil}, // no match on empty fontset
+		{nil, "", 0, nil}, // no match on empty fontset
 		// weak substitute
-		{fontsFromFamilies("arial"), "Helvetica", nil, []int{0}},
+		{fontsFromFamilies("arial"), "Helvetica", 0, []int{0}},
 		// string substitute
-		{fontsFromFamilies("caladea", "XXX"), "cambria", []int{0}, nil},
+		{fontsFromFamilies("caladea", "XXX"), "cambria", 0, []int{0}},
 		// substitution, with order
-		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", []int{1}, []int{0}},
-		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", []int{1}, []int{0}},
+		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", 0, []int{1, 0}},
+		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", 0, []int{1, 0}},
 		// default to generic families
-		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", nil, []int{0}},
+		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", 0, []int{0}},
 		// more complex substitutions
 		{
 			fontsFromFamilies("Nimbus Roman", "Tinos", "Liberation Serif", "DejaVu Serif", "arial"),
 			"Times",
-			[]int{0},
-			[]int{1, 2, 3},
+			0,
+			[]int{0, 1, 2, 3},
+		},
+		// script precedence
+		{
+			fontSet{
+				{Family: "tinos", Scripts: ScriptSet{}},                                          // weak, unsupported script
+				{Family: "liberationserif", Scripts: ScriptSet{language.Adlam, language.Arabic}}, // weak, supported script
+				{Family: "times", Scripts: ScriptSet{language.Ahom}},
+			},
+			"Times",
+			language.Arabic,
+			[]int{2, 1, 0},
+		},
+		{
+			fontSet{
+				{Family: "tinos", Scripts: ScriptSet{}},           // weak, unsupported script
+				{Family: "liberationserif", Scripts: ScriptSet{}}, // weak, unsupported script
+				{Family: "times", Scripts: ScriptSet{language.Ahom}},
+			},
+			"Times",
+			language.Arabic,
+			[]int{2, 0, 1},
 		},
 	}
 	for _, tt := range tests {
-		gotS, gotW := tt.fontset.selectByFamilyWithSubs([]string{tt.family}, make(familyCrible), &scoredFootprints{}, &scoredFootprints{})
-		if !(reflect.DeepEqual(gotS, tt.wantS) && reflect.DeepEqual(gotW, tt.wantW)) {
-			t.Errorf("FontMap.selectByFamily() = \n%v\n%v, want \n%v\n%v", gotS, gotW, tt.wantS, tt.wantW)
+		got := tt.fontset.selectByFamilyWithSubs([]string{tt.family}, tt.script, make(familyCrible), &scoredFootprints{})
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("fontSet.selectByFamilyWithSubs() = \n%v, want \n%v", got, tt.want)
 		}
 	}
 }
@@ -198,7 +221,7 @@ func fontsetFromAspects(as ...font.Aspect) (out fontSet) {
 	return out
 }
 
-func TestFontSet_selectBestMatch(t *testing.T) {
+func TestFontSet_retainsBestMatches(t *testing.T) {
 	defaultAspect := font.Aspect{Style: font.StyleNormal, Weight: font.WeightNormal, Stretch: font.StretchNormal}
 	boldAspect := font.Aspect{Style: font.StyleNormal, Weight: font.WeightBold, Stretch: font.StretchNormal}
 	boldItalicAspect := font.Aspect{Style: font.StyleItalic, Weight: font.WeightBold, Stretch: font.StretchNormal}
@@ -220,7 +243,7 @@ func TestFontSet_selectBestMatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.fs.retainsBestMatches(allIndices(tt.fs), tt.args)
 			if got := tt.fs[result[0]]; !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FontSet.selectBestMatch() = %v, want %v", got, tt.want)
+				t.Errorf("FontSet.retainsBestMatches() = %v, want %v", got, tt.want)
 			}
 		})
 	}

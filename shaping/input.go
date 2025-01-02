@@ -67,9 +67,18 @@ type FontFeature struct {
 // Fontmap provides a general mechanism to select
 // a face to use when shaping text.
 type Fontmap interface {
-	// ResolveFace is called by `SplitByFace` for each input rune potentially
+	// SetScript set the script to which the (next) runes passed to [ResolveFace]
+	// belong.
+	//
+	// Providing this information before calling [ResolveFace] is useful for two reasons :
+	//	- optimizing [ResolveFace] for runes with a shared script
+	//	- for runes with Common and Inherited script, the script resolved by a segmentation step
+	//	  is more accurate
+	SetScript(language.Script)
+
+	// ResolveFace is called by [SplitByFace] and [Segmenter.Split] for each input rune potentially
 	// triggering a face change.
-	// It must always return a valid (non nil ) *font.Face value.
+	// It must always return a valid (non nil) *font.Face value.
 	ResolveFace(r rune) *font.Face
 }
 
@@ -87,6 +96,8 @@ func (ff fixedFontmap) ResolveFace(r rune) *font.Face {
 	return ff[0]
 }
 
+func (fixedFontmap) SetScript(language.Script) {}
+
 // SplitByFontGlyphs split the runes from 'input' to several items, sharing the same
 // characteristics as 'input', expected for the `Face` which is set to
 // the first font among 'availableFonts' providing support for all the runes
@@ -95,16 +106,17 @@ func (ff fixedFontmap) ResolveFace(r rune) *font.Face {
 // must not be empty.
 // The 'Face' field of 'input' is ignored: only 'availableFaces' are consulted.
 // Rune coverage is obtained by calling the NominalGlyph() method of each font.
-// See also SplitByFace for a more general approach of font selection.
+// See also [SplitByFace] for a more general approach of font selection.
 func SplitByFontGlyphs(input Input, availableFaces []*font.Face) []Input {
 	return SplitByFace(input, fixedFontmap(availableFaces))
 }
 
 // SplitByFace split the runes from 'input' to several items, sharing the same
 // characteristics as 'input', expected for the `Face` which is set to
-// the return value of the `Fontmap.ResolveFace` call.
+// the return value of the [Fontmap.ResolveFace] call.
 // The 'Face' field of 'input' is ignored: only 'availableFaces' is used to select the face.
 func SplitByFace(input Input, availableFaces Fontmap) []Input {
+	availableFaces.SetScript(input.Script)
 	return splitByFace(input, availableFaces, nil)
 }
 
@@ -351,8 +363,10 @@ func (seg *Segmenter) splitByVertOrientation() {
 	}
 }
 
+// assume [splitByScript] has been called
 func (seg *Segmenter) splitByFace(faces Fontmap) {
 	for _, input := range seg.input {
+		faces.SetScript(input.Script)
 		seg.output = splitByFace(input, faces, seg.output)
 	}
 }
