@@ -4,7 +4,7 @@ package segmenter
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -62,7 +62,7 @@ func collectWordBoundaries(s *Segmenter, input []rune) []bool {
 
 func TestLineBreakUnicodeReference(t *testing.T) {
 	file := "test/LineBreakTest.txt"
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func parseUCDTestLine(t *testing.T, line string) (string, []string) {
 
 func TestGraphemeBreakUnicodeReference(t *testing.T) {
 	file := "test/GraphemeBreakTest.txt"
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestGraphemeBreakUnicodeReference(t *testing.T) {
 
 func TestWordBreakUnicodeReference(t *testing.T) {
 	file := "test/WordBreakTest.txt"
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func lineSegmentCount(s *Segmenter, input []rune) int {
 
 func getLineBreakInputs() [][]rune {
 	file := "test/LineBreakTest.txt"
-	by, err := ioutil.ReadFile(file)
+	by, err := os.ReadFile(file)
 	if err != nil {
 		panic(err)
 	}
