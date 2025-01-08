@@ -23,6 +23,8 @@ func ExampleFontMap_UseSystemFonts() {
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+	// set the script, if known in advance
+	fontMap.SetScript(language.Latin)
 	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
 }
 
@@ -37,6 +39,8 @@ func ExampleFontMap_AddFont() {
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+	// set the script, if known in advance
+	fontMap.SetScript(language.Latin)
 
 	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
 }
@@ -55,6 +59,8 @@ func ExampleFontMap_AddFace() {
 
 	// set the font description
 	fontMap.SetQuery(Query{Families: []string{"Arial", "serif"}}) // regular Aspect
+	// set the script, if known in advance
+	fontMap.SetScript(language.Latin)
 
 	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
 }
@@ -189,6 +195,7 @@ func TestRevolveFamilyConflict(t *testing.T) {
 	fm.AddFont(file1, "user:amiri", "Arimo")
 
 	fm.SetQuery(Query{Families: []string{"Arimo"}})
+	fm.SetScript(language.Latin)
 	tu.Assert(t, fm.FontLocation(fm.ResolveFace('a').Font).File == "user:amiri")
 }
 
@@ -200,6 +207,7 @@ func BenchmarkResolveFont(b *testing.B) {
 	tu.AssertNoErr(b, err)
 
 	fm.SetQuery(Query{Families: []string{"helvetica"}, Aspect: font.Aspect{Weight: font.WeightBold}})
+	fm.SetScript(language.Latin)
 
 	b.ResetTimer()
 
@@ -292,7 +300,8 @@ func TestFontMap_AddFont_FaceLocation(t *testing.T) {
 	tu.AssertNoErr(t, err)
 
 	fm.SetQuery(Query{Families: []string{"MyRoboto"}})
-	face := fm.ResolveFace(0x20)
+	fm.SetScript(language.Latin)
+	face := fm.ResolveFace(' ')
 	tu.Assert(t, fm.FontLocation(face.Font).File == "Roboto2")
 }
 
@@ -315,6 +324,7 @@ func TestQueryHelveticaLinux(t *testing.T) {
 		"BlinkMacSystemFont", // 'unknown' family
 		"Helvetica",
 	}})
+	fm.SetScript(language.Latin)
 	family, _ := fm.FontMetadata(fm.ResolveFace('x').Font)
 	tu.Assert(t, family == font.NormalizeFamily("Nimbus Sans")) // prefered Helvetica replacement
 }
