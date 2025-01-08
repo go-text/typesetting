@@ -1,6 +1,7 @@
 package fontscan
 
 import (
+	"math"
 	"sort"
 
 	"github.com/go-text/typesetting/font"
@@ -94,6 +95,7 @@ func (sf scoredFootprints) Less(i int, j int) bool {
 	} else if !scorei.strong && scorej.strong {
 		return false
 	}
+	// among strong substitutions, only use the score
 	if scorei.strong {
 		if scorei.score < scorej.score {
 			return true
@@ -156,8 +158,7 @@ func isGenericFamily(family string) bool {
 // The returned slice may be empty if no font matches the given `family`.
 //
 // The buffers are used to reduce allocations and the returned slice is owned by them.
-func (fm fontSet) selectByFamilyExact(family string, script language.Script,
-	cribleBuffer familyCrible, footprintsBuffer *scoredFootprints,
+func (fm fontSet) selectByFamilyExact(family string, cribleBuffer familyCrible, footprintsBuffer *scoredFootprints,
 ) []int {
 	if isGenericFamily(family) {
 		// See the CSS spec (https://www.w3.org/TR/css-fonts-4/#font-style-matching) :
@@ -176,7 +177,7 @@ func (fm fontSet) selectByFamilyExact(family string, script language.Script,
 		cribleBuffer.reset()
 		cribleBuffer.fillWithSubstitutions(family)
 
-		footprints := fm.selectByFamilies(cribleBuffer, script, footprintsBuffer)
+		footprints := fm.selectByFamiliesAndScript(cribleBuffer, 0, footprintsBuffer)
 
 		// restrict to one 'concrete' family name
 		if len(footprints) == 0 {
@@ -194,8 +195,9 @@ func (fm fontSet) selectByFamilyExact(family string, script language.Script,
 	}
 
 	// regular family : perform a simple match against the exact family name, without substitutions
+	// nor script matching
 	cribleBuffer = familyCrible{font.NormalizeFamily(family): scoreStrong{0, true}}
-	return fm.selectByFamilies(cribleBuffer, script, footprintsBuffer)
+	return fm.selectByFamiliesAndScript(cribleBuffer, 0, footprintsBuffer)
 }
 
 // selectByFamilyExact returns all the fonts in the fontmap matching
@@ -208,19 +210,28 @@ func (fm fontSet) selectByFamilyWithSubs(queryFamilies []string, queryScript lan
 	// build the crible, handling substitutions
 	cribleBuffer.reset()
 	cribleBuffer.fillWithSubstitutionsList(queryFamilies)
-	return fm.selectByFamilies(cribleBuffer, queryScript, footprintsBuffer)
+	return fm.selectByFamiliesAndScript(cribleBuffer, queryScript, footprintsBuffer)
 }
 
 // select the fonts in the fontSet matching [crible], returning their (sorted) indices.
 // [footprintsBuffer] is used to reduce allocations.
-func (fm fontSet) selectByFamilies(crible familyCrible, script language.Script, footprintsBuffer *scoredFootprints) []int {
+// If [script] is 0, no font with matching script is added
+func (fm fontSet) selectByFamiliesAndScript(crible familyCrible, script language.Script, footprintsBuffer *scoredFootprints) []int {
 	footprintsBuffer.reset(fm, script)
 
-	// loop through the font set and stores the matching fonts into the buffer
+	// loop through the font set and stores the matching fonts into
+	// the footprintsBuffer, to be sorted.
+	worstScore := math.MaxInt - len(fm)
 	for index, footprint := range fm {
 		if score, has := crible[footprint.Family]; has {
+			// match by family
 			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
 			footprintsBuffer.scores = append(footprintsBuffer.scores, score)
+		} else if footprint.Scripts.contains(script) {
+			// match by script: add with a score worse than any family match,
+			// preserving the insertion order into the fontset
+			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
+			footprintsBuffer.scores = append(footprintsBuffer.scores, scoreStrong{worstScore + index, false})
 		}
 	}
 

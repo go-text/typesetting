@@ -61,7 +61,7 @@ func TestFontSet_selectByFamilyExact(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamilyExact(tt.family, 0, make(familyCrible), &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
+		if got := tt.fontset.selectByFamilyExact(tt.family, make(familyCrible), &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("fontSet.selectByFamilyExact(%s) = \n%v, want \n%v", tt.family, got, tt.want)
 		}
 	}

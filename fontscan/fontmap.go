@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"sync"
 
 	"github.com/go-text/typesetting/font"
@@ -425,7 +424,7 @@ func (fm *FontMap) buildCandidates() {
 	// first pass for an exact match
 	{
 		for _, family := range fm.query.Families {
-			candidates := fm.database.selectByFamilyExact(family, fm.script, fm.cribleBuffer, &fm.footprintsBuffer)
+			candidates := fm.database.selectByFamilyExact(family, fm.cribleBuffer, &fm.footprintsBuffer)
 			if len(candidates) == 0 {
 				continue
 			}
@@ -504,17 +503,24 @@ func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 	return nil
 }
 
-// ResolveFace select a font based on the current query (see `SetQuery`),
+// ResolveFace select a font based on the current query (set by [FontMap.SetQuery] and [FontMap.SetScript]),
 // and supporting the given rune, applying CSS font selection rules.
-// The function will return nil if the underlying font database is empty,
+//
+// Fonts are tried in 3 steps :
+//
+//	1 - Only fonts matching exacly one of the [Query.Families] are considered; the list
+//		is prunned to keep the best match with [Query.Aspect]
+//	2 - Fallback fonts are considered, that is fonts with similar families and fonts
+//		supporting the current script; the list is also prunned according to [Query.Aspect]
+//	3 - All fonts matching the current script (set by [FontMap.SetScript]) are tried,
+//		ignoring [Query.Aspect]
+//
+// The fonts added manually by [AddFont] and [AddFace]
+// will be searched in the order in which they were added.
+//
+// If no fonts match after these steps, an arbitrary face will be returned.
+// This face will be nil only if the underlying font database is empty,
 // or if the file system is broken; otherwise the returned [font.Face] is always valid.
-//
-// If no fonts match the current query for the current rune according to the
-// builtin matching process, the fonts added manually by [AddFont] and [AddFace]
-// will be searched in the order in which they were added for a font with coverage
-// for the provided rune. The first font covering the requested rune will be returned.
-//
-// If no fonts match after the manual font search, an arbitrary face will be returned.
 func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
 	key := fm.lru.KeyFor(fm.query, fm.script, r)
 	face, ok := fm.lru.Get(key, fm.query)
@@ -534,50 +540,22 @@ func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
 		return face
 	}
 
-	// if no family has matched so far, try again with system fallback
+	// if no family has matched so far, try again with system fallback,
+	// including fonts with matching script and user provided ones
 	if face := fm.resolveForRune(fm.candidates.withFallback, r); face != nil {
 		return face
 	}
 
-	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
-	// and rune coverage.
-	if face := fm.resolveForRune(fm.candidates.manual, r); face != nil {
+	// no need to check from user provided fonts, since the one supporting the given script
+	// are already added in fallback fonts
+
+	fm.logger.Printf("No font matched for aspect %v, script %s, and rune %U (%c) -> searching by script coverage only", fm.query.Aspect, fm.script, r, r)
+	scriptCandidates := fm.scriptMap[fm.script]
+	if face := fm.resolveForRune(scriptCandidates, r); face != nil {
 		return face
 	}
 
-	fm.logger.Printf("No font matched for %q and rune %U (%c) -> searching by script coverage and aspect", fm.query.Families, r, r)
-
-	script := language.LookupScript(r)
-	scriptCandidates, ok := fm.scriptMap[language.LookupScript(r)]
-	if ok {
-		aspectCandidates := make([]int, len(scriptCandidates))
-		copy(aspectCandidates, scriptCandidates)
-		// Filter candidates to those matching the requested aspect first.
-		aspectCandidates = fm.database.retainsBestMatches(aspectCandidates, fm.query.Aspect)
-		if face := fm.resolveForRune(aspectCandidates, r); face != nil {
-			return face
-		}
-		fm.logger.Printf("No font matched for aspect %v, script %s, and rune %U (%c) -> searching by script coverage only", fm.query.Aspect, script, r, r)
-		// aspectCandidates has been filtered down and has exactly enough excess capacity to hold
-		// the other original candidates.
-		allCandidates := aspectCandidates[len(aspectCandidates):len(aspectCandidates):cap(aspectCandidates)]
-		// Populate allCandidates with every script candidate that isn't in aspectCandidates.
-		for _, idx := range scriptCandidates {
-			possibleIdx := sort.Search(len(aspectCandidates), func(i int) bool {
-				return aspectCandidates[i] >= idx
-			})
-			if possibleIdx < len(aspectCandidates) && aspectCandidates[possibleIdx] == idx {
-				continue
-			}
-			allCandidates = append(allCandidates, idx)
-		}
-		// Try allCandidates.
-		if face := fm.resolveForRune(allCandidates, r); face != nil {
-			return face
-		}
-	}
-
-	fm.logger.Printf("No font matched for script %s and rune %U (%c) -> returning arbitrary face", script, r, r)
+	fm.logger.Printf("No font matched for script %s and rune %U (%c) -> returning arbitrary face", fm.script, r, r)
 	// return an arbitrary face
 	if fm.firstFace == nil && len(fm.database) > 0 {
 		for _, fp := range fm.database {
