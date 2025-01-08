@@ -1,7 +1,7 @@
 package harfbuzz
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/go-text/typesetting/font"
@@ -78,7 +78,7 @@ func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, scri
 
 	font := NewFont(font.NewFace(ft))
 
-	textB, err := ioutil.ReadFile(textFile)
+	textB, err := os.ReadFile(textFile)
 	tu.AssertNoErr(b, err)
 
 	text := []rune(string(textB))
