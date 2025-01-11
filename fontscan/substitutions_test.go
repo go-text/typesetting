@@ -127,32 +127,39 @@ func Test_familyList_execute(t *testing.T) {
 	tests := []struct {
 		start []string
 		args  substitution
+		lang  LangID
 		want  familyList
 	}{
-		{nil, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 0}, familyList{}},                                            // no match
-		{[]string{"f1", "f2"}, substitution{familyEquals("f4"), []string{"aa", "bb"}, opReplace, 0}, familyList{{"f1", true}, {"f2", true}}}, // no match
+		{nil, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 0}, 0, familyList{}},                                            // no match
+		{[]string{"f1", "f2"}, substitution{familyEquals("f4"), []string{"aa", "bb"}, opReplace, 0}, 0, familyList{{"f1", true}, {"f2", true}}}, // no match
 
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 's'}, familyList{{"f1", true}, {"aa", true}, {"bb", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 'e'}, familyList{{"f1", true}, {"aa", true}, {"bb", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 'w'}, familyList{{"f1", true}, {"aa", false}, {"bb", false}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 's'}, 0, familyList{{"f1", true}, {"aa", true}, {"bb", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 'e'}, 0, familyList{{"f1", true}, {"aa", true}, {"bb", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opReplace, 'w'}, 0, familyList{{"f1", true}, {"aa", false}, {"bb", false}}},
 
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend, 's'}, familyList{{"f1", true}, {"f2", true}, {"aa", true}, {"bb", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend, 'e'}, familyList{{"f1", true}, {"f2", true}, {"aa", true}, {"bb", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend, 'w'}, familyList{{"f1", true}, {"f2", true}, {"aa", false}, {"bb", false}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend, 's'}, 0, familyList{{"f1", true}, {"f2", true}, {"aa", true}, {"bb", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend, 'e'}, 0, familyList{{"f1", true}, {"f2", true}, {"aa", true}, {"bb", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppend, 'w'}, 0, familyList{{"f1", true}, {"f2", true}, {"aa", false}, {"bb", false}}},
 
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppendLast, 's'}, familyList{{"f1", true}, {"f2", true}, {"aa", true}, {"bb", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppendLast, 'w'}, familyList{{"f1", true}, {"f2", true}, {"aa", false}, {"bb", false}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppendLast, 's'}, 0, familyList{{"f1", true}, {"f2", true}, {"aa", true}, {"bb", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opAppendLast, 'w'}, 0, familyList{{"f1", true}, {"f2", true}, {"aa", false}, {"bb", false}}},
 
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend, 's'}, familyList{{"f1", true}, {"aa", true}, {"bb", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend, 'e'}, familyList{{"f1", true}, {"aa", true}, {"bb", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend, 'w'}, familyList{{"f1", true}, {"aa", false}, {"bb", false}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend, 's'}, 0, familyList{{"f1", true}, {"aa", true}, {"bb", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend, 'e'}, 0, familyList{{"f1", true}, {"aa", true}, {"bb", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrepend, 'w'}, 0, familyList{{"f1", true}, {"aa", false}, {"bb", false}, {"f2", true}}},
 
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst, 's'}, familyList{{"aa", true}, {"bb", true}, {"f1", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst, 'w'}, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst, 's'}, 0, familyList{{"aa", true}, {"bb", true}, {"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst, 'w'}, 0, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
+
+		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{langAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langEn, familyList{{"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{langAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{langAr, "f7"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langEqualsAndNoFamily{langAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langEqualsAndNoFamily{langAr, "f7"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
 	}
 	for _, tt := range tests {
 		fl := newFamilyList(tt.start)
-		fl.execute(tt.args)
+		fl.execute(tt.args, tt.lang)
 		if !reflect.DeepEqual(fl, tt.want) {
 			t.Fatalf("expected %v, got %v", tt.want, fl)
 		}
@@ -207,18 +214,18 @@ func Test_newFamilyCrible(t *testing.T) {
 		{
 			"Arial",
 			[]string{"arial", "arimo", "liberationsans", "albany", "albanyamt"},
-			[]string{"helvetica", "nimbussans", "nimbussansl", "texgyreheros", "helveticaltstd", "dejavulgcsans", "notosans", "dejavusans", "verdana", "luxisans", "lucidasansunicode", "bpgglahointernational", "tahoma", "urwgothic", "nimbussansnarrow", "loma", "waree", "garuda", "umpush", "laksaman", "notosanscjkjp", "notosanscjkkr", "notosanscjksc", "notosanscjktc", "notosanscjkhk", "lohitdevanagari", "droidsansfallback", "khmeros\"", "nachlieli", "yuditunicode", "kerkis", "armnethelvetica", "artsounk", "bpgutf8m", "saysetthaunicode", "jglaooldarial", "gfzemenunicode", "pigiarniq", "bdavat", "bcompset", "kacst-qr", "urdunastaliqunicode", "raghindi", "muktinarrow", "malayalam", "sampige", "padmaa", "hapaxberbère", "msgothic", "umepluspgothic", "microsoftyahei", "microsoftjhenghei", "wenquanyizenhei", "wenquanyibitmapsong", "arplshanheisununi", "arplnewsung", "hiraginosans", "pingfangsc", "pingfangtc", "pingfanghk", "hiraginosanscns", "hiraginosansgb", "mgopenmodata", "vlgothic", "ipamonagothic", "ipagothic", "sazanamigothic", "kochigothic", "arplkaitimgb", "arplkaitimbig5", "arplsungtilgb", "arplmingti2lbig5", "ｍｓゴシック", "zysong18030", "tscu_paranar", "nanumgothic", "undotum", "baekmukdotum", "baekmukgulim", "applesdgothicneo", "kacstqura", "lohitbengali", "lohitgujarati", "lohithindi", "lohitmarathi", "lohitmaithili", "lohitkashmiri", "lohitkonkani", "lohitnepali", "lohitsindhi", "lohitpunjabi", "lohittamil", "meera", "lohitmalayalam", "lohitkannada", "lohittelugu", "lohitoriya", "lklug", "freesans", "arialunicodems", "arialunicode", "code2000", "code2001", "sans-serif", "roya", "koodak", "terafik", "itcavantgardegothic", "helveticanarrow"},
+			[]string{"helvetica", "nimbussans", "nimbussansl", "texgyreheros", "helveticaltstd", "dejavulgcsans", "notosans", "dejavusans", "verdana", "luxisans", "lucidasansunicode", "bpgglahointernational", "tahoma", "urwgothic", "nimbussansnarrow", "loma", "waree", "garuda", "umpush", "laksaman", "notosanscjkjp", "notosanscjkkr", "notosanscjksc", "notosanscjktc", "notosanscjkhk", "lohitdevanagari", "droidsansfallback", "khmeros", "nachlieli", "yuditunicode", "kerkis", "armnethelvetica", "artsounk", "bpgutf8m", "saysetthaunicode", "jglaooldarial", "gfzemenunicode", "pigiarniq", "bdavat", "bcompset", "kacst-qr", "urdunastaliqunicode", "raghindi", "muktinarrow", "malayalam", "sampige", "padmaa", "hapaxberbère", "msgothic", "umepluspgothic", "microsoftyahei", "microsoftjhenghei", "wenquanyizenhei", "wenquanyibitmapsong", "arplshanheisununi", "arplnewsung", "hiraginosans", "pingfangsc", "pingfangtc", "pingfanghk", "hiraginosanscns", "hiraginosansgb", "mgopenmodata", "vlgothic", "ipamonagothic", "ipagothic", "sazanamigothic", "kochigothic", "arplkaitimgb", "arplkaitimbig5", "arplsungtilgb", "arplmingti2lbig5", "ｍｓゴシック", "zysong18030", "tscu_paranar", "nanumgothic", "undotum", "baekmukdotum", "baekmukgulim", "applesdgothicneo", "kacstqura", "lohitbengali", "lohitgujarati", "lohithindi", "lohitmarathi", "lohitmaithili", "lohitkashmiri", "lohitkonkani", "lohitnepali", "lohitsindhi", "lohitpunjabi", "lohittamil", "meera", "lohitmalayalam", "lohitkannada", "lohittelugu", "lohitoriya", "lklug", "freesans", "arialunicodems", "arialunicode", "code2000", "code2001", "sans-serif", "roya", "koodak", "terafik", "itcavantgardegothic", "helveticanarrow"},
 		},
 		{
 			"Helvetica",
 			[]string{"helvetica", "nimbussans", "nimbussansl", "texgyreheros", "helveticaltstd"},
-			[]string{"arial", "arimo", "liberationsans", "albany", "albanyamt", "dejavulgcsans", "notosans", "dejavusans", "verdana", "luxisans", "lucidasansunicode", "bpgglahointernational", "tahoma", "urwgothic", "nimbussansnarrow", "loma", "waree", "garuda", "umpush", "laksaman", "notosanscjkjp", "notosanscjkkr", "notosanscjksc", "notosanscjktc", "notosanscjkhk", "lohitdevanagari", "droidsansfallback", "khmeros\"", "nachlieli", "yuditunicode", "kerkis", "armnethelvetica", "artsounk", "bpgutf8m", "saysetthaunicode", "jglaooldarial", "gfzemenunicode", "pigiarniq", "bdavat", "bcompset", "kacst-qr", "urdunastaliqunicode", "raghindi", "muktinarrow", "malayalam", "sampige", "padmaa", "hapaxberbère", "msgothic", "umepluspgothic", "microsoftyahei", "microsoftjhenghei", "wenquanyizenhei", "wenquanyibitmapsong", "arplshanheisununi", "arplnewsung", "hiraginosans", "pingfangsc", "pingfangtc", "pingfanghk", "hiraginosanscns", "hiraginosansgb", "mgopenmodata", "vlgothic", "ipamonagothic", "ipagothic", "sazanamigothic", "kochigothic", "arplkaitimgb", "arplkaitimbig5", "arplsungtilgb", "arplmingti2lbig5", "ｍｓゴシック", "zysong18030", "tscu_paranar", "nanumgothic", "undotum", "baekmukdotum", "baekmukgulim", "applesdgothicneo", "kacstqura", "lohitbengali", "lohitgujarati", "lohithindi", "lohitmarathi", "lohitmaithili", "lohitkashmiri", "lohitkonkani", "lohitnepali", "lohitsindhi", "lohitpunjabi", "lohittamil", "meera", "lohitmalayalam", "lohitkannada", "lohittelugu", "lohitoriya", "lklug", "freesans", "arialunicodems", "arialunicode", "code2000", "code2001", "sans-serif", "roya", "koodak", "terafik", "itcavantgardegothic", "helveticanarrow"},
+			[]string{"arial", "arimo", "liberationsans", "albany", "albanyamt", "dejavulgcsans", "notosans", "dejavusans", "verdana", "luxisans", "lucidasansunicode", "bpgglahointernational", "tahoma", "urwgothic", "nimbussansnarrow", "loma", "waree", "garuda", "umpush", "laksaman", "notosanscjkjp", "notosanscjkkr", "notosanscjksc", "notosanscjktc", "notosanscjkhk", "lohitdevanagari", "droidsansfallback", "khmeros", "nachlieli", "yuditunicode", "kerkis", "armnethelvetica", "artsounk", "bpgutf8m", "saysetthaunicode", "jglaooldarial", "gfzemenunicode", "pigiarniq", "bdavat", "bcompset", "kacst-qr", "urdunastaliqunicode", "raghindi", "muktinarrow", "malayalam", "sampige", "padmaa", "hapaxberbère", "msgothic", "umepluspgothic", "microsoftyahei", "microsoftjhenghei", "wenquanyizenhei", "wenquanyibitmapsong", "arplshanheisununi", "arplnewsung", "hiraginosans", "pingfangsc", "pingfangtc", "pingfanghk", "hiraginosanscns", "hiraginosansgb", "mgopenmodata", "vlgothic", "ipamonagothic", "ipagothic", "sazanamigothic", "kochigothic", "arplkaitimgb", "arplkaitimbig5", "arplsungtilgb", "arplmingti2lbig5", "ｍｓゴシック", "zysong18030", "tscu_paranar", "nanumgothic", "undotum", "baekmukdotum", "baekmukgulim", "applesdgothicneo", "kacstqura", "lohitbengali", "lohitgujarati", "lohithindi", "lohitmarathi", "lohitmaithili", "lohitkashmiri", "lohitkonkani", "lohitnepali", "lohitsindhi", "lohitpunjabi", "lohittamil", "meera", "lohitmalayalam", "lohitkannada", "lohittelugu", "lohitoriya", "lklug", "freesans", "arialunicodems", "arialunicode", "code2000", "code2001", "sans-serif", "roya", "koodak", "terafik", "itcavantgardegothic", "helveticanarrow"},
 		},
 	}
 
 	for _, tt := range tests {
 		got := make(familyCrible)
-		got.fillWithSubstitutions(font.NormalizeFamily(tt.family))
+		got.fillWithSubstitutions(font.NormalizeFamily(tt.family), langEn)
 		strong, weak := got.families()
 		if !(reflect.DeepEqual(strong, tt.wantStrong) && reflect.DeepEqual(weak, tt.wantWeak)) {
 			t.Errorf("newFamilyCrible() = %v %v, want %v %v", strong, weak, tt.wantStrong, tt.wantWeak)
@@ -321,18 +328,36 @@ func TestReplaceAt(t *testing.T) {
 func BenchmarkNewFamilyCrible(b *testing.B) {
 	c := make(familyCrible)
 	for i := 0; i < b.N; i++ {
-		c.fillWithSubstitutions("Arial")
+		c.fillWithSubstitutions("Arial", langEn)
 	}
 }
 
 func TestSubstituteHelveticaOrder(t *testing.T) {
 	c := make(familyCrible)
-	c.fillWithSubstitutionsList([]string{font.NormalizeFamily("BlinkMacSystemFont"), font.NormalizeFamily("Helvetica")})
+	c.fillWithSubstitutionsList([]string{font.NormalizeFamily("BlinkMacSystemFont"), font.NormalizeFamily("Helvetica")}, langEn)
 	// BlinkMacSystemFont is not known by the library, so it is expanded with generic sans-serif,
 	// but with lower priority then Helvetica
 	expected := []string{"blinkmacsystemfont", "helvetica", "nimbussans", "nimbussansl", "texgyreheros", "helveticaltstd"}
 	ls, _ := c.families()
 	if !reflect.DeepEqual(ls, expected) {
 		t.Fatalf("expected %v, got %v", expected, ls)
+	}
+}
+
+func TestLanguageSubstitutions(t *testing.T) {
+	c := make(familyCrible)
+	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), langOr)
+	if _, has := c["lohitoriya"]; !has {
+		t.Fatal("missing Lohit Oriya")
+	}
+	c.reset()
+	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), langGu)
+	if _, has := c["lohitgujarati"]; !has {
+		t.Fatal("missing Lohit Gujarati")
+	}
+	c.reset()
+	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), langPa)
+	if _, has := c["lohitgurmukhi"]; !has {
+		t.Fatal("missing Lohit Gurmukhi")
 	}
 }

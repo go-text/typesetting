@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/language"
 )
 
 // this file implements the family substitution feature,
@@ -134,7 +133,7 @@ const (
 type substitutionTest interface {
 	// returns >= 0 if the substitution should be applied
 	// for opAppendLast and opPrependFirst an arbitrary value could be returned
-	test(list familyList) int
+	test(list familyList, lang LangID) int
 
 	// return a copy where families have been normalized
 	// to their no blank no case version
@@ -144,7 +143,7 @@ type substitutionTest interface {
 // a family in the list must equal 'mf'
 type familyEquals string
 
-func (mf familyEquals) test(list familyList) int {
+func (mf familyEquals) test(list familyList, _ LangID) int {
 	return list.elementEquals(string(mf))
 }
 
@@ -155,7 +154,7 @@ func (mf familyEquals) normalize() substitutionTest {
 // a family in the list must contain 'mf'
 type familyContains string
 
-func (mf familyContains) test(list familyList) int {
+func (mf familyContains) test(list familyList, _ LangID) int {
 	return list.elementContains(string(mf))
 }
 
@@ -166,7 +165,7 @@ func (mf familyContains) normalize() substitutionTest {
 // the family list has no "serif", "sans-serif" or "monospace" generic fallback
 type noGenericFamily struct{}
 
-func (noGenericFamily) test(list familyList) int {
+func (noGenericFamily) test(list familyList, _ LangID) int {
 	for _, v := range list {
 		switch v.family {
 		case "serif", "sans-serif", "monospace":
@@ -183,12 +182,14 @@ func (noGenericFamily) normalize() substitutionTest {
 // one family must equals `family`, and the queried language
 // must equals `lang`
 type langAndFamilyEqual struct {
-	lang   language.Language
+	lang   LangID
 	family string
 }
 
-// TODO: for now, these tests language base tests are ignored
-func (langAndFamilyEqual) test(list familyList) int {
+func (t langAndFamilyEqual) test(list familyList, lang LangID) int {
+	if t.lang == lang {
+		return list.elementEquals(t.family)
+	}
 	return -1
 }
 
@@ -197,32 +198,22 @@ func (t langAndFamilyEqual) normalize() substitutionTest {
 	return t
 }
 
-// one family must equals `family`, and the queried language
-// must contains `lang`
-type langContainsAndFamilyEquals struct {
-	lang   language.Language
-	family string
-}
-
-// TODO: for now, these tests language base tests are ignored
-func (langContainsAndFamilyEquals) test(list familyList) int {
-	return -1
-}
-
-func (t langContainsAndFamilyEquals) normalize() substitutionTest {
-	t.family = font.NormalizeFamily(t.family)
-	return t
-}
-
 // no family must equals `family`, and the queried language
 // must equals `lang`
 type langEqualsAndNoFamily struct {
-	lang   language.Language
+	lang   LangID
 	family string
 }
 
-// TODO: for now, these tests language base tests are ignored
-func (langEqualsAndNoFamily) test(list familyList) int {
+func (t langEqualsAndNoFamily) test(list familyList, lang LangID) int {
+	if t.lang == lang {
+		for _, v := range list {
+			if v.family == t.family {
+				return -1
+			}
+		}
+		return 0
+	}
 	return -1
 }
 
@@ -242,8 +233,8 @@ type substitution struct {
 	importance byte
 }
 
-func (fl *familyList) execute(subs substitution) {
-	element := subs.test.test(*fl)
+func (fl *familyList) execute(subs substitution, lang LangID) {
+	element := subs.test.test(*fl, lang)
 	if element < 0 {
 		return
 	}
