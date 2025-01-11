@@ -506,17 +506,16 @@ func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 // ResolveFace select a font based on the current query (set by [FontMap.SetQuery] and [FontMap.SetScript]),
 // and supporting the given rune, applying CSS font selection rules.
 //
-// Fonts are tried in 3 steps :
+// Fonts are tried with the following steps :
 //
 //	1 - Only fonts matching exacly one of the [Query.Families] are considered; the list
 //		is prunned to keep the best match with [Query.Aspect]
 //	2 - Fallback fonts are considered, that is fonts with similar families and fonts
-//		supporting the current script; the list is also prunned according to [Query.Aspect]
-//	3 - All fonts matching the current script (set by [FontMap.SetScript]) are tried,
+//		supporting the current script; the list is also prunned according to [Query.Aspect]4
+//	3 - Fonts added manually by [AddFont] and [AddFace] will be searched,
+//		in the order in which they were added.
+//	4 - All fonts matching the current script (set by [FontMap.SetScript]) are tried,
 //		ignoring [Query.Aspect]
-//
-// The fonts added manually by [AddFont] and [AddFace]
-// will be searched in the order in which they were added.
 //
 // If no fonts match after these steps, an arbitrary face will be returned.
 // This face will be nil only if the underlying font database is empty,
@@ -546,8 +545,13 @@ func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
 		return face
 	}
 
-	// no need to check from user provided fonts, since the one supporting the given script
-	// are already added in fallback fonts
+	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
+	// and rune coverage.
+	// Note that, when [SetScript] has been called, this step is actually not needed,
+	// since the fonts supporting the given script are already added in [withFallback] fonts
+	if face := fm.resolveForRune(fm.candidates.manual, r); face != nil {
+		return face
+	}
 
 	fm.logger.Printf("No font matched for aspect %v, script %s, and rune %U (%c) -> searching by script coverage only", fm.query.Aspect, fm.script, r, r)
 	scriptCandidates := fm.scriptMap[fm.script]

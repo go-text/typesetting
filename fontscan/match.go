@@ -46,14 +46,14 @@ func (fc familyCrible) reset() {
 // fillWithSubstitutions starts from `family`
 // and applies all the substitutions coded in the package
 // to add substitutes values
-func (fc familyCrible) fillWithSubstitutions(family string) {
-	fc.fillWithSubstitutionsList([]string{family})
+func (fc familyCrible) fillWithSubstitutions(family string, lang LangID) {
+	fc.fillWithSubstitutionsList([]string{family}, lang)
 }
 
-func (fc familyCrible) fillWithSubstitutionsList(families []string) {
+func (fc familyCrible) fillWithSubstitutionsList(families []string, lang LangID) {
 	fl := newFamilyList(families)
 	for _, subs := range familySubstitution {
-		fl.execute(subs)
+		fl.execute(subs, lang)
 	}
 
 	fl.compileTo(fc)
@@ -80,15 +80,38 @@ func (sf *scoredFootprints) reset(fs fontSet, script language.Script) {
 // Len is the number of elements in the collection.
 func (sf scoredFootprints) Len() int { return len(sf.footprints) }
 
+// less compares by scores, by userProvided, selects "regular" over "mono",
+// then selects TTF over CFF
+func less(scorei, scorej int, fpi, fpj *Footprint) bool {
+	if scorei < scorej {
+		return true
+	} else if scorei > scorej {
+		return false
+	}
+	if fpi.isUserProvided && !fpj.isUserProvided {
+		return true
+	} else if !fpi.isUserProvided && fpj.isUserProvided {
+		return false
+	}
+	isMonoi, isMonoj := fpi.isMonoHint(), fpj.isMonoHint()
+	if !isMonoi && isMonoj {
+		return true
+	} else if isMonoi && !isMonoj {
+		return false
+	}
+	isTTi, isTTj := fpi.isTruetypeHint(), fpj.isTruetypeHint()
+	return isTTi && !isTTj
+}
+
 // Less compares footprints following these rules :
 //   - 'strong' replacements come before 'weak' ones
 //   - among 'strong' families, only the score matters
 //   - among 'weak' families, the footprints compatible with the given script come first
-//   - in any case, if two footprints have the same score (meaning they have the same family),
-//     user provided ones come first
+//   - if two footprints have the same score (meaning they have the same family),
+//     user provided ones come first, then "regular" over "mono" then TTF before CFF.
 func (sf scoredFootprints) Less(i int, j int) bool {
 	scorei, scorej := sf.scores[i], sf.scores[j]
-	fpi, fpj := sf.database[sf.footprints[i]], sf.database[sf.footprints[j]]
+	fpi, fpj := &sf.database[sf.footprints[i]], &sf.database[sf.footprints[j]]
 	// strong better then weak
 	if scorei.strong && !scorej.strong {
 		return true
@@ -97,12 +120,7 @@ func (sf scoredFootprints) Less(i int, j int) bool {
 	}
 	// among strong substitutions, only use the score
 	if scorei.strong {
-		if scorei.score < scorej.score {
-			return true
-		} else if scorei.score > scorej.score {
-			return false
-		}
-		return fpi.isUserProvided && !fpj.isUserProvided
+		return less(scorei.score, scorej.score, fpi, fpj)
 	}
 	// among weak substitutions, sort by script ...
 	hasScripti, hasScriptj := fpi.Scripts.contains(sf.script), fpj.Scripts.contains(sf.script)
@@ -112,12 +130,7 @@ func (sf scoredFootprints) Less(i int, j int) bool {
 		return false
 	}
 	// ... then by score
-	if scorei.score < scorej.score {
-		return true
-	} else if scorei.score > scorej.score {
-		return false
-	}
-	return fpi.isUserProvided && !fpj.isUserProvided
+	return less(scorei.score, scorej.score, fpi, fpj)
 }
 
 // Swap swaps the elements with indexes i and j.
@@ -175,7 +188,7 @@ func (fm fontSet) selectByFamilyExact(family string, cribleBuffer familyCrible, 
 		//	- restrict the result to the first (best) family
 
 		cribleBuffer.reset()
-		cribleBuffer.fillWithSubstitutions(family)
+		cribleBuffer.fillWithSubstitutions(family, 0)
 
 		footprints := fm.selectByFamiliesAndScript(cribleBuffer, 0, footprintsBuffer)
 
@@ -207,9 +220,12 @@ func (fm fontSet) selectByFamilyExact(family string, cribleBuffer familyCrible, 
 func (fm fontSet) selectByFamilyWithSubs(queryFamilies []string, queryScript language.Script,
 	cribleBuffer familyCrible, footprintsBuffer *scoredFootprints,
 ) []int {
+	// if not found, the zero value is fine (language based substitutions will be disabled)
+	queryLang := scriptToLang[queryScript]
+
 	// build the crible, handling substitutions
 	cribleBuffer.reset()
-	cribleBuffer.fillWithSubstitutionsList(queryFamilies)
+	cribleBuffer.fillWithSubstitutionsList(queryFamilies, queryLang)
 	return fm.selectByFamiliesAndScript(cribleBuffer, queryScript, footprintsBuffer)
 }
 
@@ -221,17 +237,15 @@ func (fm fontSet) selectByFamiliesAndScript(crible familyCrible, script language
 
 	// loop through the font set and stores the matching fonts into
 	// the footprintsBuffer, to be sorted.
-	worstScore := math.MaxInt - len(fm)
 	for index, footprint := range fm {
 		if score, has := crible[footprint.Family]; has {
 			// match by family
 			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
 			footprintsBuffer.scores = append(footprintsBuffer.scores, score)
 		} else if footprint.Scripts.contains(script) {
-			// match by script: add with a score worse than any family match,
-			// preserving the insertion order into the fontset
+			// match by script: add with a score worse than any family match
 			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
-			footprintsBuffer.scores = append(footprintsBuffer.scores, scoreStrong{worstScore + index, false})
+			footprintsBuffer.scores = append(footprintsBuffer.scores, scoreStrong{math.MaxInt, false})
 		}
 	}
 

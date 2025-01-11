@@ -6,7 +6,9 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -359,30 +361,109 @@ func TestFindSytemFont(t *testing.T) {
 	tu.Assert(t, !ok) // user provided font are ignored
 }
 
-func TestResolve_ScriptBengali(t *testing.T) {
+// the following tests use a "linux" font configuration
+func newSampleFontmap() *FontMap {
 	fm := NewFontMap(log.New(io.Discard, "", 0))
-	fm.appendFootprints(bengaliFontSet...)
+	fm.appendFootprints(linuxSampleFontSet...)
+	for _, fp := range linuxSampleFontSet {
+		fm.cache(fp, &font.Face{Font: new(font.Font)}) // we need a new pointer for each file
+	}
+	return fm
+}
+
+func TestDumpSystemFonts(t *testing.T) {
+	t.Skip()
+	fontset, err := SystemFonts(nil, os.TempDir())
+	tu.AssertNoErr(t, err)
+
+	var trimmed fontSet
+	for _, fp := range fontset {
+		switch fp.Family {
+		case "nimbussans", "lohitbengali", "lohitdevanagari", "lohitodia",
+			"notoloopedthai", "notosanskhmer", "khmeros", "khmerossystem",
+			"freeserif", "freesans", "freemono", "dejavu", "dejavusans":
+			trimmed = append(trimmed, fp)
+		}
+	}
+	code := fmt.Sprintf(`
+	package fontscan
+	import "github.com/go-text/typesetting/font"
+
+	// extracted from a linux system
+	var linuxSampleFontSet = 
+	%#v`, trimmed)
+	code = strings.ReplaceAll(code, "fontscan.", "")
+	code = strings.ReplaceAll(code, "Footprint{", "\n{")
+	code = strings.ReplaceAll(code, ", Index:0x0, Instance:0x0", "")
+	code = strings.ReplaceAll(code, ", isUserProvided:false", "")
+	code = strings.ReplaceAll(code, "Location:", "\nLocation:")
+	code = strings.ReplaceAll(code, "Runes:", "\nRunes:")
+	code = strings.ReplaceAll(code, "Langs:", "\nLangs:")
+	code = strings.ReplaceAll(code, "Aspect:", "\nAspect:")
+
+	err = os.WriteFile("fontmap_sample_test.go", []byte(code), os.ModePerm)
+	tu.AssertNoErr(t, err)
+
+	err = exec.Command("goimports", "-w", "fontmap_sample_test.go").Run()
+	tu.AssertNoErr(t, err)
+}
+
+func TestResolve_ScriptBengali(t *testing.T) {
+	fm := newSampleFontmap()
 
 	// make sure the same font is selected for a given script, when possible
 	text := []rune("হয় না।")
 	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
 	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
 	tu.Assert(t, len(runs) == 1)
-	// only one font is loaded, so there is no Location.File collision
 	family, _ := fm.FontMetadata(runs[0].Face.Font)
 	tu.Assert(t, family == "lohitbengali")
 }
 
 func TestResolve_ScriptThaana(t *testing.T) {
-	fm := NewFontMap(log.New(io.Discard, "", 0))
-	fm.appendFootprints(thaanaFontSet...)
+	fm := newSampleFontmap()
 
 	// make sure the same font is selected for a given script, when possible
 	text := []rune("އުފަންވަނީ، ދަރަޖަ")
 	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
 	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
 	tu.Assert(t, len(runs) == 1)
-	// only one font is loaded, so there is no Location.File collision
 	family, _ := fm.FontMetadata(runs[0].Face.Font)
 	tu.Assert(t, family == "freeserif")
+	tu.Assert(t, strings.HasSuffix(fm.FontLocation(runs[0].Face.Font).File, "FreeSerif.ttf"))
+}
+
+func TestResolve_SciptGujarati(t *testing.T) {
+	fm := newSampleFontmap()
+
+	text := []rune("ମୁଁ କାଚ ଖାଇପାରେ ଏବଂ ତାହା ମୋର କ୍ଷତି କରିନଥାଏ।")
+	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
+	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
+	tu.Assert(t, len(runs) == 1)
+	family, _ := fm.FontMetadata(runs[0].Face.Font)
+	tu.Assert(t, family == "lohitodia")
+}
+
+func TestResolve_SciptArabic(t *testing.T) {
+	fm := newSampleFontmap()
+
+	text := []rune("میں کانچ کھا سکتا ہوں اور مجھے تکلیف نہیں ہوتی ۔")
+	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
+	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
+	tu.Assert(t, len(runs) == 10)
+	family0, _ := fm.FontMetadata(runs[0].Face.Font)
+	family1, _ := fm.FontMetadata(runs[1].Face.Font)
+	tu.Assert(t, family0 == "dejavusans")
+	tu.Assert(t, family1 == "freeserif")
+}
+
+func TestResolve_SciptKhmer(t *testing.T) {
+	fm := newSampleFontmap()
+
+	text := []rune("ខ្ញុំអាចញុំកញ្ចក់បាន ដោយគ្មានបញ្ហារ")
+	fm.SetQuery(Query{Families: []string{"Nimbus Sans"}})
+	runs := (&shaping.Segmenter{}).Split(shaping.Input{Text: text, RunEnd: len(text)}, fm)
+	tu.Assert(t, len(runs) == 1)
+	family, _ := fm.FontMetadata(runs[0].Face.Font)
+	tu.Assert(t, family == "khmeros")
 }
