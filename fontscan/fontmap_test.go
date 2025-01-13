@@ -67,7 +67,7 @@ func ExampleFontMap_AddFace() {
 	// `fontMap` is now ready for text shaping, using the `ResolveFace` method
 }
 
-var _ shaping.Fontmap = (*FontMap)(nil)
+var _ shaping.FontmapScript = (*FontMap)(nil)
 
 func TestResolveFont(t *testing.T) {
 	en, _ := NewLangID("en")
