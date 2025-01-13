@@ -511,7 +511,7 @@ func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 //	1 - Only fonts matching exacly one of the [Query.Families] are considered; the list
 //		is prunned to keep the best match with [Query.Aspect]
 //	2 - Fallback fonts are considered, that is fonts with similar families and fonts
-//		supporting the current script; the list is also prunned according to [Query.Aspect]4
+//		supporting the current script; the list is also prunned according to [Query.Aspect]
 //	3 - Fonts added manually by [AddFont] and [AddFace] will be searched,
 //		in the order in which they were added.
 //	4 - All fonts matching the current script (set by [FontMap.SetScript]) are tried,
