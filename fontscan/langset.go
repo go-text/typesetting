@@ -18,12 +18,12 @@ type LangID uint16
 // Derived languages not exactly supported are mapped to their primary part : for instance,
 // 'fr-be' is mapped to 'fr'
 func NewLangID(l language.Language) (LangID, bool) {
-	const N = len(languagesRunes)
+	const N = len(languagesInfo)
 	// binary search
 	i, j := 0, N
 	for i < j {
 		h := i + (j-i)/2
-		entry := languagesRunes[h]
+		entry := languagesInfo[h]
 		if l < entry.lang {
 			j = h
 		} else if entry.lang < l {
@@ -37,7 +37,7 @@ func NewLangID(l language.Language) (LangID, bool) {
 	// try to match the primary part
 	root := l.Primary()
 	for ; i >= 0; i-- {
-		entry := languagesRunes[i]
+		entry := languagesInfo[i]
 		if entry.lang > root { // keep going
 			continue
 		} else if entry.lang < root {
@@ -62,7 +62,7 @@ type LangSet [8]uint64
 // newLangsetFromCoverage compile the languages supported by the given
 // rune coverage
 func newLangsetFromCoverage(rs RuneSet) (out LangSet) {
-	for id, item := range languagesRunes {
+	for id, item := range languagesInfo {
 		if rs.includes(item.runes) {
 			out.Add(LangID(id))
 		}
@@ -76,7 +76,7 @@ func (ls LangSet) String() string {
 		for bit := 0; bit < 64; bit++ {
 			if page&(1<<bit) != 0 {
 				id := pageN<<6 | bit
-				chunks = append(chunks, string(languagesRunes[id].lang))
+				chunks = append(chunks, string(languagesInfo[id].lang))
 			}
 		}
 	}

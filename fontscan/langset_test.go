@@ -11,7 +11,7 @@ import (
 )
 
 func TestAssertSorted(t *testing.T) {
-	ok := sort.SliceIsSorted(languagesRunes[:], func(i, j int) bool { return languagesRunes[i].lang < languagesRunes[j].lang })
+	ok := sort.SliceIsSorted(languagesInfo[:], func(i, j int) bool { return languagesInfo[i].lang < languagesInfo[j].lang })
 	tu.Assert(t, ok)
 }
 
@@ -46,7 +46,7 @@ func TestNewLanguageID(t *testing.T) {
 
 func TestNewLangset(t *testing.T) {
 	// trivial check
-	for id, lang := range languagesRunes {
+	for id, lang := range languagesInfo {
 		ls := newLangsetFromCoverage(lang.runes)
 		tu.Assert(t, ls.Contains(LangID(id)))
 	}
