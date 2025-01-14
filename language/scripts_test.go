@@ -3,6 +3,8 @@ package language
 import (
 	"testing"
 	"unicode"
+
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestParseScript(t *testing.T) {
@@ -33,10 +35,23 @@ func TestParseScript(t *testing.T) {
 	}
 }
 
+func TestLookupScript(t *testing.T) {
+	tu.Assert(t, LookupScript('a') == Latin)
+	tu.Assert(t, LookupScript('ل') == Arabic)
+	tu.Assert(t, LookupScript(0) == Common)
+	tu.Assert(t, LookupScript(0xFFFFFFF) == Unknown)
+}
+
 func TestScript_String(t *testing.T) {
-	if Bamum.String() != "Bamu" {
-		t.Fatal()
-	}
+	tu.Assert(t, Bamum.String() == "Bamu")
+}
+
+func TestScript_Strong(t *testing.T) {
+	tu.Assert(t, Latin.Strong())
+	tu.Assert(t, Arabic.Strong())
+	tu.Assert(t, Unknown.Strong())
+	tu.Assert(t, !Common.Strong())
+	tu.Assert(t, !Inherited.Strong())
 }
 
 // used as benchmark reference

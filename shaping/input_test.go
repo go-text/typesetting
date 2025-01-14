@@ -501,6 +501,7 @@ func TestSplit(t *testing.T) {
 		start, end int
 		dir        di.Direction
 		script     language.Script
+		lang       language.Language
 		face       *font.Face
 	}
 	for _, test := range []struct {
@@ -511,46 +512,46 @@ func TestSplit(t *testing.T) {
 		{
 			"",
 			di.DirectionLTR,
-			[]run{{0, 0, di.DirectionLTR, language.Common, nil}},
+			[]run{{0, 0, di.DirectionLTR, language.Common, "fr", nil}},
 		},
 		{
 			"The quick brown fox jumps over the lazy dog.",
 			di.DirectionLTR,
-			[]run{{0, 44, di.DirectionLTR, language.Latin, latinFont}},
+			[]run{{0, 44, di.DirectionLTR, language.Latin, "fr", latinFont}},
 		},
 		{
 			"الحب سماء لا تمط غير الأحلام",
 			di.DirectionLTR,
-			[]run{{0, 28, di.DirectionRTL, language.Arabic, arabicFont}},
+			[]run{{0, 28, di.DirectionRTL, language.Arabic, "ar", arabicFont}},
 		},
 		{
 			"The quick سماء שלום لا fox تمط שלום غير the lazy dog.",
 			di.DirectionLTR,
 			[]run{
-				{0, 10, di.DirectionLTR, language.Latin, latinFont},
-				{10, 15, di.DirectionRTL, language.Arabic, arabicFont},
-				{15, 20, di.DirectionRTL, language.Hebrew, latinFont},
-				{20, 22, di.DirectionRTL, language.Arabic, arabicFont},
-				{22, 27, di.DirectionLTR, language.Latin, latinFont},
-				{27, 31, di.DirectionRTL, language.Arabic, arabicFont},
-				{31, 36, di.DirectionRTL, language.Hebrew, latinFont},
-				{36, 39, di.DirectionRTL, language.Arabic, arabicFont},
-				{39, 53, di.DirectionLTR, language.Latin, latinFont},
+				{0, 10, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{10, 15, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{15, 20, di.DirectionRTL, language.Hebrew, "he", latinFont},
+				{20, 22, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{22, 27, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{27, 31, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{31, 36, di.DirectionRTL, language.Hebrew, "he", latinFont},
+				{36, 39, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{39, 53, di.DirectionLTR, language.Latin, "fr", latinFont},
 			},
 		},
 		{
 			"الحب سماء brown привет fox تمط jumps привет over غير الأحلام",
 			di.DirectionLTR,
 			[]run{
-				{0, 10, di.DirectionRTL, language.Arabic, arabicFont},
-				{10, 16, di.DirectionLTR, language.Latin, latinFont},
-				{16, 23, di.DirectionLTR, language.Cyrillic, latinFont},
-				{23, 26, di.DirectionLTR, language.Latin, latinFont},
-				{26, 31, di.DirectionRTL, language.Arabic, arabicFont},
-				{31, 37, di.DirectionLTR, language.Latin, latinFont},
-				{37, 44, di.DirectionLTR, language.Cyrillic, latinFont},
-				{44, 48, di.DirectionLTR, language.Latin, latinFont},
-				{48, 60, di.DirectionRTL, language.Arabic, arabicFont},
+				{0, 10, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{10, 16, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{16, 23, di.DirectionLTR, language.Cyrillic, "ru", latinFont},
+				{23, 26, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{26, 31, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{31, 37, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{37, 44, di.DirectionLTR, language.Cyrillic, "ru", latinFont},
+				{44, 48, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{48, 60, di.DirectionRTL, language.Arabic, "ar", arabicFont},
 			},
 		},
 		// vertical text
@@ -558,29 +559,29 @@ func TestSplit(t *testing.T) {
 			"A french word",
 			di.DirectionTTB,
 			[]run{
-				{0, 13, sideways, language.Latin, latinFont},
+				{0, 13, sideways, language.Latin, "fr", latinFont},
 			},
 		},
 		{
 			"A french word",
 			upright,
 			[]run{
-				{0, 13, upright, language.Latin, latinFont},
+				{0, 13, upright, language.Latin, "fr", latinFont},
 			},
 		},
 		{
 			"with upright \uff21\uff22\uff23",
 			di.DirectionTTB,
 			[]run{
-				{0, 13, sideways, language.Latin, latinFont},
-				{13, 16, upright, language.Latin, latinFont},
+				{0, 13, sideways, language.Latin, "fr", latinFont},
+				{13, 16, upright, language.Latin, "fr", latinFont},
 			},
 		},
 		{
 			"ᠬᠦᠮᠦᠨ ᠪᠦ",
 			di.DirectionTTB,
 			[]run{
-				{0, 8, sideways, language.Mongolian, latinFont},
+				{0, 8, sideways, language.Mongolian, "mn", latinFont},
 			},
 		},
 	} {
@@ -600,9 +601,9 @@ func TestSplit(t *testing.T) {
 			tu.Assert(t, got.Direction == run.dir)
 			tu.Assert(t, got.Script == run.script)
 			tu.Assert(t, got.Face == run.face)
+			tu.Assert(t, got.Language == run.lang)
 			// check that input properties are properly copied
 			tu.Assert(t, got.Size == 10)
-			tu.Assert(t, got.Language == "fr")
 		}
 
 		// check that spliting a "middle" text slice is supported
@@ -622,6 +623,15 @@ func TestSplit(t *testing.T) {
 			tu.Assert(t, got.Face == run.face)
 		}
 	}
+
+	inputs := seg.Split(Input{
+		Text:     []rune("abc"),
+		RunEnd:   len([]rune("abc")),
+		Size:     10,
+		Language: "xxxx", // unknown
+	}, fm)
+	tu.Assert(t, len(inputs) == 1)
+	tu.Assert(t, inputs[0].Language == "xxxx")
 }
 
 func TestIssue127(t *testing.T) {
@@ -638,4 +648,24 @@ func TestIssue127(t *testing.T) {
 	inputs := (&Segmenter{}).Split(input, fixedFontmap{benchArFace})
 	// make sure Inherited script does no create a new run
 	tu.Assert(t, len(inputs) == 1)
+}
+
+func Test_enforceLang(t *testing.T) {
+	tests := []struct {
+		lang language.LangID
+		s    language.Script
+		want language.LangID
+	}{
+		{language.LangFr, language.Latin, language.LangFr},
+		{language.LangFr, language.Hangul, language.LangKo},
+		{language.LangKo, language.Hangul, language.LangKo},
+		{language.LangJa, language.Hiragana, language.LangJa},
+		{language.LangEn, language.Arabic, language.LangAr},
+		{language.LangEn, language.Bopomofo, language.LangEn},
+	}
+	for _, tt := range tests {
+		if got := enforceLang(tt.lang, tt.s); got != tt.want {
+			t.Errorf("enforceLang() = %v, want %v", got, tt.want)
+		}
+	}
 }

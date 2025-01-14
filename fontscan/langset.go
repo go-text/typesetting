@@ -42,7 +42,7 @@ func (ls LangSet) String() string {
 		for bit := 0; bit < 64; bit++ {
 			if page&(1<<bit) != 0 {
 				id := LangID(pageN<<6 | bit)
-				chunks = append(chunks, id.String())
+				chunks = append(chunks, string(id.Language()))
 			}
 		}
 	}

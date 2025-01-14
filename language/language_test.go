@@ -163,7 +163,7 @@ func TestLanguage_SplitExtensionTags(t *testing.T) {
 	}
 }
 
-func Benchmark(b *testing.B) {
+func BenchmarkSplitExtensionTags(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range extensionTagTags {
 			_, _ = test.l.SplitExtensionTags()
@@ -171,8 +171,11 @@ func Benchmark(b *testing.B) {
 	}
 }
 
-func TestAssertSorted(t *testing.T) {
-	ok := sort.SliceIsSorted(languagesInfo[:], func(i, j int) bool { return languagesInfo[i].lang < languagesInfo[j].lang })
+func TestLanguageTable(t *testing.T) {
+	s1, s2 := languagesInfos[:knownLangsCount], languagesInfos[knownLangsCount:]
+	ok := sort.SliceIsSorted(s1, func(i, j int) bool { return s1[i].lang < s1[j].lang })
+	tu.Assert(t, ok)
+	ok = sort.SliceIsSorted(s2, func(i, j int) bool { return s2[i].lang < s2[j].lang })
 	tu.Assert(t, ok)
 }
 
@@ -193,6 +196,10 @@ func TestNewLanguageID(t *testing.T) {
 		{NewLanguage("fr-be"), LangFr, true},
 		{NewLanguage("pa-pk"), LangPa_Pk, true}, // exact match
 		{NewLanguage("pa-pr"), LangPa, true},    // primary tag match
+		{NewLanguage("zu"), LangZu, true},
+		{NewLanguage("mn"), LangMn, true},
+		{NewLanguage("mn-cn"), LangMn_Cn, true},
+		{NewLanguage("xxxx"), 0, false},
 	}
 	for _, tt := range tests {
 		got, got1 := NewLangID(tt.l)
@@ -201,6 +208,42 @@ func TestNewLanguageID(t *testing.T) {
 		}
 		if got1 != tt.want1 {
 			t.Errorf("NewLanguageID() got1 = %v, want %v", got1, tt.want1)
+		}
+	}
+}
+
+func TestLangID_Language(t *testing.T) {
+	tu.Assert(t, LangFr.Language() == "fr")
+	tu.Assert(t, LangEn.Language() == "en")
+	tu.Assert(t, LangAz_Az.Language() == "az-az")
+	tu.Assert(t, LangMn.Language() == "mn")
+	_ = LangID(0).Language()
+	_ = LangID(0xFFFF).Language()
+}
+
+func TestLangID_UseScript(t *testing.T) {
+	tests := []struct {
+		lang LangID
+		args Script
+		want bool
+	}{
+		{0, Common, true},
+		{0, Arabic, true},
+		{LangPeo, Arabic, true}, // unknown lang
+		{LangEn, Latin, true},
+		{LangEn, Arabic, false},
+		{LangFr, Hangul, false},
+		{LangFr, Common, true},
+		{LangFr, Inherited, true},
+		{LangUnd_Zsye, Latin, false},
+		{LangUnd_Zsye, Common, true},
+		{LangUnd_Zsye, Inherited, true},
+		{LangZu, Bopomofo, false},
+		{LangMl_In, Bopomofo, true},
+	}
+	for _, tt := range tests {
+		if got := tt.lang.UseScript(tt.args); got != tt.want {
+			t.Errorf("LangID.UseScript(%s, %s) = %v, want %v", tt.lang.Language(), tt.args, got, tt.want)
 		}
 	}
 }

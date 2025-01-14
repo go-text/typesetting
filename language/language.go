@@ -169,40 +169,71 @@ type LangID uint16
 // Derived languages not exactly supported are mapped to their primary part : for instance,
 // 'fr-be' is mapped to 'fr'
 func NewLangID(l Language) (LangID, bool) {
-	const N = len(languagesInfo)
+	if i, ok := binarySearchLang(l, languagesInfos[:knownLangsCount]); ok {
+		return LangID(i), true
+	}
+	if i, ok := binarySearchLang(l, languagesInfos[knownLangsCount:]); ok {
+		return knownLangsCount + LangID(i), true
+	}
+	return 0, false
+}
+
+func binarySearchLang(l Language, records []languageInfo) (int, bool) {
 	// binary search
-	i, j := 0, N
+	i, j := 0, len(records)
 	for i < j {
 		h := i + (j-i)/2
-		entry := languagesInfo[h]
+		entry := records[h]
 		if l < entry.lang {
 			j = h
 		} else if entry.lang < l {
 			i = h + 1
 		} else {
 			// extact match
-			return LangID(h), true
+			return h, true
 		}
+	}
+	if i == len(records) {
+		i--
 	}
 	// i is the index where l should be :
 	// try to match the primary part
 	root := l.Primary()
 	for ; i >= 0; i-- {
-		entry := languagesInfo[i]
+		entry := records[i]
 		if entry.lang > root { // keep going
 			continue
 		} else if entry.lang < root {
 			// no root match
 			return 0, false
 		} else { // found the root
-			return LangID(i), true
+			return i, true
 		}
-
 	}
 	return 0, false
 }
 
-func (l LangID) String() string { return string(languagesInfo[l].lang) }
+func (lang LangID) Language() Language {
+	if int(lang) >= len(languagesInfos) {
+		return "<invalid language>"
+	}
+	return languagesInfos[lang].lang
+}
+
+// UseScript returns true if 's' is used to to write the language.
+//
+// If nothing is known about the language (including if 'lang' is 0),
+// true will be returned.
+func (lang LangID) UseScript(s Script) bool {
+	if !s.Strong() { // Common and Inherited are never included in the table
+		return true
+	}
+	if lang == 0 || lang >= knownLangsCount {
+		return true
+	}
+	usedScripts := languagesInfos[lang].scripts
+	return usedScripts[0] == s || usedScripts[1] == s || usedScripts[2] == s
+}
 
 // ScriptToLang maps a script to a language that is reasonably
 // representative of the script. This will usually be the

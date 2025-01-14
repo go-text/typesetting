@@ -171,6 +171,8 @@ func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	seg.input, seg.output = seg.output, seg.input // output is empty
 	seg.splitByScript()
 
+	seg.enforceLanguages()
+
 	// if needed, resolve text orientation for vertical text
 	if text.Direction.IsVertical() && !text.Direction.HasVerticalOrientation() {
 		seg.input, seg.output = seg.output, seg.input
@@ -276,7 +278,7 @@ func (seg *Segmenter) splitByScript() {
 			// we register paired delimiters
 
 			delimIndex := -1
-			if rScript == language.Common || rScript == language.Inherited {
+			if !rScript.Strong() {
 				delimIndex = lookupDelimIndex(r)
 			}
 
@@ -304,7 +306,7 @@ func (seg *Segmenter) splitByScript() {
 			}
 
 			// check if we have a 'real' change of script, or not
-			if rScript == language.Common || rScript == language.Inherited || rScript == currentInput.Script {
+			if !rScript.Strong() || rScript == currentInput.Script {
 				// no change
 				continue
 			} else if currentInput.Script == language.Common {
@@ -329,6 +331,21 @@ func (seg *Segmenter) splitByScript() {
 		// close and add the last input
 		currentInput.RunEnd = input.RunEnd
 		seg.output = append(seg.output, currentInput)
+	}
+}
+
+// assume splitByScript has been called and enforce sane languages
+func (seg *Segmenter) enforceLanguages() {
+	initialLang := seg.output[0].Language
+	initialLangID, ok := language.NewLangID(initialLang)
+	if !ok {
+		// the language is unknown to the library, nothing to do
+		return
+	}
+
+	for i, run := range seg.output {
+		resolved := enforceLang(initialLangID, run.Script)
+		seg.output[i].Language = resolved.Language()
 	}
 }
 
@@ -449,4 +466,25 @@ func ignoreFaceChange(r rune) bool {
 		unicode.Is(unicode.Zp, r) || // paragraph separator
 		(unicode.Is(unicode.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
 		harfbuzz.IsDefaultIgnorable(r)
+}
+
+// enforceLang makes sure the returned language is compatible with
+// the given script, so that it maybe be usefull for Opentype shaping.
+//
+// A typical example is a Korean text found into a French paragraph :
+//
+//	enforceLang("fr", language.Hangul) -> "ko"
+func enforceLang(lang language.LangID, s language.Script) language.LangID {
+	if lang.UseScript(s) {
+		// the language is consistent with the script, return it
+		return lang
+	}
+
+	// the language is not used for the script, try to replace it
+	if l := language.ScriptToLang[s]; l != 0 {
+		return l
+	}
+
+	// we do not have good replacement, leave it as it is
+	return lang
 }
