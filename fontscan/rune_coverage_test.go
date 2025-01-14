@@ -310,7 +310,7 @@ func TestScriptSet(t *testing.T) {
 			toInsert: func() []language.Script {
 				scripts := make([]language.Script, 0, len(testScripts)*10)
 				for i := 0; i < 10; i++ {
-					scripts = append(scripts, testScripts...)
+					scripts = append(scripts, testScripts[:]...)
 				}
 				rand.Seed(0)
 				rand.Shuffle(len(scripts), func(i, j int) {
@@ -318,7 +318,7 @@ func TestScriptSet(t *testing.T) {
 				})
 				return scripts
 			}(),
-			expected: testScripts,
+			expected: testScripts[:],
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -528,6 +528,52 @@ func BenchmarkIsIncludedIn(b *testing.B) {
 	}
 }
 
+// containsBinarySearch uses [sort.Search] and is used as reference to
+// test [contains] results
+func (ss ScriptSet) containsBinarySearch(script language.Script) bool {
+	scriptIdx := sort.Search(len([]language.Script(ss)), func(i int) bool {
+		return (ss)[i] >= script
+	})
+	return scriptIdx != len(ss) && (ss)[scriptIdx] == script
+}
+
+func TestScriptSet_contains(t *testing.T) {
+	fonts, err := SystemFonts(nil, os.TempDir())
+	tu.AssertNoErr(t, err)
+
+	for _, script := range testScripts {
+		for _, font := range fonts {
+			tu.Assert(t, font.Scripts.containsBinarySearch(script) == font.Scripts.contains(script))
+		}
+	}
+}
+
+func BenchmarkScriptSet_contains(b *testing.B) {
+	fonts, err := SystemFonts(nil, os.TempDir())
+	tu.AssertNoErr(b, err)
+	b.ResetTimer()
+
+	b.Run("linear", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, script := range testScripts {
+				for _, font := range fonts {
+					font.Scripts.contains(script)
+				}
+			}
+		}
+	})
+
+	b.Run("binary search", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, script := range testScripts {
+				for _, font := range fonts {
+					font.Scripts.containsBinarySearch(script)
+				}
+			}
+		}
+	})
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -535,7 +581,7 @@ func min(a, b int) int {
 	return b
 }
 
-var testScripts = []language.Script{
+var testScripts = [...]language.Script{
 	language.Adlam,
 	language.Afaka,
 	language.Ahom,

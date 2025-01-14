@@ -2,10 +2,10 @@ package fontscan
 
 import (
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 )
 
 func allIndices(fs fontSet) []int {
@@ -16,35 +16,6 @@ func allIndices(fs fontSet) []int {
 	return out
 }
 
-func (fc familyCrible) families() []string {
-	var out []string
-	for k := range fc {
-		out = append(out, k)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		return fc[out[i]] < fc[out[j]]
-	})
-	return out
-}
-
-func Test_newFamilyCrible(t *testing.T) {
-	tests := []struct {
-		family string
-		want   []string
-	}{
-		// these tests are extracted from the fontconfig reference implementation
-		{"LuxiMono", []string{"luximono", "dejavulgcsansmono", "dejavusansmono", "bitstreamverasansmono", "inconsolata", "andalemono", "couriernew", "cumberlandamt", "nimbusmonol", "nimbusmonops", "nimbusmono", "courier", "tlwgtypo", "tlwgtypist", "tlwgmono", "notosansmonocjkjp", "notosansmonocjkkr", "notosansmonocjksc", "notosansmonocjktc", "notosansmonocjkhk", "khmerossystem", "miriammono", "vlgothic", "ipamonagothic", "ipagothic", "sazanamigothic", "kochigothic", "arplkaitimgb", "msgothic", "umeplusgothic", "nsimsun", "mingliu", "arplshanheisununi", "arplnewsungmono", "hanyisong", "arplsungtilgb", "arplmingti2lbig5", "zysong18030", "nanumgothiccoding", "nanumgothic", "dejavusans", "undotum", "baekmukdotum", "baekmukgulim", "tlwgtypewriter", "hasida", "mitramono", "gfzemenunicode", "hapaxberbère", "lohitbengali", "lohitgujarati", "lohithindi", "lohitmarathi", "lohitmaithili", "lohitkashmiri", "lohitkonkani", "lohitnepali", "lohitsindhi", "lohitpunjabi", "lohittamil", "meera", "lohitmalayalam", "lohitkannada", "lohittelugu", "lohitoriya", "lklug", "freemono", "monospace", "terafik", "freesans", "arialunicodems", "arialunicode", "code2000", "code2001", "sans-serif"}},
-		{"Arial", []string{"arial", "arimo", "liberationsans", "albany", "albanyamt", "helvetica", "nimbussans", "nimbussansl", "texgyreheros", "dejavulgcsans", "dejavusans", "bitstreamverasans", "verdana", "luxisans", "lucidasansunicode", "bpgglahointernational", "tahoma", "urwgothic", "nimbussansnarrow", "loma", "waree", "garuda", "umpush", "laksaman", "notosanscjkjp", "notosanscjkkr", "notosanscjksc", "notosanscjktc", "notosanscjkhk", "lohitdevanagari", "droidsansfallback", "khmeros", "nachlieli", "yuditunicode", "kerkis", "armnethelvetica", "artsounk", "bpgutf8m", "saysetthaunicode", "jglaooldarial", "gfzemenunicode", "pigiarniq", "bdavat", "bcompset", "kacst-qr", "urdunastaliqunicode", "raghindi", "muktinarrow", "padmaa", "hapaxberbère", "msgothic", "umepluspgothic", "microsoftyahei", "microsoftjhenghei", "wenquanyizenhei", "wenquanyibitmapsong", "arplshanheisununi", "arplnewsung", "mgopenmoderna", "mgopenmodata", "mgopencosmetica", "vlgothic", "ipamonagothic", "ipagothic", "sazanamigothic", "kochigothic", "arplkaitimgb", "arplkaitimbig5", "arplsungtilgb", "arplmingti2lbig5", "ｍｓゴシック", "zysong18030", "nanumgothic", "undotum", "baekmukdotum", "baekmukgulim", "kacstqura", "lohitbengali", "lohitgujarati", "lohithindi", "lohitmarathi", "lohitmaithili", "lohitkashmiri", "lohitkonkani", "lohitnepali", "lohitsindhi", "lohitpunjabi", "lohittamil", "meera", "lohitmalayalam", "lohitkannada", "lohittelugu", "lohitoriya", "lklug", "freesans", "arialunicodems", "arialunicode", "code2000", "code2001", "sans-serif", "roya", "koodak", "terafik", "itcavantgardegothic", "helveticanarrow"}},
-	}
-
-	for _, tt := range tests {
-		got := make(familyCrible)
-		if got.fillWithSubstitutions(font.NormalizeFamily(tt.family)); !reflect.DeepEqual(got.families(), tt.want) {
-			t.Errorf("newFamilyCrible() = %v, want %v", got.families(), tt.want)
-		}
-	}
-}
-
 func fontsFromFamilies(families ...string) (out fontSet) {
 	for _, family := range families {
 		out = append(out, Footprint{Family: font.NormalizeFamily(family)})
@@ -52,14 +23,18 @@ func fontsFromFamilies(families ...string) (out fontSet) {
 	return out
 }
 
-func TestFontMap_selectByFamilyExact(t *testing.T) {
+func TestFontSet_selectByFamilyExact(t *testing.T) {
 	tests := []struct {
 		fontset    fontSet
 		family     string
 		substitute bool
 		want       []int
 	}{
-		{nil, "", false, nil}, // no match on empty fontset
+		{nil, "", false, nil},                                                          // no match on empty fontset
+		{fontsFromFamilies("xxx"), "Arial", false, nil},                                // no match
+		{fontsFromFamilies("xxx"), "serif", false, nil},                                // no match on generic
+		{fontsFromFamilies("xxx"), Math, false, nil},                                   // no match on generic
+		{fontsFromFamilies("arial", "notosans", "cambriamath"), Math, false, []int{2}}, // strong match on generic
 		// simple match
 		{fontsFromFamilies("arial"), "Arial", false, []int{0}},
 		// blank and case
@@ -70,6 +45,9 @@ func TestFontMap_selectByFamilyExact(t *testing.T) {
 		{fontsFromFamilies("arial"), "Helvetica", false, nil},
 		// generic families
 		{fontsFromFamilies("norasi", "XXX"), "serif", false, []int{0}},
+		{fontsFromFamilies("norasi", "norasi", "XXX"), "serif", false, []int{0, 1}},              // many footprints with same family
+		{fontsFromFamilies("norasi", "norasi", "XXX", "norasi"), "serif", false, []int{0, 1, 3}}, // many footprints with same family
+		{fontsFromFamilies("rachana", "norasi", "XXX"), "serif", false, []int{1}},                // restrict to only one match
 		// user provided precedence
 		{
 			fontSet{
@@ -83,38 +61,62 @@ func TestFontMap_selectByFamilyExact(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamilyExact(tt.family, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("FontMap.selectByFamily() = \n%v, want \n%v", got, tt.want)
+		if got := tt.fontset.selectByFamilyExact(tt.family, make(familyCrible), &scoredFootprints{}); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("fontSet.selectByFamilyExact(%s) = \n%v, want \n%v", tt.family, got, tt.want)
 		}
 	}
 }
 
-func TestFontMap_selectByFamilyList(t *testing.T) {
+func TestFontSet_selectByFamilyWithSubs(t *testing.T) {
 	tests := []struct {
-		fontset    fontSet
-		family     string
-		substitute bool
-		want       []int
+		fontset fontSet
+		family  string
+		script  language.Script
+		want    []int
 	}{
-		{nil, "", true, nil}, // no match on empty fontset
-		{fontsFromFamilies("arial"), "Helvetica", true, []int{0}},
-		{fontsFromFamilies("caladea", "XXX"), "cambria", true, []int{0}},
+		{nil, "", 0, nil}, // no match on empty fontset
+		// weak substitute
+		{fontsFromFamilies("arial"), "Helvetica", 0, []int{0}},
+		// string substitute
+		{fontsFromFamilies("caladea", "XXX"), "cambria", 0, []int{0}},
 		// substitution, with order
-		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", true, []int{1, 0}},
-		// substitution, with order, and no matching fonts
-		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", true, []int{1, 0}},
+		{fontsFromFamilies("arial", "Helvetica"), "Helvetica", 0, []int{1, 0}},
+		{fontsFromFamilies("arial", "Helvetica", "XXX"), "Helvetica", 0, []int{1, 0}},
 		// default to generic families
-		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", true, []int{0}},
-		// substitutions
+		{fontsFromFamilies("DEjaVuSerif", "XXX"), "cambria", 0, []int{0}},
+		// more complex substitutions
 		{
 			fontsFromFamilies("Nimbus Roman", "Tinos", "Liberation Serif", "DejaVu Serif", "arial"),
-			"Times", true,
+			"Times",
+			0,
 			[]int{0, 1, 2, 3},
+		},
+		// script precedence
+		{
+			fontSet{
+				{Family: "tinos", Scripts: ScriptSet{}},                                          // weak, unsupported script
+				{Family: "liberationserif", Scripts: ScriptSet{language.Adlam, language.Arabic}}, // weak, supported script
+				{Family: "times", Scripts: ScriptSet{language.Ahom}},
+			},
+			"Times",
+			language.Arabic,
+			[]int{2, 1, 0},
+		},
+		{
+			fontSet{
+				{Family: "tinos", Scripts: ScriptSet{}},           // weak, unsupported script
+				{Family: "liberationserif", Scripts: ScriptSet{}}, // weak, unsupported script
+				{Family: "times", Scripts: ScriptSet{language.Ahom}},
+			},
+			"Times",
+			language.Arabic,
+			[]int{2, 0, 1},
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.fontset.selectByFamilyWithSubs([]string{tt.family}, &scoredFootprints{}, make(familyCrible)); !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("FontMap.selectByFamily() = \n%v, want \n%v", got, tt.want)
+		got := tt.fontset.selectByFamilyWithSubs([]string{tt.family}, tt.script, make(familyCrible), &scoredFootprints{})
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("fontSet.selectByFamilyWithSubs() = \n%v, want \n%v", got, tt.want)
 		}
 	}
 }
@@ -219,7 +221,7 @@ func fontsetFromAspects(as ...font.Aspect) (out fontSet) {
 	return out
 }
 
-func TestFontSet_selectBestMatch(t *testing.T) {
+func TestFontSet_retainsBestMatches(t *testing.T) {
 	defaultAspect := font.Aspect{Style: font.StyleNormal, Weight: font.WeightNormal, Stretch: font.StretchNormal}
 	boldAspect := font.Aspect{Style: font.StyleNormal, Weight: font.WeightBold, Stretch: font.StretchNormal}
 	boldItalicAspect := font.Aspect{Style: font.StyleItalic, Weight: font.WeightBold, Stretch: font.StretchNormal}
@@ -241,7 +243,7 @@ func TestFontSet_selectBestMatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.fs.retainsBestMatches(allIndices(tt.fs), tt.args)
 			if got := tt.fs[result[0]]; !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FontSet.selectBestMatch() = %v, want %v", got, tt.want)
+				t.Errorf("FontSet.retainsBestMatches() = %v, want %v", got, tt.want)
 			}
 		})
 	}

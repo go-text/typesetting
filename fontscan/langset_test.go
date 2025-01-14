@@ -22,16 +22,16 @@ func TestNewLanguageID(t *testing.T) {
 		want1 bool
 	}{
 		{language.NewLanguage("a"), 0, false},
-		{language.NewLanguage("af"), 2, true},
-		{language.NewLanguage("af-xx"), 2, true}, // primary tag match
-		{language.NewLanguage("az-az"), 14, true},
-		{language.NewLanguage("az-ir"), 15, true},
+		{language.NewLanguage("af"), langAf, true},
+		{language.NewLanguage("af-xx"), langAf, true}, // primary tag match
+		{language.NewLanguage("az-az"), langAz_Az, true},
+		{language.NewLanguage("az-ir"), langAz_Ir, true},
 		{language.NewLanguage("az-xx"), 0, false}, // no match
-		{language.NewLanguage("BR"), 30, true},
-		{language.NewLanguage("FR"), 69, true},
-		{language.NewLanguage("fr-be"), 69, true},
-		{language.NewLanguage("pa-pk"), 181, true}, // exact match
-		{language.NewLanguage("pa-pr"), 180, true}, // primary tag match
+		{language.NewLanguage("BR"), langBr, true},
+		{language.NewLanguage("FR"), langFr, true},
+		{language.NewLanguage("fr-be"), langFr, true},
+		{language.NewLanguage("pa-pk"), langPa_Pk, true}, // exact match
+		{language.NewLanguage("pa-pr"), langPa, true},    // primary tag match
 	}
 	for _, tt := range tests {
 		got, got1 := NewLangID(tt.l)
