@@ -3,7 +3,10 @@ package language
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
+
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 func TestLanguage(t *testing.T) {
@@ -164,6 +167,40 @@ func Benchmark(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range extensionTagTags {
 			_, _ = test.l.SplitExtensionTags()
+		}
+	}
+}
+
+func TestAssertSorted(t *testing.T) {
+	ok := sort.SliceIsSorted(languagesInfo[:], func(i, j int) bool { return languagesInfo[i].lang < languagesInfo[j].lang })
+	tu.Assert(t, ok)
+}
+
+func TestNewLanguageID(t *testing.T) {
+	tests := []struct {
+		l     Language
+		want  LangID
+		want1 bool
+	}{
+		{NewLanguage("a"), 0, false},
+		{NewLanguage("af"), LangAf, true},
+		{NewLanguage("af-xx"), LangAf, true}, // primary tag match
+		{NewLanguage("az-az"), LangAz_Az, true},
+		{NewLanguage("az-ir"), LangAz_Ir, true},
+		{NewLanguage("az-xx"), 0, false}, // no match
+		{NewLanguage("BR"), LangBr, true},
+		{NewLanguage("FR"), LangFr, true},
+		{NewLanguage("fr-be"), LangFr, true},
+		{NewLanguage("pa-pk"), LangPa_Pk, true}, // exact match
+		{NewLanguage("pa-pr"), LangPa, true},    // primary tag match
+	}
+	for _, tt := range tests {
+		got, got1 := NewLangID(tt.l)
+		if got != tt.want {
+			t.Errorf("NewLanguageID() got = %v, want %v", got, tt.want)
+		}
+		if got1 != tt.want1 {
+			t.Errorf("NewLanguageID() got1 = %v, want %v", got1, tt.want1)
 		}
 	}
 }
