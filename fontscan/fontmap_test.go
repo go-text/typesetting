@@ -70,14 +70,12 @@ func ExampleFontMap_AddFace() {
 var _ shaping.FontmapScript = (*FontMap)(nil)
 
 func TestResolveFont(t *testing.T) {
-	en, _ := NewLangID("en")
-
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "", 0)
 	fm := NewFontMap(logger)
 
 	tu.AssertC(t, fm.ResolveFace(0x20) == nil, "expected no face found in an empty FontMap")
-	tu.AssertC(t, fm.ResolveFaceForLang(en) == nil, "expected no face found in an empty FontMap")
+	tu.AssertC(t, fm.ResolveFaceForLang(language.LangEn) == nil, "expected no face found in an empty FontMap")
 
 	err := fm.UseSystemFonts(t.TempDir())
 	tu.AssertNoErr(t, err)
@@ -122,8 +120,7 @@ func TestResolveForLang(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"helvetica"}})
 
 	// all system fonts should have support for english
-	en, _ := NewLangID("en")
-	face := fm.ResolveFaceForLang(en)
+	face := fm.ResolveFaceForLang(language.LangEn)
 	tu.AssertC(t, face != nil, "expected EN to be supported by system fonts")
 }
 
@@ -149,8 +146,7 @@ func TestResolveFallbackManual(t *testing.T) {
 	face := fm.ResolveFace('c')
 	tu.Assert(t, fm.FontLocation(face.Font).File == "user:Amiri")
 
-	en, _ := NewLangID("en")
-	face = fm.ResolveFaceForLang(en)
+	face = fm.ResolveFaceForLang(language.LangEn)
 	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Amiri")
 }
 
@@ -171,14 +167,13 @@ func TestResolveLang(t *testing.T) {
 	err = fm.AddFont(file2, "user:Roboto", "")
 	tu.AssertNoErr(t, err)
 
-	en, _ := NewLangID("en")
 	// with fallback
-	face := fm.ResolveFaceForLang(en)
+	face := fm.ResolveFaceForLang(language.LangEn)
 	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Amiri")
 
 	// exact
 	fm.SetQuery(Query{Families: []string{"Roboto"}})
-	face = fm.ResolveFaceForLang(en)
+	face = fm.ResolveFaceForLang(language.LangEn)
 	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Roboto")
 }
 
