@@ -337,6 +337,13 @@ func (seg *Segmenter) splitByScript() {
 // assume splitByScript has been called and enforce sane languages
 func (seg *Segmenter) enforceLanguages() {
 	initialLang := seg.output[0].Language
+
+	// if no language is specified, use a default
+	// known by the library
+	if initialLang == "" {
+		initialLang = "en"
+	}
+
 	initialLangID, ok := language.NewLangID(initialLang)
 	if !ok {
 		// the language is unknown to the library, nothing to do

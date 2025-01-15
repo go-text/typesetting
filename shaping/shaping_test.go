@@ -694,3 +694,34 @@ func BenchmarkGlyphExtents(b *testing.B) {
 		})
 	}
 }
+
+func TestShapingLanguage(t *testing.T) {
+	// check that language specific shaping is applied
+	text := []rune("다람쥐 헌 쳇바퀴에 타고파")
+
+	b, err := td.Files.ReadFile("collections/NotoSansCJK-Bold.ttc")
+	tu.AssertNoErr(t, err)
+	faces, err := font.ParseTTC(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+	face := faces[0]
+
+	fm := fixedFontmap{face}
+	runs := (&Segmenter{}).Split(Input{Text: text, RunEnd: len(text)}, fm)
+	tu.Assert(t, len(runs) == 1)
+	tu.Assert(t, runs[0].Language == language.LangKo.Language())
+	run := runs[0]
+
+	output := (&HarfbuzzShaper{}).Shape(run)
+
+	regularSpace, ok := face.NominalGlyph(' ')
+	tu.Assert(t, ok)
+
+	// the space are properly replaced
+	tu.Assert(t, output.Glyphs[3].GlyphID != regularSpace)
+	tu.Assert(t, output.Glyphs[3].GlyphID == output.Glyphs[5].GlyphID)
+
+	run.Language = "fr"
+	output = (&HarfbuzzShaper{}).Shape(run)
+	// without the language information, regular space are used
+	tu.Assert(t, output.Glyphs[3].GlyphID == regularSpace)
+}

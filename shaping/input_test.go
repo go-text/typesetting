@@ -624,14 +624,22 @@ func TestSplit(t *testing.T) {
 		}
 	}
 
+	// unknown language are preserved
 	inputs := seg.Split(Input{
 		Text:     []rune("abc"),
 		RunEnd:   len([]rune("abc")),
-		Size:     10,
 		Language: "xxxx", // unknown
 	}, fm)
 	tu.Assert(t, len(inputs) == 1)
 	tu.Assert(t, inputs[0].Language == "xxxx")
+	// empty language are resolved
+	inputs = seg.Split(Input{
+		Text:     []rune("سماء"),
+		RunEnd:   len([]rune("سماء")),
+		Language: "", // empty
+	}, fm)
+	tu.Assert(t, len(inputs) == 1)
+	tu.Assert(t, inputs[0].Language == "ar")
 }
 
 func TestIssue127(t *testing.T) {
