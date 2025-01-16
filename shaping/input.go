@@ -217,7 +217,7 @@ func (seg *Segmenter) splitByBidi(text Input) {
 	}
 	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
 	out, err := seg.bidiParagraph.Order()
-	if err != nil {
+	if err != nil || out.NumRuns() == 0 {
 		seg.output = append(seg.output, text)
 		return
 	}

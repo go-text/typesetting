@@ -514,6 +514,11 @@ func TestSplit(t *testing.T) {
 			di.DirectionLTR,
 			[]run{{0, 0, di.DirectionLTR, language.Common, "fr", nil}},
 		},
+		{ // make sure we dont crash
+			"\n",
+			di.DirectionLTR,
+			[]run{{0, 1, di.DirectionLTR, language.Common, "fr", latinFont}},
+		},
 		{
 			"The quick brown fox jumps over the lazy dog.",
 			di.DirectionLTR,
@@ -632,6 +637,7 @@ func TestSplit(t *testing.T) {
 	}, fm)
 	tu.Assert(t, len(inputs) == 1)
 	tu.Assert(t, inputs[0].Language == "xxxx")
+
 	// empty language are resolved
 	inputs = seg.Split(Input{
 		Text:     []rune("سماء"),
