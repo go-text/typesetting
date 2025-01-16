@@ -145,6 +145,7 @@ type delimEntry struct {
 // Split segments the given pre-configured input according to:
 //   - text direction
 //   - script
+//   - language
 //   - (vertical text only) glyph orientation
 //   - face, as defined by [faces]
 //
@@ -154,6 +155,7 @@ type delimEntry struct {
 //   - Text, RunStart, RunEnd
 //   - Direction
 //   - Script
+//   - Language
 //   - Face
 //
 // [text.Direction] is used during bidi ordering, and should refer to the general
@@ -161,6 +163,9 @@ type delimEntry struct {
 //
 // For vertical text, if its orientation is set, is copied as it is; otherwise, the
 // orientation is resolved using the Unicode recommendations (see https://www.unicode.org/reports/tr50/).
+//
+// When possible, the language are resolved to match the current script. For instance,
+// (language: 'fr', script: 'arabic') is resolved to language: 'arabic'.
 //
 // The returned sliced is owned by the [Segmenter] and is only valid until
 // the next call to [Split].
