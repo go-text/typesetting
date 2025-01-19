@@ -4,6 +4,7 @@ package language
 
 import (
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -180,34 +181,27 @@ func NewLangID(l Language) (LangID, bool) {
 
 func binarySearchLang(l Language, records []languageInfo) (int, bool) {
 	// binary search
-	i, j := 0, len(records)
-	for i < j {
-		h := i + (j-i)/2
-		entry := records[h]
-		if l < entry.lang {
-			j = h
-		} else if entry.lang < l {
-			i = h + 1
-		} else {
-			// extact match
-			return h, true
-		}
+	index := sort.Search(len(records), func(i int) bool {
+		return (records)[i].lang >= l
+	})
+	if index != len(records) && records[index].lang == l { // extact match
+		return index, true
 	}
-	if i == len(records) {
-		i--
+	if index == len(records) {
+		index--
 	}
 	// i is the index where l should be :
 	// try to match the primary part
 	root := l.Primary()
-	for ; i >= 0; i-- {
-		entry := records[i]
+	for ; index >= 0; index-- {
+		entry := records[index]
 		if entry.lang > root { // keep going
 			continue
 		} else if entry.lang < root {
 			// no root match
 			return 0, false
 		} else { // found the root
-			return i, true
+			return index, true
 		}
 	}
 	return 0, false
