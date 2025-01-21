@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/language"
 )
 
 func Test_familyList_insertStart(t *testing.T) {
@@ -151,11 +152,11 @@ func Test_familyList_execute(t *testing.T) {
 		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst, 's'}, 0, familyList{{"aa", true}, {"bb", true}, {"f1", true}, {"f2", true}}},
 		{[]string{"f1", "f2"}, substitution{familyEquals("f2"), []string{"aa", "bb"}, opPrependFirst, 'w'}, 0, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
 
-		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{langAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langEn, familyList{{"f1", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{langAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{langAr, "f7"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"f1", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{langEqualsAndNoFamily{langAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"f1", true}, {"f2", true}}},
-		{[]string{"f1", "f2"}, substitution{langEqualsAndNoFamily{langAr, "f7"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, langAr, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{language.LangAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, language.LangEn, familyList{{"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{language.LangAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, language.LangAr, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langAndFamilyEqual{language.LangAr, "f7"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, language.LangAr, familyList{{"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langEqualsAndNoFamily{language.LangAr, "f2"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, language.LangAr, familyList{{"f1", true}, {"f2", true}}},
+		{[]string{"f1", "f2"}, substitution{langEqualsAndNoFamily{language.LangAr, "f7"}, []string{"aa", "bb"}, opPrependFirst, 'w'}, language.LangAr, familyList{{"aa", false}, {"bb", false}, {"f1", true}, {"f2", true}}},
 	}
 	for _, tt := range tests {
 		fl := newFamilyList(tt.start)
@@ -225,7 +226,7 @@ func Test_newFamilyCrible(t *testing.T) {
 
 	for _, tt := range tests {
 		got := make(familyCrible)
-		got.fillWithSubstitutions(font.NormalizeFamily(tt.family), langEn)
+		got.fillWithSubstitutions(font.NormalizeFamily(tt.family), language.LangEn)
 		strong, weak := got.families()
 		if !(reflect.DeepEqual(strong, tt.wantStrong) && reflect.DeepEqual(weak, tt.wantWeak)) {
 			t.Errorf("newFamilyCrible() = %v %v, want %v %v", strong, weak, tt.wantStrong, tt.wantWeak)
@@ -328,13 +329,13 @@ func TestReplaceAt(t *testing.T) {
 func BenchmarkNewFamilyCrible(b *testing.B) {
 	c := make(familyCrible)
 	for i := 0; i < b.N; i++ {
-		c.fillWithSubstitutions("Arial", langEn)
+		c.fillWithSubstitutions("Arial", language.LangEn)
 	}
 }
 
 func TestSubstituteHelveticaOrder(t *testing.T) {
 	c := make(familyCrible)
-	c.fillWithSubstitutionsList([]string{font.NormalizeFamily("BlinkMacSystemFont"), font.NormalizeFamily("Helvetica")}, langEn)
+	c.fillWithSubstitutionsList([]string{font.NormalizeFamily("BlinkMacSystemFont"), font.NormalizeFamily("Helvetica")}, language.LangEn)
 	// BlinkMacSystemFont is not known by the library, so it is expanded with generic sans-serif,
 	// but with lower priority then Helvetica
 	expected := []string{"blinkmacsystemfont", "helvetica", "nimbussans", "nimbussansl", "texgyreheros", "helveticaltstd"}
@@ -346,17 +347,17 @@ func TestSubstituteHelveticaOrder(t *testing.T) {
 
 func TestLanguageSubstitutions(t *testing.T) {
 	c := make(familyCrible)
-	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), langOr)
+	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), language.LangOr)
 	if _, has := c["lohitoriya"]; !has {
 		t.Fatal("missing Lohit Oriya")
 	}
 	c.reset()
-	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), langGu)
+	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), language.LangGu)
 	if _, has := c["lohitgujarati"]; !has {
 		t.Fatal("missing Lohit Gujarati")
 	}
 	c.reset()
-	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), langPa)
+	c.fillWithSubstitutions(font.NormalizeFamily("NimbusSans"), language.LangPa)
 	if _, has := c["lohitgurmukhi"]; !has {
 		t.Fatal("missing Lohit Gurmukhi")
 	}

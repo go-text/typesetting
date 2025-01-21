@@ -145,6 +145,7 @@ type delimEntry struct {
 // Split segments the given pre-configured input according to:
 //   - text direction
 //   - script
+//   - language
 //   - (vertical text only) glyph orientation
 //   - face, as defined by [faces]
 //
@@ -154,6 +155,7 @@ type delimEntry struct {
 //   - Text, RunStart, RunEnd
 //   - Direction
 //   - Script
+//   - Language
 //   - Face
 //
 // [text.Direction] is used during bidi ordering, and should refer to the general
@@ -161,6 +163,9 @@ type delimEntry struct {
 //
 // For vertical text, if its orientation is set, is copied as it is; otherwise, the
 // orientation is resolved using the Unicode recommendations (see https://www.unicode.org/reports/tr50/).
+//
+// When possible, the language are resolved to match the current script. For instance,
+// (language: 'fr', script: 'arabic') is resolved to language: 'arabic'.
 //
 // The returned sliced is owned by the [Segmenter] and is only valid until
 // the next call to [Split].
@@ -170,6 +175,8 @@ func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 
 	seg.input, seg.output = seg.output, seg.input // output is empty
 	seg.splitByScript()
+
+	seg.enforceLanguages()
 
 	// if needed, resolve text orientation for vertical text
 	if text.Direction.IsVertical() && !text.Direction.HasVerticalOrientation() {
@@ -215,7 +222,7 @@ func (seg *Segmenter) splitByBidi(text Input) {
 	}
 	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
 	out, err := seg.bidiParagraph.Order()
-	if err != nil {
+	if err != nil || out.NumRuns() == 0 {
 		seg.output = append(seg.output, text)
 		return
 	}
@@ -276,7 +283,7 @@ func (seg *Segmenter) splitByScript() {
 			// we register paired delimiters
 
 			delimIndex := -1
-			if rScript == language.Common || rScript == language.Inherited {
+			if !rScript.Strong() {
 				delimIndex = lookupDelimIndex(r)
 			}
 
@@ -304,7 +311,7 @@ func (seg *Segmenter) splitByScript() {
 			}
 
 			// check if we have a 'real' change of script, or not
-			if rScript == language.Common || rScript == language.Inherited || rScript == currentInput.Script {
+			if !rScript.Strong() || rScript == currentInput.Script {
 				// no change
 				continue
 			} else if currentInput.Script == language.Common {
@@ -329,6 +336,28 @@ func (seg *Segmenter) splitByScript() {
 		// close and add the last input
 		currentInput.RunEnd = input.RunEnd
 		seg.output = append(seg.output, currentInput)
+	}
+}
+
+// assume splitByScript has been called and enforce sane languages
+func (seg *Segmenter) enforceLanguages() {
+	initialLang := seg.output[0].Language
+
+	// if no language is specified, use a default
+	// known by the library
+	if initialLang == "" {
+		initialLang = "en"
+	}
+
+	initialLangID, ok := language.NewLangID(initialLang)
+	if !ok {
+		// the language is unknown to the library, nothing to do
+		return
+	}
+
+	for i, run := range seg.output {
+		resolved := enforceLang(initialLangID, run.Script)
+		seg.output[i].Language = resolved.Language()
 	}
 }
 
@@ -449,4 +478,25 @@ func ignoreFaceChange(r rune) bool {
 		unicode.Is(unicode.Zp, r) || // paragraph separator
 		(unicode.Is(unicode.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
 		harfbuzz.IsDefaultIgnorable(r)
+}
+
+// enforceLang makes sure the returned language is compatible with
+// the given script, so that it maybe be usefull for Opentype shaping.
+//
+// A typical example is a Korean text found into a French paragraph :
+//
+//	enforceLang("fr", language.Hangul) -> "ko"
+func enforceLang(lang language.LangID, s language.Script) language.LangID {
+	if lang.UseScript(s) {
+		// the language is consistent with the script, return it
+		return lang
+	}
+
+	// the language is not used for the script, try to replace it
+	if l := language.ScriptToLang[s]; l != 0 {
+		return l
+	}
+
+	// we do not have good replacement, leave it as it is
+	return lang
 }

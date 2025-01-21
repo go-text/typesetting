@@ -221,7 +221,7 @@ func (fm fontSet) selectByFamilyWithSubs(queryFamilies []string, queryScript lan
 	cribleBuffer familyCrible, footprintsBuffer *scoredFootprints,
 ) []int {
 	// if not found, the zero value is fine (language based substitutions will be disabled)
-	queryLang := scriptToLang[queryScript]
+	queryLang := language.ScriptToLang[queryScript]
 
 	// build the crible, handling substitutions
 	cribleBuffer.reset()
