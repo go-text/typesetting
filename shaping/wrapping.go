@@ -939,7 +939,12 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			insertTruncator = truncated > 0 || l.config.TextContinues
 		}
 		if insertTruncator {
-			finalLine = append(finalLine, l.config.Truncator)
+			truncator := l.config.Truncator
+			truncator.Runes.Count = truncated
+			truncator.Runes.Offset = l.lineStartRune
+			finalLine = append(finalLine, truncator)
+			// We've just modified the line, we need to recompute the bidi ordering.
+			computeBidiOrdering(l.config.Direction, finalLine)
 		}
 	}
 
