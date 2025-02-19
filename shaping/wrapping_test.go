@@ -2133,8 +2133,6 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			lastLine := lines[len(lines)-1]
 			lastRun := lastLine[len(lastLine)-1]
 			shouldTruncate := (tc.expectedTruncated > 0 || tc.forceTruncation)
-			// The VisualIndex and rune counts on the truncator will be populated during wrapping, and thus
-			// are not part of the test case expectations.
 			trunc.VisualIndex = lastRun.VisualIndex
 			trunc.Runes = Range{
 				Offset: len(inputRunes) - tc.expectedTruncated,
