@@ -15,7 +15,7 @@ jobs:
         go-version: 'stable'
 
     - name: Install analysis tools
-      run: go install honnef.co/go/tools/cmd/staticcheck@v0.5.1
+      run: go install honnef.co/go/tools/cmd/staticcheck@v0.6.0
 
     - name: Vet
       run: go vet ./...
