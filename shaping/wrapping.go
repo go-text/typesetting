@@ -973,10 +973,10 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 // is non-zero, the final line of text returned by successive calls to WrapNextLine
 // may be truncated. The quantity of runes truncated by wrapping the line is
 // returned in [WrappedLine].Truncated. If this is non-zero AND the LineWrapper's
-// [WrapConfig].Truncator is set, the final [Output] of the truncated line will be a copy
-// of the Truncator with its Runes.Count set to the quantity of runes truncated during
-// line wrapping. The sum of all [Output].Runes.Count in the line will the number of runes
-// provided as input to the line wrapping process.
+// [WrapConfig].Truncator is set, the final line will end with an extra [Output].
+// [Output]s before the final [Output] will represent the input runes that are still
+// visible before truncation, and the final [Output] will be a copy of the Truncator
+// with its Runes.Count set to the quantity of runes truncated during line wrapping.
 func (l *LineWrapper) WrapNextLine(maxWidth int) (out WrappedLine, done bool) {
 	// If we've already finished the paragraph, don't do any more work.
 	if !l.more {
