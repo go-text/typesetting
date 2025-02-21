@@ -1814,7 +1814,7 @@ func checkRuneCounts(t *testing.T, source []rune, lines []Line, truncated int) [
 	for lineIdx, line := range lines {
 		lineTotalRunes := 0
 		for runIdx, run := range line {
-			if truncated > 0 && totalRunes == len(source)-truncated && run.Runes.Offset == 0 {
+			if truncated > 0 && totalRunes == len(source)-truncated && run.Runes.Offset == totalRunes {
 				// Skip the truncator run.
 				continue
 			}
@@ -1903,7 +1903,13 @@ func TestWrappingTruncation(t *testing.T) {
 				}
 				lastLine := newLines[len(newLines)-1]
 				lastRun := lastLine[len(lastLine)-1]
-				if !reflect.DeepEqual(lastRun, truncator) {
+				expected := truncator
+				expected.Runes = Range{
+					Offset: len(textInput) - truncated,
+					Count:  truncated,
+				}
+				expected.VisualIndex = lastRun.VisualIndex
+				if !reflect.DeepEqual(lastRun, expected) {
 					t.Errorf("expected truncator as last run")
 				}
 			} else if i >= untruncatedCount {
@@ -1920,12 +1926,8 @@ func TestWrappingTruncation(t *testing.T) {
 					runeCount += run.Runes.Count
 				}
 			}
-			// Remove the runes of the truncator, if any.
-			if truncated > 0 {
-				runeCount -= truncator.Runes.Count
-			}
-			if runeCount+truncated != len(textInput) {
-				t.Errorf("expected %d runes total, got %d output and %d truncated", len(textInput), runeCount, truncated)
+			if runeCount != len(textInput) {
+				t.Errorf("expected %d runes total, got %d output", len(textInput), runeCount)
 			}
 		}
 	}
@@ -2131,6 +2133,11 @@ func TestWrappingTruncationEdgeCases(t *testing.T) {
 			lastLine := lines[len(lines)-1]
 			lastRun := lastLine[len(lastLine)-1]
 			shouldTruncate := (tc.expectedTruncated > 0 || tc.forceTruncation)
+			trunc.VisualIndex = lastRun.VisualIndex
+			trunc.Runes = Range{
+				Offset: len(inputRunes) - tc.expectedTruncated,
+				Count:  tc.expectedTruncated,
+			}
 			if lastRunIsTruncator := reflect.DeepEqual(lastRun, trunc); lastRunIsTruncator != shouldTruncate {
 				t.Errorf("shouldTruncate = %v, but lastRunIsTruncator = %v", shouldTruncate, lastRunIsTruncator)
 			}
