@@ -293,7 +293,7 @@ func ParseInstanceRecord(src []byte, coordinatesCount int) (InstanceRecord, int,
 		return item, 0, fmt.Errorf("reading InstanceRecord: "+"EOF: expected length: 4, got %d", L)
 	}
 	_ = src[3] // early bound checking
-	item.SubfamilyNameID = binary.BigEndian.Uint16(src[0:])
+	item.SubfamilyNameID = NameID(binary.BigEndian.Uint16(src[0:]))
 	item.flags = binary.BigEndian.Uint16(src[2:])
 	n += 4
 

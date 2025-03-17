@@ -28,7 +28,7 @@ func (fv *Fvar) parseFvarRecords(src []byte) (err error) {
 	if L := len(src); L < int(fv.axesArrayOffset) {
 		return fmt.Errorf("EOF: expected length: %d, got %d", fv.axesArrayOffset, L)
 	}
-	fv.FvarRecords, _, err = ParseFvarRecords(src[fv.axesArrayOffset:], int(fv.axisCount), int(fv.instanceCount), int(fv.axisCount))
+	fv.FvarRecords, _, err = ParseFvarRecords(src[fv.axesArrayOffset:], int(fv.axisCount), int(fv.instanceCount), int(fv.instanceSize))
 	return
 }
 
@@ -64,15 +64,15 @@ type VariationAxisRecord struct {
 }
 
 type InstanceRecord struct {
-	SubfamilyNameID  uint16      // The name ID for entries in the 'name' table that provide subfamily names for this instance.
+	SubfamilyNameID  NameID      // The name ID for entries in the 'name' table that provide subfamily names for this instance.
 	flags            uint16      // Reserved for future use — set to 0.
 	Coordinates      []Float1616 // [axisCount] The coordinates array for this instance.
-	PostScriptNameID uint16      `isOpaque:"" subsliceStart:"AtCurrent"` // Optional. The name ID for entries in the 'name' table that provide PostScript names for this instance.
+	PostScriptNameID NameID      `isOpaque:"" subsliceStart:"AtCurrent"` // Optional. The name ID for entries in the 'name' table that provide PostScript names for this instance.
 }
 
 func (ir *InstanceRecord) parsePostScriptNameID(src []byte, _ int) (int, error) {
 	if len(src) >= 2 {
-		ir.PostScriptNameID = binary.BigEndian.Uint16(src)
+		ir.PostScriptNameID = NameID(binary.BigEndian.Uint16(src))
 		return 2, nil
 	}
 	return 0, nil

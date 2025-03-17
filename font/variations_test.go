@@ -45,10 +45,17 @@ func TestVar(t *testing.T) {
 	tu.Assert(t, len(face.coords) == 1)
 	tu.Assert(t, face.coords[0] == -16117)
 
+	font = loadFont(t, "common/DejaVuSans.ttf") // not variable
+	face = Face{Font: font}
+	face.SetVariations([]Variation{{}})
+	tu.Assert(t, len(face.coords) == 0)
+
 	face.SetVariations(nil)
 	tu.Assert(t, len(face.coords) == 0)
 
 	font = loadFont(t, "common/NotoSansCJKjp-VF.otf")
+	axis, instances := font.Variations()
+	tu.Assert(t, len(axis) == 1 && len(instances) == 7)
 	for _, test := range []struct {
 		design     float32
 		normalized VarCoord
@@ -91,11 +98,11 @@ func TestGlyphExtentsVar(t *testing.T) {
 }
 
 func TestGetDefaultCoords(t *testing.T) {
-	tf := fvar{
+	tf := fvar{axis: []VariationAxis{
 		{Tag: ot.MustNewTag("wght"), Minimum: 38, Default: 88, Maximum: 250},
 		{Tag: ot.MustNewTag("wdth"), Minimum: 60, Default: 402, Maximum: 402},
 		{Tag: ot.MustNewTag("opsz"), Minimum: 10, Default: 14, Maximum: 72},
-	}
+	}}
 
 	vars := []Variation{
 		{Tag: ot.MustNewTag("wdth"), Value: 60},
@@ -105,9 +112,9 @@ func TestGetDefaultCoords(t *testing.T) {
 }
 
 func TestNormalizeVar(t *testing.T) {
-	tf := fvar{
+	tf := fvar{axis: []VariationAxis{
 		{Tag: ot.MustNewTag("wdth"), Minimum: 60, Default: 402, Maximum: 500},
-	}
+	}}
 
 	vars := []Variation{
 		{Tag: ot.MustNewTag("wdth"), Value: 60},
@@ -151,7 +158,8 @@ func TestAdvanceHVar(t *testing.T) {
 func TestAdvanceNoHVar(t *testing.T) {
 	font := loadFont(t, "toys/GVAR-no-HVAR.ttf")
 
-	tu.Assert(t, len(font.fvar) == 2)
+	axis, _ := font.Variations()
+	tu.Assert(t, len(axis) == 2)
 
 	vars := []Variation{
 		{Tag: ot.MustNewTag("wght"), Value: 600},

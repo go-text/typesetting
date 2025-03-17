@@ -205,5 +205,27 @@ func TestParseFvar(t *testing.T) {
 		fvar, _, err := ParseFvar(readTable(t, fp, "fvar"))
 		tu.AssertNoErr(t, err)
 		tu.Assert(t, len(fvar.Axis) == item.AxisCount)
+		tu.Assert(t, len(fvar.Instances) == item.InstancesCount)
 	}
+
+	// value extracted with fonttools
+
+	fp := readFontFile(t, "common/Selawik-VF.ttf")
+	fvar, _, err := ParseFvar(readTable(t, fp, "fvar"))
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, fvar.Instances[0].SubfamilyNameID == 257 && fvar.Instances[0].Coordinates[0] == 300)
+	tu.Assert(t, fvar.Instances[1].SubfamilyNameID == 258 && fvar.Instances[1].Coordinates[0] == 350)
+	tu.Assert(t, fvar.Instances[2].SubfamilyNameID == 259 && fvar.Instances[2].Coordinates[0] == 400)
+	tu.Assert(t, fvar.Instances[3].SubfamilyNameID == 260 && fvar.Instances[3].Coordinates[0] == 600)
+	tu.Assert(t, fvar.Instances[4].SubfamilyNameID == 261 && fvar.Instances[4].Coordinates[0] == 700)
+
+	fp = readFontFile(t, "common/SourceSans-VF.ttf")
+	fvar, _, err = ParseFvar(readTable(t, fp, "fvar"))
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, fvar.Instances[0].SubfamilyNameID == 266 && fvar.Instances[0].Coordinates[0] == 200)
+	tu.Assert(t, fvar.Instances[1].SubfamilyNameID == 268 && fvar.Instances[1].Coordinates[0] == 300)
+	tu.Assert(t, fvar.Instances[2].SubfamilyNameID == 270 && fvar.Instances[2].Coordinates[0] == 400)
+	tu.Assert(t, fvar.Instances[3].SubfamilyNameID == 272 && fvar.Instances[3].Coordinates[0] == 600)
+	tu.Assert(t, fvar.Instances[4].SubfamilyNameID == 274 && fvar.Instances[4].Coordinates[0] == 700)
+	tu.Assert(t, fvar.Instances[5].SubfamilyNameID == 276 && fvar.Instances[5].Coordinates[0] == 900)
 }

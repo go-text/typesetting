@@ -263,7 +263,7 @@ func (f *Face) HorizontalAdvance(gid GID) float32 {
 
 // return `true` is the font is variable and `Coords` is valid
 func (f *Face) isVar() bool {
-	return len(f.coords) != 0 && len(f.coords) == len(f.Font.fvar)
+	return len(f.coords) != 0 && len(f.coords) == len(f.Font.fvar.axis)
 }
 
 // HasVerticalMetrics returns true if a the 'vmtx' table is present.

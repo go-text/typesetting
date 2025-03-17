@@ -11,10 +11,37 @@ import (
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
-// axis records
-type fvar []tables.VariationAxisRecord
+type VariationAxis = tables.VariationAxisRecord
 
-func newFvar(table tables.Fvar) fvar { return table.FvarRecords.Axis }
+// VariationInstance exposes a set of predefined axis values.
+//
+// For one axis "wght", examples are :
+//   - {"Thin", Coords: {300}}
+//   - {"Regular", Coords: {400}}
+type VariationInstance struct {
+	Name   string
+	Coords []float32 // with length the number of axis, in design coordinates
+}
+
+// axis records
+type fvar struct {
+	axis      []tables.VariationAxisRecord
+	instances []VariationInstance
+}
+
+func newFvar(table tables.Fvar, names tables.Name) fvar {
+	out := fvar{
+		axis:      table.FvarRecords.Axis,
+		instances: make([]VariationInstance, len(table.Instances)),
+	}
+	for i, instance := range table.Instances {
+		out.instances[i] = VariationInstance{
+			Name:   names.Name(instance.SubfamilyNameID),
+			Coords: instance.Coordinates,
+		}
+	}
+	return out
+}
 
 type mvar struct {
 	store  tables.ItemVarStore
@@ -505,6 +532,18 @@ func sanitizeGDEF(table tables.GDEF, axisCount int) error {
 
 // ------------------------------------- external API -------------------------------------
 
+// Variations returns the (optional) variation axis and variation instances.
+//
+// Both slices will be empty for non variable fonts.
+//
+// The [VariationInstance.Coords] slices are readonly and must not
+// be modified.
+//
+// See also [Face.SetCoords] and [Font.NormalizeVariations] to activate variations.
+func (f *Font) Variations() ([]VariationAxis, []VariationInstance) {
+	return f.fvar.axis, f.fvar.instances
+}
+
 // Variation defines a value for a wanted variation axis.
 type Variation struct {
 	Tag   Tag     // Variation-axis identifier tag
@@ -521,7 +560,7 @@ func (face *Face) SetVariations(variations []Variation) {
 	}
 
 	fv := face.Font.fvar
-	if len(fv) == 0 { // the font is not variable...
+	if len(fv.axis) == 0 { // the font is not variable...
 		face.SetCoords(nil)
 		return
 	}
@@ -534,9 +573,9 @@ func (face *Face) SetVariations(variations []Variation) {
 // getDesignCoordsDefault returns the design coordinates corresponding to the given pairs of axis/value.
 // The default value of the axis is used when not specified in the variations.
 func (fv fvar) getDesignCoordsDefault(variations []Variation) []float32 {
-	designCoords := make([]float32, len(fv))
+	designCoords := make([]float32, len(fv.axis))
 	// start with default values
-	for i, axis := range fv {
+	for i, axis := range fv.axis {
 		designCoords[i] = axis.Default
 	}
 
@@ -550,7 +589,7 @@ func (fv fvar) getDesignCoordsDefault(variations []Variation) []float32 {
 func (fv fvar) getDesignCoords(variations []Variation, designCoords []float32) {
 	for _, variation := range variations {
 		// allow for multiple axis with the same tag
-		for index, axis := range fv {
+		for index, axis := range fv.axis {
 			if axis.Tag == variation.Tag {
 				designCoords[index] = variation.Value
 			}
@@ -561,7 +600,7 @@ func (fv fvar) getDesignCoords(variations []Variation, designCoords []float32) {
 // normalize based on the [min,def,max] values for the axis to be [-1,0,1].
 func (fv fvar) normalizeCoordinates(coords []float32) []VarCoord {
 	normalized := make([]VarCoord, len(coords))
-	for i, a := range fv {
+	for i, a := range fv.axis {
 		coord := coords[i]
 
 		// out of range: clamping

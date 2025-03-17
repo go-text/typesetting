@@ -234,9 +234,12 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	// Ignoring the errors on `RawTable` is OK : it will trigger an error on the next tables.ParseXXX,
 	// which in turn will return a zero value
 
+	raw, _ = ld.RawTable(ot.MustNewTag("name"))
+	out.names, _, _ = tables.ParseName(raw)
+
 	raw, _ = ld.RawTable(ot.MustNewTag("fvar"))
 	fvar, _, _ := tables.ParseFvar(raw)
-	out.fvar = newFvar(fvar)
+	out.fvar = newFvar(fvar, out.names)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("avar"))
 	out.avar, _, _ = tables.ParseAvar(raw)
@@ -257,7 +260,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	out.sbix = newSbix(sbix)
 
 	out.cff, _ = loadCff(ld, out.nGlyphs)
-	out.cff2, _ = loadCff2(ld, out.nGlyphs, len(out.fvar))
+	out.cff2, _ = loadCff2(ld, out.nGlyphs, len(out.fvar.axis))
 
 	raw, _ = ld.RawTable(ot.MustNewTag("post"))
 	post, _, _ := tables.ParsePost(raw)
@@ -270,7 +273,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	out.hhea, out.hmtx, _ = loadHmtx(ld, out.nGlyphs)
 	out.vhea, out.vmtx, _ = loadVmtx(ld, out.nGlyphs)
 
-	if axisCount := len(out.fvar); axisCount != 0 {
+	if axisCount := len(out.fvar.axis); axisCount != 0 {
 		raw, _ = ld.RawTable(ot.MustNewTag("MVAR"))
 		mvar, _, _ := tables.ParseMVAR(raw)
 		out.mvar, _ = newMvar(mvar, axisCount)
@@ -298,11 +301,8 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 		out.vorg = &vorg
 	}
 
-	raw, _ = ld.RawTable(ot.MustNewTag("name"))
-	out.names, _, _ = tables.ParseName(raw)
-
 	// layout tables
-	out.GDEF, _ = loadGDEF(ld, len(out.fvar))
+	out.GDEF, _ = loadGDEF(ld, len(out.fvar.axis))
 
 	raw, _ = ld.RawTable(ot.MustNewTag("GSUB"))
 	layout, _, err := tables.ParseLayout(raw)
