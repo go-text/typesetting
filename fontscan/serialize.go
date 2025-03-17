@@ -88,6 +88,7 @@ func (fp Footprint) serializeTo(dst []byte) []byte {
 	dst = append(dst, fp.Scripts.serialize()...)
 	dst = append(dst, fp.Langs.serialize()...)
 	dst = append(dst, serializeAspect(fp.Aspect)...)
+	dst = append(dst, fp.Variations.serialize()...)
 
 	return dst
 }
@@ -127,6 +128,11 @@ func (fp *Footprint) deserializeFrom(data []byte) (int, error) {
 	}
 	n += read
 	read, err = deserializeAspectFrom(data[n:], &fp.Aspect)
+	if err != nil {
+		return 0, err
+	}
+	n += read
+	read, err = fp.Variations.deserializeFrom(data[n:])
 	if err != nil {
 		return 0, err
 	}
@@ -185,7 +191,7 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 	return nil
 }
 
-const cacheFormatVersion = 6
+const cacheFormatVersion = 7
 
 func max(i, j int) int {
 	if i > j {

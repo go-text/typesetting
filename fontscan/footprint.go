@@ -40,6 +40,8 @@ type Footprint struct {
 	// of the font among a family, like "Bold Italic"
 	Aspect font.Aspect
 
+	Variations Variations
+
 	// isUserProvided is set to true for fonts add manually to
 	// a FontMap
 	// User fonts will always be tried if no other fonts match,
@@ -56,6 +58,8 @@ func newFootprintFromFont(f *font.Font, location Location, md font.Description) 
 	out.Family = font.NormalizeFamily(md.Family)
 	out.Aspect = md.Aspect
 	out.Location = location
+	axes, _ := f.Variations()
+	out.Variations = newVariations(axes)
 	out.isUserProvided = true
 	return out
 }
@@ -84,6 +88,18 @@ func newFootprintFromLoader(ld *ot.Loader, isUserProvided bool, buffer scanBuffe
 	cmap, _, err := font.ProcessCmap(tb, fp)
 	if err != nil {
 		return Footprint{}, buffer, err
+	}
+	// handle variable fonts
+	if ld.HasTable(fvarTag) {
+		raw, err = ld.RawTableTo(fvarTag, raw)
+		if err != nil {
+			return Footprint{}, buffer, err
+		}
+		fvar, _, err := tables.ParseFvar(raw)
+		if err != nil {
+			return Footprint{}, buffer, err
+		}
+		out.Variations = newVariations(fvar.Axis)
 	}
 
 	out.Runes, out.Scripts, buffer.cmapBuffer = newCoveragesFromCmap(cmap, buffer.cmapBuffer) // ... and build the corresponding rune set
