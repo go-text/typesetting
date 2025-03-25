@@ -39,9 +39,6 @@ type Glyf []Glyph
 // ParseGlyf parses the 'glyf' table.
 // locaOffsets has length numGlyphs + 1, and is returned by ParseLoca
 func ParseGlyf(src []byte, locaOffsets []uint32) (Glyf, error) {
-	if len(src) == 0 {
-		return Glyf{}, nil
-	}
 	out := make(Glyf, len(locaOffsets)-1)
 	var err error
 	for i := range out {
