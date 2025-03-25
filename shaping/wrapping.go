@@ -268,6 +268,9 @@ func (option breakOption) isValid(runeToGlyph []int, out Output) bool {
 		// Check if this break is valid.
 		gIdx := runeToGlyph[breakAfter]
 		g2Idx := runeToGlyph[nextRune]
+		if gIdx >= len(out.Glyphs) || g2Idx >= len(out.Glyphs) {
+			return false
+		}
 		cIdx := out.Glyphs[gIdx].ClusterIndex
 		c2Idx := out.Glyphs[g2Idx].ClusterIndex
 		if cIdx == c2Idx {
