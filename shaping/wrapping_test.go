@@ -3495,3 +3495,46 @@ func TestComputeBidiOrdering(t *testing.T) {
 		})
 	}
 }
+
+func TestRequiredBreaks(t *testing.T) {
+	// assume single run, 1 to 1 rune <-> glyph mapping
+	shapedText := func(text []rune, line Line) string {
+		tu.Assert(t, len(line) == 1)
+		runLine := line[0]
+		var s []rune
+		for _, g := range runLine.Glyphs {
+			s = append(s, text[g.ClusterIndex])
+		}
+		return string(s)
+	}
+
+	text := []rune("The\nquick\nbrown\nfox")
+
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	run := (&HarfbuzzShaper{}).Shape(Input{
+		Text:   text,
+		Face:   face,
+		Size:   72,
+		RunEnd: len(text),
+	})
+	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
+
+	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{BreakPolicy: Always}, 100, text, NewSliceIterator([]Output{run}))
+
+	expected := []string{
+		"The\n",
+		"quick\n",
+		"brown\n",
+		"fox",
+	}
+	if len(lines) != len(expected) {
+		t.Errorf("expected %d lines, got %d", len(expected), len(lines))
+	}
+	tu.Assert(t, len(lines) == 4)
+	for i, line := range lines {
+		s := shapedText(text, line)
+		if s != expected[i] {
+			t.Errorf("expected %s, got %s", expected[i], s)
+		}
+	}
+}
