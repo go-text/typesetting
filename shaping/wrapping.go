@@ -255,6 +255,8 @@ func cutRun(run Output, mapping []glyphIndex, startRune, endRune int, trimStart 
 type breakOption struct {
 	// breakAtRune is the index at which it is safe to break.
 	breakAtRune int
+	// required indicates that the break option is mandatory.
+	required bool
 }
 
 // isValid returns whether a given option violates shaping rules (like breaking
@@ -313,8 +315,12 @@ func (b *breaker) nextWordRaw() (option breakOption, ok bool) {
 		currentSegment := b.wordSegmenter.Line()
 		// Note : we dont use penalties for Mandatory Breaks so far,
 		// we could add it with currentSegment.IsMandatoryBreak
+		breakAtRune := currentSegment.Offset + len(currentSegment.Text) - 1
 		option := breakOption{
-			breakAtRune: currentSegment.Offset + len(currentSegment.Text) - 1,
+			breakAtRune: breakAtRune,
+			// Don't treat the EOF line break as special. We implicitly always break after
+			// the end of text input anyway.
+			required: currentSegment.IsMandatoryBreak && breakAtRune != b.totalRunes-1,
 		}
 		return option, true
 	}
@@ -777,11 +783,28 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
 	if !(config.TextContinues && config.TruncateAfterLines == 1) {
 		runs.Save()
-		_, firstRun, hasFirst := runs.Next()
-		_, _, hasSecond := runs.Peek()
-		if hasFirst && !hasSecond {
-			if firstRun.Advance.Ceil() <= maxWidth {
-				return l.scratch.singleRunParagraph(firstRun), 0
+		// We can only skip wrapping if the text doesn't contain any forced line
+		// breaks that need to be evaluated by the real algorithm, so we need to
+		// quickly scan it for that.
+		l.breaker = newBreaker(&l.seg, paragraph)
+		hasMandatoryBreak := false
+		for {
+			option, ok := l.breaker.nextWordBreak()
+			if !ok {
+				break
+			}
+			if option.required {
+				hasMandatoryBreak = true
+				break
+			}
+		}
+		if !hasMandatoryBreak {
+			_, firstRun, hasFirst := runs.Next()
+			_, _, hasSecond := runs.Peek()
+			if hasFirst && !hasSecond {
+				if firstRun.Advance.Ceil() <= maxWidth {
+					return l.scratch.singleRunParagraph(firstRun), 0
+				}
 			}
 		}
 		runs.Restore()
@@ -988,36 +1011,14 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (out WrappedLine, done bool) {
 	}()
 
 	// If the iterator is empty, return early.
-	_, firstRun, hasFirst := l.glyphRuns.Peek()
+	_, _, hasFirst := l.glyphRuns.Peek()
 	if !hasFirst {
 		return WrappedLine{}, true
 	}
 	l.scratch.startLine()
-	truncating := l.config.TruncateAfterLines == 1
-
-	// If we're not truncating, the iterator contains only one run, and that run fits, take the fast path.
-	if !(l.config.TextContinues && truncating) && firstRun.Runes.Offset == l.lineStartRune && firstRun.Advance.Ceil() <= maxWidth {
-		// Save current iterator state so we can peek ahead.
-		l.glyphRuns.Save()
-		// Advance beyond firstRun, which we already know from the Peek() above.
-		_, _, _ = l.glyphRuns.Next()
-		_, _, hasSecond := l.glyphRuns.Peek()
-		emptyLine := len(firstRun.Glyphs) == 0
-		if emptyLine || !hasSecond {
-			if emptyLine {
-				// Pass empty lines through as empty.
-				firstRun.Runes = Range{Count: l.breaker.totalRunes}
-			}
-			l.scratch.candidateAppend(firstRun)
-			l.scratch.markCandidateBest()
-			return WrappedLine{Line: l.scratch.finalizeBest()}, true
-		}
-		// Restore iterator state in preparation for real line wrapping algorithm.
-		l.glyphRuns.Restore()
-	}
 
 	config := lineConfig{
-		truncating:        truncating,
+		truncating:        l.config.TruncateAfterLines == 1,
 		maxWidth:          maxWidth,
 		truncatedMaxWidth: maxWidth - l.config.Truncator.Advance.Ceil(),
 	}
@@ -1056,6 +1057,9 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 			continue
 		case fits:
 			l.scratch.markCandidateBest(candidateRun)
+			if option.required {
+				return false
+			}
 			continue
 		case endLine:
 			// Found a valid line ending the text, append the candidateRun and use it.
