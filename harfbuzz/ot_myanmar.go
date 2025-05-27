@@ -33,7 +33,7 @@ func setMyanmarProperties(info *GlyphInfo) {
  * consonant syllable logic from the vowel syllable function and get it all right!
  *
  * Keep in sync with consonant_categories in the generator. */
-const consonantFlagsMyanmar = (1 << myaSM_ex_C) | 1<<myaSM_ex_CS | myaSM_ex_Ra |
+const consonantFlagsMyanmar = (1 << myaSM_ex_C) | 1<<myaSM_ex_CS | 1<<myaSM_ex_Ra |
 	1<<myaSM_ex_IV | 1<<myaSM_ex_GB | 1<<myaSM_ex_DOTTEDCIRCLE
 
 func isConsonantMyanmar(info *GlyphInfo) bool {
