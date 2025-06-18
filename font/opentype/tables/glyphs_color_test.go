@@ -7,7 +7,7 @@ import (
 )
 
 func TestCOLR(t *testing.T) {
-	ft := readFontFile(t, "common/NotoColorEmoji-Regular.ttf")
+	ft := readFontFile(t, "color/NotoColorEmoji-Regular.ttf")
 	colr, err := ParseCOLR(readTable(t, ft, "COLR"))
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(colr.BaseGlyphRecords) == 0)
@@ -18,7 +18,7 @@ func TestCOLR(t *testing.T) {
 	tu.Assert(t, colr.ClipList.Clips[0].ClipBox == ClipBoxFormat1{1, 480, 192, 800, 512})
 	tu.Assert(t, colr.VarIndexMap == nil && colr.ItemVariationStore == nil)
 
-	ft = readFontFile(t, "common/CoralPixels-Regular.ttf")
+	ft = readFontFile(t, "color/CoralPixels-Regular.ttf")
 	colr, err = ParseCOLR(readTable(t, ft, "COLR"))
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(colr.BaseGlyphRecords) == 335)
