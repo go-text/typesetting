@@ -14,9 +14,17 @@ func TestCOLR(t *testing.T) {
 	tu.Assert(t, len(colr.LayerRecords) == 0)
 	tu.Assert(t, len(colr.BaseGlyphList.PaintRecords) == 3845)
 	tu.Assert(t, colr.BaseGlyphList.PaintRecords[0].Paint == PaintColrLayers{1, 3, 47625})
-	tu.Assert(t, len(colr.LayerList.PaintTables) == 69264)
 	tu.Assert(t, colr.ClipList.Clips[0].ClipBox == ClipBoxFormat1{1, 480, 192, 800, 512})
 	tu.Assert(t, colr.VarIndexMap == nil && colr.ItemVariationStore == nil)
+	tu.Assert(t, len(colr.LayerList.PaintTables) == 69264)
+
+	// reference from fonttools
+	paint := colr.LayerList.PaintTables[6]
+	transform, ok := paint.(PaintTransform)
+	tu.Assert(t, ok)
+	_, innerOK := transform.Paint.(PaintGlyph)
+	tu.Assert(t, transform.Transform == Affine2x3{1, 0, 0, 1, 4.3119965, 0.375})
+	tu.Assert(t, innerOK)
 
 	ft = readFontFile(t, "color/CoralPixels-Regular.ttf")
 	colr, err = ParseCOLR(readTable(t, ft, "COLR"))

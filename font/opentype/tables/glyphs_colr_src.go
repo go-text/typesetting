@@ -90,11 +90,61 @@ type ClipBoxFormat1 struct {
 // variable clip box
 type ClipBoxFormat2 struct {
 	format       byte   `unionTag:"2"`
-	XMin         int16  // 	Minimum x of clip box. For variation, use varIndexBase + 0.
-	YMin         int16  // 	Minimum y of clip box. For variation, use varIndexBase + 1.
-	XMax         int16  // 	Maximum x of clip box. For variation, use varIndexBase + 2.
-	YMax         int16  // 	Maximum y of clip box. For variation, use varIndexBase + 3.
-	VarIndexBase uint32 // 	Base index into DeltaSetIndexMap.
+	XMin         int16  // Minimum x of clip box. For variation, use varIndexBase + 0.
+	YMin         int16  // Minimum y of clip box. For variation, use varIndexBase + 1.
+	XMax         int16  // Maximum x of clip box. For variation, use varIndexBase + 2.
+	YMax         int16  // Maximum y of clip box. For variation, use varIndexBase + 3.
+	VarIndexBase uint32 // Base index into DeltaSetIndexMap.
+}
+
+type ColorStop struct {
+	StopOffset   Fixed214 // Position on a color line.
+	PaletteIndex uint16   // Index for a CPAL palette entry.
+	Alpha        Fixed214 // Alpha value.
+}
+
+type VarColorStop struct {
+	StopOffset   Fixed214 // Position on a color line. For variation, use varIndexBase + 0.
+	PaletteIndex uint16   // Index for a CPAL palette entry.
+	Alpha        Fixed214 // Alpha value. For variation, use varIndexBase + 1.
+	VarIndexBase uint32   // Base index into DeltaSetIndexMap
+}
+
+type Extend uint8
+
+const (
+	ExtendPad     Extend = iota // Use nearest color stop.
+	ExtendRepeat                // Repeat from farthest color stop.
+	ExtendReflect               // Mirror color line from nearest end.
+)
+
+type ColorLine struct {
+	Extend     Extend      // An Extend enum value.
+	ColorStops []ColorStop `arrayCount:"FirstUint16"` // [numStops]
+}
+
+type VarColorLine struct {
+	Extend     Extend         // An Extend enum value.
+	ColorStops []VarColorStop `arrayCount:"FirstUint16"` // [numStops] Allows for variations.
+}
+
+type Affine2x3 struct {
+	Xx Float1616 // x-component of transformed x-basis vector.
+	Yx Float1616 // y-component of transformed x-basis vector.
+	Xy Float1616 // x-component of transformed y-basis vector.
+	Yy Float1616 // y-component of transformed y-basis vector.
+	Dx Float1616 // Translation in x direction.
+	Dy Float1616 // Translation in y direction.
+}
+
+type VarAffine2x3 struct {
+	Xx           Float1616 // x-component of transformed x-basis vector. For variation, use varIndexBase + 0.
+	Yx           Float1616 // y-component of transformed x-basis vector. For variation, use varIndexBase + 1.
+	Xy           Float1616 // x-component of transformed y-basis vector. For variation, use varIndexBase + 2.
+	Yy           Float1616 // y-component of transformed y-basis vector. For variation, use varIndexBase + 3.
+	Dx           Float1616 // Translation in x direction. For variation, use varIndexBase + 4.
+	Dy           Float1616 // Translation in y direction. For variation, use varIndexBase + 5.
+	VarIndexBase uint32    // Base index into DeltaSetIndexMap.
 }
 
 type PaintTable interface {
@@ -134,8 +184,6 @@ func (PaintSkewAroundCenter) isPaintTable()            {}
 func (PaintVarSkewAroundCenter) isPaintTable()         {}
 func (PaintComposite) isPaintTable()                   {}
 
-type Offset24 [3]byte // TODO:
-
 // (format 1)
 type PaintColrLayers struct {
 	format          byte   `unionTag:"1"`
@@ -160,80 +208,80 @@ type PaintVarSolid struct {
 
 // (format 4)
 type PaintLinearGradient struct {
-	format          byte     `unionTag:"4"`
-	ColorLineOffset Offset24 // Offset to ColorLine table, from beginning of PaintLinearGradient table.
-	X0              int16    // Start point (p₀) x coordinate.
-	Y0              int16    // Start point (p₀) y coordinate.
-	X1              int16    // End point (p₁) x coordinate.
-	Y1              int16    // End point (p₁) y coordinate.
-	X2              int16    // Rotation point (p₂) x coordinate.
-	Y2              int16    // Rotation point (p₂) y coordinate.
+	format    byte      `unionTag:"4"`
+	ColorLine ColorLine `offsetSize:"Offset24"` // Offset to ColorLine table, from beginning of PaintLinearGradient table.
+	X0        int16     // Start point (p₀) x coordinate.
+	Y0        int16     // Start point (p₀) y coordinate.
+	X1        int16     // End point (p₁) x coordinate.
+	Y1        int16     // End point (p₁) y coordinate.
+	X2        int16     // Rotation point (p₂) x coordinate.
+	Y2        int16     // Rotation point (p₂) y coordinate.
 }
 
 // (format 5)
 type PaintVarLinearGradient struct {
-	format          byte     `unionTag:"5"`
-	ColorLineOffset Offset24 // Offset to VarColorLine table, from beginning of PaintVarLinearGradient table.
-	X0              int16    // Start point (p₀) x coordinate. For variation, use varIndexBase + 0.
-	Y0              int16    // Start point (p₀) y coordinate. For variation, use varIndexBase + 1.
-	X1              int16    // End point (p₁) x coordinate. For variation, use varIndexBase + 2.
-	Y1              int16    // End point (p₁) y coordinate. For variation, use varIndexBase + 3.
-	X2              int16    // Rotation point (p₂) x coordinate. For variation, use varIndexBase + 4.
-	Y2              int16    // Rotation point (p₂) y coordinate. For variation, use varIndexBase + 5.
-	VarIndexBase    uint32   // Base index into DeltaSetIndexMap.
+	format       byte         `unionTag:"5"`
+	ColorLine    VarColorLine `offsetSize:"Offset24"` // Offset to VarColorLine table, from beginning of PaintVarLinearGradient table.
+	X0           int16        // Start point (p₀) x coordinate. For variation, use varIndexBase + 0.
+	Y0           int16        // Start point (p₀) y coordinate. For variation, use varIndexBase + 1.
+	X1           int16        // End point (p₁) x coordinate. For variation, use varIndexBase + 2.
+	Y1           int16        // End point (p₁) y coordinate. For variation, use varIndexBase + 3.
+	X2           int16        // Rotation point (p₂) x coordinate. For variation, use varIndexBase + 4.
+	Y2           int16        // Rotation point (p₂) y coordinate. For variation, use varIndexBase + 5.
+	VarIndexBase uint32       // Base index into DeltaSetIndexMap.
 }
 
 // (format 6)
 type PaintRadialGradient struct {
-	format          byte     `unionTag:"6"`
-	ColorLineOffset Offset24 // Offset to ColorLine table, from beginning of PaintRadialGradient table.
-	X0              int16    // Start circle center x coordinate.
-	Y0              int16    // Start circle center y coordinate.
-	Radius0         uint16   // Start circle radius.
-	X1              int16    // End circle center x coordinate.
-	Y1              int16    // End circle center y coordinate.
-	Radius1         uint16   // End circle radius.
+	format    byte      `unionTag:"6"`
+	ColorLine ColorLine `offsetSize:"Offset24"` // Offset to ColorLine table, from beginning of PaintRadialGradient table.
+	X0        int16     // Start circle center x coordinate.
+	Y0        int16     // Start circle center y coordinate.
+	Radius0   uint16    // Start circle radius.
+	X1        int16     // End circle center x coordinate.
+	Y1        int16     // End circle center y coordinate.
+	Radius1   uint16    // End circle radius.
 }
 
 // (format 7)
 type PaintVarRadialGradient struct {
-	format          byte     `unionTag:"7"`
-	ColorLineOffset Offset24 // Offset to VarColorLine table, from beginning of PaintVarRadialGradient table.
-	X0              int16    // Start circle center x coordinate. For variation, use varIndexBase + 0.
-	Y0              int16    // Start circle center y coordinate. For variation, use varIndexBase + 1.
-	Radius0         uint16   // Start circle radius. For variation, use varIndexBase + 2.
-	X1              int16    // End circle center x coordinate. For variation, use varIndexBase + 3.
-	Y1              int16    // End circle center y coordinate. For variation, use varIndexBase + 4.
-	Radius1         uint16   // End circle radius. For variation, use varIndexBase + 5.
-	VarIndexBase    uint32   // Base index into DeltaSetIndexMap.
+	format       byte         `unionTag:"7"`
+	ColorLine    VarColorLine `offsetSize:"Offset24"` // Offset to VarColorLine table, from beginning of PaintVarRadialGradient table.
+	X0           int16        // Start circle center x coordinate. For variation, use varIndexBase + 0.
+	Y0           int16        // Start circle center y coordinate. For variation, use varIndexBase + 1.
+	Radius0      uint16       // Start circle radius. For variation, use varIndexBase + 2.
+	X1           int16        // End circle center x coordinate. For variation, use varIndexBase + 3.
+	Y1           int16        // End circle center y coordinate. For variation, use varIndexBase + 4.
+	Radius1      uint16       // End circle radius. For variation, use varIndexBase + 5.
+	VarIndexBase uint32       // Base index into DeltaSetIndexMap.
 }
 
 // (format 8)
 type PaintSweepGradient struct {
-	format          byte     `unionTag:"8"`
-	ColorLineOffset Offset24 // Offset to ColorLine table, from beginning of PaintSweepGradient table.
-	CenterX         int16    // Center x coordinate.
-	CenterY         int16    // Center y coordinate.
-	StartAngle      Fixed214 // Start of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees.
-	EndAngle        Fixed214 // End of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees.
+	format     byte      `unionTag:"8"`
+	ColorLine  ColorLine `offsetSize:"Offset24"` // Offset to ColorLine table, from beginning of PaintSweepGradient table.
+	CenterX    int16     // Center x coordinate.
+	CenterY    int16     // Center y coordinate.
+	StartAngle Fixed214  // Start of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees.
+	EndAngle   Fixed214  // End of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees.
 }
 
 // (format 9)
 type PaintVarSweepGradient struct {
-	format          byte     `unionTag:"9"`
-	ColorLineOffset Offset24 // Offset to VarColorLine table, from beginning of PaintVarSweepGradient table.
-	CenterX         int16    // Center x coordinate. For variation, use varIndexBase + 0.
-	CenterY         int16    // Center y coordinate. For variation, use varIndexBase + 1.
-	StartAngle      Fixed214 // Start of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees. For variation, use varIndexBase + 2.
-	EndAngle        Fixed214 // End of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees. For variation, use varIndexBase + 3.
-	VarIndexBase    uint32   // Base index into DeltaSetIndexMap.
+	format       byte         `unionTag:"9"`
+	ColorLine    VarColorLine `offsetSize:"Offset24"` // Offset to VarColorLine table, from beginning of PaintVarSweepGradient table.
+	CenterX      int16        // Center x coordinate. For variation, use varIndexBase + 0.
+	CenterY      int16        // Center y coordinate. For variation, use varIndexBase + 1.
+	StartAngle   Fixed214     // Start of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees. For variation, use varIndexBase + 2.
+	EndAngle     Fixed214     // End of the angular range of the gradient: add 1.0 and multiply by 180° to retrieve counter-clockwise degrees. For variation, use varIndexBase + 3.
+	VarIndexBase uint32       // Base index into DeltaSetIndexMap.
 }
 
 // (format 10)
 type PaintGlyph struct {
-	format      byte     `unionTag:"10"`
-	PaintOffset Offset24 // Offset to a Paint table, from beginning of PaintGlyph table.
-	GlyphID     uint16   // Glyph ID for the source outline.
+	format  byte       `unionTag:"10"`
+	Paint   PaintTable `offsetSize:"Offset24"` // Offset to a Paint table, from beginning of PaintGlyph table.
+	GlyphID uint16     // Glyph ID for the source outline.
 }
 
 // (format 11)
@@ -244,183 +292,219 @@ type PaintColrGlyph struct {
 
 // (format 12)
 type PaintTransform struct {
-	format          byte     `unionTag:"12"`
-	PaintOffset     Offset24 // Offset to a Paint subtable, from beginning of PaintTransform table.
-	TransformOffset Offset24 // Offset to an Affine2x3 table, from beginning of PaintTransform table.
+	format    byte       `unionTag:"12"`
+	Paint     PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintTransform table.
+	Transform Affine2x3  `offsetSize:"Offset24"` // Offset to an Affine2x3 table, from beginning of PaintTransform table.
 }
 
 // (format 13)
 type PaintVarTransform struct {
-	format          byte     `unionTag:"13"`
-	PaintOffset     Offset24 // Offset to a Paint subtable, from beginning of PaintVarTransform table.
-	TransformOffset Offset24 // Offset to a VarAffine2x3 table, from beginning of PaintVarTransform table.
+	format    byte         `unionTag:"13"`
+	Paint     PaintTable   `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarTransform table.
+	Transform VarAffine2x3 `offsetSize:"Offset24"` // Offset to a VarAffine2x3 table, from beginning of PaintVarTransform table.
 }
 
 // (format 14)
 type PaintTranslate struct {
-	format      byte     `unionTag:"14"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintTranslate table.
-	Dx          int16    // Translation in x direction.
-	Dy          int16    // Translation in y direction.
+	format byte       `unionTag:"14"`
+	Paint  PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintTranslate table.
+	Dx     int16      // Translation in x direction.
+	Dy     int16      // Translation in y direction.
 }
 
 // (format 15)
 type PaintVarTranslate struct {
-	format       byte     `unionTag:"15"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarTranslate table.
-	Dx           int16    // Translation in x direction. For variation, use varIndexBase + 0.
-	Dy           int16    // Translation in y direction. For variation, use varIndexBase + 1.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"15"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarTranslate table.
+	Dx           int16      // Translation in x direction. For variation, use varIndexBase + 0.
+	Dy           int16      // Translation in y direction. For variation, use varIndexBase + 1.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 16)
 type PaintScale struct {
-	format      byte     `unionTag:"16"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintScale table.
-	ScaleX      Fixed214 // Scale factor in x direction.
-	ScaleY      Fixed214 // Scale factor in y direction.
+	format byte       `unionTag:"16"`
+	Paint  PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintScale table.
+	ScaleX Fixed214   // Scale factor in x direction.
+	ScaleY Fixed214   // Scale factor in y direction.
 }
 
 // (format 17)
 type PaintVarScale struct {
-	format       byte     `unionTag:"17"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarScale table.
-	ScaleX       Fixed214 // Scale factor in x direction. For variation, use varIndexBase + 0.
-	ScaleY       Fixed214 // Scale factor in y direction. For variation, use varIndexBase + 1.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"17"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarScale table.
+	ScaleX       Fixed214   // Scale factor in x direction. For variation, use varIndexBase + 0.
+	ScaleY       Fixed214   // Scale factor in y direction. For variation, use varIndexBase + 1.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 18)
 type PaintScaleAroundCenter struct {
-	format      byte     `unionTag:"18"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintScaleAroundCenter table.
-	ScaleX      Fixed214 // Scale factor in x direction.
-	ScaleY      Fixed214 // Scale factor in y direction.
-	CenterX     int16    // x coordinate for the center of scaling.
-	CenterY     int16    // y coordinate for the center of scaling.
+	format  byte       `unionTag:"18"`
+	Paint   PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintScaleAroundCenter table.
+	ScaleX  Fixed214   // Scale factor in x direction.
+	ScaleY  Fixed214   // Scale factor in y direction.
+	CenterX int16      // x coordinate for the center of scaling.
+	CenterY int16      // y coordinate for the center of scaling.
 }
 
 // (format 19)
 type PaintVarScaleAroundCenter struct {
-	format       byte     `unionTag:"19"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarScaleAroundCenter table.
-	ScaleX       Fixed214 // Scale factor in x direction. For variation, use varIndexBase + 0.
-	ScaleY       Fixed214 // Scale factor in y direction. For variation, use varIndexBase + 1.
-	CenterX      int16    // x coordinate for the center of scaling. For variation, use varIndexBase + 2.
-	CenterY      int16    // y coordinate for the center of scaling. For variation, use varIndexBase + 3.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"19"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarScaleAroundCenter table.
+	ScaleX       Fixed214   // Scale factor in x direction. For variation, use varIndexBase + 0.
+	ScaleY       Fixed214   // Scale factor in y direction. For variation, use varIndexBase + 1.
+	CenterX      int16      // x coordinate for the center of scaling. For variation, use varIndexBase + 2.
+	CenterY      int16      // y coordinate for the center of scaling. For variation, use varIndexBase + 3.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 20)
 type PaintScaleUniform struct {
-	format      byte     `unionTag:"20"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintScaleUniform table.
-	Scale       Fixed214 // Scale factor in x and y directions.
+	format byte       `unionTag:"20"`
+	Paint  PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintScaleUniform table.
+	Scale  Fixed214   // Scale factor in x and y directions.
 }
 
 // (format 21)
 type PaintVarScaleUniform struct {
-	format       byte     `unionTag:"21"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarScaleUniform table.
-	Scale        Fixed214 // Scale factor in x and y directions. For variation, use varIndexBase + 0.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"21"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarScaleUniform table.
+	Scale        Fixed214   // Scale factor in x and y directions. For variation, use varIndexBase + 0.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 22)
 type PaintScaleUniformAroundCenter struct {
-	format      byte     `unionTag:"22"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintScaleUniformAroundCenter table.
-	Scale       Fixed214 // Scale factor in x and y directions.
-	CenterX     int16    // x coordinate for the center of scaling.
-	CenterY     int16    // y coordinate for the center of scaling.
+	format  byte       `unionTag:"22"`
+	Paint   PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintScaleUniformAroundCenter table.
+	Scale   Fixed214   // Scale factor in x and y directions.
+	CenterX int16      // x coordinate for the center of scaling.
+	CenterY int16      // y coordinate for the center of scaling.
 }
 
 // (format 23)
 type PaintVarScaleUniformAroundCenter struct {
-	format       byte     `unionTag:"23"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarScaleUniformAroundCenter table.
-	Scale        Fixed214 // Scale factor in x and y directions. For variation, use varIndexBase + 0.
-	CenterX      int16    // x coordinate for the center of scaling. For variation, use varIndexBase + 1.
-	CenterY      int16    // y coordinate for the center of scaling. For variation, use varIndexBase + 2.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"23"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarScaleUniformAroundCenter table.
+	Scale        Fixed214   // Scale factor in x and y directions. For variation, use varIndexBase + 0.
+	CenterX      int16      // x coordinate for the center of scaling. For variation, use varIndexBase + 1.
+	CenterY      int16      // y coordinate for the center of scaling. For variation, use varIndexBase + 2.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 24)
 type PaintRotate struct {
-	format      byte     `unionTag:"24"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintRotate table.
-	Angle       Fixed214 // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value.
+	format byte       `unionTag:"24"`
+	Paint  PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintRotate table.
+	Angle  Fixed214   // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value.
 }
 
 // (format 25)
 type PaintVarRotate struct {
-	format       byte     `unionTag:"25"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarRotate table.
-	Angle        Fixed214 // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"25"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarRotate table.
+	Angle        Fixed214   // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 26)
 type PaintRotateAroundCenter struct {
-	format      byte     `unionTag:"26"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintRotateAroundCenter table.
-	Angle       Fixed214 // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value.
-	CenterX     int16    // x coordinate for the center of rotation.
-	CenterY     int16    // y coordinate for the center of rotation.
+	format  byte       `unionTag:"26"`
+	Paint   PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintRotateAroundCenter table.
+	Angle   Fixed214   // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value.
+	CenterX int16      // x coordinate for the center of rotation.
+	CenterY int16      // y coordinate for the center of rotation.
 }
 
 // (format 27)
 type PaintVarRotateAroundCenter struct {
-	format       byte     `unionTag:"27"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarRotateAroundCenter table.
-	Angle        Fixed214 // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
-	CenterX      int16    // x coordinate for the center of rotation. For variation, use varIndexBase + 1.
-	CenterY      int16    // y coordinate for the center of rotation. For variation, use varIndexBase + 2.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"27"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarRotateAroundCenter table.
+	Angle        Fixed214   // Rotation angle, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
+	CenterX      int16      // x coordinate for the center of rotation. For variation, use varIndexBase + 1.
+	CenterY      int16      // y coordinate for the center of rotation. For variation, use varIndexBase + 2.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 28)
 type PaintSkew struct {
-	format      byte     `unionTag:"28"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintSkew table.
-	XSkewAngle  Fixed214 // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value.
-	YSkewAngle  Fixed214 // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value.
+	format     byte       `unionTag:"28"`
+	Paint      PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintSkew table.
+	XSkewAngle Fixed214   // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value.
+	YSkewAngle Fixed214   // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value.
 }
 
 // (format 29)
 type PaintVarSkew struct {
-	format       byte     `unionTag:"29"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarSkew table.
-	XSkewAngle   Fixed214 // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
-	YSkewAngle   Fixed214 // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 1.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"29"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarSkew table.
+	XSkewAngle   Fixed214   // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
+	YSkewAngle   Fixed214   // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 1.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 30)
 type PaintSkewAroundCenter struct {
-	format      byte     `unionTag:"30"`
-	PaintOffset Offset24 // Offset to a Paint subtable, from beginning of PaintSkewAroundCenter table.
-	XSkewAngle  Fixed214 // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value.
-	YSkewAngle  Fixed214 // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value.
-	CenterX     int16    // x coordinate for the center of rotation.
-	CenterY     int16    // y coordinate for the center of rotation.
+	format     byte       `unionTag:"30"`
+	Paint      PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintSkewAroundCenter table.
+	XSkewAngle Fixed214   // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value.
+	YSkewAngle Fixed214   // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value.
+	CenterX    int16      // x coordinate for the center of rotation.
+	CenterY    int16      // y coordinate for the center of rotation.
 }
 
 // (format 31)
 type PaintVarSkewAroundCenter struct {
-	format       byte     `unionTag:"31"`
-	PaintOffset  Offset24 // Offset to a Paint subtable, from beginning of PaintVarSkewAroundCenter table.
-	XSkewAngle   Fixed214 // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
-	YSkewAngle   Fixed214 // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 1.
-	CenterX      int16    // x coordinate for the center of rotation. For variation, use varIndexBase + 2.
-	CenterY      int16    // y coordinate for the center of rotation. For variation, use varIndexBase + 3.
-	VarIndexBase uint32   // Base index into DeltaSetIndexMap.
+	format       byte       `unionTag:"31"`
+	Paint        PaintTable `offsetSize:"Offset24"` // Offset to a Paint subtable, from beginning of PaintVarSkewAroundCenter table.
+	XSkewAngle   Fixed214   // Angle of skew in the direction of the x-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 0.
+	YSkewAngle   Fixed214   // Angle of skew in the direction of the y-axis, 180° in counter-clockwise degrees per 1.0 of value. For variation, use varIndexBase + 1.
+	CenterX      int16      // x coordinate for the center of rotation. For variation, use varIndexBase + 2.
+	CenterY      int16      // y coordinate for the center of rotation. For variation, use varIndexBase + 3.
+	VarIndexBase uint32     // Base index into DeltaSetIndexMap.
 }
 
 // (format 32)
 type PaintComposite struct {
-	format              byte     `unionTag:"32"`
-	SourcePaintOffset   Offset24 // Offset to a source Paint table, from beginning of PaintComposite table.
-	CompositeMode       uint8    // A CompositeMode enumeration value.
-	BackdropPaintOffset Offset24 // Offset to a backdrop Paint table, from beginning of PaintComposite table.
+	format        byte          `unionTag:"32"`
+	SourcePaint   PaintTable    `offsetSize:"Offset24"` // Offset to a source Paint table, from beginning of PaintComposite table.
+	CompositeMode CompositeMode // A CompositeMode enumeration value.
+	BackdropPaint PaintTable    `offsetSize:"Offset24"` // Offset to a backdrop Paint table, from beginning of PaintComposite table.
 }
+
+type CompositeMode uint8
+
+const (
+	//	Porter-Duff modes
+	CompositeClear    CompositeMode = iota // Clear
+	CompositeSrc                           // Source (“Copy” in Composition & Blending Level 1)
+	CompositeDest                          // Destination
+	CompositeSrcOver                       // Source Over
+	CompositeDestOver                      // Destination Over
+	CompositeSrcIn                         // Source In
+	CompositeDestIn                        // Destination In
+	CompositeSrcOut                        // Source Out
+	CompositeDestOut                       // Destination Out
+	CompositeSrcAtop                       // Source Atop
+	CompositeDestAtop                      // Destination Atop
+	CompositeXor                           // XOR
+	CompositePlus                          // Plus (“Lighter” in Composition & Blending Level 1)
+	//  Separable color blend modes:
+	CompositeScreen     // screen
+	CompositeOverlay    // overlay
+	CompositeDarken     // darken
+	CompositeLighten    // lighten
+	CompositeColorDodge // color-dodge
+	CompositeColorBurn  // color-burn
+	CompositeHardLight  // hard-light
+	CompositeSoftLight  // soft-light
+	CompositeDifference // difference
+	CompositeExclusion  // exclusion
+	CompositeMultiply   // multiply
+	// Non-separable color blend modes:
+	CompositeHslHue        // hue
+	CompositeHslSaturation // saturation
+	CompositeHslColor      // color
+	CompositeHslLuminosity // luminosity
+)
