@@ -17,37 +17,11 @@ func (item *ColorRecord) mustParse(src []byte) {
 	item.Alpha = src[3]
 }
 
-func ParseCPAL1(src []byte) (CPAL1, int, error) {
-	var item CPAL1
-	n := 0
-	{
-		var (
-			err  error
-			read int
-		)
-		item.cpal0, read, err = parseCpal0(src[0:])
-		if err != nil {
-			return item, 0, fmt.Errorf("reading CPAL1: %s", err)
-		}
-		n += read
-	}
-	if L := len(src); L < n+12 {
-		return item, 0, fmt.Errorf("reading CPAL1: "+"EOF: expected length: n + 12, got %d", L)
-	}
-	_ = src[n+11] // early bound checking
-	item.paletteTypesArrayOffset = Offset32(binary.BigEndian.Uint32(src[n:]))
-	item.paletteLabelsArrayOffset = Offset32(binary.BigEndian.Uint32(src[n+4:]))
-	item.paletteEntryLabelsArrayOffset = Offset32(binary.BigEndian.Uint32(src[n+8:]))
-	n += 12
-
-	return item, n, nil
-}
-
-func parseCpal0(src []byte) (cpal0, int, error) {
-	var item cpal0
+func ParseCPAL(src []byte) (CPAL, int, error) {
+	var item CPAL
 	n := 0
 	if L := len(src); L < 12 {
-		return item, 0, fmt.Errorf("reading cpal0: "+"EOF: expected length: 12, got %d", L)
+		return item, 0, fmt.Errorf("reading CPAL: "+"EOF: expected length: 12, got %d", L)
 	}
 	_ = src[11] // early bound checking
 	item.Version = binary.BigEndian.Uint16(src[0:])
@@ -61,13 +35,13 @@ func parseCpal0(src []byte) (cpal0, int, error) {
 
 		if offsetColorRecordsArray != 0 { // ignore null offset
 			if L := len(src); L < offsetColorRecordsArray {
-				return item, 0, fmt.Errorf("reading cpal0: "+"EOF: expected length: %d, got %d", offsetColorRecordsArray, L)
+				return item, 0, fmt.Errorf("reading CPAL: "+"EOF: expected length: %d, got %d", offsetColorRecordsArray, L)
 			}
 
 			arrayLength := int(item.numColorRecords)
 
 			if L := len(src); L < offsetColorRecordsArray+arrayLength*4 {
-				return item, 0, fmt.Errorf("reading cpal0: "+"EOF: expected length: %d, got %d", offsetColorRecordsArray+arrayLength*4, L)
+				return item, 0, fmt.Errorf("reading CPAL: "+"EOF: expected length: %d, got %d", offsetColorRecordsArray+arrayLength*4, L)
 			}
 
 			item.ColorRecordsArray = make([]ColorRecord, arrayLength) // allocation guarded by the previous check
@@ -81,7 +55,7 @@ func parseCpal0(src []byte) (cpal0, int, error) {
 		arrayLength := int(item.numPalettes)
 
 		if L := len(src); L < 12+arrayLength*2 {
-			return item, 0, fmt.Errorf("reading cpal0: "+"EOF: expected length: %d, got %d", 12+arrayLength*2, L)
+			return item, 0, fmt.Errorf("reading CPAL: "+"EOF: expected length: %d, got %d", 12+arrayLength*2, L)
 		}
 
 		item.ColorRecordIndices = make([]uint16, arrayLength) // allocation guarded by the previous check

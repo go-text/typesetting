@@ -35,3 +35,19 @@ func TestCOLR(t *testing.T) {
 	tu.Assert(t, g1 == BaseGlyph{0, 0, 11} && g2 == BaseGlyph{2, 11, 18})
 	tu.Assert(t, colr.LayerRecords[0].PaletteIndex == 4)
 }
+
+func TestCPAL(t *testing.T) {
+	ft := readFontFile(t, "color/NotoColorEmoji-Regular.ttf")
+	cpal, _, err := ParseCPAL(readTable(t, ft, "CPAL"))
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, cpal.Version == 0)
+	tu.Assert(t, cpal.numPaletteEntries == 5921)
+	tu.Assert(t, cpal.numPalettes == 1 && len(cpal.ColorRecordIndices) == 1)
+
+	ft = readFontFile(t, "color/CoralPixels-Regular.ttf")
+	cpal, _, err = ParseCPAL(readTable(t, ft, "CPAL"))
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, cpal.Version == 0)
+	tu.Assert(t, cpal.numPaletteEntries == 32)
+	tu.Assert(t, cpal.numPalettes == 2 && len(cpal.ColorRecordIndices) == 2)
+}
