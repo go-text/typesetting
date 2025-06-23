@@ -134,3 +134,15 @@ func TestCapHeight(t *testing.T) {
 	tu.Assert(t, face.LineMetric(CapHeight) == 730)
 	tu.Assert(t, face.LineMetric(XHeight) == 520)
 }
+
+func TestLoadColor(t *testing.T) {
+	ld := readFontFile(t, "color/NotoColorEmoji-Regular.ttf")
+	ft, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
+
+	ld = readFontFile(t, "color/CoralPixels-Regular.ttf")
+	ft, err = NewFont(ld)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
+}

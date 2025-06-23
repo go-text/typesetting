@@ -10,6 +10,7 @@ import (
 	"io"
 
 	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
 var (
@@ -31,6 +32,7 @@ type GlyphData interface {
 func (GlyphOutline) isGlyphData() {}
 func (GlyphSVG) isGlyphData()     {}
 func (GlyphBitmap) isGlyphData()  {}
+func (GlyphColor) isGlyphData()   {}
 
 // GlyphOutline exposes the path to draw for
 // vector glyph.
@@ -105,13 +107,23 @@ type BitmapSize struct {
 	XPpem, YPpem  uint16
 }
 
+// GlyphColor describe a colored glyph, as found in
+// COLR tables
+type GlyphColor struct {
+	Paint tables.PaintTable
+}
+
 // GlyphData returns the glyph content for [gid], or nil if
 // not found.
 func (f *Face) GlyphData(gid GID) GlyphData {
+	if out, ok := f.COLR.Search(gID(gid)); ok {
+		return GlyphColor{out}
+	}
+
 	// since outline may be specified for SVG and bitmaps, check it at the end
 	outB, err := f.sbix.glyphData(gID(gid), f.xPpem, f.yPpem)
 	if err == nil {
-		outline, ok := f.outlineGlyphData(gID(gid))
+		outline, ok := f.GlyphDataOutline(gID(gid))
 		if ok {
 			outB.Outline = &outline
 		}
@@ -120,7 +132,7 @@ func (f *Face) GlyphData(gid GID) GlyphData {
 
 	outB, err = f.bitmap.glyphData(gID(gid), f.xPpem, f.yPpem)
 	if err == nil {
-		outline, ok := f.outlineGlyphData(gID(gid))
+		outline, ok := f.GlyphDataOutline(gID(gid))
 		if ok {
 			outB.Outline = &outline
 		}
@@ -132,11 +144,11 @@ func (f *Face) GlyphData(gid GID) GlyphData {
 		// Spec :
 		// For every SVG glyph description, there must be a corresponding TrueType,
 		// CFF or CFF2 glyph description in the font.
-		outS.Outline, _ = f.outlineGlyphData(gID(gid))
+		outS.Outline, _ = f.GlyphDataOutline(gID(gid))
 		return outS
 	}
 
-	if out, ok := f.outlineGlyphData(gID(gid)); ok {
+	if out, ok := f.GlyphDataOutline(gID(gid)); ok {
 		return out
 	}
 
@@ -199,8 +211,11 @@ func (bt bitmap) glyphData(gid gID, xPpem, yPpem uint16) (GlyphBitmap, error) {
 	return out, nil
 }
 
-// look for data in 'glyf', 'CFF ' and 'CFF2' tables
-func (f *Face) outlineGlyphData(gid gID) (GlyphOutline, bool) {
+// GlyphDataOutline looks for data in 'glyf', 'CFF ' and 'CFF2' tables.
+//
+// It is a bit faster than calling [Face.GlyphData] and may be used for instance
+// when rendering colored glyphs (from the 'COLR' table).
+func (f *Face) GlyphDataOutline(gid gID) (GlyphOutline, bool) {
 	out, err := f.glyphDataFromCFF1(gid)
 	if err == nil {
 		return out, true

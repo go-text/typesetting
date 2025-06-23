@@ -19,7 +19,7 @@ func (item *Affine2x3) mustParse(src []byte) {
 	item.Dy = Float1616FromUint(binary.BigEndian.Uint32(src[20:]))
 }
 
-func (item *BaseGlyph) mustParse(src []byte) {
+func (item *baseGlyph) mustParse(src []byte) {
 	_ = src[5] // early bound checking
 	item.GlyphID = binary.BigEndian.Uint16(src[0:])
 	item.FirstLayerIndex = binary.BigEndian.Uint16(src[2:])
@@ -97,8 +97,8 @@ func ParseAffine2x3(src []byte) (Affine2x3, int, error) {
 	return item, n, nil
 }
 
-func ParseBaseGlyph(src []byte) (BaseGlyph, int, error) {
-	var item BaseGlyph
+func ParseBaseGlyph(src []byte) (baseGlyph, int, error) {
+	var item baseGlyph
 	n := 0
 	if L := len(src); L < 6 {
 		return item, 0, fmt.Errorf("reading BaseGlyph: "+"EOF: expected length: 6, got %d", L)
@@ -108,8 +108,8 @@ func ParseBaseGlyph(src []byte) (BaseGlyph, int, error) {
 	return item, n, nil
 }
 
-func ParseBaseGlyphList(src []byte) (BaseGlyphList, int, error) {
-	var item BaseGlyphList
+func ParseBaseGlyphList(src []byte) (baseGlyphList, int, error) {
+	var item baseGlyphList
 	n := 0
 	if L := len(src); L < 4 {
 		return item, 0, fmt.Errorf("reading BaseGlyphList: "+"EOF: expected length: 4, got %d", L)
@@ -125,7 +125,7 @@ func ParseBaseGlyphList(src []byte) (BaseGlyphList, int, error) {
 			if err != nil {
 				return item, 0, fmt.Errorf("reading BaseGlyphList: %s", err)
 			}
-			item.PaintRecords = append(item.PaintRecords, elem)
+			item.paintRecords = append(item.paintRecords, elem)
 			offset += read
 		}
 		n = offset
@@ -133,8 +133,8 @@ func ParseBaseGlyphList(src []byte) (BaseGlyphList, int, error) {
 	return item, n, nil
 }
 
-func ParseBaseGlyphPaintRecord(src []byte, parentSrc []byte) (BaseGlyphPaintRecord, int, error) {
-	var item BaseGlyphPaintRecord
+func ParseBaseGlyphPaintRecord(src []byte, parentSrc []byte) (baseGlyphPaintRecord, int, error) {
+	var item baseGlyphPaintRecord
 	n := 0
 	if L := len(src); L < 6 {
 		return item, 0, fmt.Errorf("reading BaseGlyphPaintRecord: "+"EOF: expected length: 6, got %d", L)
@@ -145,7 +145,6 @@ func ParseBaseGlyphPaintRecord(src []byte, parentSrc []byte) (BaseGlyphPaintReco
 	n += 6
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(parentSrc); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading BaseGlyphPaintRecord: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -191,14 +190,13 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 	n += 20
 
 	{
-
 		if offsetBaseGlyphList != 0 { // ignore null offset
 			if L := len(src); L < offsetBaseGlyphList {
 				return item, 0, fmt.Errorf("reading COLR1: "+"EOF: expected length: %d, got %d", offsetBaseGlyphList, L)
 			}
 
 			var err error
-			item.BaseGlyphList, _, err = ParseBaseGlyphList(src[offsetBaseGlyphList:])
+			item.baseGlyphList, _, err = ParseBaseGlyphList(src[offsetBaseGlyphList:])
 			if err != nil {
 				return item, 0, fmt.Errorf("reading COLR1: %s", err)
 			}
@@ -206,7 +204,6 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 		}
 	}
 	{
-
 		if offsetLayerList != 0 { // ignore null offset
 			if L := len(src); L < offsetLayerList {
 				return item, 0, fmt.Errorf("reading COLR1: "+"EOF: expected length: %d, got %d", offsetLayerList, L)
@@ -221,7 +218,6 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 		}
 	}
 	{
-
 		if offsetClipList != 0 { // ignore null offset
 			if L := len(src); L < offsetClipList {
 				return item, 0, fmt.Errorf("reading COLR1: "+"EOF: expected length: %d, got %d", offsetClipList, L)
@@ -236,7 +232,6 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 		}
 	}
 	{
-
 		if offsetVarIndexMap != 0 { // ignore null offset
 			if L := len(src); L < offsetVarIndexMap {
 				return item, 0, fmt.Errorf("reading COLR1: "+"EOF: expected length: %d, got %d", offsetVarIndexMap, L)
@@ -253,7 +248,6 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 		}
 	}
 	{
-
 		if offsetItemVariationStore != 0 { // ignore null offset
 			if L := len(src); L < offsetItemVariationStore {
 				return item, 0, fmt.Errorf("reading COLR1: "+"EOF: expected length: %d, got %d", offsetItemVariationStore, L)
@@ -285,7 +279,6 @@ func ParseClip(src []byte, parentSrc []byte) (Clip, int, error) {
 	n += 7
 
 	{
-
 		if offsetClipBox != 0 { // ignore null offset
 			if L := len(parentSrc); L < offsetClipBox {
 				return item, 0, fmt.Errorf("reading Clip: "+"EOF: expected length: %d, got %d", offsetClipBox, L)
@@ -372,7 +365,7 @@ func ParseClipList(src []byte) (ClipList, int, error) {
 			if err != nil {
 				return item, 0, fmt.Errorf("reading ClipList: %s", err)
 			}
-			item.Clips = append(item.Clips, elem)
+			item.clips = append(item.clips, elem)
 			offset += read
 		}
 		n = offset
@@ -440,7 +433,6 @@ func ParseItemVarStore(src []byte) (ItemVarStore, int, error) {
 	n += 8
 
 	{
-
 		if offsetVariationRegionList != 0 { // ignore null offset
 			if L := len(src); L < offsetVariationRegionList {
 				return item, 0, fmt.Errorf("reading ItemVarStore: "+"EOF: expected length: %d, got %d", offsetVariationRegionList, L)
@@ -544,8 +536,8 @@ func ParseLayerList(src []byte) (LayerList, int, error) {
 			return item, 0, fmt.Errorf("reading LayerList: "+"EOF: expected length: %d, got %d", 4+arrayLengthPaintTables*4, L)
 		}
 
-		item.PaintTables = make([]PaintTable, arrayLengthPaintTables) // allocation guarded by the previous check
-		for i := range item.PaintTables {
+		item.paintTables = make([]PaintTable, arrayLengthPaintTables) // allocation guarded by the previous check
+		for i := range item.paintTables {
 			offset := int(binary.BigEndian.Uint32(src[4+i*4:]))
 			// ignore null offsets
 			if offset == 0 {
@@ -557,7 +549,7 @@ func ParseLayerList(src []byte) (LayerList, int, error) {
 			}
 
 			var err error
-			item.PaintTables[i], _, err = ParsePaintTable(src[offset:])
+			item.paintTables[i], _, err = ParsePaintTable(src[offset:])
 			if err != nil {
 				return item, 0, fmt.Errorf("reading LayerList: %s", err)
 			}
@@ -603,7 +595,6 @@ func ParsePaintComposite(src []byte) (PaintComposite, int, error) {
 	n += 8
 
 	{
-
 		if offsetSourcePaint != 0 { // ignore null offset
 			if L := len(src); L < offsetSourcePaint {
 				return item, 0, fmt.Errorf("reading PaintComposite: "+"EOF: expected length: %d, got %d", offsetSourcePaint, L)
@@ -621,7 +612,6 @@ func ParsePaintComposite(src []byte) (PaintComposite, int, error) {
 		}
 	}
 	{
-
 		if offsetBackdropPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetBackdropPaint {
 				return item, 0, fmt.Errorf("reading PaintComposite: "+"EOF: expected length: %d, got %d", offsetBackdropPaint, L)
@@ -654,7 +644,6 @@ func ParsePaintGlyph(src []byte) (PaintGlyph, int, error) {
 	n += 6
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintGlyph: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -692,7 +681,6 @@ func ParsePaintLinearGradient(src []byte) (PaintLinearGradient, int, error) {
 	n += 16
 
 	{
-
 		if offsetColorLine != 0 { // ignore null offset
 			if L := len(src); L < offsetColorLine {
 				return item, 0, fmt.Errorf("reading PaintLinearGradient: "+"EOF: expected length: %d, got %d", offsetColorLine, L)
@@ -727,7 +715,6 @@ func ParsePaintRadialGradient(src []byte) (PaintRadialGradient, int, error) {
 	n += 16
 
 	{
-
 		if offsetColorLine != 0 { // ignore null offset
 			if L := len(src); L < offsetColorLine {
 				return item, 0, fmt.Errorf("reading PaintRadialGradient: "+"EOF: expected length: %d, got %d", offsetColorLine, L)
@@ -757,7 +744,6 @@ func ParsePaintRotate(src []byte) (PaintRotate, int, error) {
 	n += 6
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintRotate: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -792,7 +778,6 @@ func ParsePaintRotateAroundCenter(src []byte) (PaintRotateAroundCenter, int, err
 	n += 10
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintRotateAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -826,7 +811,6 @@ func ParsePaintScale(src []byte) (PaintScale, int, error) {
 	n += 8
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintScale: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -862,7 +846,6 @@ func ParsePaintScaleAroundCenter(src []byte) (PaintScaleAroundCenter, int, error
 	n += 12
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintScaleAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -895,7 +878,6 @@ func ParsePaintScaleUniform(src []byte) (PaintScaleUniform, int, error) {
 	n += 6
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintScaleUniform: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -930,7 +912,6 @@ func ParsePaintScaleUniformAroundCenter(src []byte) (PaintScaleUniformAroundCent
 	n += 10
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintScaleUniformAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -964,7 +945,6 @@ func ParsePaintSkew(src []byte) (PaintSkew, int, error) {
 	n += 8
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintSkew: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1000,7 +980,6 @@ func ParsePaintSkewAroundCenter(src []byte) (PaintSkewAroundCenter, int, error) 
 	n += 12
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintSkewAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1047,7 +1026,6 @@ func ParsePaintSweepGradient(src []byte) (PaintSweepGradient, int, error) {
 	n += 12
 
 	{
-
 		if offsetColorLine != 0 { // ignore null offset
 			if L := len(src); L < offsetColorLine {
 				return item, 0, fmt.Errorf("reading PaintSweepGradient: "+"EOF: expected length: %d, got %d", offsetColorLine, L)
@@ -1163,7 +1141,6 @@ func ParsePaintTransform(src []byte) (PaintTransform, int, error) {
 	n += 7
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintTransform: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1181,7 +1158,6 @@ func ParsePaintTransform(src []byte) (PaintTransform, int, error) {
 		}
 	}
 	{
-
 		if offsetTransform != 0 { // ignore null offset
 			if L := len(src); L < offsetTransform {
 				return item, 0, fmt.Errorf("reading PaintTransform: "+"EOF: expected length: %d, got %d", offsetTransform, L)
@@ -1212,7 +1188,6 @@ func ParsePaintTranslate(src []byte) (PaintTranslate, int, error) {
 	n += 8
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintTranslate: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1251,7 +1226,6 @@ func ParsePaintVarLinearGradient(src []byte) (PaintVarLinearGradient, int, error
 	n += 20
 
 	{
-
 		if offsetColorLine != 0 { // ignore null offset
 			if L := len(src); L < offsetColorLine {
 				return item, 0, fmt.Errorf("reading PaintVarLinearGradient: "+"EOF: expected length: %d, got %d", offsetColorLine, L)
@@ -1287,7 +1261,6 @@ func ParsePaintVarRadialGradient(src []byte) (PaintVarRadialGradient, int, error
 	n += 20
 
 	{
-
 		if offsetColorLine != 0 { // ignore null offset
 			if L := len(src); L < offsetColorLine {
 				return item, 0, fmt.Errorf("reading PaintVarRadialGradient: "+"EOF: expected length: %d, got %d", offsetColorLine, L)
@@ -1318,7 +1291,6 @@ func ParsePaintVarRotate(src []byte) (PaintVarRotate, int, error) {
 	n += 10
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarRotate: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1354,7 +1326,6 @@ func ParsePaintVarRotateAroundCenter(src []byte) (PaintVarRotateAroundCenter, in
 	n += 14
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarRotateAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1389,7 +1360,6 @@ func ParsePaintVarScale(src []byte) (PaintVarScale, int, error) {
 	n += 12
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarScale: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1426,7 +1396,6 @@ func ParsePaintVarScaleAroundCenter(src []byte) (PaintVarScaleAroundCenter, int,
 	n += 16
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarScaleAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1460,7 +1429,6 @@ func ParsePaintVarScaleUniform(src []byte) (PaintVarScaleUniform, int, error) {
 	n += 10
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarScaleUniform: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1496,7 +1464,6 @@ func ParsePaintVarScaleUniformAroundCenter(src []byte) (PaintVarScaleUniformArou
 	n += 14
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarScaleUniformAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1531,7 +1498,6 @@ func ParsePaintVarSkew(src []byte) (PaintVarSkew, int, error) {
 	n += 12
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarSkew: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1568,7 +1534,6 @@ func ParsePaintVarSkewAroundCenter(src []byte) (PaintVarSkewAroundCenter, int, e
 	n += 16
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarSkewAroundCenter: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1616,7 +1581,6 @@ func ParsePaintVarSweepGradient(src []byte) (PaintVarSweepGradient, int, error) 
 	n += 16
 
 	{
-
 		if offsetColorLine != 0 { // ignore null offset
 			if L := len(src); L < offsetColorLine {
 				return item, 0, fmt.Errorf("reading PaintVarSweepGradient: "+"EOF: expected length: %d, got %d", offsetColorLine, L)
@@ -1646,7 +1610,6 @@ func ParsePaintVarTransform(src []byte) (PaintVarTransform, int, error) {
 	n += 7
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarTransform: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1664,7 +1627,6 @@ func ParsePaintVarTransform(src []byte) (PaintVarTransform, int, error) {
 		}
 	}
 	{
-
 		if offsetTransform != 0 { // ignore null offset
 			if L := len(src); L < offsetTransform {
 				return item, 0, fmt.Errorf("reading PaintVarTransform: "+"EOF: expected length: %d, got %d", offsetTransform, L)
@@ -1696,7 +1658,6 @@ func ParsePaintVarTranslate(src []byte) (PaintVarTranslate, int, error) {
 	n += 12
 
 	{
-
 		if offsetPaint != 0 { // ignore null offset
 			if L := len(src); L < offsetPaint {
 				return item, 0, fmt.Errorf("reading PaintVarTranslate: "+"EOF: expected length: %d, got %d", offsetPaint, L)
@@ -1839,7 +1800,6 @@ func parseColr0(src []byte) (colr0, int, error) {
 	n += 14
 
 	{
-
 		if offsetBaseGlyphRecords != 0 { // ignore null offset
 			if L := len(src); L < offsetBaseGlyphRecords {
 				return item, 0, fmt.Errorf("reading colr0: "+"EOF: expected length: %d, got %d", offsetBaseGlyphRecords, L)
@@ -1851,15 +1811,14 @@ func parseColr0(src []byte) (colr0, int, error) {
 				return item, 0, fmt.Errorf("reading colr0: "+"EOF: expected length: %d, got %d", offsetBaseGlyphRecords+arrayLength*6, L)
 			}
 
-			item.BaseGlyphRecords = make([]BaseGlyph, arrayLength) // allocation guarded by the previous check
-			for i := range item.BaseGlyphRecords {
-				item.BaseGlyphRecords[i].mustParse(src[offsetBaseGlyphRecords+i*6:])
+			item.baseGlyphRecords = make([]baseGlyph, arrayLength) // allocation guarded by the previous check
+			for i := range item.baseGlyphRecords {
+				item.baseGlyphRecords[i].mustParse(src[offsetBaseGlyphRecords+i*6:])
 			}
 			offsetBaseGlyphRecords += arrayLength * 6
 		}
 	}
 	{
-
 		if offsetLayerRecords != 0 { // ignore null offset
 			if L := len(src); L < offsetLayerRecords {
 				return item, 0, fmt.Errorf("reading colr0: "+"EOF: expected length: %d, got %d", offsetLayerRecords, L)
@@ -1871,9 +1830,9 @@ func parseColr0(src []byte) (colr0, int, error) {
 				return item, 0, fmt.Errorf("reading colr0: "+"EOF: expected length: %d, got %d", offsetLayerRecords+arrayLength*4, L)
 			}
 
-			item.LayerRecords = make([]Layer, arrayLength) // allocation guarded by the previous check
-			for i := range item.LayerRecords {
-				item.LayerRecords[i].mustParse(src[offsetLayerRecords+i*4:])
+			item.layerRecords = make([]Layer, arrayLength) // allocation guarded by the previous check
+			for i := range item.layerRecords {
+				item.layerRecords[i].mustParse(src[offsetLayerRecords+i*4:])
 			}
 			offsetLayerRecords += arrayLength * 4
 		}

@@ -25,14 +25,13 @@ func ParseCPAL(src []byte) (CPAL, int, error) {
 	}
 	_ = src[11] // early bound checking
 	item.Version = binary.BigEndian.Uint16(src[0:])
-	item.numPaletteEntries = binary.BigEndian.Uint16(src[2:])
+	item.NumPaletteEntries = binary.BigEndian.Uint16(src[2:])
 	item.numPalettes = binary.BigEndian.Uint16(src[4:])
 	item.numColorRecords = binary.BigEndian.Uint16(src[6:])
 	offsetColorRecordsArray := int(binary.BigEndian.Uint32(src[8:]))
 	n += 12
 
 	{
-
 		if offsetColorRecordsArray != 0 { // ignore null offset
 			if L := len(src); L < offsetColorRecordsArray {
 				return item, 0, fmt.Errorf("reading CPAL: "+"EOF: expected length: %d, got %d", offsetColorRecordsArray, L)

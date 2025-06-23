@@ -5,7 +5,7 @@ package tables
 // For now, only the CPAL version 0 is supported.
 type CPAL struct {
 	Version            uint16        //	Table version number
-	numPaletteEntries  uint16        //	Number of palette entries in each palette.
+	NumPaletteEntries  uint16        //	Number of palette entries in each palette.
 	numPalettes        uint16        //	Number of palettes in the table.
 	numColorRecords    uint16        //	Total number of color records, combined for all palettes.
 	ColorRecordsArray  []ColorRecord `arrayCount:"ComputedField-numColorRecords" offsetSize:"Offset32"` // Offset from the beginning of CPAL table to the first ColorRecord.

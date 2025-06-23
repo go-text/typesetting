@@ -22,21 +22,49 @@ func ParseCOLR(src []byte) (COLR1, error) {
 type colr0 struct {
 	Version             uint16      // Table version number
 	numBaseGlyphRecords uint16      // Number of BaseGlyph records.
-	BaseGlyphRecords    []BaseGlyph `arrayCount:"ComputedField-numBaseGlyphRecords" offsetSize:"Offset32"` // Offset to baseGlyphRecords array, from beginning of COLR table.
-	LayerRecords        []Layer     `arrayCount:"ComputedField-numLayerRecords" offsetSize:"Offset32"`     // Offset to layerRecords array, from beginning of COLR table.
+	baseGlyphRecords    []baseGlyph `arrayCount:"ComputedField-numBaseGlyphRecords" offsetSize:"Offset32"` // Offset to baseGlyphRecords array, from beginning of COLR table.
+	layerRecords        []Layer     `arrayCount:"ComputedField-numLayerRecords" offsetSize:"Offset32"`     // Offset to layerRecords array, from beginning of COLR table.
 	numLayerRecords     uint16      // Number of Layer records.
+}
+
+func (cl colr0) paintForGlyph(g GlyphID) (PaintColrLayersResolved, bool) {
+	for i, j := 0, len(cl.baseGlyphRecords); i < j; {
+		h := i + (j-i)/2
+		entry := cl.baseGlyphRecords[h]
+		if g < entry.GlyphID {
+			j = h
+		} else if entry.GlyphID < g {
+			i = h + 1
+		} else {
+			return cl.layerRecords[entry.FirstLayerIndex : entry.FirstLayerIndex+entry.NumLayers], true
+		}
+	}
+	return nil, false
 }
 
 type COLR1 struct {
 	colr0
-	BaseGlyphList      BaseGlyphList    `offsetSize:"Offset32"` // Offset to BaseGlyphList table, from beginning of COLR table.
+	baseGlyphList      baseGlyphList    `offsetSize:"Offset32"` // Offset to BaseGlyphList table, from beginning of COLR table.
 	LayerList          LayerList        `offsetSize:"Offset32"` // Offset to LayerList table, from beginning of COLR table (may be NULL).
 	ClipList           ClipList         `offsetSize:"Offset32"` // Offset to ClipList table, from beginning of COLR table (may be NULL).
 	VarIndexMap        *DeltaSetMapping `offsetSize:"Offset32"` // Offset to DeltaSetIndexMap table, from beginning of COLR table (may be NULL).
 	ItemVariationStore *ItemVarStore    `offsetSize:"Offset32"` // Offset to ItemVariationStore, from beginning of COLR table (may be NULL).
 }
 
-type BaseGlyph struct {
+func (cl *COLR1) Search(gid GlyphID) (PaintTable, bool) {
+	if cl == nil {
+		return nil, false
+	}
+	// "Applications that support COLR version 1 should give preference to the version 1 color glyph.
+	// For applications that support COLR version 1, the application should search for a base glyph ID first in the BaseGlyphList.
+	// Then, if not found, search in the baseGlyphRecords array, if present."
+	if paint, ok := cl.baseGlyphList.paintForGlyph(gid); ok {
+		return paint, true
+	}
+	return cl.colr0.paintForGlyph(gid)
+}
+
+type baseGlyph struct {
 	GlyphID         GlyphID // Glyph ID of the base glyph.
 	FirstLayerIndex uint16  // Index (base 0) into the layerRecords array.
 	NumLayers       uint16  // Number of color layers associated with this glyph.
@@ -47,22 +75,63 @@ type Layer struct {
 	PaletteIndex uint16  // Index (base 0) for a palette entry in the CPAL table.
 }
 
-type BaseGlyphList struct {
-	PaintRecords []BaseGlyphPaintRecord `arrayCount:"FirstUint32"` // numBaseGlyphPaintRecords
+type baseGlyphList struct {
+	paintRecords []baseGlyphPaintRecord `arrayCount:"FirstUint32"` // numBaseGlyphPaintRecords
 }
 
-type BaseGlyphPaintRecord struct {
+func (bl baseGlyphList) paintForGlyph(g GlyphID) (PaintTable, bool) {
+	// binary search
+	for i, j := 0, len(bl.paintRecords); i < j; {
+		h := i + (j-i)/2
+		entry := bl.paintRecords[h]
+		if g < entry.GlyphID {
+			j = h
+		} else if entry.GlyphID < g {
+			i = h + 1
+		} else {
+			return entry.Paint, true
+		}
+	}
+	return nil, false
+}
+
+type baseGlyphPaintRecord struct {
 	GlyphID GlyphID    // Glyph ID of the base glyph.
 	Paint   PaintTable `offsetSize:"Offset32" offsetRelativeTo:"Parent"` // Offset to a Paint table, from beginning of BaseGlyphList table.
 }
 
 type LayerList struct {
-	PaintTables []PaintTable `arrayCount:"FirstUint32" offsetsArray:"Offset32"` // Offsets to Paint tables, from beginning of LayerList table.
+	paintTables []PaintTable `arrayCount:"FirstUint32" offsetsArray:"Offset32"` // Offsets to Paint tables, from beginning of LayerList table.
+}
+
+// Resolve returns an error for invalid (out of bounds) indices
+func (ll LayerList) Resolve(paint PaintColrLayers) ([]PaintTable, error) {
+	last := paint.FirstLayerIndex + uint32(paint.NumLayers)
+	if L := len(ll.paintTables); int(last) > L {
+		return nil, fmt.Errorf("out of bounds PaintColrLayers: expected %d, got %d", last, L)
+	}
+	return ll.paintTables[paint.FirstLayerIndex:last], nil
 }
 
 type ClipList struct {
 	format uint8  // Set to 1.
-	Clips  []Clip `arrayCount:"FirstUint32"` // Clip records. Sorted by startGlyphID.
+	clips  []Clip `arrayCount:"FirstUint32"` // Clip records. Sorted by startGlyphID.
+}
+
+func (cl ClipList) Search(g GlyphID) (ClipBox, bool) {
+	// binary search
+	for i, j := 0, len(cl.clips); i < j; {
+		h := i + (j-i)/2
+		entry := cl.clips[h]
+		if g < entry.StartGlyphID {
+			j = h
+		} else if entry.EndGlyphID < g {
+			i = h + 1
+		} else {
+			return entry.ClipBox, true
+		}
+	}
+	return nil, false
 }
 
 type Clip struct {
