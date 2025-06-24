@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/go-text/typesetting/font/cff"
 	ot "github.com/go-text/typesetting/font/opentype"
@@ -492,6 +493,7 @@ type Face struct {
 	*Font
 
 	extentsCache extentsCache
+	cacheMu      sync.RWMutex // protects extentsCache
 
 	coords       []tables.Coord
 	xPpem, yPpem uint16
@@ -503,23 +505,45 @@ func NewFace(font *Font) *Face {
 }
 
 // Ppem returns the horizontal and vertical pixels-per-em (ppem), used to select bitmap sizes.
-func (f *Face) Ppem() (x, y uint16) { return f.xPpem, f.yPpem }
+func (f *Face) Ppem() (x, y uint16) {
+	f.cacheMu.RLock()
+	x, y = f.xPpem, f.yPpem
+	f.cacheMu.RUnlock()
+	return x, y
+}
 
 // SetPpem applies horizontal and vertical pixels-per-em (ppem).
 func (f *Face) SetPpem(x, y uint16) {
+	f.cacheMu.Lock()
 	f.xPpem, f.yPpem = x, y
 	// invalid the cache
 	f.extentsCache.reset()
+	f.cacheMu.Unlock()
 }
 
 // Coords return a read-only slice of the current variable coordinates, expressed in normalized units.
 // It is empty for non variable fonts.
-func (f *Face) Coords() []tables.Coord { return f.coords }
+func (f *Face) Coords() []tables.Coord {
+	f.cacheMu.RLock()
+	coords := f.coords
+	f.cacheMu.RUnlock()
+	return coords
+}
+
+// getCoordsLocked returns the current coords while holding the read lock.
+// This is an internal method for use within the font package.
+func (f *Face) getCoordsLocked() []tables.Coord {
+	f.cacheMu.RLock()
+	defer f.cacheMu.RUnlock()
+	return f.coords
+}
 
 // SetCoords applies a list of variation coordinates, expressed in normalized units.
 // Use [NormalizeVariations] to convert from design (user) space units.
 func (f *Face) SetCoords(coords []tables.Coord) {
+	f.cacheMu.Lock()
 	f.coords = coords
 	// invalid the cache
 	f.extentsCache.reset()
+	f.cacheMu.Unlock()
 }

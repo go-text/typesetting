@@ -98,9 +98,10 @@ func (f *Face) FontHExtents() (FontExtents, bool) {
 		out           FontExtents
 		ok1, ok2, ok3 bool
 	)
-	out.Ascender, ok1 = f.Font.getPositionCommon(metricsTagHorizontalAscender, f.coords)
-	out.Descender, ok2 = f.Font.getPositionCommon(metricsTagHorizontalDescender, f.coords)
-	out.LineGap, ok3 = f.Font.getPositionCommon(metricsTagHorizontalLineGap, f.coords)
+	coords := f.getCoordsLocked()
+	out.Ascender, ok1 = f.Font.getPositionCommon(metricsTagHorizontalAscender, coords)
+	out.Descender, ok2 = f.Font.getPositionCommon(metricsTagHorizontalDescender, coords)
+	out.LineGap, ok3 = f.Font.getPositionCommon(metricsTagHorizontalLineGap, coords)
 	return out, ok1 && ok2 && ok3
 }
 
@@ -110,9 +111,10 @@ func (f *Face) FontVExtents() (FontExtents, bool) {
 		out           FontExtents
 		ok1, ok2, ok3 bool
 	)
-	out.Ascender, ok1 = f.Font.getPositionCommon(metricsTagVerticalAscender, f.coords)
-	out.Descender, ok2 = f.Font.getPositionCommon(metricsTagVerticalDescender, f.coords)
-	out.LineGap, ok3 = f.Font.getPositionCommon(metricsTagVerticalLineGap, f.coords)
+	coords := f.getCoordsLocked()
+	out.Ascender, ok1 = f.Font.getPositionCommon(metricsTagVerticalAscender, coords)
+	out.Descender, ok2 = f.Font.getPositionCommon(metricsTagVerticalDescender, coords)
+	out.LineGap, ok3 = f.Font.getPositionCommon(metricsTagVerticalLineGap, coords)
 	return out, ok1 && ok2 && ok3
 }
 
@@ -145,39 +147,40 @@ func (f *Face) runeHeight(r rune) float32 {
 
 // LineMetric returns the metric identified by `metric` (in fonts units).
 func (f *Face) LineMetric(metric LineMetric) float32 {
+	coords := f.getCoordsLocked()
 	switch metric {
 	case UnderlinePosition:
-		return f.post.underlinePosition + f.mvar.getVar(tagUnderlineOffset, f.coords)
+		return f.post.underlinePosition + f.mvar.getVar(tagUnderlineOffset, coords)
 	case UnderlineThickness:
-		return f.post.underlineThickness + f.mvar.getVar(tagUnderlineSize, f.coords)
+		return f.post.underlineThickness + f.mvar.getVar(tagUnderlineSize, coords)
 	case StrikethroughPosition:
-		return float32(f.os2.yStrikeoutPosition) + f.mvar.getVar(tagStrikeoutOffset, f.coords)
+		return float32(f.os2.yStrikeoutPosition) + f.mvar.getVar(tagStrikeoutOffset, coords)
 	case StrikethroughThickness:
-		return float32(f.os2.yStrikeoutSize) + f.mvar.getVar(tagStrikeoutSize, f.coords)
+		return float32(f.os2.yStrikeoutSize) + f.mvar.getVar(tagStrikeoutSize, coords)
 	case SuperscriptEmYSize:
-		return float32(f.os2.ySuperscriptYSize) + f.mvar.getVar(tagSuperscriptYSize, f.coords)
+		return float32(f.os2.ySuperscriptYSize) + f.mvar.getVar(tagSuperscriptYSize, coords)
 	case SuperscriptEmXOffset:
-		return float32(f.os2.ySuperscriptXOffset) + f.mvar.getVar(tagSuperscriptXOffset, f.coords)
+		return float32(f.os2.ySuperscriptXOffset) + f.mvar.getVar(tagSuperscriptXOffset, coords)
 	case SubscriptEmYSize:
-		return float32(f.os2.ySubscriptYSize) + f.mvar.getVar(tagSubscriptYSize, f.coords)
+		return float32(f.os2.ySubscriptYSize) + f.mvar.getVar(tagSubscriptYSize, coords)
 	case SubscriptEmYOffset:
-		return float32(f.os2.ySubscriptYOffset) + f.mvar.getVar(tagSubscriptYOffset, f.coords)
+		return float32(f.os2.ySubscriptYOffset) + f.mvar.getVar(tagSubscriptYOffset, coords)
 	case SubscriptEmXOffset:
-		return float32(f.os2.ySubscriptXOffset) + f.mvar.getVar(tagSubscriptXOffset, f.coords)
+		return float32(f.os2.ySubscriptXOffset) + f.mvar.getVar(tagSubscriptXOffset, coords)
 	case CapHeight:
 		if f.os2.version < 2 {
 			// sCapHeight may be set equal to the top of the unscaled and unhinted glyph
 			// bounding box of the glyph encoded at U+0048 (LATIN CAPITAL LETTER H).
 			return f.runeHeight('H')
 		}
-		return float32(f.os2.sCapHeight) + f.mvar.getVar(tagCapHeight, f.coords)
+		return float32(f.os2.sCapHeight) + f.mvar.getVar(tagCapHeight, coords)
 	case XHeight:
 		if f.os2.version < 2 {
 			// sxHeight equal to the top of the unscaled and unhinted glyph bounding box
 			// of the glyph encoded at U+0078 (LATIN SMALL LETTER X).
 			return f.runeHeight('x')
 		}
-		return float32(f.os2.sxHeigh) + f.mvar.getVar(tagXHeight, f.coords)
+		return float32(f.os2.sxHeigh) + f.mvar.getVar(tagXHeight, coords)
 	default:
 		return 0
 	}
@@ -256,14 +259,18 @@ func (f *Face) HorizontalAdvance(gid GID) float32 {
 		return float32(advance)
 	}
 	if f.hvar != nil {
-		return float32(advance) + getAdvanceDeltaUnscaled(f.hvar, gID(gid), f.coords)
+		coords := f.getCoordsLocked()
+		return float32(advance) + getAdvanceDeltaUnscaled(f.hvar, gID(gid), coords)
 	}
 	return f.getGlyphAdvanceVar(gID(gid), false)
 }
 
 // return `true` is the font is variable and `Coords` is valid
 func (f *Face) isVar() bool {
-	return len(f.coords) != 0 && len(f.coords) == len(f.Font.fvar)
+	f.cacheMu.RLock()
+	hasCoords := len(f.coords) != 0 && len(f.coords) == len(f.Font.fvar)
+	f.cacheMu.RUnlock()
+	return hasCoords
 }
 
 // HasVerticalMetrics returns true if a the 'vmtx' table is present.
@@ -278,7 +285,8 @@ func (f *Face) VerticalAdvance(gid GID) float32 {
 		return -float32(advance)
 	}
 	if f.vvar != nil {
-		return -float32(advance) - getAdvanceDeltaUnscaled(f.vvar, gID(gid), f.coords)
+		coords := f.getCoordsLocked()
+		return -float32(advance) - getAdvanceDeltaUnscaled(f.vvar, gID(gid), coords)
 	}
 	return -f.getGlyphAdvanceVar(gID(gid), true)
 }
@@ -299,7 +307,8 @@ func (f *Face) getVerticalSideBearing(glyph gID) int16 {
 		return sideBearing
 	}
 	if f.vvar != nil {
-		return sideBearing + int16(getLsbDeltaUnscaled(f.vvar, glyph, f.coords))
+		coords := f.getCoordsLocked()
+		return sideBearing + int16(getLsbDeltaUnscaled(f.vvar, glyph, coords))
 	}
 	return f.getGlyphSideBearingVar(glyph, true)
 }
@@ -413,7 +422,8 @@ func (f *Face) getExtentsFromCff2(glyph gID) (GlyphExtents, bool) {
 	if f.cff2 == nil {
 		return GlyphExtents{}, false
 	}
-	_, bounds, err := f.cff2.LoadGlyph(glyph, f.coords)
+	coords := f.getCoordsLocked()
+	_, bounds, err := f.cff2.LoadGlyph(glyph, coords)
 	if err != nil {
 		return GlyphExtents{}, false
 	}
@@ -421,7 +431,11 @@ func (f *Face) getExtentsFromCff2(glyph gID) (GlyphExtents, bool) {
 }
 
 func (f *Face) glyphExtentsRaw(glyph GID) (GlyphExtents, bool) {
-	out, ok := f.getExtentsFromSbix(gID(glyph), f.xPpem, f.yPpem)
+	f.cacheMu.RLock()
+	xPpem, yPpem := f.xPpem, f.yPpem
+	f.cacheMu.RUnlock()
+
+	out, ok := f.getExtentsFromSbix(gID(glyph), xPpem, yPpem)
 	if ok {
 		return out, ok
 	}

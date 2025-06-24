@@ -401,7 +401,10 @@ func (f *Face) glyphDataFromCFF2(glyph gID) (GlyphOutline, error) {
 	if f.cff2 == nil {
 		return GlyphOutline{}, errNoCFF2Table
 	}
-	segments, _, err := f.cff2.LoadGlyph(glyph, f.coords)
+	f.cacheMu.RLock()
+	coords := f.coords
+	f.cacheMu.RUnlock()
+	segments, _, err := f.cff2.LoadGlyph(glyph, coords)
 	if err != nil {
 		return GlyphOutline{}, err
 	}

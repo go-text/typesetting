@@ -30,12 +30,18 @@ func (ec extentsCache) reset() {
 }
 
 func (f *Face) GlyphExtents(glyph GID) (GlyphExtents, bool) {
+	f.cacheMu.RLock()
 	if e, ok := f.extentsCache.get(glyph); ok {
+		f.cacheMu.RUnlock()
 		return e, ok
 	}
+	f.cacheMu.RUnlock()
+
 	e, ok := f.glyphExtentsRaw(glyph)
 	if ok {
+		f.cacheMu.Lock()
 		f.extentsCache.set(glyph, e)
+		f.cacheMu.Unlock()
 	}
 	return e, ok
 }
