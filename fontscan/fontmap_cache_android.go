@@ -1,5 +1,3 @@
-//go:build android
-
 package fontscan
 
 func platformCacheDir() (string, error) {
