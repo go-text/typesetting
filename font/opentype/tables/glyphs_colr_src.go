@@ -1,6 +1,9 @@
 package tables
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 func ParseCOLR(src []byte) (COLR1, error) {
 	header, _, err := parseColr0(src)
@@ -27,19 +30,17 @@ type colr0 struct {
 	numLayerRecords     uint16      // Number of Layer records.
 }
 
-func (cl colr0) paintForGlyph(g GlyphID) (PaintColrLayersResolved, bool) {
-	for i, j := 0, len(cl.baseGlyphRecords); i < j; {
-		h := i + (j-i)/2
-		entry := cl.baseGlyphRecords[h]
-		if g < entry.GlyphID {
-			j = h
-		} else if entry.GlyphID < g {
-			i = h + 1
-		} else {
-			return cl.layerRecords[entry.FirstLayerIndex : entry.FirstLayerIndex+entry.NumLayers], true
-		}
+func (cl colr0) paintForGlyph(gi GlyphID) (PaintColrLayersResolved, bool) {
+	num := len(cl.baseGlyphRecords)
+	idx := sort.Search(num, func(i int) bool { return gi <= cl.baseGlyphRecords[i].GlyphID })
+	if idx >= num {
+		return nil, false
 	}
-	return nil, false
+	entry := cl.baseGlyphRecords[idx]
+	if gi != entry.GlyphID {
+		return nil, false
+	}
+	return cl.layerRecords[entry.FirstLayerIndex : entry.FirstLayerIndex+entry.NumLayers], true
 }
 
 type COLR1 struct {
@@ -79,20 +80,17 @@ type baseGlyphList struct {
 	paintRecords []baseGlyphPaintRecord `arrayCount:"FirstUint32"` // numBaseGlyphPaintRecords
 }
 
-func (bl baseGlyphList) paintForGlyph(g GlyphID) (PaintTable, bool) {
-	// binary search
-	for i, j := 0, len(bl.paintRecords); i < j; {
-		h := i + (j-i)/2
-		entry := bl.paintRecords[h]
-		if g < entry.GlyphID {
-			j = h
-		} else if entry.GlyphID < g {
-			i = h + 1
-		} else {
-			return entry.Paint, true
-		}
+func (bl baseGlyphList) paintForGlyph(gi GlyphID) (PaintTable, bool) {
+	num := len(bl.paintRecords)
+	idx := sort.Search(num, func(i int) bool { return gi <= bl.paintRecords[i].GlyphID })
+	if idx >= num {
+		return nil, false
 	}
-	return nil, false
+	entry := bl.paintRecords[idx]
+	if gi != entry.GlyphID {
+		return nil, false
+	}
+	return entry.Paint, true
 }
 
 type baseGlyphPaintRecord struct {

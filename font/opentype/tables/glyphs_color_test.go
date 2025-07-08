@@ -29,6 +29,11 @@ func TestCOLR(t *testing.T) {
 	tu.Assert(t, transform.Transform == Affine2x3{1, 0, 0, 1, 4.3119965, 0.375})
 	tu.Assert(t, innerOK)
 
+	_, ok = colr.Search(1)
+	tu.Assert(t, !ok)
+	_, ok = colr.Search(0xFFFF)
+	tu.Assert(t, !ok)
+
 	pt, ok := colr.Search(12)
 	asColrLayers, ok2 := pt.(PaintColrLayers)
 	tu.Assert(t, ok && ok2)
@@ -50,6 +55,11 @@ func TestCOLR(t *testing.T) {
 	g1, g2 := colr.baseGlyphRecords[0], colr.baseGlyphRecords[1]
 	tu.Assert(t, g1 == baseGlyph{0, 0, 11} && g2 == baseGlyph{2, 11, 18})
 	tu.Assert(t, colr.layerRecords[0].PaletteIndex == 4)
+
+	_, ok = colr.Search(1)
+	tu.Assert(t, !ok)
+	_, ok = colr.Search(0xFFFF)
+	tu.Assert(t, !ok)
 
 	pt, ok = colr.Search(0)
 	asLayers, ok2 := pt.(PaintColrLayersResolved)
