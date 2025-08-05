@@ -26,6 +26,9 @@ func Float1616ToUint(f Float1616) uint32 {
 	return uint32(int32(f * (1 << 16)))
 }
 
+// Fixed214 is a number stored as a fixed 2.14 integer
+type Fixed214 = Coord
+
 func Float214FromUint(v uint16) float32 {
 	// value are actually signed integers
 	return float32(int16(v)) / (1 << 14)
@@ -36,6 +39,11 @@ type Coord int16
 
 func NewCoord(c float64) Coord {
 	return Coord(c * (1 << 14))
+}
+
+func readUint24(b []byte) uint32 {
+	_ = b[2] // bounds check hint to compiler; see golang.org/issue/14808
+	return uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16
 }
 
 // Number of seconds since 12:00 midnight that started January 1st 1904 in GMT/UTC time zone.

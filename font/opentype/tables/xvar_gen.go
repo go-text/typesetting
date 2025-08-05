@@ -44,27 +44,6 @@ func ParseAvar(src []byte) (Avar, int, error) {
 	return item, n, nil
 }
 
-func ParseDeltaSetMapping(src []byte) (DeltaSetMapping, int, error) {
-	var item DeltaSetMapping
-	n := 0
-	if L := len(src); L < 2 {
-		return item, 0, fmt.Errorf("reading DeltaSetMapping: "+"EOF: expected length: 2, got %d", L)
-	}
-	_ = src[1] // early bound checking
-	item.format = src[0]
-	item.entryFormat = src[1]
-	n += 2
-
-	{
-
-		err := item.parseMap(src[2:])
-		if err != nil {
-			return item, 0, fmt.Errorf("reading DeltaSetMapping: %s", err)
-		}
-	}
-	return item, n, nil
-}
-
 func ParseFvar(src []byte) (Fvar, int, error) {
 	var item Fvar
 	n := 0
@@ -320,97 +299,6 @@ func ParseInstanceRecord(src []byte, coordinatesCount int) (InstanceRecord, int,
 	return item, n, nil
 }
 
-func ParseItemVarStore(src []byte) (ItemVarStore, int, error) {
-	var item ItemVarStore
-	n := 0
-	if L := len(src); L < 8 {
-		return item, 0, fmt.Errorf("reading ItemVarStore: "+"EOF: expected length: 8, got %d", L)
-	}
-	_ = src[7] // early bound checking
-	item.format = binary.BigEndian.Uint16(src[0:])
-	offsetVariationRegionList := int(binary.BigEndian.Uint32(src[2:]))
-	arrayLengthItemVariationDatas := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
-
-	{
-
-		if offsetVariationRegionList != 0 { // ignore null offset
-			if L := len(src); L < offsetVariationRegionList {
-				return item, 0, fmt.Errorf("reading ItemVarStore: "+"EOF: expected length: %d, got %d", offsetVariationRegionList, L)
-			}
-
-			var err error
-			item.VariationRegionList, _, err = ParseVariationRegionList(src[offsetVariationRegionList:])
-			if err != nil {
-				return item, 0, fmt.Errorf("reading ItemVarStore: %s", err)
-			}
-
-		}
-	}
-	{
-
-		if L := len(src); L < 8+arrayLengthItemVariationDatas*4 {
-			return item, 0, fmt.Errorf("reading ItemVarStore: "+"EOF: expected length: %d, got %d", 8+arrayLengthItemVariationDatas*4, L)
-		}
-
-		item.ItemVariationDatas = make([]ItemVariationData, arrayLengthItemVariationDatas) // allocation guarded by the previous check
-		for i := range item.ItemVariationDatas {
-			offset := int(binary.BigEndian.Uint32(src[8+i*4:]))
-			// ignore null offsets
-			if offset == 0 {
-				continue
-			}
-
-			if L := len(src); L < offset {
-				return item, 0, fmt.Errorf("reading ItemVarStore: "+"EOF: expected length: %d, got %d", offset, L)
-			}
-
-			var err error
-			item.ItemVariationDatas[i], _, err = ParseItemVariationData(src[offset:])
-			if err != nil {
-				return item, 0, fmt.Errorf("reading ItemVarStore: %s", err)
-			}
-		}
-		n += arrayLengthItemVariationDatas * 4
-	}
-	return item, n, nil
-}
-
-func ParseItemVariationData(src []byte) (ItemVariationData, int, error) {
-	var item ItemVariationData
-	n := 0
-	if L := len(src); L < 6 {
-		return item, 0, fmt.Errorf("reading ItemVariationData: "+"EOF: expected length: 6, got %d", L)
-	}
-	_ = src[5] // early bound checking
-	item.itemCount = binary.BigEndian.Uint16(src[0:])
-	item.wordDeltaCount = binary.BigEndian.Uint16(src[2:])
-	item.regionIndexCount = binary.BigEndian.Uint16(src[4:])
-	n += 6
-
-	{
-		arrayLength := int(item.regionIndexCount)
-
-		if L := len(src); L < 6+arrayLength*2 {
-			return item, 0, fmt.Errorf("reading ItemVariationData: "+"EOF: expected length: %d, got %d", 6+arrayLength*2, L)
-		}
-
-		item.RegionIndexes = make([]uint16, arrayLength) // allocation guarded by the previous check
-		for i := range item.RegionIndexes {
-			item.RegionIndexes[i] = binary.BigEndian.Uint16(src[6+i*2:])
-		}
-		n += arrayLength * 2
-	}
-	{
-
-		err := item.parseDeltaSets(src[n:])
-		if err != nil {
-			return item, 0, fmt.Errorf("reading ItemVariationData: %s", err)
-		}
-	}
-	return item, n, nil
-}
-
 func ParseMVAR(src []byte) (MVAR, int, error) {
 	var item MVAR
 	n := 0
@@ -551,58 +439,6 @@ func ParseVarValueRecord(src []byte) (VarValueRecord, int, error) {
 	item.mustParse(src)
 	n += 8
 	return item, n, nil
-}
-
-func ParseVariationRegion(src []byte, regionAxesCount int) (VariationRegion, int, error) {
-	var item VariationRegion
-	n := 0
-	{
-
-		if L := len(src); L < regionAxesCount*6 {
-			return item, 0, fmt.Errorf("reading VariationRegion: "+"EOF: expected length: %d, got %d", regionAxesCount*6, L)
-		}
-
-		item.RegionAxes = make([]RegionAxisCoordinates, regionAxesCount) // allocation guarded by the previous check
-		for i := range item.RegionAxes {
-			item.RegionAxes[i].mustParse(src[i*6:])
-		}
-		n += regionAxesCount * 6
-	}
-	return item, n, nil
-}
-
-func ParseVariationRegionList(src []byte) (VariationRegionList, int, error) {
-	var item VariationRegionList
-	n := 0
-	if L := len(src); L < 4 {
-		return item, 0, fmt.Errorf("reading VariationRegionList: "+"EOF: expected length: 4, got %d", L)
-	}
-	_ = src[3] // early bound checking
-	item.axisCount = binary.BigEndian.Uint16(src[0:])
-	arrayLengthVariationRegions := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
-
-	{
-
-		offset := 4
-		for i := 0; i < arrayLengthVariationRegions; i++ {
-			elem, read, err := ParseVariationRegion(src[offset:], int(item.axisCount))
-			if err != nil {
-				return item, 0, fmt.Errorf("reading VariationRegionList: %s", err)
-			}
-			item.VariationRegions = append(item.VariationRegions, elem)
-			offset += read
-		}
-		n = offset
-	}
-	return item, n, nil
-}
-
-func (item *RegionAxisCoordinates) mustParse(src []byte) {
-	_ = src[5] // early bound checking
-	item.StartCoord = Coord(binary.BigEndian.Uint16(src[0:]))
-	item.PeakCoord = Coord(binary.BigEndian.Uint16(src[2:]))
-	item.EndCoord = Coord(binary.BigEndian.Uint16(src[4:]))
 }
 
 func (item *VarValueRecord) mustParse(src []byte) {

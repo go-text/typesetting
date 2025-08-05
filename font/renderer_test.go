@@ -607,3 +607,19 @@ func TestMixedGlyphs(t *testing.T) {
 		tu.Assert(t, gd != nil)
 	}
 }
+
+func TestColorGlyphs(t *testing.T) {
+	ld := readFontFile(t, "color/NotoColorEmoji-Regular.ttf")
+	ft, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	face := NewFace(ft)
+	_, ok := face.GlyphData(12).(GlyphColor)
+	tu.Assert(t, ok)
+
+	ld = readFontFile(t, "color/CoralPixels-Regular.ttf")
+	ft, err = NewFont(ld)
+	tu.AssertNoErr(t, err)
+	face = NewFace(ft)
+	_, ok = face.GlyphData(0).(GlyphColor)
+	tu.Assert(t, ok)
+}

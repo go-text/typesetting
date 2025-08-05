@@ -154,6 +154,9 @@ type Font struct {
 	bitmap bitmap
 	sbix   sbix
 
+	COLR *tables.COLR1 // color glyphs, optional
+	CPAL CPAL          // color glyphs, optional
+
 	os2   os2
 	names tables.Name
 	head  tables.Head
@@ -266,6 +269,18 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	raw, _ = ld.RawTable(ot.MustNewTag("SVG "))
 	svg, _, _ := tables.ParseSVG(raw)
 	out.svg, _ = newSvg(svg)
+
+	raw, _ = ld.RawTable(ot.MustNewTag("COLR"))
+	if colr, err := tables.ParseCOLR(raw); err == nil {
+		out.COLR = &colr
+		// color table without CPAL is broken
+		raw, _ = ld.RawTable(ot.MustNewTag("CPAL"))
+		cpal, _, _ := tables.ParseCPAL(raw)
+		out.CPAL, err = newCPAL(cpal)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	out.hhea, out.hmtx, _ = loadHmtx(ld, out.nGlyphs)
 	out.vhea, out.vmtx, _ = loadVmtx(ld, out.nGlyphs)
