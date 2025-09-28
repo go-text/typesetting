@@ -548,7 +548,7 @@ func (fm *FontMap) resolveAllForLang(candidates []int, lang LangID) []*font.Face
 	return faces
 }
 
-// returns nil if no candidates supports the string `s`
+// returns nil if no candidates support the string `s`
 func (fm *FontMap) resolveForString(candidates []int, s string) *font.Face {
 	var rs RuneSet
 	for _, r := range s {
@@ -572,7 +572,7 @@ func (fm *FontMap) resolveForString(candidates []int, s string) *font.Face {
 	return nil
 }
 
-// returns all faces where candidates supports the string `s`
+// returns all faces where candidates support the string `s`
 func (fm *FontMap) resolveAllForString(candidates []int, s string) []*font.Face {
 	var rs RuneSet
 	for _, r := range s {
@@ -724,7 +724,7 @@ func (fm *FontMap) ResolveAllFacesForLang(lang LangID) []*font.Face {
 	return fm.resolveAllForLang(fm.candidates.combine(), lang)
 }
 
-// ResolveFacesForString returns the first face supporting the given string
+// ResolveFaceForString returns the first face supporting the given string
 // (for the actual query).
 //
 // The matching logic is similar to the one used by [ResolveFace].
@@ -774,7 +774,7 @@ func (fm *FontMap) ResolveFaceForString(s string) *font.Face {
 	return fm.firstFace
 }
 
-// ResolveAllFacesForLang returns all faces supporting the given string
+// ResolveAllFacesForString returns all faces supporting the given string
 // (for the actual query).
 func (fm *FontMap) ResolveAllFacesForString(s string) []*font.Face {
 	// no-op if already built
