@@ -3399,7 +3399,7 @@ func TestLineWrapPostProcess(t *testing.T) {
 func TestComputeBidiOrdering(t *testing.T) {
 	type testcase struct {
 		name                string
-		input               []Output
+		input               Line
 		direction           di.Direction
 		expectedVisualOrder []int
 	}
@@ -3486,7 +3486,7 @@ func TestComputeBidiOrdering(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			computeBidiOrdering(tc.direction, tc.input)
+			tc.input.ComputeBidiOrdering(tc.direction)
 			for visualIndex, logicalIndex := range tc.expectedVisualOrder {
 				if tc.input[logicalIndex].VisualIndex != int32(visualIndex) {
 					t.Errorf("line[%d]: expected visual index %v, got %v", logicalIndex, visualIndex, tc.input[logicalIndex].VisualIndex)

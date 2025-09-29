@@ -889,16 +889,20 @@ func swapVisualOrder(subline Line) {
 	}
 }
 
-// computeBidiOrdering resolves the [VisualIndex] of each run.
-func computeBidiOrdering(dir di.Direction, finalLine Line) {
+// ComputeBidiOrdering resolves the [VisualIndex] of each run.
+//
+// [paragraphDirection] describes the text layout of the overall paragraph, rather than
+// individual runs of text.
+func (finalLine Line) ComputeBidiOrdering(paragraphDirection di.Direction) {
+	progression := paragraphDirection.Progression()
 	bidiStart := -1
 	for idx, run := range finalLine {
 		basePosition := idx
-		if dir.Progression() == di.TowardTopLeft {
+		if progression == di.TowardTopLeft {
 			basePosition = len(finalLine) - 1 - idx
 		}
 		finalLine[idx].VisualIndex = int32(basePosition)
-		if run.Direction == dir {
+		if run.Direction.Progression() == progression {
 			if bidiStart != -1 {
 				swapVisualOrder(finalLine[bidiStart:idx])
 				bidiStart = -1
@@ -914,7 +918,7 @@ func computeBidiOrdering(dir di.Direction, finalLine Line) {
 
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	if len(finalLine) > 0 {
-		computeBidiOrdering(l.config.Direction, finalLine)
+		finalLine.ComputeBidiOrdering(l.config.Direction)
 		if !l.config.DisableTrailingWhitespaceTrim {
 			// Here we find the last visual run in the line.
 			goalIdx := len(finalLine) - 1
@@ -975,7 +979,7 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			truncator.Runes.Offset = l.lineStartRune
 			finalLine = append(finalLine, truncator)
 			// We've just modified the line, we need to recompute the bidi ordering.
-			computeBidiOrdering(l.config.Direction, finalLine)
+			finalLine.ComputeBidiOrdering(l.config.Direction)
 		}
 	}
 
