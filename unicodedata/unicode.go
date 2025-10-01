@@ -8,20 +8,10 @@ import (
 	"github.com/go-text/typesetting/language"
 )
 
-var categories []*unicode.RangeTable
-
-func init() {
-	for cat, table := range unicode.Categories {
-		if len(cat) == 2 {
-			categories = append(categories, table)
-		}
-	}
-}
-
 // LookupType returns the unicode general categorie of the rune,
 // or nil if not found.
 func LookupType(r rune) *unicode.RangeTable {
-	for _, table := range categories {
+	for _, table := range allCategories {
 		if unicode.Is(table, r) {
 			return table
 		}
