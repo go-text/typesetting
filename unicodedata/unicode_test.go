@@ -101,6 +101,8 @@ func TestLookupType(t *testing.T) {
 		{'.', unicode.Po},
 		{'カ', unicode.Lo},
 		{'🦳', unicode.So},
+		{'\U0001F02C', nil},
+		{'\U0001F3FF', unicode.Sk},
 		{-1, nil},
 	}
 	for _, tt := range tests {
