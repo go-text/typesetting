@@ -1,7 +1,6 @@
 package unicodedata
 
 import (
-	"reflect"
 	"testing"
 	"unicode"
 
@@ -510,7 +509,7 @@ func TestLookupLineBreakClass(t *testing.T) {
 
 	}
 	for _, tt := range tests {
-		if got := LookupLineBreakClass(tt.args); !reflect.DeepEqual(got, tt.want) {
+		if got := LookupLineBreakClass(tt.args); got != tt.want {
 			t.Errorf("LookupLineBreakClass(U+%x) = %p, want %p", tt.args, got, tt.want)
 		}
 	}
