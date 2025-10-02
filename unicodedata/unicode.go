@@ -8,15 +8,15 @@ import (
 	"github.com/go-text/typesetting/language"
 )
 
-// LookupType returns the unicode general categorie of the rune,
-// or nil if not found.
-func LookupType(r rune) *unicode.RangeTable {
+// IsAssigned returns [true] for runes with a general category,
+// other than Cn.
+func IsAssigned(r rune) bool {
 	for _, table := range allCategories {
 		if unicode.Is(table, r) {
-			return table
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
 // LookupCombiningClass returns the class used for the Canonical Ordering Algorithm in the Unicode Standard,
