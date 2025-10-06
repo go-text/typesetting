@@ -69,7 +69,7 @@ func (cr *cursor) ruleLB30ab(breakOp *breakOpportunity) {
 		*breakOp = breakProhibited
 	}
 	// [\p{Extended_Pictographic}&\p{Cn}] × EM
-	if unicode.Is(ucd.Extended_Pictographic, cr.prev) && !ucd.IsAssigned(cr.prev) &&
+	if unicode.Is(ucd.Extended_Pictographic, cr.prev) && ucd.LookupType(cr.prev) == nil &&
 		cr.line == ucd.BreakEM {
 		*breakOp = breakProhibited
 	}

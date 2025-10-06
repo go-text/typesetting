@@ -90,23 +90,23 @@ func TestBreakClass(t *testing.T) {
 	}
 }
 
-func TestIsAssigned(t *testing.T) {
+func TestLookupType(t *testing.T) {
 	// some manual test cases
 	tests := []struct {
 		args rune
-		want bool
+		want *unicode.RangeTable
 	}{
-		{'a', true},
-		{'.', true},
-		{'カ', true},
-		{'🦳', true},
-		{'\U0001F3FF', true},
-		{'\U0001F02C', false},
-		{-1, false},
+		{'a', unicode.Ll},
+		{'.', unicode.Po},
+		{'カ', unicode.Lo},
+		{'🦳', unicode.So},
+		{'\U0001F3FF', unicode.Sk},
+		{'\U0001F02C', nil},
+		{-1, nil},
 	}
 	for _, tt := range tests {
-		if got := IsAssigned(tt.args); got != tt.want {
-			t.Errorf("IsAssigned(%s) = %v, want %v", string(tt.args), got, tt.want)
+		if got := LookupType(tt.args); got != tt.want {
+			t.Errorf("LookupType(%s) = %v, want %v", string(tt.args), got, tt.want)
 		}
 	}
 }
