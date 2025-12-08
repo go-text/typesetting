@@ -3539,7 +3539,7 @@ func TestRequiredBreaks(t *testing.T) {
 	}
 }
 
-func TestTrimTrailingSpace(t *testing.T) {
+func TestTrimmedTrailingWhitespace(t *testing.T) {
 	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
 	text := []rune("The quick")
 	run := (&HarfbuzzShaper{}).Shape(Input{

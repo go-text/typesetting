@@ -879,7 +879,7 @@ type WrappedLine struct {
 	NextLine int
 
 	// TrimmedTrailingWhitespace is the space taken by trailing whitespace
-	// before if was trimmed.
+	// before if was trimmed (usually positive).
 	// It is zero if [DisableTrailingWhitespaceTrim] is set to true,
 	// or if there is no whitespace at the end of the line.
 	TrimmedTrailingWhitespace fixed.Int26_6
