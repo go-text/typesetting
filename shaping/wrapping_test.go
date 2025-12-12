@@ -3538,3 +3538,27 @@ func TestRequiredBreaks(t *testing.T) {
 		}
 	}
 }
+
+func TestMaxWidthRouding(t *testing.T) {
+	text := []rune("a simple word") // odd number of letters (13)
+
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	run := (&HarfbuzzShaper{}).Shape(Input{
+		Text:   text,
+		Face:   face,
+		Size:   36,
+		RunEnd: len(text),
+	})
+	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1)/2)
+	tu.Assert(t, run.Advance == 13*fixed.I(1)/2)
+
+	wr := LineWrapper{}
+
+	wr.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
+	line, _ := wr.WrapNextLine(run.Advance.Floor())
+	tu.Assert(t, line.NextLine == 9)
+
+	wr.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
+	line, _ = wr.WrapNextLineF(run.Advance)
+	tu.Assert(t, line.NextLine == 13)
+}
