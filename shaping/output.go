@@ -319,12 +319,18 @@ func (out *Output) applyTabs(text []rune, columnWidth, runStart fixed.Int26_6) {
 			advance += gAdvance
 			continue
 		}
-		// update the advance of the glyph so that the next glyph is "tab-aligned" :
-		// we want the "end" of the tab to be a multiple of columnWidth, that is :
-		// (runStart + advance + updatedTabAdvance) % columnWith == 0
-		glyphStartF := float64(runStart+advance) / 64
-		remainder := math.Mod(glyphStartF, columnWidthF)
-		updatedTabAdvance := fixed.Int26_6((columnWidthF - remainder) * 64)
+
+		var updatedTabAdvance fixed.Int26_6
+		if columnWidth == 0 {
+			// simply trim the advance, nothing else to do
+		} else {
+			// update the advance of the glyph so that the next glyph is "tab-aligned" :
+			// we want the "end" of the tab to be a multiple of columnWidth, that is :
+			// (runStart + advance + updatedTabAdvance) % columnWith == 0
+			glyphStartF := float64(runStart+advance) / 64
+			remainder := math.Mod(glyphStartF, columnWidthF)
+			updatedTabAdvance = fixed.Int26_6((columnWidthF - remainder) * 64)
+		}
 
 		if isVertical {
 			out.Glyphs[i].YAdvance = updatedTabAdvance
@@ -388,6 +394,8 @@ func (l Line) AdjustBaselines() {
 
 // AlignTabs updates the advance of glyphs mapped to '\t' runes,
 // so that tabs are aligned on columns defined by [columnWidth].
+// As a special case, if [columnWidth] is zero,
+// tabs are trimmed (their advance is set to 0).
 func (l Line) AlignTabs(text []rune, columnWidth fixed.Int26_6) {
 	var runsAdvance fixed.Int26_6 // the position of the start of the current run
 	for i := range l {
