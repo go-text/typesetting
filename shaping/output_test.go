@@ -467,3 +467,24 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		})
 	}
 }
+
+func TestLine_applyTabs(t *testing.T) {
+	text := []rune("A first run\twith tab. A second run\t\ta\t.")
+	// simplify with 1:1 rune glyph mapping
+	glyphs := make([]Glyph, len(text))
+	for i := range text {
+		glyphs[i] = Glyph{ClusterIndex: i, RuneCount: 1, GlyphCount: 1, XAdvance: fixed.I(1)}
+	}
+
+	run1 := Output{Glyphs: glyphs[0:22]}
+	run2 := Output{Glyphs: glyphs[22:]}
+	run1.RecalculateAll()
+	run2.RecalculateAll()
+	line := Line{run1, run2}
+
+	line.AlignTabs(text, fixed.I(5))
+	tu.Assert(t, run1.Glyphs[11].XAdvance == fixed.I(4))
+	tu.Assert(t, run2.Glyphs[34-22].XAdvance == fixed.I(3))
+	tu.Assert(t, run2.Glyphs[35-22].XAdvance == fixed.I(5))
+	tu.Assert(t, run2.Glyphs[37-22].XAdvance == fixed.I(4))
+}
