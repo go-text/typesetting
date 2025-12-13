@@ -3560,7 +3560,6 @@ func TestTrimmedTrailingWhitespace(t *testing.T) {
 
 	wrapper.Prepare(WrapConfig{BreakPolicy: WhenNecessary, DisableTrailingWhitespaceTrim: true}, text, NewSliceIterator([]Output{run.copy()}))
 	line, _ = wrapper.WrapNextLine(4) // cut right after the space
-	fmt.Println(line.Line[0].Advance)
 	tu.Assert(t, line.NextLine == 4)
 	tu.Assert(t, line.Line[0].Advance == fixed.I(4)) // the space is not collapsed
 	tu.Assert(t, line.TrimmedTrailingWhitespace == fixed.I(0))
