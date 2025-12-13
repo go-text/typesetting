@@ -284,6 +284,17 @@ func (mft testInput) shape(t *testing.T, verify bool) (string, error) {
 		return "", err
 	}
 
+	// check that YAdvance is only used for vertical text
+	// and XAdvance for horizontal text
+	isHorizontal := buffer.Props.Direction.isHorizontal()
+	for _, pos := range buffer.Pos {
+		if isHorizontal {
+			tu.Assert(t, pos.YAdvance == 0)
+		} else {
+			tu.Assert(t, pos.XAdvance == 0)
+		}
+	}
+
 	return buffer.serialize(font, mft.format), nil
 }
 
