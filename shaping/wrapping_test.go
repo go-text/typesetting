@@ -3538,3 +3538,29 @@ func TestRequiredBreaks(t *testing.T) {
 		}
 	}
 }
+
+func TestTrimmedTrailingWhitespace(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	text := []rune("The quick")
+	run := (&HarfbuzzShaper{}).Shape(Input{
+		Text:   text,
+		Face:   face,
+		Size:   72,
+		RunEnd: len(text),
+	})
+	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1) && run.Glyphs[3].XAdvance == fixed.I(1))
+
+	var wrapper LineWrapper
+
+	wrapper.Prepare(WrapConfig{BreakPolicy: WhenNecessary}, text, NewSliceIterator([]Output{run.copy()}))
+	line, _ := wrapper.WrapNextLine(4) // cut right after the space
+	tu.Assert(t, line.NextLine == 4)
+	tu.Assert(t, line.Line[0].Advance == fixed.I(3))           // the space is collapsed
+	tu.Assert(t, line.TrimmedTrailingWhitespace == fixed.I(1)) // and we know how much was collapsed
+
+	wrapper.Prepare(WrapConfig{BreakPolicy: WhenNecessary, DisableTrailingWhitespaceTrim: true}, text, NewSliceIterator([]Output{run.copy()}))
+	line, _ = wrapper.WrapNextLine(4) // cut right after the space
+	tu.Assert(t, line.NextLine == 4)
+	tu.Assert(t, line.Line[0].Advance == fixed.I(4)) // the space is not collapsed
+	tu.Assert(t, line.TrimmedTrailingWhitespace == fixed.I(0))
+}
