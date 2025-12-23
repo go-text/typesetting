@@ -394,10 +394,13 @@ func (l Line) AdjustBaselines() {
 
 // AlignTabs updates the advance of glyphs mapped to '\t' runes,
 // so that tabs are aligned on columns defined by [columnWidth].
+//
+// [lineOffset] may be non zero if the line starts after the first column.
+//
 // As a special case, if [columnWidth] is zero,
 // tabs are trimmed (their advance is set to 0).
-func (l Line) AlignTabs(text []rune, columnWidth fixed.Int26_6) {
-	var runsAdvance fixed.Int26_6 // the position of the start of the current run
+func (l Line) AlignTabs(text []rune, columnWidth, lineOffset fixed.Int26_6) {
+	runsAdvance := lineOffset // the position of the start of the current run
 	for i := range l {
 		l[i].applyTabs(text, columnWidth, runsAdvance)
 		runsAdvance += l[i].Advance

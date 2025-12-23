@@ -482,13 +482,29 @@ func TestLine_applyTabs(t *testing.T) {
 	run2.RecalculateAll()
 	line := Line{run1, run2}
 
-	line.AlignTabs(text, fixed.I(5))
+	// simple
+	line.AlignTabs(text, fixed.I(5), 0)
 	tu.Assert(t, run1.Glyphs[11].XAdvance == fixed.I(4))
 	tu.Assert(t, run2.Glyphs[34-22].XAdvance == fixed.I(3))
 	tu.Assert(t, run2.Glyphs[35-22].XAdvance == fixed.I(5))
 	tu.Assert(t, run2.Glyphs[37-22].XAdvance == fixed.I(4))
 
-	line.AlignTabs(text, fixed.I(0))
+	// with offset
+	line.AlignTabs(text, fixed.I(5), fixed.I(2))
+	tu.Assert(t, run1.Glyphs[11].XAdvance == fixed.I(2))
+	tu.Assert(t, run2.Glyphs[34-22].XAdvance == fixed.I(3))
+	tu.Assert(t, run2.Glyphs[35-22].XAdvance == fixed.I(5))
+	tu.Assert(t, run2.Glyphs[37-22].XAdvance == fixed.I(4))
+
+	// with offset
+	line.AlignTabs(text, fixed.I(5), fixed.I(7))
+	tu.Assert(t, run1.Glyphs[11].XAdvance == fixed.I(2))
+	tu.Assert(t, run2.Glyphs[34-22].XAdvance == fixed.I(3))
+	tu.Assert(t, run2.Glyphs[35-22].XAdvance == fixed.I(5))
+	tu.Assert(t, run2.Glyphs[37-22].XAdvance == fixed.I(4))
+
+	// clear all tabs
+	line.AlignTabs(text, fixed.I(0), 0)
 	tu.Assert(t, run1.Glyphs[11].XAdvance == fixed.I(0))
 	tu.Assert(t, run2.Glyphs[34-22].XAdvance == fixed.I(0))
 	tu.Assert(t, run2.Glyphs[35-22].XAdvance == fixed.I(0))
