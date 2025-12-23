@@ -1,5 +1,7 @@
 package fontscan
 
+import "fmt"
+
 func platformCacheDir() (string, error) {
 	// There is no stable way to infer the proper place to store the cache
 	// with access to the Java runtime for the application. Rather than
