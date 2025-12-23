@@ -877,6 +877,12 @@ type WrappedLine struct {
 	// of the next line. It will equal len(text) if all the text
 	// fit in one line.
 	NextLine int
+
+	// TrimmedTrailingWhitespace is the space taken by trailing whitespace
+	// before if was trimmed (usually positive).
+	// It is zero if [DisableTrailingWhitespaceTrim] is set to true,
+	// or if there is no whitespace at the end of the line.
+	TrimmedTrailingWhitespace fixed.Int26_6
 }
 
 // swapVisualOrder inverts the visual index of runs in [subline], by swapping pairs of visual indices across the midpoint
@@ -913,6 +919,7 @@ func computeBidiOrdering(dir di.Direction, finalLine Line) {
 }
 
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
+	var trimmed fixed.Int26_6
 	if len(finalLine) > 0 {
 		computeBidiOrdering(l.config.Direction, finalLine)
 		if !l.config.DisableTrailingWhitespaceTrim {
@@ -927,11 +934,12 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 					break
 				}
 			}
+			finalVisualRun := &finalLine[goalIdx]
+
 			// This next block locates the first/last visual glyph on the line and
 			// zeroes its advance if it is whitespace.
-			finalVisualRun := &finalLine[goalIdx]
-			var finalVisualGlyph *Glyph
 			if L := len(finalVisualRun.Glyphs); L > 0 {
+				var finalVisualGlyph *Glyph
 				if l.config.Direction.Progression() == di.FromTopLeft {
 					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
 				} else {
@@ -947,7 +955,9 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 						finalVisualGlyph.XAdvance = 0
 					}
 				}
+				beforeTrim := finalVisualRun.Advance
 				finalVisualRun.RecomputeAdvance()
+				trimmed = beforeTrim - finalVisualRun.Advance
 			}
 		}
 
@@ -984,7 +994,7 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 		l.more = false
 	}
 
-	return WrappedLine{finalLine, truncated, l.lineStartRune}, done
+	return WrappedLine{finalLine, truncated, l.lineStartRune, trimmed}, done
 }
 
 // WrapNextLine wraps the shaped glyphs of a paragraph to a particular max width.
