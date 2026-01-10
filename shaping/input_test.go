@@ -649,7 +649,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestIssue127(t *testing.T) {
-	// regression test for https://github.com/unidoc/typesetting/issues/127
+	// regression test for https://github.com/go-text/typesetting/issues/127
 	str := []rune("لمّا")
 	input := Input{
 		Text:      str,

@@ -263,7 +263,7 @@ func TestNames(t *testing.T) {
 }
 
 func TestUnifont(t *testing.T) {
-	// https://github.com/unidoc/typesetting/issues/140
+	// https://github.com/go-text/typesetting/issues/140
 	ft := openFontFileTT(t, "bitmap/unifont-15.1.05.otf")
 
 	buf := NewBuffer()
