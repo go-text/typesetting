@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/go-text/typesetting/language"
+	"github.com/unidoc/typesetting/language"
 )
 
 // LangID is a compact representation of a language

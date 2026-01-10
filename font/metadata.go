@@ -3,8 +3,8 @@ package font
 import (
 	"strings"
 
-	ot "github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/font/opentype/tables"
+	ot "github.com/unidoc/typesetting/font/opentype"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 )
 
 // name values corresponding to the xxxConsts arrays

@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/go-text/typesetting/font/opentype/tables"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 )
 
 // This file implements the logic needed to use a cmap.

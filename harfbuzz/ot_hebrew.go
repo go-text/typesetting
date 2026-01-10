@@ -1,8 +1,8 @@
 package harfbuzz
 
 import (
-	ot "github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/font/opentype/tables"
+	ot "github.com/unidoc/typesetting/font/opentype"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-hebrew.cc Copyright © 2010,2012  Google, Inc.  Behdad Esfahbod

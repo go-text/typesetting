@@ -1,9 +1,9 @@
 package harfbuzz
 
 import (
-	ot "github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/font/opentype/tables"
-	"github.com/go-text/typesetting/language"
+	ot "github.com/unidoc/typesetting/font/opentype"
+	"github.com/unidoc/typesetting/font/opentype/tables"
+	"github.com/unidoc/typesetting/language"
 )
 
 type zeroWidthMarks uint8

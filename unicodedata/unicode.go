@@ -5,7 +5,7 @@ package unicodedata
 import (
 	"unicode"
 
-	"github.com/go-text/typesetting/language"
+	"github.com/unidoc/typesetting/language"
 )
 
 // LookupType returns the unicode general categorie of the rune,

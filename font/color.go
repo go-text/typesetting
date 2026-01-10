@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-text/typesetting/font/opentype/tables"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 )
 
 // Support for COLR and CPAL tables

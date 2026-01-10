@@ -1,6 +1,6 @@
 package fontscan
 
-import "github.com/go-text/typesetting/font"
+import "github.com/unidoc/typesetting/font"
 
 // extracted from a linux system
 var linuxSampleFontSet = fontSet{

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/go-text/typesetting/font"
-	ot "github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/font/opentype/tables"
-	"github.com/go-text/typesetting/language"
+	"github.com/unidoc/typesetting/font"
+	ot "github.com/unidoc/typesetting/font/opentype"
+	"github.com/unidoc/typesetting/font/opentype/tables"
+	"github.com/unidoc/typesetting/language"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic.cc, hb-ot-shape-complex-arabic-fallback.hh Copyright © 2010,2012  Google, Inc. Behdad Esfahbod
@@ -242,7 +242,7 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	* Note that IranNastaliq uses this feature extensively
 	* to fixup broken glyph sequences.  Oh well...
 	* Test case: U+0643,U+0640,U+0631. */
-	//map_.enable_feature (newTag('c','s','w','h'));
+	// map_.enable_feature (newTag('c','s','w','h'));
 	map_.enableFeatureExt(ot.NewTag('m', 's', 'e', 't'), ffManualZWJ, 1)
 }
 

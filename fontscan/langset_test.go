@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	ot "github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/language"
-	tu "github.com/go-text/typesetting/testutils"
+	ot "github.com/unidoc/typesetting/font/opentype"
+	"github.com/unidoc/typesetting/language"
+	tu "github.com/unidoc/typesetting/testutils"
 )
 
 func TestNewLangset(t *testing.T) {

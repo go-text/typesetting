@@ -4,8 +4,8 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/go-text/typesetting/language"
-	tu "github.com/go-text/typesetting/testutils"
+	"github.com/unidoc/typesetting/language"
+	tu "github.com/unidoc/typesetting/testutils"
 )
 
 func TestUnicodeNormalization(t *testing.T) {

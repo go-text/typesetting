@@ -3,7 +3,7 @@ package harfbuzz
 import (
 	"strings"
 
-	"github.com/go-text/typesetting/font/opentype/tables"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 )
 
 type langTag struct {

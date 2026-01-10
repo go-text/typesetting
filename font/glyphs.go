@@ -10,8 +10,8 @@ import (
 	"image/jpeg"
 	"image/png"
 
-	ot "github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/font/opentype/tables"
+	ot "github.com/unidoc/typesetting/font/opentype"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 	"golang.org/x/image/tiff"
 )
 

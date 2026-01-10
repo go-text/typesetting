@@ -9,11 +9,11 @@ import (
 	"testing"
 	"testing/quick"
 
-	"github.com/go-text/typesetting/di"
-	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/segmenter"
-	tu "github.com/go-text/typesetting/testutils"
+	"github.com/unidoc/typesetting/di"
+	"github.com/unidoc/typesetting/font"
+	"github.com/unidoc/typesetting/language"
+	"github.com/unidoc/typesetting/segmenter"
+	tu "github.com/unidoc/typesetting/testutils"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
 )
@@ -2299,8 +2299,8 @@ func BenchmarkMapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range []int{10, 100, 1000} {
 			for impl, f := range map[string]wrapfunc{
-				//"v1": mapRunesToClusterIndices,
-				//"v2": mapRunesToClusterIndices2,
+				// "v1": mapRunesToClusterIndices,
+				// "v2": mapRunesToClusterIndices2,
 				"v3": mapRunesToClusterIndices3,
 			} {
 				b.Run(fmt.Sprintf("%drunes-%s-%s", size, langInfo.name, impl), func(b *testing.B) {

@@ -2,7 +2,7 @@
 
 package tables
 
-import "github.com/go-text/typesetting/font/opentype"
+import "github.com/unidoc/typesetting/font/opentype"
 
 //go:generate ../../../../typesetting-utils/generators/binarygen/cmd/generator . _src.go
 

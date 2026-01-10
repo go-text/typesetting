@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-text/typesetting/font"
+	"github.com/unidoc/typesetting/font"
 )
 
 // defines the routines to serialize a font set to

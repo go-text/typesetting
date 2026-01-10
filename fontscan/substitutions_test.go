@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/language"
+	"github.com/unidoc/typesetting/font"
+	"github.com/unidoc/typesetting/language"
 )
 
 func Test_familyList_insertStart(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
-	tu "github.com/go-text/typesetting/testutils"
+	tu "github.com/unidoc/typesetting/testutils"
 )
 
 func TestParseKern(t *testing.T) {

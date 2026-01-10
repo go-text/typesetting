@@ -33,3 +33,7 @@ proposing the change).
 
 If in doubt please seek approval of two maintainers - and feel free to ask questions in the
 #go-text channel of gophers Slack server.
+
+### Credits
+This is a forked library based on the original [go-text/typesetting](github.com/go-text/typesetting) project.
+We thank the original authors and contributors for their work on this project.

@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	ot "github.com/go-text/typesetting/font/opentype"
+	ot "github.com/unidoc/typesetting/font/opentype"
 )
 
 // DefaultFontDirectories return the OS-dependent usual directories for

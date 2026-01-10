@@ -3,8 +3,8 @@
 package shaping
 
 import (
-	"github.com/go-text/typesetting/di"
-	"github.com/go-text/typesetting/harfbuzz"
+	"github.com/unidoc/typesetting/di"
+	"github.com/unidoc/typesetting/harfbuzz"
 	"golang.org/x/image/math/fixed"
 )
 

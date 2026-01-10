@@ -3,7 +3,7 @@ package harfbuzz
 import (
 	"testing"
 
-	"github.com/go-text/typesetting/language"
+	"github.com/unidoc/typesetting/language"
 )
 
 func TestNumArabicLookup(t *testing.T) {

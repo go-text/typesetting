@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unicode"
 
-	tu "github.com/go-text/typesetting/testutils"
+	tu "github.com/unidoc/typesetting/testutils"
 )
 
 func TestParseScript(t *testing.T) {

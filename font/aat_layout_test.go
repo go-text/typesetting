@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
-	"github.com/go-text/typesetting/font/opentype/tables"
-	tu "github.com/go-text/typesetting/testutils"
+	"github.com/unidoc/typesetting/font/opentype/tables"
+	tu "github.com/unidoc/typesetting/testutils"
 )
 
 func TestKern0(t *testing.T) {

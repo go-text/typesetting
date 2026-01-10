@@ -6,8 +6,8 @@ import (
 	"math/bits"
 	"sort"
 
-	"github.com/go-text/typesetting/font"
-	"github.com/go-text/typesetting/language"
+	"github.com/unidoc/typesetting/font"
+	"github.com/unidoc/typesetting/language"
 )
 
 // Rune coverage implementation, inspired by the fontconfig FcCharset type.

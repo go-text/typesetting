@@ -1,4 +1,4 @@
-module github.com/go-text/typesetting
+module github.com/unidoc/typesetting
 
 go 1.19
 

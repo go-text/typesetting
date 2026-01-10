@@ -5,7 +5,7 @@ package font
 import (
 	"errors"
 
-	"github.com/go-text/typesetting/font/opentype/tables"
+	"github.com/unidoc/typesetting/font/opentype/tables"
 )
 
 const numBuiltInPostNames = len(builtInPostNames)

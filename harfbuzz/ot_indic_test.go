@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	tu "github.com/go-text/typesetting/testutils"
+	tu "github.com/unidoc/typesetting/testutils"
 )
 
 func TestIndicGetCategories(t *testing.T) {

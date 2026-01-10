@@ -3,8 +3,8 @@ package harfbuzz
 import (
 	"testing"
 
-	"github.com/go-text/typesetting/language"
-	"github.com/go-text/typesetting/unicodedata"
+	"github.com/unidoc/typesetting/language"
+	"github.com/unidoc/typesetting/unicodedata"
 )
 
 // ported from harfbuzz/test/api/test-unicode.c Copyright © 2011  Codethink Limited, Google, Inc. Ryan Lortie, Behdad Esfahbod

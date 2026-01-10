@@ -2,7 +2,7 @@
 
 package font
 
-import "github.com/go-text/typesetting/font/opentype/tables"
+import "github.com/unidoc/typesetting/font/opentype/tables"
 
 // shared between GSUB and GPOS
 type Layout struct {
