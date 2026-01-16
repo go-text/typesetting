@@ -313,7 +313,7 @@ func (cr *cursor) ruleLB1() {
 	case ucd.BreakAI, ucd.BreakSG, ucd.BreakXX:
 		cr.line = ucd.BreakAL
 	case ucd.BreakSA:
-		if unicode.Is(unicode.Mn, cr.r) || unicode.Is(unicode.Mc, cr.r) {
+		if unicode.Is(ucd.Mn, cr.r) || unicode.Is(ucd.Mc, cr.r) {
 			cr.line = ucd.BreakCM
 		} else {
 			cr.line = ucd.BreakAL

@@ -10,7 +10,7 @@ import (
 
 // LookupType returns the unicode general categorie of the rune,
 // or nil if not found.
-// The returned table is one of the standard library unicode package.
+// The returned table is one of the constants defined in this package.
 func LookupType(r rune) *unicode.RangeTable {
 	for _, table := range allCategories {
 		if unicode.Is(table, r) {

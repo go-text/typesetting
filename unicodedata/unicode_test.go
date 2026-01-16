@@ -96,11 +96,11 @@ func TestLookupType(t *testing.T) {
 		args rune
 		want *unicode.RangeTable
 	}{
-		{'a', unicode.Ll},
-		{'.', unicode.Po},
-		{'カ', unicode.Lo},
-		{'🦳', unicode.So},
-		{'\U0001F3FF', unicode.Sk},
+		{'a', Ll},
+		{'.', Po},
+		{'カ', Lo},
+		{'🦳', So},
+		{'\U0001F3FF', Sk},
 		{'\U0001F02C', nil},
 		{-1, nil},
 	}
