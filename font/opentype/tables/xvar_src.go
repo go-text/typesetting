@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 )
 
 // ------------------------------------ fvar ------------------------------------
@@ -84,6 +85,26 @@ type ItemVarStore struct {
 	ItemVariationDatas  []ItemVariationData `arrayCount:"FirstUint16" offsetsArray:"Offset32"` // [itemVariationDataCount] Offsets in bytes from the start of the item variation store to each item variation data subtable.
 }
 
+// GetDelta uses the variation [store] and the selected instance coordinates [coords]
+// to compute the value at [index].
+func (store ItemVarStore) GetDelta(index VariationStoreIndex, coords []Coord) float32 {
+	if int(index.DeltaSetOuter) >= len(store.ItemVariationDatas) {
+		return 0
+	}
+	varData := store.ItemVariationDatas[index.DeltaSetOuter]
+	if int(index.DeltaSetInner) >= len(varData.DeltaSets) {
+		return 0
+	}
+	deltaSet := varData.DeltaSets[index.DeltaSetInner]
+	var delta float32
+	for i, regionIndex := range varData.RegionIndexes {
+		region := store.VariationRegionList.VariationRegions[regionIndex]
+		v := region.Evaluate(coords)
+		delta += float32(deltaSet[i]) * v
+	}
+	return delta
+}
+
 // AxisCount returns the number of axis found in the
 // var store, which must be the same as the one in the 'fvar' table.
 // It returns -1 if the store is empty
@@ -105,6 +126,16 @@ type VariationRegion struct {
 	RegionAxes []RegionAxisCoordinates // [axisCount]
 }
 
+// Evaluate returns the scalar factor of the region
+func (vr VariationRegion) Evaluate(coords []Coord) float32 {
+	v := float32(1)
+	for axis, coord := range coords {
+		factor := vr.RegionAxes[axis].evaluate(coord)
+		v *= factor
+	}
+	return v
+}
+
 type RegionAxisCoordinates struct {
 	StartCoord Coord // The region start coordinate value for the current axis.
 	PeakCoord  Coord // The region peak coordinate value for the current axis.
@@ -116,11 +147,13 @@ type RegionAxisCoordinates struct {
 func (reg RegionAxisCoordinates) evaluate(coord Coord) float32 {
 	start, peak, end := reg.StartCoord, reg.PeakCoord, reg.EndCoord
 	if peak == 0 || coord == peak {
-		return 1.
+		return 1
+	} else if coord == 0 { // Faster
+		return 0
 	}
 
 	if coord <= start || end <= coord {
-		return 0.
+		return 0
 	}
 
 	// Interpolate
@@ -294,9 +327,17 @@ type HVAR struct {
 	majorVersion        uint16           // Major version number of the horizontal metrics variations table — set to 1.
 	minorVersion        uint16           // Minor version number of the horizontal metrics variations table — set to 0.
 	ItemVariationStore  ItemVarStore     `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the item variation store table.
-	AdvanceWidthMapping DeltaSetMapping  `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for advance widths (may be NULL).
+	AdvanceWidthMapping *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for advance widths (may be NULL).
 	LsbMapping          *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for left side bearings (may be NULL).
 	RsbMapping          *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for right side bearings (may be NULL).
+}
+
+func (t *HVAR) AdvanceDelta(glyph GlyphID, coords []Coord) float32 {
+	if t.AdvanceWidthMapping == nil {
+		return 0
+	}
+	index := t.AdvanceWidthMapping.Index(glyph)
+	return t.ItemVariationStore.GetDelta(index, coords)
 }
 
 // VariationStoreIndex reference an item in the variation store
@@ -368,7 +409,18 @@ func (ds *DeltaSetMapping) parseMap(src []byte) error {
 }
 
 // See - https://learn.microsoft.com/fr-fr/typography/opentype/spec/vvar
-type VVAR = HVAR
+type VVAR struct {
+	HVAR
+	VOrgMapping *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for Y coordinates of vertical origins (may be NULL).
+}
+
+func (vv *VVAR) VorgDelta(glyph GlyphID, coords []Coord) float32 {
+	if vv.VOrgMapping == nil {
+		return 0
+	}
+	varidx := vv.VOrgMapping.Index(glyph)
+	return vv.ItemVariationStore.GetDelta(varidx, coords)
+}
 
 // ------------------------------------ avar ------------------------------------
 
@@ -384,6 +436,108 @@ type SegmentMaps struct {
 	// [positionMapCount]	The array of axis value map records for this axis.
 	// Each axis value map record provides a single axis-value mapping correspondence.
 	AxisValueMaps []AxisValueMap `arrayCount:"FirstUint16"`
+}
+
+func (sm SegmentMaps) Map(value Coord) Coord {
+	// copied from harfbuzz/src/hb-ot-var-avar-table.hh
+
+	l := sm.AxisValueMaps
+
+	// The following special-cases are not part of OpenType, which requires
+	// that at least -1, 0, and +1 must be mapped. But we include these as
+	// part of a better error recovery scheme.
+	if len(l) == 0 {
+		return value
+	} else if len(l) == 1 {
+		return value - l[0].FromCoordinate + l[0].ToCoordinate
+	}
+
+	// At least two mappings now.
+
+	// CoreText is wild...
+	// PingFangUI avar needs all this special-casing...
+	// So we implement an extended version of the spec here,
+	// which is more robust and more likely to be compatible with
+	// the wild.
+
+	const p1 = Coord(1 << 14)
+	const m1 = -p1
+
+	start := 0
+	end := len(l)
+	if l[start].FromCoordinate == m1 && l[start].ToCoordinate == m1 && l[start+1].FromCoordinate == m1 {
+		start++
+	}
+	if l[end-1].FromCoordinate == p1 && l[end-1].ToCoordinate == p1 && l[end-2].FromCoordinate == p1 {
+		end--
+	}
+
+	// Look for exact match first, and do lots of special-casing.
+	var i int
+	for i = start; i < end; i++ {
+		if value == l[i].FromCoordinate {
+			break
+		}
+	}
+	if i < end {
+		// There's at least one exact match. See if there are more.
+		j := i
+		for ; j+1 < end; j++ {
+			if value != l[j+1].FromCoordinate {
+				break
+			}
+		}
+
+		// [i,j] inclusive are all exact matches:
+
+		// If there's only one, return it. This is the only spec-compliant case.
+		if i == j {
+			return l[i].ToCoordinate
+		}
+		// If there's exactly three, return the middle one.
+		if i+2 == j {
+			return l[i+1].ToCoordinate
+		}
+
+		// Ignore the middle ones. Return the one mapping closer to 0.
+		if value < 0 {
+			return l[j].ToCoordinate
+		}
+		if value > 0 {
+			return l[i].ToCoordinate
+		}
+
+		// Mapping 0 ? CoreText seems confused. It seems to prefer 0 here...
+		// So we'll just return the smallest one. lol
+		if abs(l[i].ToCoordinate) < abs(l[j].ToCoordinate) {
+			return l[i].ToCoordinate
+		}
+		return l[j].ToCoordinate
+	}
+
+	// There's at least two and we're not an exact match. Prepare to lerp.
+
+	// Find the segment we're in.
+	for i = start; i < end; i++ {
+		if value < l[i].FromCoordinate {
+			break
+		}
+	}
+
+	if i == 0 {
+		// Value before all segments; Shift.
+		return value - l[0].FromCoordinate + l[0].ToCoordinate
+	}
+	if i == end {
+		// Value after all segments; Shift.
+		return value - l[end-1].FromCoordinate + l[end-1].ToCoordinate
+	}
+
+	// Actually interpolate.
+	before := l[i-1]
+	after := l[i]
+	denom := float64(after.FromCoordinate - before.FromCoordinate) // Can't be zero by now.
+	return before.ToCoordinate + Coord(math.Round(float64(after.ToCoordinate-before.ToCoordinate)*float64(value-before.FromCoordinate))/denom)
 }
 
 type AxisValueMap struct {

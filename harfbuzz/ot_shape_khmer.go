@@ -54,7 +54,7 @@ const (
 )
 
 func (cs *complexShaperKhmer) collectFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	/* Do this before any lookups have been applied. */
 	map_.addGSUBPause(setupSyllablesKhmer)
@@ -87,17 +87,12 @@ func (cs *complexShaperKhmer) collectFeatures(plan *otShapePlanner) {
 }
 
 func (complexShaperKhmer) overrideFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	/* Khmer spec has 'clig' as part of required shaping features:
 	* "Apply feature 'clig' to form ligatures that are desired for
 	* typographical correctness.", hence in overrides... */
 	map_.enableFeature(ot.NewTag('c', 'l', 'i', 'g'))
-
-	/* Uniscribe does not apply 'kern' in Khmer. */
-	if UniscribeBugCompatible {
-		map_.disableFeature(ot.NewTag('k', 'e', 'r', 'n'))
-	}
 
 	map_.disableFeature(ot.NewTag('l', 'i', 'g', 'a'))
 }
@@ -114,7 +109,7 @@ func (cs *complexShaperKhmer) dataCreate(plan *otShapePlan) {
 
 	for i := range khmerPlan.maskArray {
 		if khmerFeatures[i].flags&ffGLOBAL == 0 {
-			khmerPlan.maskArray[i] = plan.map_.getMask1(khmerFeatures[i].tag)
+			khmerPlan.maskArray[i] = plan.otMap.getMask1(khmerFeatures[i].tag)
 		}
 	}
 

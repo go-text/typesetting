@@ -108,7 +108,6 @@ func ParseGlyphVariationData(src []byte, axisCount int) (GlyphVariationData, int
 	n += 4
 
 	{
-
 		if offsetSerializedData != 0 { // ignore null offset
 			if L := len(src); L < offsetSerializedData {
 				return item, 0, fmt.Errorf("reading GlyphVariationData: "+"EOF: expected length: %d, got %d", offsetSerializedData, L)
@@ -152,7 +151,6 @@ func ParseGvar(src []byte) (Gvar, int, error) {
 	n += 20
 
 	{
-
 		if offsetSharedTuples != 0 { // ignore null offset
 			if L := len(src); L < offsetSharedTuples {
 				return item, 0, fmt.Errorf("reading Gvar: "+"EOF: expected length: %d, got %d", offsetSharedTuples, L)
@@ -199,7 +197,6 @@ func ParseHVAR(src []byte) (HVAR, int, error) {
 	n += 20
 
 	{
-
 		if offsetItemVariationStore != 0 { // ignore null offset
 			if L := len(src); L < offsetItemVariationStore {
 				return item, 0, fmt.Errorf("reading HVAR: "+"EOF: expected length: %d, got %d", offsetItemVariationStore, L)
@@ -214,22 +211,22 @@ func ParseHVAR(src []byte) (HVAR, int, error) {
 		}
 	}
 	{
-
 		if offsetAdvanceWidthMapping != 0 { // ignore null offset
 			if L := len(src); L < offsetAdvanceWidthMapping {
 				return item, 0, fmt.Errorf("reading HVAR: "+"EOF: expected length: %d, got %d", offsetAdvanceWidthMapping, L)
 			}
 
+			var tmpAdvanceWidthMapping DeltaSetMapping
 			var err error
-			item.AdvanceWidthMapping, _, err = ParseDeltaSetMapping(src[offsetAdvanceWidthMapping:])
+			tmpAdvanceWidthMapping, _, err = ParseDeltaSetMapping(src[offsetAdvanceWidthMapping:])
 			if err != nil {
 				return item, 0, fmt.Errorf("reading HVAR: %s", err)
 			}
 
+			item.AdvanceWidthMapping = &tmpAdvanceWidthMapping
 		}
 	}
 	{
-
 		if offsetLsbMapping != 0 { // ignore null offset
 			if L := len(src); L < offsetLsbMapping {
 				return item, 0, fmt.Errorf("reading HVAR: "+"EOF: expected length: %d, got %d", offsetLsbMapping, L)
@@ -246,7 +243,6 @@ func ParseHVAR(src []byte) (HVAR, int, error) {
 		}
 	}
 	{
-
 		if offsetRsbMapping != 0 { // ignore null offset
 			if L := len(src); L < offsetRsbMapping {
 				return item, 0, fmt.Errorf("reading HVAR: "+"EOF: expected length: %d, got %d", offsetRsbMapping, L)
@@ -315,7 +311,6 @@ func ParseMVAR(src []byte) (MVAR, int, error) {
 	n += 12
 
 	{
-
 		if offsetItemVariationStore != 0 { // ignore null offset
 			if L := len(src); L < offsetItemVariationStore {
 				return item, 0, fmt.Errorf("reading MVAR: "+"EOF: expected length: %d, got %d", offsetItemVariationStore, L)
@@ -426,6 +421,45 @@ func ParseTupleVariationHeader(src []byte, axisCount int) (TupleVariationHeader,
 			return item, 0, fmt.Errorf("reading TupleVariationHeader: %s", err)
 		}
 		n += read
+	}
+	return item, n, nil
+}
+
+func ParseVVAR(src []byte) (VVAR, int, error) {
+	var item VVAR
+	n := 0
+	{
+		var (
+			err  error
+			read int
+		)
+		item.HVAR, read, err = ParseHVAR(src[0:])
+		if err != nil {
+			return item, 0, fmt.Errorf("reading VVAR: %s", err)
+		}
+		n += read
+	}
+	if L := len(src); L < n+4 {
+		return item, 0, fmt.Errorf("reading VVAR: "+"EOF: expected length: n + 4, got %d", L)
+	}
+	offsetVOrgMapping := int(binary.BigEndian.Uint32(src[n:]))
+	n += 4
+
+	{
+		if offsetVOrgMapping != 0 { // ignore null offset
+			if L := len(src); L < offsetVOrgMapping {
+				return item, 0, fmt.Errorf("reading VVAR: "+"EOF: expected length: %d, got %d", offsetVOrgMapping, L)
+			}
+
+			var tmpVOrgMapping DeltaSetMapping
+			var err error
+			tmpVOrgMapping, _, err = ParseDeltaSetMapping(src[offsetVOrgMapping:])
+			if err != nil {
+				return item, 0, fmt.Errorf("reading VVAR: %s", err)
+			}
+
+			item.VOrgMapping = &tmpVOrgMapping
+		}
 	}
 	return item, n, nil
 }

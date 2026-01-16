@@ -59,9 +59,6 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 	/* Adjusts offsets of attached glyphs (both cursive and mark) to accumulate
 	 * offset of glyph they are attached to. */
 	chain, type_ := pos[i].attachChain, pos[i].attachType
-	if chain == 0 {
-		return
-	}
 
 	pos[i].attachChain = 0
 
@@ -71,7 +68,9 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 		return
 	}
 
-	propagateAttachmentOffsets(pos, j, direction)
+	if pos[j].attachChain != 0 {
+		propagateAttachmentOffsets(pos, j, direction)
+	}
 
 	//   assert (!!(type_ & attachTypeMark) ^ !!(type_ & attachTypeCursive));
 
@@ -85,16 +84,34 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 		pos[i].XOffset += pos[j].XOffset
 		pos[i].YOffset += pos[j].YOffset
 
-		// assert (j < i);
-		if direction.isForward() {
-			for _, p := range pos[j:i] {
-				pos[i].XOffset -= p.XAdvance
-				pos[i].YOffset -= p.YAdvance
+		// i is the position of the mark; j is the base.
+		if j < i {
+			/* This is the common case: mark follows base.
+			 * And currently the only way in OpenType. */
+			if direction.isForward() {
+				for _, p := range pos[j:i] {
+					pos[i].XOffset -= p.XAdvance
+					pos[i].YOffset -= p.YAdvance
+				}
+			} else {
+				for _, p := range pos[j+1 : i+1] {
+					pos[i].XOffset += p.XAdvance
+					pos[i].YOffset += p.YAdvance
+				}
 			}
-		} else {
-			for _, p := range pos[j+1 : i+1] {
-				pos[i].XOffset += p.XAdvance
-				pos[i].YOffset += p.YAdvance
+		} else { // j > i
+			/* This can happen with `kerx`: a mark attaching
+			 * to a base after it in the logical order. */
+			if direction.isForward() {
+				for k := i; k < j; k++ {
+					pos[i].XOffset += pos[k].XAdvance
+					pos[i].YOffset += pos[k].YAdvance
+				}
+			} else {
+				for k := i + 1; k < j+1; k++ {
+					pos[i].XOffset -= pos[k].XAdvance
+					pos[i].YOffset -= pos[k].YAdvance
+				}
 			}
 		}
 	}
@@ -106,13 +123,23 @@ func positionFinishOffsetsGPOS(buffer *Buffer) {
 
 	/* Handle attachments */
 	if buffer.scratchFlags&bsfHasGPOSAttachment != 0 {
-
 		if debugMode {
 			fmt.Println("POSITION - handling attachments")
 		}
 
-		for i := range pos {
-			propagateAttachmentOffsets(pos, i, direction)
+		// https://github.com/harfbuzz/harfbuzz/issues/5514
+		if direction.isForward() {
+			for i := range pos {
+				if pos[i].attachChain != 0 {
+					propagateAttachmentOffsets(pos, i, direction)
+				}
+			}
+		} else {
+			for i := len(pos) - 1; i >= 0; i-- {
+				if pos[i].attachChain != 0 {
+					propagateAttachmentOffsets(pos, i, direction)
+				}
+			}
 		}
 	}
 }
@@ -148,7 +175,7 @@ func (c *otApplyContext) applyGPOS(table tables.GPOSLookup) bool {
 		buffer.idx++
 	case tables.PairPos:
 		skippyIter := &c.iterInput
-		skippyIter.reset(buffer.idx, 1)
+		skippyIter.resetFast(buffer.idx)
 		if ok, unsafeTo := skippyIter.next(); !ok {
 			buffer.unsafeToConcat(buffer.idx, unsafeTo)
 			return false
@@ -286,7 +313,7 @@ func (c *otApplyContext) applyGPOSPair1(inner tables.PairPosData1, index int) bo
 	skippyIter := &c.iterInput
 	pos := skippyIter.idx
 	set := inner.PairSets[index]
-	record, ok := set.FindGlyph(gID(buffer.Info[skippyIter.idx].Glyph))
+	record, ok := set.FindGlyph(gID(buffer.Info[pos].Glyph))
 	if !ok {
 		buffer.unsafeToConcat(buffer.idx, pos+1)
 		return false
@@ -351,7 +378,7 @@ func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) 
 	}
 
 	skippyIter := &c.iterInput
-	skippyIter.reset(buffer.idx, 1)
+	skippyIter.resetFast(buffer.idx)
 	if ok, unsafeFrom := skippyIter.prev(); !ok {
 		buffer.unsafeToConcatFromOutbuffer(unsafeFrom, buffer.idx+1)
 		return false
@@ -416,8 +443,8 @@ func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) 
 	 * Arabic. */
 	child := i
 	parent := j
-	xOffset := Position(entryX - exitX)
-	yOffset := Position(entryY - exitY)
+	xOffset := roundf(entryX - exitX)
+	yOffset := roundf(entryY - exitY)
 	if uint16(c.lookupProps)&otRightToLeft == 0 {
 		k := child
 		child = parent
@@ -433,8 +460,14 @@ func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) 
 	 */
 	reverseCursiveMinorOffset(pos, child, c.direction, parent)
 
+	chain := parent - child
+	if int(int16(chain)) != parent-child { // handle overflow
+		pos[child].attachChain = 0
+		buffer.idx++
+		return true
+	}
 	pos[child].attachType = attachTypeCursive
-	pos[child].attachChain = int16(parent - child)
+	pos[child].attachChain = int16(chain)
 	buffer.scratchFlags |= bsfHasGPOSAttachment
 	if c.direction.isHorizontal() {
 		pos[child].YOffset = yOffset
@@ -515,8 +548,14 @@ func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyph
 	o := buffer.curPos(0)
 	o.XOffset = roundf(baseX - markX)
 	o.YOffset = roundf(baseY - markY)
+	chain := glyphPos - buffer.idx
+	if int(int16(chain)) != chain { // overflow
+		o.attachChain = 0
+		buffer.idx++
+		return true
+	}
 	o.attachType = attachTypeMark
-	o.attachChain = int16(glyphPos - buffer.idx)
+	o.attachChain = int16(chain)
 	buffer.scratchFlags |= bsfHasGPOSAttachment
 
 	buffer.idx++
@@ -639,7 +678,7 @@ func (c *otApplyContext) applyGPOSMarkToMark(data tables.MarkMarkPos, mark1Index
 
 	// now we search backwards for a suitable mark glyph until a non-mark glyph
 	skippyIter := &c.iterInput
-	skippyIter.reset(buffer.idx, 1)
+	skippyIter.resetFast(buffer.idx)
 	skippyIter.matcher.lookupProps = c.lookupProps &^ uint32(ignoreFlags)
 	if ok, _ := skippyIter.prev(); !ok {
 		return false

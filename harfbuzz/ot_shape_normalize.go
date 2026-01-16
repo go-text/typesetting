@@ -62,10 +62,9 @@ const (
 )
 
 type otNormalizeContext struct {
-	plan   *otShapePlan
-	buffer *Buffer
-	font   *Font
-	// hb_unicode_funcs_t *unicode;
+	plan      *otShapePlan
+	buffer    *Buffer
+	font      *Font
 	decompose func(c *otNormalizeContext, ab rune) (a, b rune, ok bool)
 	compose   func(c *otNormalizeContext, a, b rune) (ab rune, ok bool)
 }
@@ -193,6 +192,13 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 				// Just pass on the two characters separately, let GSUB do its magic.
 				setGlyph(buffer.cur(0), font)
 				buffer.nextGlyph()
+
+				buffer.scratchFlags |= bsfHasVariationSelectorFallback
+				buffer.cur(0).setVariationSelector(true)
+				if buffer.notFoundVariationSelector != 0xFFFFFFFF {
+					buffer.cur(0).clearDefaultIgnorable()
+				}
+
 				setGlyph(buffer.cur(0), font)
 				buffer.nextGlyph()
 			}
