@@ -452,4 +452,4 @@ func (ft *Font) Describe() Description {
 	return Description{desc.family(), desc.aspect()}
 }
 
-type STAT struct{} // TODO
+type STAT = tables.STAT

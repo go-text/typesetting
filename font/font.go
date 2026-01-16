@@ -284,6 +284,12 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 		}
 	}
 
+	raw, _ = ld.RawTable(ot.MustNewTag("STAT"))
+	stat, _, err := tables.ParseSTAT(raw)
+	if err == nil {
+		out.STAT = &stat
+	}
+
 	out.hhea, out.hmtx, _ = loadHmtx(ld, out.nGlyphs)
 	out.vhea, out.vmtx, _ = loadVmtx(ld, out.nGlyphs)
 
