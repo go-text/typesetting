@@ -247,15 +247,8 @@ func TestParseSTAT(t *testing.T) {
 		stat, _, err := ParseSTAT(readTable(t, fp, "STAT"))
 		tu.AssertNoErr(t, err)
 
-		for index, axis := range stat.designAxes {
-			fmt.Println(axis, names.Name(axis.NameID))
-
-			for _, value := range stat.axisValues.Values {
-				if value.index() == uint16(index) {
-					fmt.Println(names.Name(value.name()), value)
-				}
-			}
+		for _, axis := range stat.designAxes {
+			tu.Assert(t, names.Name(axis.NameID) != "")
 		}
-		fmt.Println(stat)
 	}
 }

@@ -146,3 +146,12 @@ func TestLoadColor(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
 }
+
+func TestParseSTAT(t *testing.T) {
+	for _, path := range td.WithAvar {
+		ld := readFontFile(t, path)
+		ft, err := NewFont(ld)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, ft.STAT != nil)
+	}
+}

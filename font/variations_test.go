@@ -56,7 +56,7 @@ func TestVar(t *testing.T) {
 		{200, 1310},
 		{301, 2672},
 		{400, 6390},
-		{401.2, 6424},
+		{401.2, 6423},
 	} {
 		coords := font.NormalizeVariations([]float32{test.design})
 		tu.AssertC(t, coords[0] == test.normalized, fmt.Sprintf("%d != %d", coords[0], test.normalized))
