@@ -504,12 +504,9 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 				fmt.Printf("\t\tLookup %d start\n", lookupIndex)
 			}
 
-			// c.digest is a digest of all the current glyphs in the buffer
-			// (plus some past glyphs).
-			//
-			// Only try applying the lookup if there is any overlap. */
+			// Only try applying the lookup if there is any overlap.
 			accel := &proxy.accels[lookupIndex]
-			if accel.digest.mayHaveDigest(c.digest) {
+			if accel.digest.mayIntersects(c.digest) {
 
 				c.lookupIndex = lookupIndex
 				c.lookupMask = lookup.mask
@@ -543,7 +540,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 
 			if stage.pauseFunc(plan, font, buffer) {
 				// Refresh working buffer digest since buffer changed.
-				c.digest = buffer.digest()
+				buffer.updateDigest()
 			}
 		}
 	}

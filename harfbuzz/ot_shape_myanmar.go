@@ -63,7 +63,7 @@ var myanmarOtherFeatures = [...]tables.Tag{
 }
 
 func (complexShaperMyanmar) collectFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	/* Do this before any lookups have been applied. */
 	map_.addGSUBPause(setupSyllablesMyanmar)

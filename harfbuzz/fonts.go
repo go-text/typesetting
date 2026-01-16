@@ -19,7 +19,10 @@ type Font struct {
 	face Face
 
 	gsubAccels, gposAccels []otLayoutLookupAccelerator // accelators for lookup
-	faceUpem               int32                       // cached value of Face.Upem()
+	morxAccels             [][]morxSubtableAccelerator
+	kernAccels, kerxAccels []kernxSubtableAccelerator
+
+	faceUpem int32 // cached value of Face.Upem()
 
 	// Point size of the font. Set to zero to unset.
 	// This is used in AAT layout, when applying 'trak' table.
@@ -83,7 +86,18 @@ func NewFont(face Face) *Font {
 	for i, l := range face.GPOS.Lookups {
 		font.gposAccels[i].init(lookupGPOS(l))
 	}
-
+	font.morxAccels = make([][]morxSubtableAccelerator, len(face.Morx))
+	for i, chain := range face.Morx {
+		font.morxAccels[i] = newMorxChainAccelerator(chain)
+	}
+	font.kernAccels = make([]kernxSubtableAccelerator, len(face.Kern))
+	for i, subtable := range face.Kern {
+		font.kernAccels[i] = newKernxSubtableAccelerator(subtable)
+	}
+	font.kerxAccels = make([]kernxSubtableAccelerator, len(face.Kerx))
+	for i, subtable := range face.Kern {
+		font.kerxAccels[i] = newKernxSubtableAccelerator(subtable)
+	}
 	return &font
 }
 
@@ -205,27 +219,17 @@ func (f *Font) getGlyphOriginForDirection(glyph GID, direction Direction) (x, y 
 func (f *Font) getGlyphHOriginWithFallback(glyph GID) (Position, Position) {
 	x, y, ok := f.face.GlyphHOrigin(glyph)
 	if !ok {
-		x, y, ok = f.face.GlyphVOrigin(glyph)
-		if ok {
-			x, y := f.emScalefX(float32(x)), f.emScalefY(float32(y))
-			dx, dy := f.guessVOriginMinusHOrigin(glyph)
-			return x - dx, y - dy
-		}
+		xf, yf := f.face.GlyphVOrigin(glyph)
+		x, y := f.emScalefX(xf), f.emScalefY(yf)
+		dx, dy := f.guessVOriginMinusHOrigin(glyph)
+		return x - dx, y - dy
 	}
 	return f.emScalefX(float32(x)), f.emScalefY(float32(y))
 }
 
 func (f *Font) getGlyphVOriginWithFallback(glyph GID) (Position, Position) {
-	x, y, ok := f.face.GlyphVOrigin(glyph)
-	if !ok {
-		x, y, ok = f.face.GlyphHOrigin(glyph)
-		if ok {
-			x, y := f.emScalefX(float32(x)), f.emScalefY(float32(y))
-			dx, dy := f.guessVOriginMinusHOrigin(glyph)
-			return x + dx, y + dy
-		}
-	}
-	return f.emScalefX(float32(x)), f.emScalefY(float32(y))
+	x, y := f.face.GlyphVOrigin(glyph)
+	return f.emScalefX(x), f.emScalefY(y)
 }
 
 func (f *Font) guessVOriginMinusHOrigin(glyph GID) (x, y Position) {

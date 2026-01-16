@@ -176,7 +176,7 @@ func (complexShaperArabic) normalizationPreference() normalizationMode {
 }
 
 func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	/* We apply features according to the Arabic spec, with pauses
 	* in between most.
@@ -228,7 +228,6 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	/* https://github.com/harfbuzz/harfbuzz/issues/1573 */
 	if !map_.hasFeature(ot.NewTag('r', 'c', 'l', 't')) {
 		map_.addGSUBPause(nil)
-		map_.enableFeatureExt(ot.NewTag('r', 'c', 'l', 't'), ffManualZWJ, 1)
 	}
 
 	map_.enableFeatureExt(ot.NewTag('l', 'i', 'g', 'a'), ffManualZWJ, 1)
@@ -261,11 +260,11 @@ func newArabicPlan(plan *otShapePlan) arabicShapePlan {
 	var arabicPlan arabicShapePlan
 
 	arabicPlan.doFallback = plan.props.Script == language.Arabic
-	arabicPlan.hasStch = plan.map_.getMask1(ot.NewTag('s', 't', 'c', 'h')) != 0
+	arabicPlan.hasStch = plan.otMap.getMask1(ot.NewTag('s', 't', 'c', 'h')) != 0
 	for i, arabFeat := range arabicFeatures {
-		arabicPlan.maskArray[i] = plan.map_.getMask1(arabFeat)
+		arabicPlan.maskArray[i] = plan.otMap.getMask1(arabFeat)
 		arabicPlan.doFallback = arabicPlan.doFallback &&
-			(featureIsSyriac(arabFeat) || plan.map_.needsFallback(arabFeat))
+			(featureIsSyriac(arabFeat) || plan.otMap.needsFallback(arabFeat))
 	}
 	return arabicPlan
 }
@@ -428,8 +427,10 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 		return
 	}
 
-	/* The Arabic shaper currently always processes in RTL mode, so we should
-	* stretch / position the stretched pieces to the left / preceding glyphs. */
+	rtl := buffer.Props.Direction == RightToLeft
+	if !rtl {
+		buffer.Reverse()
+	}
 
 	/* We do a two pass implementation:
 	* First pass calculates the exact number of extra glyphs we need,
@@ -515,6 +516,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 				excess := (Position(nCopies)+1)*sign*wRepeating - sign*wRemaining
 				if excess > 0 {
 					extraRepeatOverlap = excess / Position(nCopies*nRepeating)
+					wRemaining = 0
 				}
 			}
 
@@ -525,7 +527,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 				}
 			} else {
 				buffer.unsafeToBreak(context, end)
-				var xOffset Position
+				xOffset := wRemaining / 2
 				for k := end; k > start; k-- {
 					width := font.GlyphHAdvance(info[k-1].Glyph)
 
@@ -537,16 +539,27 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 					if debugMode {
 						fmt.Printf("ARABIC - appending %d copies of glyph %d; j=%d\n", repeat, info[k-1].codepoint, j)
 					}
+
+					pos[k-1].XAdvance = 0
 					for n := 0; n < repeat; n++ {
-						xOffset -= width
-						if n > 0 {
-							xOffset += extraRepeatOverlap
+						if rtl {
+							xOffset -= width
+							if n > 0 {
+								xOffset += extraRepeatOverlap
+							}
 						}
 						pos[k-1].XOffset = xOffset
 						// append copy.
 						j--
 						info[j] = info[k-1]
 						pos[j] = pos[k-1]
+
+						if !rtl {
+							xOffset += width
+							if n > 0 {
+								xOffset -= extraRepeatOverlap
+							}
+						}
 					}
 				}
 			}
@@ -556,6 +569,10 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 			buffer.Info = append(buffer.Info, make([]GlyphInfo, extraGlyphsNeeded)...)
 			buffer.Pos = append(buffer.Pos, make([]GlyphPosition, extraGlyphsNeeded)...)
 		}
+	}
+
+	if !rtl {
+		buffer.Reverse()
 	}
 }
 
@@ -838,7 +855,7 @@ func (fbPlan *arabicFallbackPlan) initWin1256(plan *otShapePlan, font *Font) boo
 
 	var j int
 	for _, man := range arabicWin1256GsubLookups {
-		fbPlan.maskArray[j] = plan.map_.getMask1(man.tag)
+		fbPlan.maskArray[j] = plan.otMap.getMask1(man.tag)
 		if fbPlan.maskArray[j] != 0 {
 			if man.lookup != nil {
 				fbPlan.accelArray[j].init(*man.lookup)
@@ -855,7 +872,7 @@ func (fbPlan *arabicFallbackPlan) initWin1256(plan *otShapePlan, font *Font) boo
 func (fbPlan *arabicFallbackPlan) initUnicode(plan *otShapePlan, font *Font) bool {
 	var j int
 	for i, feat := range arabicFallbackFeatures {
-		fbPlan.maskArray[j] = plan.map_.getMask1(feat)
+		fbPlan.maskArray[j] = plan.otMap.getMask1(feat)
 		if fbPlan.maskArray[j] != 0 {
 			lk := arabicFallbackSynthesizeLookup(font, i)
 			if lk != nil {

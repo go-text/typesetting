@@ -154,6 +154,8 @@ type Font struct {
 	bitmap bitmap
 	sbix   sbix
 
+	STAT *STAT // optional
+
 	COLR *tables.COLR1 // color glyphs, optional
 	CPAL CPAL          // color glyphs, optional
 
@@ -301,7 +303,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 		}
 
 		raw, _ = ld.RawTable(ot.MustNewTag("VVAR"))
-		vvar, _, err := tables.ParseHVAR(raw)
+		vvar, _, err := tables.ParseVVAR(raw)
 		if err == nil {
 			out.vvar = &vvar
 		}
@@ -502,11 +504,12 @@ func loadGDEF(ld *ot.Loader, axisCount int) (tables.GDEF, error) {
 
 // Face is a font with user-provided settings.
 // Contrary to the [*Font] objects, Faces are NOT safe for concurrent use.
-// A Face caches glyph extents and should be reused when possible.
+// A Face caches glyph extents and rune to glyph mapping, and should be reused when possible.
 type Face struct {
 	*Font
 
 	extentsCache extentsCache
+	cmapCache    cache21_19_8
 
 	coords       []tables.Coord
 	xPpem, yPpem uint16
@@ -514,7 +517,24 @@ type Face struct {
 
 // NewFace wraps [font] and initializes glyph caches.
 func NewFace(font *Font) *Face {
-	return &Face{Font: font, extentsCache: make(extentsCache, font.nGlyphs)}
+	out := &Face{Font: font, extentsCache: make(extentsCache, font.nGlyphs)}
+	out.cmapCache.clear()
+	return out
+}
+
+// NominalGlyph returns the glyph used to represent the given rune,
+// or false if not found.
+// Note that it only looks into the cmap, without taking account substitutions
+// nor variation selectors.
+func (f *Face) NominalGlyph(ch rune) (GID, bool) {
+	if g, ok := f.cmapCache.get(uint32(ch)); ok {
+		return GID(g), ok
+	}
+	g, ok := f.Cmap.Lookup(ch)
+	if ok {
+		f.cmapCache.set(uint32(ch), uint32(g))
+	}
+	return g, ok
 }
 
 // Ppem returns the horizontal and vertical pixels-per-em (ppem), used to select bitmap sizes.

@@ -215,8 +215,7 @@ func TestGlyfSegments1(t *testing.T) {
 
 	face := Face{Font: f}
 	for i, expected := range expecteds {
-		var points []contourPoint
-		face.getPointsForGlyph(gID(i), 0, &points)
+		points := face.getPointsForGlyph(gID(i))
 
 		got := buildSegments(points[:len(points)-phantomCount])
 		if len(expected) == 0 {
@@ -228,14 +227,13 @@ func TestGlyfSegments1(t *testing.T) {
 }
 
 func BenchmarkBuildSegments(b *testing.B) {
-	var points []contourPoint
 	font := loadFont(b, "common/Roboto-BoldItalic.ttf")
 	face := Face{Font: font}
 	gid, ok := face.NominalGlyph('&')
 	if !ok {
 		b.Fatal("did not find & in the font")
 	}
-	face.getPointsForGlyph(uint16(gid), 0, &points)
+	points := face.getPointsForGlyph(uint16(gid))
 
 	b.ResetTimer()
 
@@ -384,8 +382,7 @@ func TestGlyfSegments2(t *testing.T) {
 
 	face := Face{Font: font}
 	for i, expected := range expecteds {
-		var points []contourPoint
-		face.getPointsForGlyph(gID(i), 0, &points)
+		points := face.getPointsForGlyph(gID(i))
 		got := buildSegments(points[:len(points)-phantomCount])
 		if len(expected) == 0 {
 			expected = nil

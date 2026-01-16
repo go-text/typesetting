@@ -283,14 +283,16 @@ func (c *otApplyContext) applySubsLigature(ligatureSet []tables.Ligature) bool {
 			return true
 		}
 
-		var matchPositions [maxContextLength]int
+		if count > maxContextLength {
+			return false
+		}
 
-		ok, matchEnd, totalComponentCount := c.matchInput(lig.ComponentGlyphIDs, matchGlyph, &matchPositions)
+		ok, matchEnd, totalComponentCount := c.matchInput(lig.ComponentGlyphIDs, matchGlyph)
 		if !ok {
 			c.buffer.unsafeToConcat(c.buffer.idx, matchEnd)
 			continue
 		}
-		c.ligateInput(count, matchPositions, matchEnd, lig.LigatureGlyph, totalComponentCount)
+		c.ligateInput(count, matchEnd, lig.LigatureGlyph, totalComponentCount)
 
 		return true
 	}

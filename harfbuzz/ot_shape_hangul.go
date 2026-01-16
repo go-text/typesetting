@@ -37,7 +37,7 @@ var hangulFeatures = [hangulFeatureCount]tables.Tag{
 }
 
 func (complexShaperHangul) collectFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	for i := firstHangulFeature; i < hangulFeatureCount; i++ {
 		map_.addFeature(hangulFeatures[i])
@@ -48,7 +48,7 @@ func (complexShaperHangul) overrideFeatures(plan *otShapePlanner) {
 	/* Uniscribe does not apply 'calt' for Hangul, and certain fonts
 	* (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
 	* in calt, which is not desirable. */
-	plan.map_.disableFeature(ot.NewTag('c', 'a', 'l', 't'))
+	plan.otMap.disableFeature(ot.NewTag('c', 'a', 'l', 't'))
 }
 
 type hangulShapePlan struct {
@@ -59,7 +59,7 @@ func (cs *complexShaperHangul) dataCreate(plan *otShapePlan) {
 	var hangulPlan hangulShapePlan
 
 	for i := range hangulPlan.maskArray {
-		hangulPlan.maskArray[i] = plan.map_.getMask1(hangulFeatures[i])
+		hangulPlan.maskArray[i] = plan.otMap.getMask1(hangulFeatures[i])
 	}
 
 	cs.plan = hangulPlan
@@ -233,9 +233,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 				} else {
 					end = start + 2
 				}
-				if buffer.ClusterLevel == MonotoneGraphemes {
-					buffer.mergeOutClusters(start, end)
-				}
+				buffer.mergeOutClusters(start, end)
 				continue
 			}
 		} else if ucd.HangulSBase <= u && u <= ucd.HangulSBase+ucd.HangulSCount-1 { // is combined S
@@ -301,9 +299,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 						i++
 					}
 
-					if buffer.ClusterLevel == MonotoneGraphemes {
-						buffer.mergeOutClusters(start, end)
-					}
+					buffer.mergeOutClusters(start, end)
 					continue
 				} else if tindex == 0 && buffer.idx+1 < count && isT(buffer.cur(+1).codepoint) {
 					buffer.unsafeToBreak(buffer.idx, buffer.idx+2) /* Mark unsafe between LV and T. */
@@ -336,7 +332,7 @@ func (cs *complexShaperHangul) setupMasks(_ *otShapePlan, buffer *Buffer, _ *Fon
 }
 
 func (complexShaperHangul) marksBehavior() (zeroWidthMarks, bool) {
-	return zeroWidthMarksNone, false
+	return zeroWidthMarksNone, true
 }
 
 func (complexShaperHangul) normalizationPreference() normalizationMode {

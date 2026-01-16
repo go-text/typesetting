@@ -29,14 +29,7 @@ const (
 	otMarkAttachmentType uint16 = 0xFF00
 )
 
-//  /**
-//   * SECTION:hb-ot-layout
-//   * @title: hb-ot-layout
-//   * @short_description: OpenType Layout
-//   * @include: hb-ot.h
-//   *
-//   * Functions for querying OpenType Layout features in the font face.
-//   **/
+type otLayoutMappingCache = cache15_8_7
 
 const maxNestingLevel = 6
 
@@ -70,16 +63,25 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 }
 
 func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
-	ret := false
 	buffer := c.buffer
-	for buffer.idx < len(buffer.Info) {
-		applied := false
-		if accel.digest.mayHave(gID(buffer.cur(0).Glyph)) &&
-			(buffer.cur(0).Mask&c.lookupMask) != 0 &&
-			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
-			applied = accel.apply(c)
+	info := buffer.Info
+	ret := false
+	for {
+		j := buffer.idx
+		for j < len(info) &&
+			!(accel.digest.mayHave(gID(info[j].Glyph)) &&
+				(info[j].Mask&c.lookupMask) != 0 &&
+				c.checkGlyphProperty(&info[j], c.lookupProps)) {
+			j++
+		}
+		if j > buffer.idx {
+			buffer.nextGlyphs(j - buffer.idx)
+		}
+		if buffer.idx > len(info) {
+			break
 		}
 
+		applied := accel.apply(c)
 		if applied {
 			ret = true
 		} else {
@@ -93,16 +95,16 @@ func (c *otApplyContext) applyBackward(accel *otLayoutLookupAccelerator) bool {
 	ret := false
 	buffer := c.buffer
 	for do := true; do; do = buffer.idx >= 0 {
-		if accel.digest.mayHave(gID(buffer.cur(0).Glyph)) &&
-			(buffer.cur(0).Mask&c.lookupMask != 0) &&
-			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
+		cur := buffer.cur(0)
+		if accel.digest.mayHave(gID(cur.Glyph)) &&
+			(cur.Mask&c.lookupMask != 0) &&
+			c.checkGlyphProperty(cur, c.lookupProps) {
 			applied := accel.apply(c)
 			ret = ret || applied
 		}
 
 		// the reverse lookup doesn't "advance" cursor (for good reason).
 		buffer.idx--
-
 	}
 	return ret
 }
@@ -141,7 +143,7 @@ func hasCrossKerning(kern font.Kernx) bool {
 func (sp *otShapePlan) otLayoutKern(font *Font, buffer *Buffer) {
 	kern := font.face.Kern
 	c := newAatApplyContext(sp, font, buffer)
-	c.applyKernx(kern)
+	c.applyKernx(kern, font.kernAccels)
 }
 
 var otTagLatinScript = ot.NewTag('l', 'a', 't', 'n')
@@ -369,5 +371,7 @@ func clearSubstitutionFlags(_ *otShapePlan, _ *Font, buffer *Buffer) bool {
 }
 
 func reverseGraphemes(b *Buffer) {
+	// MONOTONE_GRAPHEMES was already applied and is taken care of by _hb_grapheme_group_func.
+	// So we just check for MONOTONE_CHARACTERS here.
 	b.reverseGroups(func(_, gi2 *GlyphInfo) bool { return gi2.isContinuation() }, b.ClusterLevel == MonotoneGraphemes)
 }

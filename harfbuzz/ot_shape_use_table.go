@@ -10,13 +10,16 @@ const (
 	_G    = useSM_ex_G
 	_GB   = useSM_ex_GB
 	_H    = useSM_ex_H
+	_HM   = useSM_ex_HM
 	_HN   = useSM_ex_HN
+	_HR   = useSM_ex_HR
 	_HVM  = useSM_ex_HVM
 	_IS   = useSM_ex_IS
 	_J    = useSM_ex_J
 	_N    = useSM_ex_N
 	_O    = useSM_ex_O
 	_R    = useSM_ex_R
+	_RK   = useSM_ex_RK
 	_SB   = useSM_ex_SB
 	_SE   = useSM_ex_SE
 	_SUB  = useSM_ex_SUB
@@ -54,6 +57,12 @@ var useTable = [...]uint8{
 	/* Basic Latin */
 	_O, _O, _O, _O, _O, _GB, _O, _O,
 	/* 0030 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _O, _O, _O, _O, _O, _O,
+	/* 0040 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
+	/* 0050 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _SB, _O, _SE, _O, _O,
+	/* 0060 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
+	/* 0070 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _SB, _O, _SE, _O, _O,
+	/* 0080 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
+	/* 0090 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 
 	/* Latin-1 Supplement */
 
@@ -153,7 +162,7 @@ var useTable = [...]uint8{
 	/* 0C20 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _B, _B, _B, _B, _B, _B,
 	/* 0C30 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _CMBlw, _B, _VAbv, _VAbv,
 	/* 0C40 */ _VAbv, _VPst, _VPst, _VPst, _VPst, _WJ, _VAbv, _VAbv, _VAbv, _WJ, _VAbv, _VAbv, _VAbv, _H, _WJ, _WJ,
-	/* 0C50 */ _WJ, _WJ, _WJ, _WJ, _WJ, _VAbv, _VBlw, _WJ, _B, _B, _B, _WJ, _WJ, _O, _WJ, _WJ,
+	/* 0C50 */ _WJ, _WJ, _WJ, _WJ, _WJ, _VAbv, _VBlw, _WJ, _B, _B, _B, _WJ, _O, _O, _WJ, _WJ,
 	/* 0C60 */ _B, _B, _VBlw, _VBlw, _WJ, _WJ, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 0C70 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 
@@ -164,7 +173,7 @@ var useTable = [...]uint8{
 	/* 0CA0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _B, _B, _B, _B, _B, _B,
 	/* 0CB0 */ _B, _B, _B, _B, _WJ, _B, _B, _B, _B, _B, _WJ, _WJ, _CMBlw, _B, _VPst, _VAbv,
 	/* 0CC0 */ _VAbv, _VPst, _VPst, _VPst, _VPst, _WJ, _VAbv, _VAbv, _VAbv, _WJ, _VAbv, _VAbv, _VAbv, _H, _WJ, _WJ,
-	/* 0CD0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _VPst, _VPst, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _B, _WJ,
+	/* 0CD0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _VPst, _VPst, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _O, _B, _WJ,
 	/* 0CE0 */ _B, _B, _VBlw, _VBlw, _WJ, _WJ, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 0CF0 */ _WJ, _CS, _CS, _VMPst, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 
@@ -174,7 +183,7 @@ var useTable = [...]uint8{
 	/* 0D10 */ _B, _WJ, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 0D20 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 0D30 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _VAbv, _VAbv, _B, _VPst, _VPst,
-	/* 0D40 */ _VPst, _VPst, _VPst, _VBlw, _VBlw, _WJ, _VPre, _VPre, _VPre, _WJ, _VPre, _VPre, _VPre, _H, _R, _O,
+	/* 0D40 */ _VPst, _VBlw, _VBlw, _VBlw, _VBlw, _WJ, _VPre, _VPre, _VPre, _WJ, _VPre, _VPre, _VPre, _H, _R, _O,
 	/* 0D50 */ _WJ, _WJ, _WJ, _WJ, _O, _O, _O, _VPst, _O, _O, _O, _O, _O, _O, _O, _B,
 	/* 0D60 */ _B, _B, _VBlw, _VBlw, _WJ, _WJ, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 0D70 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
@@ -265,7 +274,7 @@ var useTable = [...]uint8{
 
 	/* Limbu */
 
-	/* 1900 */ _GB, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 1900 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1910 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ,
 	/* 1920 */ _VAbv, _VAbv, _VBlw, _VPst, _VPst, _VAbv, _VAbv, _VAbv, _VAbv, _SUB, _SUB, _SUB, _WJ, _WJ, _WJ, _WJ,
 	/* 1930 */ _FPst, _FPst, _VMBlw, _FPst, _FPst, _FPst, _FPst, _FPst, _FPst, _FBlw, _VMAbv, _FMBlw, _WJ, _WJ, _WJ, _WJ,
@@ -310,10 +319,10 @@ var useTable = [...]uint8{
 	/* 1B10 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1B20 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1B30 */ _B, _B, _B, _B, _CMAbv, _VPst, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _VBlw, _VAbv, _VAbv, _VPre, _VPre,
-	/* 1B40 */ _VPre, _VPre, _VAbv, _VAbv, _H, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ,
+	/* 1B40 */ _VPre, _VPre, _VAbv, _VAbv, _H, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _O, _O,
 	/* 1B50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _O, _O, _O, _O, _O, _O,
-	/* 1B60 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _SMAbv, _SMBlw, _SMAbv, _SMAbv, _SMAbv,
-	/* 1B70 */ _SMAbv, _SMAbv, _SMAbv, _SMAbv, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _WJ,
+	/* 1B60 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _SMAbv, _SMAbv, _SMAbv, _SMAbv, _SMAbv,
+	/* 1B70 */ _SMAbv, _SMAbv, _SMAbv, _SMAbv, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 
 	/* Sundanese */
 
@@ -327,7 +336,7 @@ var useTable = [...]uint8{
 	_B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1BD0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1BE0 */ _B, _B, _B, _B, _B, _B, _CMAbv, _VPst, _VAbv, _VAbv, _VPst, _VPst, _VPst, _VAbv, _VPst, _VAbv,
-	/* 1BF0 */ _FAbv, _FAbv, _CMBlw, _CMBlw, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _O, _O, _O,
+	/* 1BF0 */ _FAbv, _FAbv, _RK, _RK, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _O, _O, _O,
 
 	/* Lepcha */
 
@@ -367,6 +376,10 @@ var useTable = [...]uint8{
 	/* Geometric Shapes */
 	_O, _O, _O, _O, _B, _O, _O, _O,
 
+	/* Miscellaneous Mathematical Symbols-A */
+
+	/* 27E0 */ _O, _O, _O, _O, _O, _O, _SB, _SE,
+
 	/* Tifinagh */
 
 	/* 2D30 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
@@ -374,6 +387,10 @@ var useTable = [...]uint8{
 	/* 2D50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 2D60 */ _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _B,
 	/* 2D70 */ _O, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _H,
+
+	/* Supplemental Punctuation */
+
+	/* 2E20 */ _O, _O, _SB, _SE, _SB, _SE, _O, _O,
 
 	/* Syloti Nagri */
 
@@ -450,7 +467,7 @@ var useTable = [...]uint8{
 	_B, _B, _B, _B, _B, _B, _B, _B,
 	/* AA90 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* AAA0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* AAB0 */ _VAbv, _B, _VAbv, _VAbv, _VBlw, _B, _B, _VAbv, _VAbv, _B, _B, _B, _B, _B, _VAbv, _VMAbv,
+	/* AAB0 */ _VBlw, _B, _VBlw, _VBlw, _VAbv, _B, _B, _VBlw, _VBlw, _B, _B, _B, _B, _B, _VBlw, _VMAbv,
 	/* AAC0 */ _B, _VMAbv, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 	/* AAD0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _O, _O, _O, _O,
 
@@ -510,6 +527,14 @@ var useTable = [...]uint8{
 	/* 10D10 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 10D20 */ _B, _B, _B, _B, _VMAbv, _VMAbv, _VMAbv, _CMAbv, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 	/* 10D30 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 10D40 */ _O, _O, _O, _O, _O, _O, _O, _O,
+
+	/* Garay */
+	_O, _O, _B, _B, _B, _B, _B, _B,
+	/* 10D50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 10D60 */ _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _O, _B,
+	/* 10D70 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 10D80 */ _B, _B, _B, _B, _B, _B, _WJ, _WJ,
 
 	/* Yezidi */
 
@@ -616,6 +641,18 @@ var useTable = [...]uint8{
 	/* 11340 */ _VAbv, _VPst, _VPst, _VPst, _VPst, _WJ, _WJ, _VPre, _VPre, _WJ, _WJ, _VPre, _VPre, _H, _WJ, _WJ,
 	/* 11350 */ _O, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _VPst, _WJ, _WJ, _WJ, _WJ, _WJ, _O, _B, _B,
 	/* 11360 */ _B, _B, _VPst, _VPst, _WJ, _WJ, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _WJ, _WJ, _WJ,
+	/* 11370 */ _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+
+	/* Tulu-Tigalari */
+
+	/* 11380 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _B, _WJ, _WJ, _B, _WJ,
+	/* 11390 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 113A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 113B0 */ _B, _B, _B, _B, _B, _B, _WJ, _B, _VPst, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _VBlw, _VBlw,
+	/* 113C0 */ _VBlw, _WJ, _VPre, _WJ, _WJ, _VPre, _WJ, _VPre, _VPre, _VPst, _VMPst, _WJ, _VMPst, _VMPst, _VMAbv, _CMBlw,
+	/* 113D0 */ _IS, _R, _CMBlw, _O, _O, _O, _WJ, _O, _O, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 113E0 */ _WJ, _VMAbv, _VMBlw, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 113F0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 
 	/* Newa */
 
@@ -666,8 +703,11 @@ var useTable = [...]uint8{
 	/* 116A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _VMAbv, _VMPst, _VAbv, _VPre, _VPst,
 	/* 116B0 */ _VBlw, _VBlw, _VAbv, _VAbv, _VAbv, _VAbv, _H, _CMBlw, _B, _O, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 	/* 116C0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
-	/* 116D0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
-	/* 116E0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 116D0 */ _B, _B, _B, _B, _B, _B, _B, _B,
+
+	/* Myanmar Extended-C */
+	_B, _B, _B, _B, _B, _B, _B, _B,
+	/* 116E0 */ _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 	/* 116F0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 
 	/* Ahom */
@@ -707,7 +747,7 @@ var useTable = [...]uint8{
 	/* 11A00 */ _B, _VAbv, _VBlw, _VBlw, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VBlw, _B, _B, _B, _B, _B,
 	/* 11A10 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 11A20 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 11A30 */ _B, _B, _B, _FMBlw, _VBlw, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMPst, _R, _MBlw, _MBlw, _MBlw, _MBlw, _GB,
+	/* 11A30 */ _B, _B, _B, _FMBlw, _VBlw, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMPst, _CS, _SUB, _SUB, _SUB, _SUB, _GB,
 	/* 11A40 */ _O, _O, _O, _O, _O, _GB, _O, _IS, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 
 	/* Soyombo */
@@ -717,6 +757,10 @@ var useTable = [...]uint8{
 	/* 11A70 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 11A80 */ _B, _B, _B, _B, _R, _R, _R, _R, _R, _R, _FBlw, _FBlw, _FBlw, _FBlw, _FBlw, _FBlw,
 	/* 11A90 */ _FBlw, _FBlw, _FBlw, _FBlw, _FBlw, _FBlw, _VMAbv, _VMPst, _CMAbv, _IS, _O, _O, _O, _B, _O, _O,
+
+	/* Sharada Supplement */
+
+	/* 11B60 */ _VAbv, _VPst, _VBlw, _VBlw, _VAbv, _VPst, _VAbv, _VPst,
 
 	/* Bhaiksuki */
 
@@ -765,83 +809,343 @@ var useTable = [...]uint8{
 	/* 11F20 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 11F30 */ _B, _B, _B, _B, _VPst, _VPst, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _WJ, _WJ, _WJ, _VPre, _VPre,
 	/* 11F40 */ _VAbv, _VPst, _IS, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
-	/* 11F50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 11F50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _CMAbv, _WJ, _WJ, _WJ, _WJ, _WJ,
 
 	/* Egyptian Hieroglyphs */
 
-	/* 13000 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13010 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13020 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13030 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13040 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13050 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13060 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13070 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13080 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13090 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 130A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 130B0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 130C0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 130D0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 130E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 130F0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13100 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13110 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13120 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13130 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13140 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13150 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13160 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13170 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13180 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13190 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 131A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 131B0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 131C0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 131D0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 131E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 131F0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13200 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13210 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13220 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13230 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13240 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13250 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13260 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13270 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13280 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13290 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 132A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 132B0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 132C0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 132D0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 132E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 132F0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13300 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13310 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13320 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13330 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13340 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13350 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13360 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13370 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13380 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13390 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 133A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 133B0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 133C0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 133D0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 133E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 133F0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13400 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13410 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13420 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 13430 */ _H, _H, _H, _H, _H, _H, _H, _B,
+	/* 13000 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13010 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13020 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13030 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13040 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13050 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13060 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13070 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13080 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13090 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 130A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 130B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 130C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 130D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 130E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 130F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13100 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13110 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13120 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13130 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13140 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13150 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13160 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13170 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13180 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13190 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 131A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 131B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 131C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 131D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 131E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 131F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13200 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13210 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13220 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13230 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13240 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13250 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13260 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13270 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13280 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13290 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 132A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 132B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 132C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 132D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 132E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 132F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13300 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13310 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13320 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13330 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13340 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13350 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13360 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13370 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13380 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13390 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 133A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 133B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 133C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 133D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 133E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 133F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13400 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13410 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13420 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13430 */ _J, _J, _J, _J, _J, _J, _J, _SB,
 
 	/* Egyptian Hieroglyph Format Controls */
-	_B, _H, _H, _H, _O, _O, _O, _O,
-	/* 13440 */ _VMBlw, _B, _B, _B, _B, _B, _B, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw,
-	/* 13450 */ _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _VMBlw, _WJ, _WJ,
+	_SE, _J, _J, _J, _G, _G, _G, _G,
+	/* 13440 */ _HR, _G, _G, _G, _G, _G, _G, _HM, _HM, _HM, _HM, _HM, _HM, _HM, _HM, _HM,
+	/* 13450 */ _HM, _HM, _HM, _HM, _HM, _HM, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+
+	/* Egyptian Hieroglyphs Extended-A */
+
+	/* 13460 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13470 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13480 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13490 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 134A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 134B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 134C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 134D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 134E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 134F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13500 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13510 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13520 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13530 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13540 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13550 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13560 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13570 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13580 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13590 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 135A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 135B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 135C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 135D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 135E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 135F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13600 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13610 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13620 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13630 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13640 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13650 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13660 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13670 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13680 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13690 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 136A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 136B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 136C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 136D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 136E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 136F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13700 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13710 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13720 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13730 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13740 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13750 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13760 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13770 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13780 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13790 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 137A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 137B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 137C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 137D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 137E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 137F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13800 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13810 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13820 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13830 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13840 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13850 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13860 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13870 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13880 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13890 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 138A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 138B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 138C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 138D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 138E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 138F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13900 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13910 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13920 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13930 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13940 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13950 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13960 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13970 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13980 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13990 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 139A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 139B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 139C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 139D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 139E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 139F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A00 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A10 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A20 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A30 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A40 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A50 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A60 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A70 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A80 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13A90 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13AA0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13AB0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13AC0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13AD0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13AE0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13AF0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B00 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B10 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B20 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B30 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B40 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B50 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B60 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B70 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B80 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13B90 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13BA0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13BB0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13BC0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13BD0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13BE0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13BF0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C00 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C10 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C20 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C30 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C40 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C50 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C60 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C70 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C80 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13C90 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13CA0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13CB0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13CC0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13CD0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13CE0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13CF0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D00 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D10 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D20 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D30 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D40 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D50 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D60 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D70 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D80 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13D90 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13DA0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13DB0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13DC0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13DD0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13DE0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13DF0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E00 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E10 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E20 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E30 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E40 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E50 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E60 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E70 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E80 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13E90 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13EA0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13EB0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13EC0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13ED0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13EE0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13EF0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F00 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F10 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F20 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F30 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F40 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F50 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F60 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F70 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F80 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13F90 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13FA0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13FB0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13FC0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13FD0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13FE0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 13FF0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14000 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14010 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14020 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14030 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14040 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14050 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14060 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14070 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14080 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14090 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 140A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 140B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 140C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 140D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 140E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 140F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14100 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14110 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14120 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14130 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14140 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14150 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14160 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14170 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14180 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14190 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 141A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 141B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 141C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 141D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 141E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 141F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14200 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14210 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14220 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14230 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14240 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14250 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14260 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14270 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14280 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14290 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 142A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 142B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 142C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 142D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 142E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 142F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14300 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14310 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14320 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14330 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14340 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14350 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14360 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14370 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14380 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 14390 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 143A0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 143B0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 143C0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 143D0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 143E0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
+	/* 143F0 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _WJ, _WJ, _WJ, _WJ, _WJ,
+
+	/* Gurung Khema */
+
+	/* 16100 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 16110 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _VAbv, _VAbv,
+	/* 16120 */ _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _VAbv, _MPre, _MPre, _MPst, _VMAbv, _MBlw, _VBlw,
+	/* 16130 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 
 	/* Tangsa */
 
@@ -856,6 +1160,13 @@ var useTable = [...]uint8{
 	/* 16B10 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 16B20 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 16B30 */ _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _VMAbv, _O,
+
+	/* Kirat Rai */
+
+	/* 16D40 */ _VMPst, _VMPst, _VMPst, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 16D50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 16D60 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _VPst, _VPst, _O, _O, _O,
+	/* 16D70 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 
 	/* Miao */
 
@@ -905,7 +1216,9 @@ var useTable = [...]uint8{
 	/* 18CA0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 18CB0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 18CC0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 18CD0 */ _B, _B, _B, _B, _B, _B, _WJ, _WJ,
+	/* 18CD0 */ _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 18CE0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+	/* 18CF0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _B,
 
 	/* Duployan */
 
@@ -950,6 +1263,12 @@ var useTable = [...]uint8{
 	/* 1E4D0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1E4E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _VAbv, _VAbv, _VAbv, _VAbv,
 	/* 1E4F0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
+
+	/* Ol Onal */
+
+	/* 1E5D0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
+	/* 1E5E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _VBlw, _VBlw,
+	/* 1E5F0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _WJ, _WJ, _WJ, _WJ, _O,
 
 	/* Adlam */
 
@@ -1227,71 +1546,72 @@ var useTable = [...]uint8{
 	/* E0FD0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 	/* E0FE0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
 	/* E0FF0 */ _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ, _WJ,
-} /* Table items: 13480; occupancy: 84% */
+} /* Table items: 18040; occupancy: 87% */
 
 const (
 	offsetUSE0x0028u  = 0
-	offsetUSE0x00a0u  = 24
-	offsetUSE0x0348u  = 80
-	offsetUSE0x0640u  = 88
-	offsetUSE0x07c8u  = 96
-	offsetUSE0x0840u  = 144
-	offsetUSE0x0900u  = 176
-	offsetUSE0x0f00u  = 1448
-	offsetUSE0x1000u  = 1640
-	offsetUSE0x1700u  = 1800
-	offsetUSE0x1900u  = 2232
-	offsetUSE0x1b00u  = 2648
-	offsetUSE0x1cd0u  = 2984
-	offsetUSE0x1df8u  = 3032
-	offsetUSE0x2008u  = 3040
-	offsetUSE0x20f0u  = 3168
-	offsetUSE0x25c8u  = 3176
-	offsetUSE0x2d30u  = 3184
-	offsetUSE0xa800u  = 3264
-	offsetUSE0xabc0u  = 4016
-	offsetUSE0xfe00u  = 4080
-	offsetUSE0xfef8u  = 4096
-	offsetUSE0xfff0u  = 4104
-	offsetUSE0x10570u = 4120
-	offsetUSE0x10a00u = 4192
-	offsetUSE0x10ac0u = 4272
-	offsetUSE0x10b80u = 4312
-	offsetUSE0x10d00u = 4360
-	offsetUSE0x10e80u = 4424
-	offsetUSE0x10f30u = 4472
-	offsetUSE0x11100u = 4872
-	offsetUSE0x11280u = 5200
-	offsetUSE0x11400u = 5440
-	offsetUSE0x11580u = 5664
-	offsetUSE0x11800u = 6112
-	offsetUSE0x11900u = 6176
-	offsetUSE0x119a0u = 6272
-	offsetUSE0x11c00u = 6528
-	offsetUSE0x11d00u = 6712
-	offsetUSE0x11ee0u = 6888
-	offsetUSE0x13000u = 7016
-	offsetUSE0x16ac0u = 8128
-	offsetUSE0x16f00u = 8248
-	offsetUSE0x16fe0u = 8400
-	offsetUSE0x18b00u = 8408
-	offsetUSE0x1bc00u = 8880
-	offsetUSE0x1d170u = 9040
-	offsetUSE0x1e100u = 9048
-	offsetUSE0x1e290u = 9128
-	offsetUSE0x1e4d0u = 9240
-	offsetUSE0x1e900u = 9288
-	offsetUSE0xe0000u = 9384
+	offsetUSE0x0348u  = 176
+	offsetUSE0x0640u  = 184
+	offsetUSE0x07c8u  = 192
+	offsetUSE0x0840u  = 240
+	offsetUSE0x0900u  = 272
+	offsetUSE0x0f00u  = 1544
+	offsetUSE0x1000u  = 1736
+	offsetUSE0x1700u  = 1896
+	offsetUSE0x1900u  = 2328
+	offsetUSE0x1b00u  = 2744
+	offsetUSE0x1cd0u  = 3080
+	offsetUSE0x1df8u  = 3128
+	offsetUSE0x2008u  = 3136
+	offsetUSE0x20f0u  = 3264
+	offsetUSE0x25c8u  = 3272
+	offsetUSE0x27e0u  = 3280
+	offsetUSE0x2d30u  = 3288
+	offsetUSE0x2e20u  = 3368
+	offsetUSE0xa800u  = 3376
+	offsetUSE0xabc0u  = 4128
+	offsetUSE0xfe00u  = 4192
+	offsetUSE0xfef8u  = 4208
+	offsetUSE0xfff0u  = 4216
+	offsetUSE0x10570u = 4232
+	offsetUSE0x10a00u = 4304
+	offsetUSE0x10ac0u = 4384
+	offsetUSE0x10b80u = 4424
+	offsetUSE0x10d00u = 4472
+	offsetUSE0x10e80u = 4608
+	offsetUSE0x10f30u = 4656
+	offsetUSE0x11100u = 5056
+	offsetUSE0x11280u = 5384
+	offsetUSE0x11580u = 5992
+	offsetUSE0x11800u = 6440
+	offsetUSE0x11900u = 6504
+	offsetUSE0x119a0u = 6600
+	offsetUSE0x11b60u = 6856
+	offsetUSE0x11c00u = 6864
+	offsetUSE0x11d00u = 7048
+	offsetUSE0x11ee0u = 7224
+	offsetUSE0x13000u = 7352
+	offsetUSE0x16100u = 12472
+	offsetUSE0x16ac0u = 12536
+	offsetUSE0x16d40u = 12656
+	offsetUSE0x16f00u = 12720
+	offsetUSE0x16fe0u = 12872
+	offsetUSE0x18b00u = 12880
+	offsetUSE0x1bc00u = 13392
+	offsetUSE0x1d170u = 13552
+	offsetUSE0x1e100u = 13560
+	offsetUSE0x1e290u = 13640
+	offsetUSE0x1e4d0u = 13752
+	offsetUSE0x1e5d0u = 13800
+	offsetUSE0x1e900u = 13848
+	offsetUSE0xe0000u = 13944
 )
 
 func getUSECategory(u rune) uint8 {
 	switch u >> 12 {
 	case 0x0:
-		if 0x0028 <= u && u <= 0x003F {
+		if 0x0028 <= u && u <= 0x00D7 {
 			return useTable[u-0x0028+offsetUSE0x0028u]
-		}
-		if 0x00A0 <= u && u <= 0x00D7 {
-			return useTable[u-0x00A0+offsetUSE0x00a0u]
 		}
 		if 0x0348 <= u && u <= 0x034F {
 			return useTable[u-0x0348+offsetUSE0x0348u]
@@ -1342,8 +1662,14 @@ func getUSECategory(u rune) uint8 {
 		if 0x25C8 <= u && u <= 0x25CF {
 			return useTable[u-0x25C8+offsetUSE0x25c8u]
 		}
+		if 0x27E0 <= u && u <= 0x27E7 {
+			return useTable[u-0x27E0+offsetUSE0x27e0u]
+		}
 		if 0x2D30 <= u && u <= 0x2D7F {
 			return useTable[u-0x2D30+offsetUSE0x2d30u]
+		}
+		if 0x2E20 <= u && u <= 0x2E27 {
+			return useTable[u-0x2E20+offsetUSE0x2e20u]
 		}
 
 	case 0xA:
@@ -1381,7 +1707,7 @@ func getUSECategory(u rune) uint8 {
 		if 0x10B80 <= u && u <= 0x10BAF {
 			return useTable[u-0x10B80+offsetUSE0x10b80u]
 		}
-		if 0x10D00 <= u && u <= 0x10D3F {
+		if 0x10D00 <= u && u <= 0x10D87 {
 			return useTable[u-0x10D00+offsetUSE0x10d00u]
 		}
 		if 0x10E80 <= u && u <= 0x10EAF {
@@ -1398,11 +1724,8 @@ func getUSECategory(u rune) uint8 {
 		if 0x11100 <= u && u <= 0x11247 {
 			return useTable[u-0x11100+offsetUSE0x11100u]
 		}
-		if 0x11280 <= u && u <= 0x1136F {
+		if 0x11280 <= u && u <= 0x114DF {
 			return useTable[u-0x11280+offsetUSE0x11280u]
-		}
-		if 0x11400 <= u && u <= 0x114DF {
-			return useTable[u-0x11400+offsetUSE0x11400u]
 		}
 		if 0x11580 <= u && u <= 0x1173F {
 			return useTable[u-0x11580+offsetUSE0x11580u]
@@ -1416,6 +1739,9 @@ func getUSECategory(u rune) uint8 {
 		if 0x119A0 <= u && u <= 0x11A9F {
 			return useTable[u-0x119A0+offsetUSE0x119a0u]
 		}
+		if 0x11B60 <= u && u <= 0x11B67 {
+			return useTable[u-0x11B60+offsetUSE0x11b60u]
+		}
 		if 0x11C00 <= u && u <= 0x11CB7 {
 			return useTable[u-0x11C00+offsetUSE0x11c00u]
 		}
@@ -1427,13 +1753,24 @@ func getUSECategory(u rune) uint8 {
 		}
 
 	case 0x13:
-		if 0x13000 <= u && u <= 0x13457 {
+		if 0x13000 <= u && u <= 0x143FF {
+			return useTable[u-0x13000+offsetUSE0x13000u]
+		}
+
+	case 0x14:
+		if 0x13000 <= u && u <= 0x143FF {
 			return useTable[u-0x13000+offsetUSE0x13000u]
 		}
 
 	case 0x16:
+		if 0x16100 <= u && u <= 0x1613F {
+			return useTable[u-0x16100+offsetUSE0x16100u]
+		}
 		if 0x16AC0 <= u && u <= 0x16B37 {
 			return useTable[u-0x16AC0+offsetUSE0x16ac0u]
+		}
+		if 0x16D40 <= u && u <= 0x16D7F {
+			return useTable[u-0x16D40+offsetUSE0x16d40u]
 		}
 		if 0x16F00 <= u && u <= 0x16F97 {
 			return useTable[u-0x16F00+offsetUSE0x16f00u]
@@ -1443,7 +1780,7 @@ func getUSECategory(u rune) uint8 {
 		}
 
 	case 0x18:
-		if 0x18B00 <= u && u <= 0x18CD7 {
+		if 0x18B00 <= u && u <= 0x18CFF {
 			return useTable[u-0x18B00+offsetUSE0x18b00u]
 		}
 
@@ -1466,6 +1803,9 @@ func getUSECategory(u rune) uint8 {
 		}
 		if 0x1E4D0 <= u && u <= 0x1E4FF {
 			return useTable[u-0x1E4D0+offsetUSE0x1e4d0u]
+		}
+		if 0x1E5D0 <= u && u <= 0x1E5FF {
+			return useTable[u-0x1E5D0+offsetUSE0x1e5d0u]
 		}
 		if 0x1E900 <= u && u <= 0x1E95F {
 			return useTable[u-0x1E900+offsetUSE0x1e900u]
