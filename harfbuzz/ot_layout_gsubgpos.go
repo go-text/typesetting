@@ -204,6 +204,7 @@ type skippingIterator struct {
 
 func (it *skippingIterator) init(c *otApplyContext, contextMatch bool) {
 	it.c = c
+	it.end = len(c.buffer.Info)
 	it.matcher.init(c, contextMatch)
 }
 
@@ -260,13 +261,7 @@ func (it *skippingIterator) match(info *GlyphInfo) matchRes {
 }
 
 func (it *skippingIterator) next() (_ bool, unsafeTo int) {
-	// The alternate condition below is faster at string boundaries,
-	// but produces subpar "unsafe-to-concat" values.
 	stop := it.end - 1
-	if (it.c.buffer.Flags & ProduceUnsafeToConcat) != 0 {
-		stop = it.end - 1
-	}
-
 	for it.idx < stop {
 		it.idx++
 		info := &it.c.buffer.Info[it.idx]

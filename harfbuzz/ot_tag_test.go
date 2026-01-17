@@ -314,7 +314,8 @@ func TestOtTagLanguage(t *testing.T) {
 	testLanguageTwoWay(t, "KGE ", "und-Geok")
 
 	/* Irish Traditional */
-	testLanguageTwoWay(t, "IRT ", "ga-Latg")
+	testTagFromLanguage(t, "IRT ", "ga-Latg")
+	testLanguageTwoWay(t, "IRT ", "ghc")
 
 	/* Moldavian */
 	testLanguageTwoWay(t, "MOL ", "ro-MD")

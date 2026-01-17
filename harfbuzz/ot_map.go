@@ -507,7 +507,6 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			// Only try applying the lookup if there is any overlap.
 			accel := &proxy.accels[lookupIndex]
 			if accel.digest.mayIntersects(c.digest) {
-
 				c.lookupIndex = lookupIndex
 				c.lookupMask = lookup.mask
 				c.autoZWJ = lookup.autoZWJ

@@ -456,20 +456,22 @@ type aatApplyContext struct {
 	font      *Font
 	face      Face
 	buffer    *Buffer
-	gdef      *tables.GDEF
+	gdef      tables.GDEF
 	ankrTable tables.Ankr
+
+	hasGlyphClass bool
 
 	rangeFlags    []rangeFlags
 	subtableFlags GlyphMask
 
-	buffer_is_reversed bool
+	bufferIsReversed bool
 	// Caches
-	using_buffer_glyph_set bool
-	buffer_glyph_set       intSet // runes or glyphs
+	usingBufferGlyphSet bool
+	bufferGlyphSet      intSet // runes or glyphs
 
-	first_set           intSet        // readonly
-	second_set          intSet        // readonly
-	machine_class_cache aatClassCache // readonly
+	firstSet          intSet        // readonly
+	second_set        intSet        // readonly
+	machineClassCache aatClassCache // readonly
 }
 
 func newAatApplyContext(plan *otShapePlan, font *Font, buffer *Buffer) *aatApplyContext {
@@ -478,60 +480,46 @@ func newAatApplyContext(plan *otShapePlan, font *Font, buffer *Buffer) *aatApply
 	out.font = font
 	out.face = font.face
 	out.buffer = buffer
-	out.gdef = &font.face.GDEF
 	return &out
 }
 
-func (c *aatApplyContext) reverse_buffer() {
+func (c *aatApplyContext) reverseBuffer() {
 	c.buffer.Reverse()
-	c.buffer_is_reversed = !c.buffer_is_reversed
+	c.bufferIsReversed = !c.bufferIsReversed
 }
 
-func (c *aatApplyContext) setup_buffer_glyph_set(runes bool) {
-	c.using_buffer_glyph_set = len(c.buffer.Info) >= 4
-	if !c.using_buffer_glyph_set {
+func (c *aatApplyContext) setupBufferGlyphSet() {
+	c.usingBufferGlyphSet = len(c.buffer.Info) >= 4
+	if !c.usingBufferGlyphSet {
 		return
 	}
-	if runes {
-		c.buffer.collectRunes(&c.buffer_glyph_set)
-	} else {
-		c.buffer.collectGlyphs(&c.buffer_glyph_set)
-	}
+	c.buffer.collectGlyphs(&c.bufferGlyphSet)
 }
 
-func (c *aatApplyContext) buffer_intersects_machine(runes bool) bool {
-	if c.using_buffer_glyph_set {
-		return c.buffer_glyph_set.Intersects(c.first_set)
+func (c *aatApplyContext) bufferIntersectsMachine() bool {
+	if c.usingBufferGlyphSet {
+		return c.bufferGlyphSet.Intersects(c.firstSet)
 	}
 
 	// Faster for shorter buffers.
-	if runes {
-		for _, info := range c.buffer.Info {
-			if c.first_set.HasRune(info.codepoint) {
-				return true
-			}
+	for _, info := range c.buffer.Info {
+		if c.firstSet.HasGlyph(info.Glyph) {
+			return true
 		}
-		return false
-	} else {
-		for _, info := range c.buffer.Info {
-			if c.first_set.HasGlyph(info.Glyph) {
-				return true
-			}
-		}
-		return false
 	}
+	return false
 }
 
 func (c *aatApplyContext) output_glyphs(glyphs []GID) bool {
-	if c.using_buffer_glyph_set {
-		c.buffer_glyph_set.AddGlyphs(glyphs)
+	if c.usingBufferGlyphSet {
+		c.bufferGlyphSet.AddGlyphs(glyphs)
 	}
 	for _, glyph := range glyphs {
 		if glyph == deletedGlyph {
 			c.buffer.scratchFlags |= bsfAatHasDeleted
 			c.buffer.cur(0).setAatDeleted()
 		} else {
-			if c.gdef != nil {
+			if c.gdef.GlyphClassDef != nil {
 				c.buffer.cur(0).glyphProps = c.gdef.GlyphProps(gID(glyph))
 			}
 		}
@@ -546,10 +534,10 @@ func (c *aatApplyContext) replaceGlyph(glyph GID) {
 		c.buffer.cur(0).setAatDeleted()
 	}
 
-	if c.using_buffer_glyph_set {
-		c.buffer_glyph_set.AddGlyph(glyph)
+	if c.usingBufferGlyphSet {
+		c.bufferGlyphSet.AddGlyph(glyph)
 	}
-	if c.gdef != nil {
+	if c.gdef.GlyphClassDef != nil {
 		c.buffer.cur(0).glyphProps = c.gdef.GlyphProps(gID(glyph))
 	}
 	c.buffer.replaceGlyphIndex(glyph)
@@ -563,10 +551,10 @@ func (c *aatApplyContext) deleteGlyph() {
 
 func (c *aatApplyContext) replace_glyph_inplace(i int, glyph gID) {
 	c.buffer.Info[i].Glyph = GID(glyph)
-	if c.using_buffer_glyph_set {
-		c.buffer_glyph_set.AddGlyph(GID(glyph))
+	if c.usingBufferGlyphSet {
+		c.bufferGlyphSet.AddGlyph(GID(glyph))
 	}
-	if c.gdef != nil {
+	if c.gdef.GlyphClassDef != nil {
 		c.buffer.Info[i].glyphProps = c.gdef.GlyphProps(glyph)
 	}
 }
@@ -628,7 +616,7 @@ func (s stateTableDriver) drive(c driverContext, ac *aatApplyContext) {
 	for buffer.idx = 0; ; {
 		class := classEndOfText
 		if buffer.idx < len(buffer.Info) {
-			class = s.getClass(buffer.Info[buffer.idx].Glyph, &ac.machine_class_cache)
+			class = s.getClass(buffer.Info[buffer.idx].Glyph, &ac.machineClassCache)
 		}
 	resume:
 		if debugMode {
@@ -688,7 +676,7 @@ func (s stateTableDriver) drive(c driverContext, ac *aatApplyContext) {
 
 					class = classEndOfText
 					if buffer.idx < len(buffer.Info) {
-						class = s.getClass(buffer.Info[buffer.idx].Glyph, &ac.machine_class_cache)
+						class = s.getClass(buffer.Info[buffer.idx].Glyph, &ac.machineClassCache)
 					}
 				}
 
@@ -815,12 +803,14 @@ func (sp *otShapePlan) aatLayoutSubstitute(font *Font, buffer *Buffer, features 
 			builder.addFeature(feature)
 		}
 		builder.compile(&map_)
+	} else {
+		map_ = sp.aatMap
 	}
 
 	morx := font.face.Morx
 	c := newAatApplyContext(sp, font, buffer)
 	c.buffer.unsafeToConcat(0, maxInt)
-	c.setup_buffer_glyph_set(true)
+	c.setupBufferGlyphSet()
 	for i, chain := range morx {
 		accel := font.morxAccels[i]
 		c.rangeFlags = map_.chainFlags[i]
@@ -842,7 +832,7 @@ func (sp *otShapePlan) aatLayoutPosition(font *Font, buffer *Buffer) {
 
 	c := newAatApplyContext(sp, font, buffer)
 	c.ankrTable = font.face.Ankr
-	c.setup_buffer_glyph_set(false)
+	c.setupBufferGlyphSet()
 	c.applyKernx(kerx, font.kerxAccels)
 }
 

@@ -41,11 +41,12 @@ func TestShapeExpected(t *testing.T) {
 func TestDebug(t *testing.T) {
 	// This test is a shortcut to inspect one specific test
 	// when debugging
-	t.Skip()
+	// t.Skip()
 
-	// dir := "harfbuzz_reference/in-house/tests"
-	testString := `fonts/AdobeBlank2.ttf;--no-glyph-names --no-positions;U+1F1E6,U+1F1E8;[1=0|1=0]`
-	testD := newTestData(t, ".", testString)
+	// dir := "harfbuzz_reference/aots/"
+	dir := "harfbuzz_reference/in-house/"
+	testString := `./fonts/813c2f8e5512187fd982417a7fb4286728e6f4a8.ttf;;U+1820,U+180B;[uni2048.E81A=0+1550]`
+	testD := newTestData(t, dir, testString)
 	out := runShapingTest(t, testD, true)
 	fmt.Println(out)
 }
@@ -143,6 +144,8 @@ func (fo *fontOpts) loadFont(t *testing.T) *Font {
 	}
 
 	font.Ptem = float32(fo.ptem)
+	font.slant = float32(fo.slant)
+	font.xEmbolden, font.yEmbolden = float32(fo.embolden), float32(fo.embolden)
 
 	scaleX := scalbnf(float64(fo.fontSizeX), fo.subpixelBits)
 	scaleY := scalbnf(float64(fo.fontSizeY), fo.subpixelBits)
@@ -179,6 +182,7 @@ func (so *shapeOpts) setupBuffer(buffer *Buffer) {
 	}
 	buffer.Flags = flags
 	buffer.Invisible = so.invisibleGlyph
+	buffer.notFoundVariationSelector = so.notFoundVariationSelector
 	buffer.ClusterLevel = so.clusterLevel
 	buffer.GuessSegmentProperties()
 }
@@ -315,7 +319,7 @@ func skipInvalidFontIndex(t *testing.T, ft font.FontID) bool {
 	return false
 }
 
-// skipVerify should be true when debugging, to reduce stdout clutter
+// skipVerify should be true when debugging, to reduce stdout clutter.
 // it returns the serialized output
 func runShapingTest(t *testing.T, test testData, skipVerify bool) string {
 	t.Helper()

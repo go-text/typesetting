@@ -212,13 +212,11 @@ func TestColorGlyphExtents(t *testing.T) {
 	// TODO: Support COLR table
 	t.Skip()
 
-	/* This font contains a COLRv1 glyph with a ClipBox,
-	 * and various components without. The main thing
-	 * we test here is that glyphs with no paint return
-	 * 0,0,0,0 and not meaningless numbers.
-	 */
-	ft := openFontFile(t, "fonts/adwaita.ttf")
-	font := NewFont(font.NewFace(ft))
+	// This font contains a COLRv1 glyph with a ClipBox,
+	// and various components without. The main thing
+	// we test here is that glyphs with no paint return
+	// 0,0,0,0 and not meaningless numbers.
+	ft := NewFont(font.NewFace(openFontFile(t, "fonts/adwaita.ttf")))
 
 	for _, test := range []struct {
 		gid     GID
@@ -233,10 +231,17 @@ func TestColorGlyphExtents(t *testing.T) {
 		{5, GlyphExtents{638, 350, 600, -600}, true},
 		{1000, GlyphExtents{}, false},
 	} {
-		gotExtents, gotOK := font.GlyphExtents(test.gid)
+		gotExtents, gotOK := ft.GlyphExtents(test.gid)
 		tu.Assert(t, gotOK == test.ok)
 		tu.AssertC(t, gotExtents == test.extents, fmt.Sprintf("Glyph %d", test.gid))
 	}
+
+	// This font contains a COLRv0 glyph with an empty default glyph
+	// to make sure we are getting extents from the COLRv0 layers.
+	ft = NewFont(font.NewFace(openFontFile(t, "fonts/COLRv0.extents.ttf")))
+	gotExtents, gotOK := ft.GlyphExtents(13)
+	tu.Assert(t, gotOK)
+	tu.Assert(t, gotExtents == GlyphExtents{192, 573, 731, -758})
 }
 
 func TestNames(t *testing.T) {

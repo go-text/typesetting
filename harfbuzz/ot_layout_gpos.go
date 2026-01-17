@@ -161,7 +161,7 @@ func (c *otApplyContext) applyGPOS(table tables.GPOSLookup) bool {
 	}
 
 	if debugMode {
-		fmt.Printf("\tAPPLY - type %T at index %d\n", table, c.buffer.idx)
+		fmt.Printf("\t\tAPPLY - type %T at index %d\n", table, c.buffer.idx)
 	}
 
 	switch data := table.(type) {
@@ -309,10 +309,10 @@ func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, 
 }
 
 func (c *otApplyContext) applyGPOSPair1(inner tables.PairPosData1, index int) bool {
-	buffer := c.buffer
-	skippyIter := &c.iterInput
-	pos := skippyIter.idx
 	set := inner.PairSets[index]
+	pos := c.iterInput.idx
+
+	buffer := c.buffer
 	record, ok := set.FindGlyph(gID(buffer.Info[pos].Glyph))
 	if !ok {
 		buffer.unsafeToConcat(buffer.idx, pos+1)

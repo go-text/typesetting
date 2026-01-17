@@ -363,7 +363,7 @@ func reorderUse(_ *otShapePlan, font *Font, buffer *Buffer) bool {
 		reorderSyllableUse(buffer, start, end)
 	}
 	if debugMode {
-		fmt.Println("USE - end reordering USE")
+		fmt.Println("USE - end reordering USE:", buffer.Info)
 	}
 
 	return ret

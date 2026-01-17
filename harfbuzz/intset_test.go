@@ -17,21 +17,6 @@ func newIntSet(runes ...uint32) intSet {
 	return rs
 }
 
-// ints is an helper method returning a copy of the runes in the set.
-func (rs intSet) ints() (out []uint32) {
-	for _, page := range rs {
-		pageLow := uint32(page.ref) << 8
-		for j, set := range page.set {
-			for k := uint32(0); k < 32; k++ {
-				if set&uint32(1<<k) != 0 {
-					out = append(out, pageLow|uint32(j)<<5|k)
-				}
-			}
-		}
-	}
-	return out
-}
-
 func TestRuneSet(t *testing.T) {
 	tests := []struct {
 		start    []uint32

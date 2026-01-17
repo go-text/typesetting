@@ -61,6 +61,29 @@ type Font struct {
 	// Given a device resolution (in dpi) and a point size, the scale to
 	// get result in pixels is given by : pointSize * dpi / 72
 	XScale, YScale int32
+
+	// slant sets the "synthetic slant" of a font. By default is zero.
+	// Synthetic slant is the graphical skew applied to the font
+	// at rendering time.
+	//
+	// HarfBuzz needs to know this value to adjust shaping results,
+	// metrics, and style values to match the slanted rendering.
+	//
+	// Note: The slant value is a ratio.  For example, a
+	// 20% slant would be represented as a 0.2 value.
+	slant float32
+
+	// embolden sets the "synthetic boldness" of a font.
+	//
+	// Positive values for xEmbolden / yEmbolden make a font
+	// bolder, negative values thinner. Typical values are in the
+	// 0.01 to 0.05 range. The default value is zero.
+	//
+	// Synthetic boldness is applied by offsetting the contour
+	// points of the glyph shape.
+	//
+	// Glyph advance-widths are also adjusted
+	xEmbolden, yEmbolden float32
 }
 
 // NewFont constructs a new font object from the specified face.
@@ -152,6 +175,9 @@ func (f *Font) GlyphExtents(glyph GID) (out GlyphExtents, ok bool) {
 	if !ok {
 		return out, false
 	}
+
+	syntheticGlyphExtents(&ext, f.slant, f.xEmbolden, f.yEmbolden)
+
 	out.XBearing = f.emScalefX(ext.XBearing)
 	out.Width = f.emScalefX(ext.Width)
 	out.YBearing = f.emScalefY(ext.YBearing)
@@ -337,6 +363,37 @@ func (font *Font) getYDelta(varStore tables.ItemVarStore, device tables.DeviceTa
 		return font.emScalefY(varStore.GetDelta(tables.VariationStoreIndex(device), font.varCoords()))
 	default:
 		return 0
+	}
+}
+
+func syntheticGlyphExtents(extents *font.GlyphExtents, slant, xEmbolden, yEmbolden float32) {
+	/* Slant. */
+	if slant != 0 {
+		x1 := extents.XBearing
+		y1 := extents.YBearing
+		x2 := extents.XBearing + extents.Width
+		y2 := extents.YBearing + extents.Height
+
+		x1 += minF(y1*slant, y2*slant)
+		x2 += maxF(y1*slant, y2*slant)
+
+		extents.XBearing = x1
+		extents.Width = x2 - extents.XBearing
+	}
+
+	/* Embolden. */
+	if xEmbolden != 0 || yEmbolden != 0 {
+		/* Y */
+		yShift := yEmbolden
+		extents.YBearing += yShift
+		extents.Height -= yShift
+
+		/* X */
+		xShift := xEmbolden
+		// if embolden_in_place {
+		// 	extents.x_bearing -= xShift / 2
+		// }
+		extents.Width += xShift
 	}
 }
 
