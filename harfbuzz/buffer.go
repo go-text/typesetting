@@ -789,13 +789,6 @@ func (b *Buffer) moveTo(i int) {
 	}
 }
 
-func (b *Buffer) collectRunes(out *intSet) {
-	out.Clear()
-	for _, info := range b.Info {
-		out.AddRune(info.codepoint)
-	}
-}
-
 func (b *Buffer) collectGlyphs(out *intSet) {
 	out.Clear()
 	for _, info := range b.Info {

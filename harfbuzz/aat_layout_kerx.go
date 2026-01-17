@@ -12,7 +12,7 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx, accelerators []kernxSubtab
 
 	c.buffer.unsafeToConcat(0, maxInt)
 
-	c.setup_buffer_glyph_set(false)
+	c.setupBufferGlyphSet()
 
 	for i, st := range kerx {
 		var reverse bool
@@ -25,11 +25,11 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx, accelerators []kernxSubtab
 			continue
 		}
 
-		c.first_set = accelerators[i].first_set
+		c.firstSet = accelerators[i].first_set
 		c.second_set = accelerators[i].second_set
-		c.machine_class_cache = accelerators[i].class_cache
+		c.machineClassCache = accelerators[i].class_cache
 
-		if !c.buffer_intersects_machine(false) {
+		if !c.bufferIntersectsMachine() {
 			if debugMode {
 				fmt.Printf("AAT kerx : skipped subtable %d because no glyph matches\n", i)
 			}
@@ -59,8 +59,8 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx, accelerators []kernxSubtab
 			}
 		}
 
-		if reverse != c.buffer_is_reversed {
-			c.reverse_buffer()
+		if reverse != c.bufferIsReversed {
+			c.reverseBuffer()
 		}
 
 		applied := c.applyKerxSubtable(st)
@@ -72,8 +72,8 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx, accelerators []kernxSubtab
 		}
 	}
 
-	if c.buffer_is_reversed {
-		c.reverse_buffer()
+	if c.bufferIsReversed {
+		c.reverseBuffer()
 	}
 }
 
@@ -141,7 +141,7 @@ type kern0Accelerator struct {
 }
 
 func (k0 kern0Accelerator) KernPair(left, right GID) int16 {
-	if !k0.context.first_set.HasGlyph(left) || !k0.context.second_set.HasGlyph(right) {
+	if !k0.context.firstSet.HasGlyph(left) || !k0.context.second_set.HasGlyph(right) {
 		return 0
 	}
 	return k0.table.KernPair(left, right)
@@ -259,7 +259,7 @@ type kern2Accelerator struct {
 }
 
 func (k2 kern2Accelerator) KernPair(left, right GID) int16 {
-	if !k2.context.first_set.HasGlyph(left) || !k2.context.second_set.HasGlyph(right) {
+	if !k2.context.firstSet.HasGlyph(left) || !k2.context.second_set.HasGlyph(right) {
 		return 0
 	}
 	return k2.table.KernPair(left, right)
@@ -316,7 +316,7 @@ func (dc *driverContextKerx4) transition(buffer *Buffer, driver stateTableDriver
 		}
 		o.attachType = attachTypeMark
 		o.attachChain = int16(dc.mark - buffer.idx)
-		if dc.c.buffer_is_reversed {
+		if dc.c.bufferIsReversed {
 			o.attachChain = -o.attachChain
 		}
 		buffer.scratchFlags |= bsfHasGPOSAttachment
@@ -335,7 +335,7 @@ type kern6Accelerator struct {
 }
 
 func (k6 kern6Accelerator) KernPair(left, right GID) int16 {
-	if !k6.context.first_set.HasGlyph(left) || !k6.context.second_set.HasGlyph(right) {
+	if !k6.context.firstSet.HasGlyph(left) || !k6.context.second_set.HasGlyph(right) {
 		return 0
 	}
 	return k6.table.KernPair(left, right)

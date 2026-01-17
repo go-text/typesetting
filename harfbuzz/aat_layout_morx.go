@@ -29,10 +29,10 @@ func (c *aatApplyContext) applyMorx(chain font.MorxChain, accelerators []morxSub
 		}
 
 		c.subtableFlags = subtableFlags
-		c.first_set = accelerators[i].glyph_set
-		c.machine_class_cache = accelerators[i].class_cache
+		c.firstSet = accelerators[i].glyphSet
+		c.machineClassCache = accelerators[i].classCache
 
-		if !c.buffer_intersects_machine(true) {
+		if !c.bufferIntersectsMachine() {
 			if debugMode {
 				fmt.Printf("AAT morx : skipped subtable %d because no glyph matches\n", i)
 			}
@@ -74,8 +74,8 @@ func (c *aatApplyContext) applyMorx(chain font.MorxChain, accelerators []morxSub
 			fmt.Printf("MORX - start chainsubtable %d\n", i)
 		}
 
-		if reverse != c.buffer_is_reversed {
-			c.reverse_buffer()
+		if reverse != c.bufferIsReversed {
+			c.reverseBuffer()
 		}
 
 		c.applyMorxSubtable(subtable)
@@ -86,8 +86,8 @@ func (c *aatApplyContext) applyMorx(chain font.MorxChain, accelerators []morxSub
 		}
 	}
 
-	if c.buffer_is_reversed {
-		c.reverse_buffer()
+	if c.bufferIsReversed {
+		c.reverseBuffer()
 	}
 }
 
@@ -101,16 +101,16 @@ func (c *aatApplyContext) applyMorxSubtable(subtable font.MorxSubtable) bool {
 		driver := newStateTableDriver(font.AATStateTable(data), c.face)
 		driver.drive(&dc, c)
 	case font.MorxContextualSubtable:
-		dc := driverContextContextual{table: data, gdef: c.gdef, hasGlyphClass: c.gdef.GlyphClassDef != nil}
+		dc := driverContextContextual{c: c, table: data}
 		driver := newStateTableDriver(data.Machine, c.face)
 		driver.drive(&dc, c)
 		return dc.ret
 	case font.MorxLigatureSubtable:
-		dc := driverContextLigature{table: data}
+		dc := driverContextLigature{c: c, table: data}
 		driver := newStateTableDriver(data.Machine, c.face)
 		driver.drive(&dc, c)
 	case font.MorxInsertionSubtable:
-		dc := driverContextInsertion{insertionAction: data.Insertions}
+		dc := driverContextInsertion{c: c, insertionAction: data.Insertions}
 		driver := newStateTableDriver(data.Machine, c.face)
 		driver.drive(&dc, c)
 	case font.MorxNonContextualSubtable:
@@ -231,13 +231,11 @@ const (
 )
 
 type driverContextContextual struct {
-	c             *aatApplyContext
-	gdef          *tables.GDEF
-	table         font.MorxContextualSubtable
-	mark          int
-	markSet       bool
-	ret           bool
-	hasGlyphClass bool // cached version from gdef
+	c       *aatApplyContext
+	table   font.MorxContextualSubtable
+	mark    int
+	markSet bool
+	ret     bool
 }
 
 func (driverContextContextual) inPlace() bool { return true }
@@ -606,23 +604,23 @@ func (c *aatApplyContext) applyNonContextualSubtable(data font.MorxNonContextual
 }
 
 type morxSubtableAccelerator struct {
-	glyph_set   intSet
-	class_cache aatClassCache
+	glyphSet   intSet
+	classCache aatClassCache
 }
 
 func (ma *morxSubtableAccelerator) init(subtable font.MorxSubtable) {
-	ma.class_cache.clear()
+	ma.classCache.clear()
 	switch st := subtable.Data.(type) {
 	case font.MorxRearrangementSubtable:
-		collectLookupGlyphs(&ma.glyph_set, st.Class)
+		collectLookupGlyphs(&ma.glyphSet, st.Class)
 	case font.MorxContextualSubtable:
-		collectLookupGlyphs(&ma.glyph_set, st.Machine.Class)
+		collectLookupGlyphs(&ma.glyphSet, st.Machine.Class)
 	case font.MorxLigatureSubtable:
-		collectLookupGlyphs(&ma.glyph_set, st.Machine.Class)
+		collectLookupGlyphs(&ma.glyphSet, st.Machine.Class)
 	case font.MorxNonContextualSubtable:
-		collectLookupGlyphs(&ma.glyph_set, st.Class)
+		collectLookupGlyphs(&ma.glyphSet, st.Class)
 	case font.MorxInsertionSubtable:
-		collectLookupGlyphs(&ma.glyph_set, st.Machine.Class)
+		collectLookupGlyphs(&ma.glyphSet, st.Machine.Class)
 	}
 }
 

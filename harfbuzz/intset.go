@@ -262,14 +262,27 @@ func (s *intSet) addRange(start, end uint32) {
 	}
 }
 
+// ints is an helper method returning a copy of the runes in the set.
+func (rs intSet) ints() (out []uint32) {
+	for _, page := range rs {
+		pageLow := uint32(page.ref) << 8
+		for j, set := range page.set {
+			for k := uint32(0); k < 32; k++ {
+				if set&uint32(1<<k) != 0 {
+					out = append(out, pageLow|uint32(j)<<5|k)
+				}
+			}
+		}
+	}
+	return out
+}
+
 // typed API
 
-func (s *intSet) AddRune(r rune) { s.add(uint32(r)) }
-func (s *intSet) AddGlyph(g GID) { s.add(uint32(g)) }
+func (s intSet) HasGlyph(g GID) bool { return s.has(uint32(g)) }
+func (s *intSet) AddGlyph(g GID)     { s.add(uint32(g)) }
 func (s *intSet) AddGlyphs(gs []GID) {
 	for _, g := range gs {
 		s.add(uint32(g))
 	}
 }
-func (s intSet) HasRune(r rune) bool { return s.has(uint32(r)) }
-func (s intSet) HasGlyph(g GID) bool { return s.has(uint32(g)) }

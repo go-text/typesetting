@@ -77,7 +77,7 @@ func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 		if j > buffer.idx {
 			buffer.nextGlyphs(j - buffer.idx)
 		}
-		if buffer.idx > len(info) {
+		if buffer.idx >= len(info) {
 			break
 		}
 

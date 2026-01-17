@@ -137,7 +137,7 @@ func (c *otApplyContext) applyGSUB(table tables.GSUBLookup) bool {
 	}
 
 	if debugMode {
-		fmt.Printf("\tAPPLY - type %T at index %d\n", table, c.buffer.idx)
+		fmt.Printf("\t\tAPPLY - type %T at index %d\n", table, c.buffer.idx)
 	}
 
 	switch data := table.(type) {
