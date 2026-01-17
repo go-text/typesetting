@@ -25,7 +25,7 @@ import (
 
 // debugMode is only used in test: if true, it prints detailed information
 // about shaping
-const debugMode = false
+const debugMode = true
 
 type (
 	GID = ot.GID
@@ -490,6 +490,20 @@ func max32(a, b uint32) uint32 {
 	return b
 }
 
+func minF(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxF(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func isAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
 func isAlnum(c byte) bool { return isAlpha(c) || (c >= '0' && c <= '9') }
 func toUpper(c byte) byte {
@@ -511,6 +525,4 @@ const maxInt = int(^uint(0) >> 1)
 // bitStorage returns the number of bits needed to store the number.
 func bitStorage(v uint32) int { return 32 - bits.LeadingZeros32(v) }
 
-func roundf(f float32) Position {
-	return Position(math.Round(float64(f)))
-}
+func roundf(f float32) Position { return Position(math.Round(float64(f))) }
