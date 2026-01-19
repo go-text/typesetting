@@ -118,7 +118,7 @@ func NewFont(face Face) *Font {
 		font.kernAccels[i] = newKernxSubtableAccelerator(subtable)
 	}
 	font.kerxAccels = make([]kernxSubtableAccelerator, len(face.Kerx))
-	for i, subtable := range face.Kern {
+	for i, subtable := range face.Kerx {
 		font.kerxAccels[i] = newKernxSubtableAccelerator(subtable)
 	}
 	return &font

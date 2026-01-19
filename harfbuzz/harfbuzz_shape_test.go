@@ -34,6 +34,7 @@ func TestShapeExpected(t *testing.T) {
 	fmt.Printf("Running %d tests...\n", len(tests))
 
 	for _, testD := range tests {
+		fmt.Println(testD.originLine)
 		runShapingTest(t, testD, false)
 	}
 }
@@ -45,7 +46,7 @@ func TestDebug(t *testing.T) {
 
 	// dir := "harfbuzz_reference/aots/"
 	dir := "harfbuzz_reference/in-house/"
-	testString := `./fonts/813c2f8e5512187fd982417a7fb4286728e6f4a8.ttf;;U+1820,U+180B;[uni2048.E81A=0+1550]`
+	testString := `./fonts/NotoNastaliqUrdu-Regular.ttf;;U+0628,U+0628,U+0628,U+6D2;[OneDotBelowYB=3@764,-183+0|YBc1=3@764,-282+0|OneDotBelowYB=3@1098,-60+0|YBc2=3@1098,-159+0|YehBarreeFin_4=3+355|OneDotBelowNS=2@20,-120+0|BehxMed.inT2outD2YB=2@0,349+182|NullMk=1+0|BehxMed.inT1outT2=1@0,406+184|NullMk=0+0|sp5=0+0|BehxIni=0@0,471+541]`
 	testD := newTestData(t, dir, testString)
 	out := runShapingTest(t, testD, true)
 	fmt.Println(out)
