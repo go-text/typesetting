@@ -196,7 +196,7 @@ type skippingIterator struct {
 	matcher otApplyContextMatcher
 
 	matchGlyphDataArray []uint16
-	matchGlyphDataStart int // start as index in match_glyph_data_array
+	matchGlyphDataStart int // start as index in matchGlyphDataArray
 
 	idx int
 	end int
@@ -205,6 +205,8 @@ type skippingIterator struct {
 func (it *skippingIterator) init(c *otApplyContext, contextMatch bool) {
 	it.c = c
 	it.end = len(c.buffer.Info)
+	it.matchGlyphDataArray = it.matchGlyphDataArray[:0]
+	it.matchGlyphDataStart = 0
 	it.matcher.init(c, contextMatch)
 }
 
@@ -281,13 +283,7 @@ func (it *skippingIterator) next() (_ bool, unsafeTo int) {
 }
 
 func (it *skippingIterator) prev() (_ bool, unsafeFrom int) {
-	// The alternate condition below is faster at string boundaries,
-	// but produces subpar "unsafe-to-concat" values.
 	stop := 0
-	if (it.c.buffer.Flags & ProduceUnsafeToConcat) != 0 {
-		stop = 0
-	}
-
 	L := len(it.c.buffer.outInfo)
 	for it.idx > stop {
 		it.idx--
@@ -326,8 +322,6 @@ type otApplyContext struct {
 	varStore    tables.ItemVarStore
 	indices     []uint16 // see get1N()
 
-	digest setDigest
-
 	iterContext skippingIterator
 	iterInput   skippingIterator
 
@@ -360,8 +354,6 @@ func (c *otApplyContext) reset(tableIndex uint8, font *Font, buffer *Buffer) {
 	c.gdef = font.face.GDEF
 	c.varStore = c.gdef.ItemVarStore
 	c.indices = c.indices[:0]
-
-	c.digest = buffer.digest
 
 	c.nestingLevelLeft = maxNestingLevel
 	c.tableIndex = tableIndex

@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
@@ -107,6 +109,69 @@ func (c *otApplyContext) applyBackward(accel *otLayoutLookupAccelerator) bool {
 		buffer.idx--
 	}
 	return ret
+}
+
+func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buffer) {
+	tableIndex := proxy.tableIndex
+	i := 0
+	c := &m.applyContext
+
+	c.reset(tableIndex, font, buffer)
+	c.recurseFunc = proxy.recurseFunc
+
+	for stageI, stage := range m.stages[tableIndex] {
+
+		if debugMode {
+			fmt.Printf("\tAPPLY - stage %d\n", stageI)
+		}
+
+		for ; i < stage.lastLookup; i++ {
+			lookup := m.lookups[tableIndex][i]
+			lookupIndex := lookup.index
+
+			if debugMode {
+				fmt.Printf("\t\tLookup %d start\n", lookupIndex)
+			}
+
+			// Only try applying the lookup if there is any overlap.
+			accel := &proxy.accels[lookupIndex]
+			if accel.digest.mayIntersects(buffer.digest) {
+				c.lookupIndex = lookupIndex
+				c.lookupMask = lookup.mask
+				c.autoZWJ = lookup.autoZWJ
+				c.autoZWNJ = lookup.autoZWNJ
+				c.random = lookup.random
+				c.perSyllable = lookup.perSyllable
+
+				// pathological cases
+				if len(c.buffer.Info) > c.buffer.maxLen {
+					return
+				}
+				c.applyString(proxy.otProxyMeta, accel)
+			}
+
+			if debugMode {
+				fmt.Print("\t\tLookup end : ")
+				if proxy.tableIndex == 0 {
+					fmt.Println(c.buffer.Info)
+				} else {
+					fmt.Println(c.buffer.Pos)
+				}
+			}
+
+		}
+
+		if stage.pauseFunc != nil {
+			if debugMode {
+				fmt.Println("\t\tExecuting pause function")
+			}
+
+			if stage.pauseFunc(plan, font, buffer) {
+				// Refresh working buffer digest since buffer changed.
+				buffer.updateDigest()
+			}
+		}
+	}
 }
 
 /*
