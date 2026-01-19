@@ -787,7 +787,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 	return l.WrapParagraphF(config, fixed.I(maxWidth), paragraph, runs)
 }
 
-// WrapParagraphFF is the same as [WrapParagraphF], but accepts a non integer [maxWidth].
+// WrapParagraphF is the same as [WrapParagraph], but accepts a non integer [maxWidth].
 func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
 	l.scratch.reset()
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
