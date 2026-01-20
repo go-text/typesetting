@@ -32,7 +32,15 @@ var (
 	simpleGlyph_ = Glyph{
 		GlyphID:  simpleGID,
 		XAdvance: fixed.I(10),
+		Advance:  fixed.I(10),
+		Width:    fixed.I(10),
+		Height:   -fixed.I(10),
+		YBearing: fixed.I(10),
+	}
+	simpleGlyphVert = Glyph{
+		GlyphID:  simpleGID,
 		YAdvance: -fixed.I(10),
+		Advance:  -fixed.I(10),
 		Width:    fixed.I(10),
 		Height:   -fixed.I(10),
 		YBearing: fixed.I(10),
@@ -40,7 +48,16 @@ var (
 	deepGlyph = Glyph{
 		GlyphID:  deepGID,
 		XAdvance: fixed.I(10),
+		Advance:  fixed.I(10),
+		XOffset:  -fixed.I(5),
+		Width:    fixed.I(10),
+		Height:   -fixed.I(10),
+		YBearing: fixed.I(0),
+	}
+	deepGlyphVert = Glyph{
+		GlyphID:  deepGID,
 		YAdvance: -fixed.I(10),
+		Advance:  -fixed.I(10),
 		XOffset:  -fixed.I(5),
 		Width:    fixed.I(10),
 		Height:   -fixed.I(10),
@@ -49,7 +66,18 @@ var (
 	offsetGlyph = Glyph{
 		GlyphID:  offsetGID,
 		XAdvance: fixed.I(10),
+		Advance:  fixed.I(10),
+		XOffset:  -fixed.I(2),
+		YOffset:  fixed.I(2),
+		Width:    fixed.I(10),
+		Height:   -fixed.I(10),
+		YBearing: fixed.I(10),
+		XBearing: fixed.I(1),
+	}
+	offsetGlyphVert = Glyph{
+		GlyphID:  offsetGID,
 		YAdvance: -fixed.I(10),
+		Advance:  -fixed.I(10),
 		XOffset:  -fixed.I(2),
 		YOffset:  fixed.I(2),
 		Width:    fixed.I(10),
@@ -120,12 +148,12 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical single simple glyph",
 			Direction: di.DirectionTTB,
-			Input:     []Glyph{simpleGlyph_},
+			Input:     []Glyph{simpleGlyphVert},
 			Output: Output{
-				Glyphs:  []Glyph{simpleGlyph_},
-				Advance: simpleGlyph_.YAdvance,
+				Glyphs:  []Glyph{simpleGlyphVert},
+				Advance: simpleGlyphVert.YAdvance,
 				GlyphBounds: Bounds{
-					Ascent:  simpleGlyph_.Width,
+					Ascent:  simpleGlyphVert.Width,
 					Descent: 0,
 				},
 				LineBounds: expectedFontExtents,
@@ -134,13 +162,13 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical glyph below baseline",
 			Direction: di.DirectionTTB,
-			Input:     []Glyph{simpleGlyph_, deepGlyph},
+			Input:     []Glyph{simpleGlyphVert, deepGlyphVert},
 			Output: Output{
-				Glyphs:  []Glyph{simpleGlyph_, deepGlyph},
-				Advance: simpleGlyph_.YAdvance + deepGlyph.YAdvance,
+				Glyphs:  []Glyph{simpleGlyphVert, deepGlyphVert},
+				Advance: simpleGlyphVert.YAdvance + deepGlyphVert.YAdvance,
 				GlyphBounds: Bounds{
-					Ascent:  simpleGlyph_.Width,
-					Descent: deepGlyph.XOffset + deepGlyph.XBearing,
+					Ascent:  simpleGlyphVert.Width,
+					Descent: deepGlyphVert.XOffset + deepGlyphVert.XBearing,
 				},
 				LineBounds: expectedFontExtents,
 			},
@@ -148,13 +176,13 @@ func TestRecalculate(t *testing.T) {
 		{
 			Name:      "vertical single complex glyph",
 			Direction: di.DirectionTTB,
-			Input:     []Glyph{offsetGlyph},
+			Input:     []Glyph{offsetGlyphVert},
 			Output: Output{
-				Glyphs:  []Glyph{offsetGlyph},
-				Advance: offsetGlyph.YAdvance,
+				Glyphs:  []Glyph{offsetGlyphVert},
+				Advance: offsetGlyphVert.YAdvance,
 				GlyphBounds: Bounds{
-					Ascent:  offsetGlyph.Width + offsetGlyph.XOffset + offsetGlyph.XBearing,
-					Descent: offsetGlyph.XOffset + offsetGlyph.XBearing,
+					Ascent:  offsetGlyphVert.Width + offsetGlyphVert.XOffset + offsetGlyphVert.XBearing,
+					Descent: offsetGlyphVert.XOffset + offsetGlyphVert.XBearing,
 				},
 				LineBounds: expectedFontExtents,
 			},
@@ -323,7 +351,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      10,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -341,7 +369,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      0,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -359,7 +387,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      10,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -377,7 +405,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      0,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -395,7 +423,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      10,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -413,7 +441,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      0,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -431,7 +459,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      10,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
@@ -449,7 +477,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Glyphs: []Glyph{
 					{
 						Width:      0,
-						XAdvance:   10,
+						Advance:    10,
 						RuneCount:  1,
 						GlyphCount: 1,
 					},
