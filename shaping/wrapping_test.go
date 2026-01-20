@@ -1567,8 +1567,7 @@ func complexGlyph(cluster, runes, glyphs int) Glyph {
 	return Glyph{
 		Width:        fixed.I(10),
 		Height:       fixed.I(10),
-		XAdvance:     fixed.I(10),
-		YAdvance:     fixed.I(10),
+		Advance:      fixed.I(10),
 		YBearing:     fixed.I(10),
 		ClusterIndex: cluster,
 		GlyphCount:   glyphs,
