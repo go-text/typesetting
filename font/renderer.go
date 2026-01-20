@@ -113,48 +113,6 @@ type GlyphColor struct {
 	Paint tables.PaintTable
 }
 
-// GlyphData returns the glyph content for [gid], or nil if
-// not found.
-func (f *Face) GlyphData(gid GID) GlyphData {
-	if out, ok := f.COLR.Search(gID(gid)); ok {
-		return GlyphColor{out}
-	}
-
-	// since outline may be specified for SVG and bitmaps, check it at the end
-	outB, err := f.sbix.glyphData(gID(gid), f.xPpem, f.yPpem)
-	if err == nil {
-		outline, ok := f.GlyphDataOutline(gID(gid))
-		if ok {
-			outB.Outline = &outline
-		}
-		return outB
-	}
-
-	outB, err = f.bitmap.glyphData(gID(gid), f.xPpem, f.yPpem)
-	if err == nil {
-		outline, ok := f.GlyphDataOutline(gID(gid))
-		if ok {
-			outB.Outline = &outline
-		}
-		return outB
-	}
-
-	outS, ok := f.svg.glyphData(gID(gid))
-	if ok {
-		// Spec :
-		// For every SVG glyph description, there must be a corresponding TrueType,
-		// CFF or CFF2 glyph description in the font.
-		outS.Outline, _ = f.GlyphDataOutline(gID(gid))
-		return outS
-	}
-
-	if out, ok := f.GlyphDataOutline(gID(gid)); ok {
-		return out
-	}
-
-	return nil
-}
-
 func (sb sbix) glyphData(gid gID, xPpem, yPpem uint16) (GlyphBitmap, error) {
 	st := sb.chooseStrike(xPpem, yPpem)
 	if st == nil {
@@ -209,29 +167,6 @@ func (bt bitmap) glyphData(gid gID, xPpem, yPpem uint16) (GlyphBitmap, error) {
 	}
 
 	return out, nil
-}
-
-// GlyphDataOutline looks for data in 'glyf', 'CFF ' and 'CFF2' tables.
-//
-// It is a bit faster than calling [Face.GlyphData] and may be used for instance
-// when rendering colored glyphs (from the 'COLR' table).
-func (f *Face) GlyphDataOutline(gid gID) (GlyphOutline, bool) {
-	out, err := f.glyphDataFromCFF1(gid)
-	if err == nil {
-		return out, true
-	}
-
-	out, err = f.glyphDataFromCFF2(gid)
-	if err == nil {
-		return out, true
-	}
-
-	out, err = f.glyphDataFromGlyf(gid)
-	if err == nil {
-		return out, true
-	}
-
-	return GlyphOutline{}, false
 }
 
 func (s svg) glyphData(gid gID) (GlyphSVG, bool) {
@@ -423,6 +358,8 @@ func (f *Face) glyphDataFromCFF2(glyph gID) (GlyphOutline, error) {
 	return GlyphOutline{Segments: segments}, nil
 }
 
+// -------------------------- Public API --------------------------
+
 // BitmapSizes returns the size of bitmap glyphs present in the font.
 func (font *Font) BitmapSizes() []BitmapSize {
 	upem := font.head.UnitsPerEm
@@ -445,4 +382,99 @@ func (font *Font) BitmapSizes() []BitmapSize {
 	}
 
 	return nil
+}
+
+// GlyphData returns the glyph content for [gid], or nil if
+// not found.
+//
+// See also the various GlyphDataXXX methods, for more control
+// on the types of glyphs loaded.
+func (f *Face) GlyphData(gid GID) GlyphData {
+	g := gID(gid)
+
+	// since outline may be specified for SVG and bitmaps, check it at the end
+	// check color first over SVG, since it is more optimized format
+
+	if out, ok := f.GlyphDataColor(g); ok {
+		return out
+	}
+
+	if out, ok := f.GlyphDataBitmap(g); ok {
+		return out
+	}
+
+	if out, ok := f.GlyphDataSVG(g); ok {
+		return out
+	}
+
+	if out, ok := f.GlyphDataOutline(g); ok {
+		return out
+	}
+
+	return nil
+}
+
+// GlyphDataOutline looks for glyph data in 'glyf', 'CFF ' and 'CFF2' tables.
+//
+// It is a bit faster than calling [Face.GlyphData] and may be used for instance
+// when rendering colored glyphs (from the 'COLR' table).
+func (f *Face) GlyphDataOutline(gid gID) (GlyphOutline, bool) {
+	out, err := f.glyphDataFromCFF1(gid)
+	if err == nil {
+		return out, true
+	}
+
+	out, err = f.glyphDataFromCFF2(gid)
+	if err == nil {
+		return out, true
+	}
+
+	out, err = f.glyphDataFromGlyf(gid)
+	if err == nil {
+		return out, true
+	}
+
+	return GlyphOutline{}, false
+}
+
+// GlyphDataSVG looks for glyph data in the 'SVG ' table.
+func (f *Face) GlyphDataSVG(gid gID) (GlyphSVG, bool) {
+	outS, ok := f.svg.glyphData(gid)
+	if !ok {
+		return GlyphSVG{}, false
+	}
+	// Spec :
+	// For every SVG glyph description, there must be a corresponding TrueType,
+	// CFF or CFF2 glyph description in the font.
+	outS.Outline, _ = f.GlyphDataOutline(gid)
+	return outS, true
+}
+
+// GlyphDataColor looks for glyph data in the 'COLR' table.
+func (f *Face) GlyphDataColor(gid gID) (GlyphColor, bool) {
+	v, ok := f.COLR.Search(gid)
+	return GlyphColor{v}, ok
+}
+
+// GlyphDataBitmap looks for glyph data in the 'sbix', 'CBDT', 'EBDT' and 'BDAT' tables.
+func (f *Face) GlyphDataBitmap(gid gID) (GlyphBitmap, bool) {
+	outB, err := f.sbix.glyphData(gid, f.xPpem, f.yPpem)
+	if err == nil {
+		outline, ok := f.GlyphDataOutline(gid)
+		if ok {
+			outB.Outline = &outline
+		}
+		return outB, true
+	}
+
+	outB, err = f.bitmap.glyphData(gid, f.xPpem, f.yPpem)
+	if err == nil {
+		outline, ok := f.GlyphDataOutline(gid)
+		if ok {
+			outB.Outline = &outline
+		}
+		return outB, true
+	}
+
+	return GlyphBitmap{}, false
 }
