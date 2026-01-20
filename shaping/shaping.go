@@ -24,7 +24,7 @@ type HarfbuzzShaper struct {
 // It is safe to adjust the size after using the shaper, though shrinking
 // it may result in many evictions on the next shaping.
 func (h *HarfbuzzShaper) SetFontCacheSize(size int) {
-	h.fonts.maxSize = size
+	h.fonts.maxSizeOffset = size - defaultFontCacheSize
 }
 
 var _ Shaper = (*HarfbuzzShaper)(nil)
