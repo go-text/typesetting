@@ -1120,12 +1120,15 @@ func (c *otApplyContext) applyLookupChainedContext3(data tables.ChainedSequenceC
 		})
 }
 
+// grows the slice if required; and copy the current contents
 func ensureLen(slice *[]int, L int) {
 	if L > len(*slice) {
 		if L <= cap(*slice) {
 			*slice = (*slice)[:L]
 		} else {
-			*slice = make([]int, L)
+			newSlice := make([]int, L)
+			copy(newSlice, *slice)
+			*slice = newSlice
 		}
 	}
 }
