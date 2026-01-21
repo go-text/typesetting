@@ -419,8 +419,8 @@ func otLayoutPositionStart(_ *Font, buffer *Buffer) {
 }
 
 // Called after positioning lookups are performed, to finish glyph offsets.
-func otLayoutPositionFinishOffsets(_ *Font, buffer *Buffer) {
-	positionFinishOffsetsGPOS(buffer)
+func otLayoutPositionFinishOffsets(font *Font, buffer *Buffer) {
+	positionFinishOffsetsGPOS(font, buffer)
 }
 
 func glyphInfoSubstituted(info *GlyphInfo) bool {

@@ -255,6 +255,13 @@ func (f *Font) getGlyphHOriginWithFallback(glyph GID) (Position, Position) {
 
 func (f *Font) getGlyphVOriginWithFallback(glyph GID) (Position, Position) {
 	x, y := f.face.GlyphVOrigin(glyph)
+	/* Slant is ignored as it does not affect glyph origin */
+
+	/* Embolden */
+	if f.xEmbolden != 0 || f.yEmbolden != 0 {
+		x += f.xEmbolden
+		y += f.yEmbolden
+	}
 	return f.emScalefX(x), f.emScalefY(y)
 }
 

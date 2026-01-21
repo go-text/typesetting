@@ -117,7 +117,7 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 	}
 }
 
-func positionFinishOffsetsGPOS(buffer *Buffer) {
+func positionFinishOffsetsGPOS(font *Font, buffer *Buffer) {
 	pos := buffer.Pos
 	direction := buffer.Props.Direction
 
@@ -139,6 +139,18 @@ func positionFinishOffsetsGPOS(buffer *Buffer) {
 				if pos[i].attachChain != 0 {
 					propagateAttachmentOffsets(pos, i, direction)
 				}
+			}
+		}
+	}
+
+	if font.slant != 0 && direction.isHorizontal() {
+		slantXY := font.slant * float32(font.XScale) / float32(font.YScale)
+
+		/* Slanting shaping results is only supported for horizontal text,
+		 * as it gets weird otherwise. */
+		for i, pos := range buffer.Pos {
+			if pos.YOffset != 0 {
+				buffer.Pos[i].XOffset += roundf(slantXY * float32(pos.YOffset))
 			}
 		}
 	}
