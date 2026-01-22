@@ -46,7 +46,7 @@ func TestDebug(t *testing.T) {
 
 	// dir := "harfbuzz_reference/aots/"
 	dir := "harfbuzz_reference/in-house/"
-	testString := `./fonts/NotoNastaliqUrdu-Regular.ttf;;U+0628,U+0628,U+0628,U+6D2;[OneDotBelowYB=3@764,-183+0|YBc1=3@764,-282+0|OneDotBelowYB=3@1098,-60+0|YBc2=3@1098,-159+0|YehBarreeFin_4=3+355|OneDotBelowNS=2@20,-120+0|BehxMed.inT2outD2YB=2@0,349+182|NullMk=1+0|BehxMed.inT1outT2=1@0,406+184|NullMk=0+0|sp5=0+0|BehxIni=0@0,471+541]`
+	testString := `./fonts/bbc24004e776f348a0f72287d24b0124867ee750.ttf;;U+0066,U+FE00,U+0069;[gid5=0+1134|gid1=0+0]`
 	testD := newTestData(t, dir, testString)
 	out := runShapingTest(t, testD, true)
 	fmt.Println(out)
@@ -146,7 +146,7 @@ func (fo *fontOpts) loadFont(t *testing.T) *Font {
 
 	font.Ptem = float32(fo.ptem)
 	font.slant = float32(fo.slant)
-	font.xEmbolden, font.yEmbolden = float32(fo.embolden), float32(fo.embolden)
+	font.xEmbolden = float32(fo.embolden)
 
 	scaleX := scalbnf(float64(fo.fontSizeX), fo.subpixelBits)
 	scaleY := scalbnf(float64(fo.fontSizeY), fo.subpixelBits)
