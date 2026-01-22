@@ -298,7 +298,7 @@ func (f *Face) GlyphVOrigin(glyph GID) (x, y float32) {
 
 	if extents, ok := f.getExtentsFromGlyf(gID(glyph)); ok {
 		diff := fontAdvance - -extents.Height
-		y = extents.YBearing + (diff / 2)
+		y = extents.YBearing + float32(int(diff)/2)
 		return x, y
 	}
 

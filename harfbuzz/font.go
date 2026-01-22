@@ -83,7 +83,7 @@ type Font struct {
 	// points of the glyph shape.
 	//
 	// Glyph advance-widths are also adjusted
-	xEmbolden, yEmbolden float32
+	xEmbolden float32
 }
 
 // NewFont constructs a new font object from the specified face.
@@ -143,6 +143,8 @@ func (f *Font) nominalGlyph(r rune, notFound GID) (GID, bool) {
 	return g, ok
 }
 
+func (f *Font) xStrength() Position { return roundf(float32(f.XScale) * f.xEmbolden) }
+
 // ---- Convert from font-space to user-space ----
 
 func (f *Font) emScaleX(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }
@@ -176,7 +178,7 @@ func (f *Font) GlyphExtents(glyph GID) (out GlyphExtents, ok bool) {
 		return out, false
 	}
 
-	syntheticGlyphExtents(&ext, f.slant, f.xEmbolden, f.yEmbolden)
+	syntheticGlyphExtents(&ext, f.slant, f.xEmbolden)
 
 	out.XBearing = f.emScalefX(ext.XBearing)
 	out.Width = f.emScalefX(ext.Width)
@@ -201,7 +203,11 @@ func (f *Font) GlyphAdvanceForDirection(glyph GID, dir Direction) (x, y Position
 // for horizontal text segments.
 func (f *Font) GlyphHAdvance(glyph GID) Position {
 	adv := f.face.HorizontalAdvance(glyph)
-	return f.emScalefX(adv)
+	out := f.emScalefX(adv)
+	if f.xEmbolden != 0 && out != 0 {
+		out += f.xStrength()
+	}
+	return out
 }
 
 // Fetches the advance for a glyph ID in the font,
@@ -250,19 +256,30 @@ func (f *Font) getGlyphHOriginWithFallback(glyph GID) (Position, Position) {
 		dx, dy := f.guessVOriginMinusHOrigin(glyph)
 		return x - dx, y - dy
 	}
-	return f.emScalefX(float32(x)), f.emScalefY(float32(y))
+
+	x_, y_ := f.emScalefX(float32(x)), f.emScalefY(float32(y))
+	if f.xEmbolden != 0 {
+		/* Slant is ignored as it does not affect glyph origin */
+
+		/* Embolden */
+		strength := f.xStrength()
+		x_ += strength
+		y_ += strength
+	}
+	return x_, y_
 }
 
 func (f *Font) getGlyphVOriginWithFallback(glyph GID) (Position, Position) {
 	x, y := f.face.GlyphVOrigin(glyph)
+	x_, y_ := f.emScalefX(2*x)/2, f.emScalefY(y) // harfbuzz divides by 2 in Position unit
 	/* Slant is ignored as it does not affect glyph origin */
-
 	/* Embolden */
-	if f.xEmbolden != 0 || f.yEmbolden != 0 {
-		x += f.xEmbolden
-		y += f.yEmbolden
+	if f.xEmbolden != 0 {
+		strength := f.xStrength()
+		x_ += strength
+		y_ += strength
 	}
-	return f.emScalefX(x), f.emScalefY(y)
+	return x_, y_
 }
 
 func (f *Font) guessVOriginMinusHOrigin(glyph GID) (x, y Position) {
@@ -343,6 +360,9 @@ func (f *Font) ExtentsForDirection(direction Direction) font.FontExtents {
 			extents.Descender = extents.Ascender - float32(f.XScale)
 			extents.LineGap = 0
 		}
+
+		xStrength := float32(f.XScale) * f.xEmbolden
+		extents.Ascender += xStrength
 	}
 	return extents
 }
@@ -373,7 +393,7 @@ func (font *Font) getYDelta(varStore tables.ItemVarStore, device tables.DeviceTa
 	}
 }
 
-func syntheticGlyphExtents(extents *font.GlyphExtents, slant, xEmbolden, yEmbolden float32) {
+func syntheticGlyphExtents(extents *font.GlyphExtents, slant, xEmbolden float32) {
 	/* Slant. */
 	if slant != 0 {
 		x1 := extents.XBearing
@@ -389,9 +409,9 @@ func syntheticGlyphExtents(extents *font.GlyphExtents, slant, xEmbolden, yEmbold
 	}
 
 	/* Embolden. */
-	if xEmbolden != 0 || yEmbolden != 0 {
+	if xEmbolden != 0 {
 		/* Y */
-		yShift := yEmbolden
+		yShift := xEmbolden
 		extents.YBearing += yShift
 		extents.Height -= yShift
 
