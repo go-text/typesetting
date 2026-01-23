@@ -327,15 +327,12 @@ type HVAR struct {
 	majorVersion        uint16           // Major version number of the horizontal metrics variations table — set to 1.
 	minorVersion        uint16           // Minor version number of the horizontal metrics variations table — set to 0.
 	ItemVariationStore  ItemVarStore     `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the item variation store table.
-	AdvanceWidthMapping *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for advance widths (may be NULL).
+	AdvanceWidthMapping DeltaSetMapping  `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for advance widths (may be NULL).
 	LsbMapping          *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for left side bearings (may be NULL).
 	RsbMapping          *DeltaSetMapping `offsetSize:"Offset32"` // Offset in bytes from the start of this table to the delta-set index mapping for right side bearings (may be NULL).
 }
 
 func (t *HVAR) AdvanceDelta(glyph GlyphID, coords []Coord) float32 {
-	if t.AdvanceWidthMapping == nil {
-		return 0
-	}
 	index := t.AdvanceWidthMapping.Index(glyph)
 	return t.ItemVariationStore.GetDelta(index, coords)
 }
