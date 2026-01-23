@@ -383,14 +383,12 @@ func ParseHVAR(src []byte) (HVAR, int, error) {
 				return item, 0, fmt.Errorf("reading HVAR: "+"EOF: expected length: %d, got %d", offsetAdvanceWidthMapping, L)
 			}
 
-			var tmpAdvanceWidthMapping DeltaSetMapping
 			var err error
-			tmpAdvanceWidthMapping, _, err = ParseDeltaSetMapping(src[offsetAdvanceWidthMapping:])
+			item.AdvanceWidthMapping, _, err = ParseDeltaSetMapping(src[offsetAdvanceWidthMapping:])
 			if err != nil {
 				return item, 0, fmt.Errorf("reading HVAR: %s", err)
 			}
 
-			item.AdvanceWidthMapping = &tmpAdvanceWidthMapping
 		}
 	}
 	{
