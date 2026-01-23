@@ -158,7 +158,7 @@ func newTestInput(t testing.TB, options string) testInput {
 	flags.BoolVar(&so.eot, "eot", false, "Treat text as end-of-paragraph")
 	flags.BoolVar(&so.removeDefaultIgnorables, "remove-default-ignorables", false, "Remove Default-Ignorable characters")
 	flags.BoolVar(&so.preserveDefaultIgnorables, "preserve-default-ignorables", false, "Preserve Default-Ignorable characters")
-	notFoundVariationSelector := flags.Int("not-found-variation-selector-glyph", 0, "Glyph value to replace not-found variation-selector characters with")
+	notFoundVariationSelector := flags.Int("not-found-variation-selector-glyph", 0xFFFFFFFF, "Glyph value to replace not-found variation-selector characters with")
 	flags.Func("cluster-level", "Cluster merging level (0/1/2, default: 0)", func(s string) error {
 		l, err := strconv.Atoi(s)
 		if err != nil {
