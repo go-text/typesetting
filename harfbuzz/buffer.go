@@ -748,16 +748,18 @@ func (b *Buffer) allocateLigID() uint8 {
 	return ligID
 }
 
-func (b *Buffer) shiftForward(count int) {
+// return false if maximum ops limit is reached
+func (b *Buffer) shiftForward(count int) bool {
 	//   assert (have_output);
 	L := len(b.Info)
 	b.maxOps -= L - b.idx
 	if b.maxOps < 0 {
-		return
+		return false
 	}
 	b.Info = append(b.Info, make([]GlyphInfo, count)...)
 	copy(b.Info[b.idx+count:], b.Info[b.idx:L])
 	b.idx += count
+	return true
 }
 
 func (b *Buffer) moveTo(i int) {
@@ -778,7 +780,10 @@ func (b *Buffer) moveTo(i int) {
 		count := outL - i
 
 		if b.idx < count {
-			b.shiftForward(count - b.idx)
+			ok := b.shiftForward(count - b.idx)
+			if !ok {
+				return
+			}
 		}
 
 		// assert(idx >= count)

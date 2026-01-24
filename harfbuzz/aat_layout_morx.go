@@ -146,7 +146,7 @@ type driverContextRearrangement struct {
 func (driverContextRearrangement) inPlace() bool { return true }
 
 func (d driverContextRearrangement) isActionable(entry tables.AATStateEntry) bool {
-	return (entry.Flags&mrVerb) != 0 && d.start < d.end
+	return (entry.Flags & mrVerb) != 0
 }
 
 /* The following map has two nibbles, for start-side
@@ -504,8 +504,9 @@ func (dc *driverContextInsertion) transition(buffer *Buffer, driver stateTableDr
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.copyGlyph()
 		}
+
 		/* TODO We ignore KashidaLike setting. */
-		dc.c.output_glyphs(glyphs[:count])
+		dc.c.outputGlyphs(glyphs[:count])
 
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.skipGlyph()
@@ -539,7 +540,7 @@ func (dc *driverContextInsertion) transition(buffer *Buffer, driver stateTableDr
 		}
 
 		/* TODO We ignore KashidaLike setting. */
-		dc.c.output_glyphs(glyphs[:count])
+		dc.c.outputGlyphs(glyphs[:count])
 
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.skipGlyph()

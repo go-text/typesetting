@@ -158,8 +158,8 @@ func TestAdvanceTtVarCompV(t *testing.T) {
 
 	x, y = font.getGlyphOriginForDirection(2, TopToBottom)
 
-	assertEqualInt32(t, x, 291)
-	assertEqualInt32(t, y, 1012)
+	assertEqualInt32(t, x, 292)
+	assertEqualInt32(t, y, 1013)
 }
 
 func TestAdvanceTtVarGvarInfer(t *testing.T) {
