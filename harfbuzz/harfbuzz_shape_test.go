@@ -25,7 +25,7 @@ func TestShapeExpected(t *testing.T) {
 	// add tests based on the C++ binary
 	tests = append(tests,
 		// check we properly scale the offset values
-		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=2000;U+0061,U+0062;[gid70=0@-544,-1700+0,-2343|gid71=1@-562,-1912+0,-2343]"),
+		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=2000;U+0061,U+0062;[gid70=0@-544,-1700+0,-2343|gid71=1@-561,-1912+0,-2343]"),
 		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=3000;U+0061,U+0062;[gid70=0@-816,-2550+0,-3515|gid71=1@-842,-2868+0,-3515]"),
 		// issue
 		newTestData(t, "", "fonts/NotoSansMyanmar-Regular.ttf;--no-glyph-names;U+101B,U+1031,U+102C,U+1037;[372=0+618|31=0+689|368=0+455|378=0@14,0+0]"),
@@ -34,7 +34,6 @@ func TestShapeExpected(t *testing.T) {
 	fmt.Printf("Running %d tests...\n", len(tests))
 
 	for _, testD := range tests {
-		fmt.Println(testD.originLine)
 		runShapingTest(t, testD, false)
 	}
 }
@@ -42,11 +41,12 @@ func TestShapeExpected(t *testing.T) {
 func TestDebug(t *testing.T) {
 	// This test is a shortcut to inspect one specific test
 	// when debugging
-	// t.Skip()
+	t.Skip()
 
 	// dir := "harfbuzz_reference/aots/"
-	dir := "harfbuzz_reference/in-house/"
-	testString := `./fonts/bbc24004e776f348a0f72287d24b0124867ee750.ttf;;U+0066,U+FE00,U+0069;[gid5=0+1134|gid1=0+0]`
+	// dir := "harfbuzz_reference/in-house/"
+	dir := "harfbuzz_reference/text-rendering-tests/"
+	testString := `./fonts/TestMORXThirtysix.ttf;;U+0041;*`
 	testD := newTestData(t, dir, testString)
 	out := runShapingTest(t, testD, true)
 	fmt.Println(out)

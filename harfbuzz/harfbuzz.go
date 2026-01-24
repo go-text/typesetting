@@ -25,7 +25,7 @@ import (
 
 // debugMode is only used in test: if true, it prints detailed information
 // about shaping
-const debugMode = true
+const debugMode = false
 
 type (
 	GID = ot.GID

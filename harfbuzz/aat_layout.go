@@ -510,7 +510,7 @@ func (c *aatApplyContext) bufferIntersectsMachine() bool {
 	return false
 }
 
-func (c *aatApplyContext) output_glyphs(glyphs []GID) bool {
+func (c *aatApplyContext) outputGlyphs(glyphs []GID) bool {
 	if c.usingBufferGlyphSet {
 		c.bufferGlyphSet.AddGlyphs(glyphs)
 	}
