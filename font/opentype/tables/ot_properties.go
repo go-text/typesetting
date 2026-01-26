@@ -276,7 +276,7 @@ func (gd *GDEF) GlyphProps(glyph GlyphID) GlyphProps {
 		if gd.MarkAttachClass != nil {
 			klass, _ = gd.MarkAttachClass.Class(glyph)
 		}
-		return GPMark | GlyphProps(klass)<<8
+		return GlyphProps(klass)<<8 | GPMark
 	default:
 		return 0
 	}
