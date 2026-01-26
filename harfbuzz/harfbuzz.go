@@ -21,7 +21,7 @@ import (
 	"github.com/go-text/typesetting/language"
 )
 
-// based on upstream commit 5d543d64222c6ce45332d0c188790f90691ef112
+// based on upstream commit 5a31dd02f0b32de12336f72db9297bfe94cf0da1 (v12.3.0)
 
 // debugMode is only used in test: if true, it prints detailed information
 // about shaping
