@@ -459,8 +459,6 @@ type aatApplyContext struct {
 	gdef      tables.GDEF
 	ankrTable tables.Ankr
 
-	hasGlyphClass bool
-
 	rangeFlags    []rangeFlags
 	subtableFlags GlyphMask
 
@@ -470,7 +468,7 @@ type aatApplyContext struct {
 	bufferGlyphSet      intSet // runes or glyphs
 
 	firstSet          intSet        // readonly
-	second_set        intSet        // readonly
+	secondSet         intSet        // readonly
 	machineClassCache aatClassCache // readonly
 }
 
@@ -503,7 +501,7 @@ func (c *aatApplyContext) bufferIntersectsMachine() bool {
 
 	// Faster for shorter buffers.
 	for _, info := range c.buffer.Info {
-		if c.firstSet.HasGlyph(info.Glyph) {
+		if c.firstSet.hasGlyph(info.Glyph) {
 			return true
 		}
 	}
@@ -512,7 +510,7 @@ func (c *aatApplyContext) bufferIntersectsMachine() bool {
 
 func (c *aatApplyContext) outputGlyphs(glyphs []GID) bool {
 	if c.usingBufferGlyphSet {
-		c.bufferGlyphSet.AddGlyphs(glyphs)
+		c.bufferGlyphSet.addGlyphs(glyphs)
 	}
 	for _, glyph := range glyphs {
 		if glyph == deletedGlyph {
@@ -535,7 +533,7 @@ func (c *aatApplyContext) replaceGlyph(glyph GID) {
 	}
 
 	if c.usingBufferGlyphSet {
-		c.bufferGlyphSet.AddGlyph(glyph)
+		c.bufferGlyphSet.addGlyph(glyph)
 	}
 	if c.gdef.GlyphClassDef != nil {
 		c.buffer.cur(0).glyphProps = c.gdef.GlyphProps(gID(glyph))
@@ -552,7 +550,7 @@ func (c *aatApplyContext) deleteGlyph() {
 func (c *aatApplyContext) replace_glyph_inplace(i int, glyph gID) {
 	c.buffer.Info[i].Glyph = GID(glyph)
 	if c.usingBufferGlyphSet {
-		c.bufferGlyphSet.AddGlyph(GID(glyph))
+		c.bufferGlyphSet.addGlyph(GID(glyph))
 	}
 	if c.gdef.GlyphClassDef != nil {
 		c.buffer.Info[i].glyphProps = c.gdef.GlyphProps(glyph)

@@ -26,7 +26,7 @@ func (c *aatApplyContext) applyKernx(kerx font.Kernx, accelerators []kernxSubtab
 		}
 
 		c.firstSet = accelerators[i].first_set
-		c.second_set = accelerators[i].second_set
+		c.secondSet = accelerators[i].second_set
 		c.machineClassCache = accelerators[i].class_cache
 
 		if !c.bufferIntersectsMachine() {
@@ -141,7 +141,7 @@ type kern0Accelerator struct {
 }
 
 func (k0 kern0Accelerator) KernPair(left, right GID) int16 {
-	if !k0.context.firstSet.HasGlyph(left) || !k0.context.second_set.HasGlyph(right) {
+	if !k0.context.firstSet.hasGlyph(left) || !k0.context.secondSet.hasGlyph(right) {
 		return 0
 	}
 	return k0.table.KernPair(left, right)
@@ -259,7 +259,7 @@ type kern2Accelerator struct {
 }
 
 func (k2 kern2Accelerator) KernPair(left, right GID) int16 {
-	if !k2.context.firstSet.HasGlyph(left) || !k2.context.second_set.HasGlyph(right) {
+	if !k2.context.firstSet.hasGlyph(left) || !k2.context.secondSet.hasGlyph(right) {
 		return 0
 	}
 	return k2.table.KernPair(left, right)
@@ -335,7 +335,7 @@ type kern6Accelerator struct {
 }
 
 func (k6 kern6Accelerator) KernPair(left, right GID) int16 {
-	if !k6.context.firstSet.HasGlyph(left) || !k6.context.second_set.HasGlyph(right) {
+	if !k6.context.firstSet.hasGlyph(left) || !k6.context.secondSet.hasGlyph(right) {
 		return 0
 	}
 	return k6.table.KernPair(left, right)

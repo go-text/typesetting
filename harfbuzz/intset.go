@@ -279,9 +279,9 @@ func (rs intSet) ints() (out []uint32) {
 
 // typed API
 
-func (s intSet) HasGlyph(g GID) bool { return s.has(uint32(g)) }
-func (s *intSet) AddGlyph(g GID)     { s.add(uint32(g)) }
-func (s *intSet) AddGlyphs(gs []GID) {
+func (s intSet) hasGlyph(g GID) bool { return s.has(uint32(g)) }
+func (s *intSet) addGlyph(g GID)     { s.add(uint32(g)) }
+func (s *intSet) addGlyphs(gs []GID) {
 	for _, g := range gs {
 		s.add(uint32(g))
 	}
