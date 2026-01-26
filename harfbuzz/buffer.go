@@ -797,7 +797,7 @@ func (b *Buffer) moveTo(i int) {
 func (b *Buffer) collectGlyphs(out *intSet) {
 	out.Clear()
 	for _, info := range b.Info {
-		out.AddGlyph(info.Glyph)
+		out.addGlyph(info.Glyph)
 	}
 }
 
