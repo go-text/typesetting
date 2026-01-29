@@ -781,7 +781,14 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 // See [(*LineWrapper).WrapNextLine] for a description of how [WrapConfig]'s truncation
 // features impact the wrapped text output. This method returns the quantity of runes
 // truncated by line wrapping in the [truncated] return value.
+//
+// See also [WrapParagraphF] which supports a decimal [maxWidth].
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
+	return l.WrapParagraphF(config, fixed.I(maxWidth), paragraph, runs)
+}
+
+// WrapParagraphF is the same as [WrapParagraph], but accepts a non integer [maxWidth].
+func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
 	l.scratch.reset()
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
 	if !(config.TextContinues && config.TruncateAfterLines == 1) {
@@ -805,7 +812,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 			_, firstRun, hasFirst := runs.Next()
 			_, _, hasSecond := runs.Peek()
 			if hasFirst && !hasSecond {
-				if firstRun.Advance.Ceil() <= maxWidth {
+				if firstRun.Advance <= maxWidth {
 					return l.scratch.singleRunParagraph(firstRun), 0
 				}
 			}
@@ -819,7 +826,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 		done bool
 	)
 	for !done {
-		line, done = l.WrapNextLine(maxWidth)
+		line, done = l.WrapNextLineF(maxWidth)
 		if line.Line != nil {
 			l.scratch.paragraphAppend(line.Line)
 		}
@@ -860,10 +867,10 @@ type lineConfig struct {
 	// truncating indicates whether this line is being truncated (if sufficiently long).
 	truncating bool
 	// maxWidth is the maximum space a line can occupy.
-	maxWidth int
+	maxWidth fixed.Int26_6
 	// truncatedMaxWidth holds the maximum width of the line available for text if the truncator
 	// is occupying part of the line.
-	truncatedMaxWidth int
+	truncatedMaxWidth fixed.Int26_6
 }
 
 // WrappedLine is the result of wrapping one line of text.
@@ -1013,7 +1020,14 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 // [Output]s before the final [Output] will represent the input runes that are still
 // visible before truncation, and the final [Output] will be a copy of the Truncator
 // with its Runes.Count set to the quantity of runes truncated during line wrapping.
+//
+// See also [WrapNextLineF] which supports a decimal [maxWidth].
 func (l *LineWrapper) WrapNextLine(maxWidth int) (out WrappedLine, done bool) {
+	return l.WrapNextLineF(fixed.I(maxWidth))
+}
+
+// WrapNextLineF is the same as [WrapNextLine], but accepts a non integer [maxWidth].
+func (l *LineWrapper) WrapNextLineF(maxWidth fixed.Int26_6) (out WrappedLine, done bool) {
 	// If we've already finished the paragraph, don't do any more work.
 	if !l.more {
 		return WrappedLine{NextLine: l.lineStartRune}, true
@@ -1033,7 +1047,7 @@ func (l *LineWrapper) WrapNextLine(maxWidth int) (out WrappedLine, done bool) {
 	config := lineConfig{
 		truncating:        l.config.TruncateAfterLines == 1,
 		maxWidth:          maxWidth,
-		truncatedMaxWidth: maxWidth - l.config.Truncator.Advance.Ceil(),
+		truncatedMaxWidth: maxWidth - l.config.Truncator.Advance,
 	}
 	done = l.wrapNextLine(config)
 	finalLine := l.scratch.finalizeBest()
@@ -1201,7 +1215,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	}
 	isFirstInLine := l.scratch.candidateLen() == 0
 	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
-	candidateLineWidth := (candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()).Ceil()
+	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
