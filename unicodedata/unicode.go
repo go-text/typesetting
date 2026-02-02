@@ -211,9 +211,9 @@ func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 type IndicConjunctBreak uint8
 
 const (
-	InCBLinker IndicConjunctBreak = 1 << iota
-	InCBConsonant
+	InCBConsonant IndicConjunctBreak = 1 << iota
 	InCBExtend
+	InCBLinker
 )
 
 // LookupIndicConjunctBreak return the value of the Indic_Conjunct_Break,

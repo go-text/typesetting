@@ -132,6 +132,8 @@ func (cr *cursor) updateIndicConjunctBreakSequence() bool {
 		} else if cb == ucd.InCBLinker {
 			// we now have at least on Linker
 			cr.indicConjunctBreakSequence = seenIndicCBSequence
+		} else if cb == ucd.InCBConsonant {
+			// reset the sequence
 		} else {
 			// stop the sequence
 			cr.indicConjunctBreakSequence = noIndicCBSequence
