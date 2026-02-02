@@ -14,8 +14,9 @@ import (
 // at a grapheme break.
 // See https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules
 func (cr *cursor) applyGraphemeBoundaryRules() bool {
-	triggerGB11 := cr.updatePictoSequence()    // apply rule GB11
-	triggerGB12_13 := cr.updateGraphemeRIOdd() // apply rule GB12 and GB13
+	triggerGB9c := cr.updateIndicConjunctBreakSequence() // apply rule GB9c
+	triggerGB11 := cr.updatePictoSequence()              // apply rule GB11
+	triggerGB12_13 := cr.updateGraphemeRIOdd()           // apply rule GB12 and GB13
 
 	br0, br1 := cr.prevGrapheme, cr.grapheme
 	if cr.r == '\n' && cr.prev == '\r' {
@@ -36,6 +37,8 @@ func (cr *cursor) applyGraphemeBoundaryRules() bool {
 		return false // Rule GB9a
 	} else if br0 == ucd.GraphemeBreakPrepend {
 		return false // Rule GB9b
+	} else if triggerGB9c {
+		return false // Rule GB9c
 	} else if triggerGB11 { // Rule GB11
 		return false
 	} else if triggerGB12_13 {
@@ -97,6 +100,56 @@ func (cr *cursor) updatePictoSequence() bool {
 		}
 		cr.pictoSequence = noPictoSequence
 		return false
+	default:
+		panic("exhaustive switch")
+	}
+}
+
+// see rule GB9c
+type indicCBSequenceState uint8
+
+const (
+	noIndicCBSequence   indicCBSequenceState = iota // we are not in a sequence
+	inIndicCBSequence                               // we are in (Consonant) (Extend Linker)* pattern
+	seenIndicCBSequence                             // we have seen (Consonant) (Extend Linker)* (Linker) (Extend Linker)*
+)
+
+// update the `indicConjunctBreakSequence` state used for rule CB9c pattern :
+// (Consonant) (Extend Linker)* (Linker) (Extend Linker)* (Consonant)
+// and returns true if we matched one
+func (cr *cursor) updateIndicConjunctBreakSequence() bool {
+	cb := cr.indicConjunctBreak
+	switch cr.indicConjunctBreakSequence {
+	case noIndicCBSequence:
+		// we are not in a sequence yet, start it if we have a Consonant
+		if cb == ucd.InCBConsonant {
+			cr.indicConjunctBreakSequence = inIndicCBSequence
+		}
+		return false
+	case inIndicCBSequence:
+		if cb == ucd.InCBExtend {
+			// continue the sequence
+		} else if cb == ucd.InCBLinker {
+			// we now have at least on Linker
+			cr.indicConjunctBreakSequence = seenIndicCBSequence
+		} else {
+			// stop the sequence
+			cr.indicConjunctBreakSequence = noIndicCBSequence
+		}
+		return false
+	case seenIndicCBSequence:
+		if cb&(ucd.InCBExtend|ucd.InCBLinker) != 0 {
+			// continue the sequence
+			return false
+		} else if cb == ucd.InCBConsonant {
+			// start a new sequence
+			cr.indicConjunctBreakSequence = inIndicCBSequence
+			return true
+		} else {
+			// stop the sequence
+			cr.indicConjunctBreakSequence = noIndicCBSequence
+			return false
+		}
 	default:
 		panic("exhaustive switch")
 	}
