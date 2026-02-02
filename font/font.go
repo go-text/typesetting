@@ -610,6 +610,8 @@ func loadGDEF(ld *ot.Loader, axisCount int, gsub, gpos []byte) (tables.GDEF, err
 // Face is a font with user-provided settings.
 // Contrary to the [*Font] objects, Faces are NOT safe for concurrent use.
 // A Face caches glyph extents and rune to glyph mapping, and should be reused when possible.
+//
+// Also note that an empty [Face] is invalid : the [NewFace] constructor is required to properly init caches.
 type Face struct {
 	*Font
 
