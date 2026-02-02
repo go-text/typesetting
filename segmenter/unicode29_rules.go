@@ -3,7 +3,7 @@
 package segmenter
 
 import (
-	ucd "github.com/go-text/typesetting/unicodedata"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // -----------------------------------------------------------------------

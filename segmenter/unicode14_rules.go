@@ -5,7 +5,7 @@ package segmenter
 import (
 	"unicode"
 
-	ucd "github.com/go-text/typesetting/unicodedata"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // Apply the Line Breaking Rules and returns the computed break opportunity

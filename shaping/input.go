@@ -9,8 +9,8 @@ import (
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/harfbuzz"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
-	ucd "github.com/go-text/typesetting/unicodedata"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/unicode/bidi"
 )
