@@ -69,13 +69,13 @@ func readTestFile(t testing.TB, filename string) (out []testData) {
 	dir := path.Dir(filename) // xxx/tests/file.tests
 
 	for _, line := range strings.Split(string(f), "\n") {
-		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" { // skip comments
+		if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "@") || strings.TrimSpace(line) == "" { // skip comments or directive
 			continue
 		}
 
 		// special case
-		if strings.Contains(line, "--shaper=fallback") {
-			// we do not support fallback shaper
+		if strings.Contains(line, "--shaper=fallback") || strings.Contains(line, "--cluster-level=3") {
+			// we do not support fallback shaper nor other cluster levels
 			continue
 		}
 
@@ -158,6 +158,7 @@ func newTestInput(t testing.TB, options string) testInput {
 	flags.BoolVar(&so.eot, "eot", false, "Treat text as end-of-paragraph")
 	flags.BoolVar(&so.removeDefaultIgnorables, "remove-default-ignorables", false, "Remove Default-Ignorable characters")
 	flags.BoolVar(&so.preserveDefaultIgnorables, "preserve-default-ignorables", false, "Preserve Default-Ignorable characters")
+	notFoundVariationSelector := flags.Int("not-found-variation-selector-glyph", 0xFFFFFFFF, "Glyph value to replace not-found variation-selector characters with")
 	flags.Func("cluster-level", "Cluster merging level (0/1/2, default: 0)", func(s string) error {
 		l, err := strconv.Atoi(s)
 		if err != nil {
@@ -178,6 +179,8 @@ func newTestInput(t testing.TB, options string) testInput {
 	flags.Func("font-size", "Font size", fo.parseFontSize)
 	flags.Func("font-ppem", "Set x,y pixels per EM (default: 0; disabled)", fo.parseFontPpem)
 	flags.Float64Var(&fo.ptem, "font-ptem", 0, "Set font point-size (default: 0; disabled)")
+	flags.Float64Var(&fo.slant, "font-slant", 0, "Set synthetic slant ratio; eg. 0.2 (default: 0)")
+	flags.Float64Var(&fo.embolden, "font-bold", 0, "Set synthetic bold (default: 0")
 	flags.Func("variations", variationsUsage, fo.parseVariations)
 	flags.String("font-funcs", "", "(ignored)")
 	flags.String("ft-load-flags", "", "(ignored)")
@@ -188,6 +191,7 @@ func newTestInput(t testing.TB, options string) testInput {
 	err := flags.Parse(strings.Split(options, " "))
 	tu.AssertNoErr(t, err)
 
+	so.notFoundVariationSelector = GID(*notFoundVariationSelector)
 	if *ned {
 		fmtOpts.hideClusters = true
 		fmtOpts.hideAdvances = true
@@ -224,6 +228,7 @@ type shapeOpts struct {
 	features                  string
 	props                     SegmentProperties
 	invisibleGlyph            GID
+	notFoundVariationSelector GID
 	clusterLevel              ClusterLevel
 	bot                       bool
 	eot                       bool
@@ -334,6 +339,8 @@ type fontOpts struct {
 	fontSizeX, fontSizeY int
 	ptem                 float64
 	yPpem, xPpem         uint16
+	slant                float64
+	embolden             float64
 }
 
 const fontSizeUpem = 0x7FFFFFFF

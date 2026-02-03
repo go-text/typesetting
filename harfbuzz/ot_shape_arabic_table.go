@@ -6,7 +6,7 @@ package harfbuzz
 
 import "github.com/go-text/typesetting/language"
 
-var arabicJoinings = map[rune]arabicJoining{ // 828 entries
+var arabicJoinings = map[rune]arabicJoining{ // 834 entries
 	0x0600:  'U',
 	0x0601:  'U',
 	0x0602:  'U',
@@ -351,6 +351,7 @@ var arabicJoinings = map[rune]arabicJoining{ // 828 entries
 	0x088c:  'D',
 	0x088d:  'D',
 	0x088e:  'R',
+	0x088f:  'D',
 	0x0890:  'U',
 	0x0891:  'U',
 	0x08a0:  'D',
@@ -692,6 +693,11 @@ var arabicJoinings = map[rune]arabicJoining{ // 828 entries
 	0x10d21: 'D',
 	0x10d22: 'R',
 	0x10d23: 'D',
+	0x10ec2: 'R',
+	0x10ec3: 'D',
+	0x10ec4: 'D',
+	0x10ec6: 'D',
+	0x10ec7: 'D',
 	0x10f30: 'D',
 	0x10f31: 'D',
 	0x10f32: 'D',
@@ -846,6 +852,7 @@ const lastArabicShape = 0x06d3
 //   - 1: medial
 //   - 2: final
 //   - 3: isolated
+//
 // See also the bounds given by [firstArabicShape] and [lastArabicShape].
 var arabicShaping = [...][4]uint16{ // required memory: 2 KB
 	{0x0000, 0x0000, 0x0000, 0xfe80},

@@ -1,6 +1,6 @@
 package harfbuzz 
 
-// Code generated with ragel -Z -o ot_use_machine.go ot_use_machine.rl ; sed -i '/^\/\/line/ d' ot_use_machine.go ; goimports -w ot_use_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_shape_use_machine.go ot_shape_use_machine.rl ; sed -i '/^\/\/line/ d' ot_shape_use_machine.go ; goimports -w ot_shape_use_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-use-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Jonathan Kew Behdad Esfahbod
 
@@ -49,6 +49,10 @@ export J	= 50; # HIEROGLYPH_JOINER
 export SB	= 51; # HIEROGLYPH_SEGMENT_BEGIN
 export SE	= 52; # HIEROGLYPH_SEGMENT_END
 export HVM	= 53; # HALANT_OR_VOWEL_MODIFIER
+export HM	= 54; # HIEROGLYPH_MOD
+export HR	= 55; # HIEROGLYPH_MIRROR
+export RK	= 56; # REORDERING_KILLER
+
 
 export FAbv	= 24; # CONS_FINAL_ABOVE
 export FBlw	= 25; # CONS_FINAL_BELOW
@@ -75,7 +79,7 @@ export FMPst	= 47; # CONS_FINAL_MOD	UIPC = Not_Applicable
 
 h = H | HVM | IS | Sk;
 
-consonant_modifiers = CMAbv* CMBlw* ((h B | SUB) CMAbv? CMBlw*)*;
+consonant_modifiers = CMAbv* CMBlw* ((h B | SUB) CMAbv* CMBlw*)*;
 medial_consonants = MPre? MAbv? MBlw? MPst?;
 dependent_vowels = VPre* VAbv* VBlw* VPst* | H;
 vowel_modifiers = HVM? VMPre* VMAbv* VMBlw* VMPst*;
@@ -101,7 +105,7 @@ symbol_cluster_tail = SMAbv+ SMBlw* | SMBlw+;
 
 virama_terminated_cluster_tail =
 	consonant_modifiers
-	IS
+	(IS | RK)
 ;
 virama_terminated_cluster =
 	complex_syllable_start
@@ -127,10 +131,10 @@ broken_cluster =
 
 number_joiner_terminated_cluster = N number_joiner_terminated_cluster_tail;
 numeral_cluster = N numeral_cluster_tail?;
-symbol_cluster = (O | GB) tail?;
-hieroglyph_cluster = SB+ | SB* G SE* (J SE* (G SE*)?)*;
-
+symbol_cluster = (O | GB | SB) tail?;
+hieroglyph_cluster = SB* G HR? HM? SE* (J SB* (G HR? HM? SE*)?)*;
 other = any;
+
 
 main := |*
 	virama_terminated_cluster ZWNJ?		=> { foundSyllableUSE (useViramaTerminatedCluster,data, ts, te, info, &syllableSerial); };
@@ -140,7 +144,8 @@ main := |*
 	numeral_cluster ZWNJ?				=> { foundSyllableUSE (useNumeralCluster,data, ts, te, info, &syllableSerial); };
 	symbol_cluster ZWNJ?				=> { foundSyllableUSE (useSymbolCluster,data, ts, te, info, &syllableSerial); };
 	hieroglyph_cluster ZWNJ?			=> { foundSyllableUSE (useHieroglyphCluster,data, ts, te, info, &syllableSerial); };
-	broken_cluster ZWNJ?				=> { foundSyllableUSE (useBrokenCluster,data, ts, te, info, &syllableSerial); buffer.scratchFlags |= bsfHasBrokenSyllable; };
+	FMPst					=> { foundSyllableUSE (useNonCluster,data, ts, te, info, &syllableSerial); };
+    broken_cluster ZWNJ?				=> { foundSyllableUSE (useBrokenCluster,data, ts, te, info, &syllableSerial); buffer.scratchFlags |= bsfHasBrokenSyllable; };
 	other					=> { foundSyllableUSE (useNonCluster,data, ts, te, info, &syllableSerial); };
 *|;
 

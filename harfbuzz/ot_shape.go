@@ -27,29 +27,30 @@ const (
 )
 
 type otShapePlanner struct {
-	shaper                        otComplexShaper
-	props                         SegmentProperties
-	tables                        *font.Font // also used by the map builders
-	map_                          otMapBuilder
-	applyMorx                     bool
-	scriptZeroMarks               bool
-	scriptFallbackMarkPositioning bool
+	shaper                 otComplexShaper
+	props                  SegmentProperties
+	tables                 *font.Font // also used by the map builders
+	otMap                  otMapBuilder
+	aatMap                 aatMapBuilder
+	applyMorx              bool
+	scriptZeroMarks        bool
+	scriptFallbackPosition bool
 }
 
-func newOtShapePlanner(tables *font.Font, props SegmentProperties) *otShapePlanner {
+func newOtShapePlanner(font *font.Font, props SegmentProperties) *otShapePlanner {
 	var out otShapePlanner
 	out.props = props
-	out.tables = tables
-	out.map_ = newOtMapBuilder(tables, props)
-
+	out.tables = font
+	out.otMap = newOtMapBuilder(font, props)
+	out.aatMap = newAatMapBuilder(font, props)
 	/* https://github.com/harfbuzz/harfbuzz/issues/2124 */
-	out.applyMorx = len(tables.Morx) != 0 && (props.Direction.isHorizontal() || len(tables.GSUB.Lookups) == 0)
+	out.applyMorx = len(font.Morx) != 0 && (props.Direction.isHorizontal() || len(font.GSUB.Lookups) == 0)
 
-	out.shaper = out.categorizeComplex()
+	out.shaper = categorizeComplex(props.Script, props.Direction, out.otMap.chosenScript[0])
 
 	zwm, fb := out.shaper.marksBehavior()
 	out.scriptZeroMarks = zwm != zeroWidthMarksNone
-	out.scriptFallbackMarkPositioning = fb
+	out.scriptFallbackPosition = fb
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/1528 */
 	if _, isDefault := out.shaper.(complexShaperDefault); out.applyMorx && !isDefault {
@@ -61,28 +62,29 @@ func newOtShapePlanner(tables *font.Font, props SegmentProperties) *otShapePlann
 func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 	plan.props = planner.props
 	plan.shaper = planner.shaper
-	planner.map_.compile(&plan.map_, key)
+	planner.otMap.compile(&plan.otMap, key)
+	if planner.applyMorx {
+		planner.aatMap.compile(&plan.aatMap)
+	}
 
-	plan.fracMask = plan.map_.getMask1(ot.NewTag('f', 'r', 'a', 'c'))
-	plan.numrMask = plan.map_.getMask1(ot.NewTag('n', 'u', 'm', 'r'))
-	plan.dnomMask = plan.map_.getMask1(ot.NewTag('d', 'n', 'o', 'm'))
+	plan.fracMask = plan.otMap.getMask1(ot.NewTag('f', 'r', 'a', 'c'))
+	plan.numrMask = plan.otMap.getMask1(ot.NewTag('n', 'u', 'm', 'r'))
+	plan.dnomMask = plan.otMap.getMask1(ot.NewTag('d', 'n', 'o', 'm'))
 	plan.hasFrac = plan.fracMask != 0 || (plan.numrMask != 0 && plan.dnomMask != 0)
 
-	plan.rtlmMask = plan.map_.getMask1(ot.NewTag('r', 't', 'l', 'm'))
-	plan.hasVert = plan.map_.getMask1(ot.NewTag('v', 'e', 'r', 't')) != 0
+	plan.rtlmMask = plan.otMap.getMask1(ot.NewTag('r', 't', 'l', 'm'))
+	plan.hasVert = plan.otMap.getMask1(ot.NewTag('v', 'e', 'r', 't')) != 0
 
 	kernTag := ot.NewTag('v', 'k', 'r', 'n')
 	if planner.props.Direction.isHorizontal() {
 		kernTag = ot.NewTag('k', 'e', 'r', 'n')
 	}
 
-	plan.kernMask, _ = plan.map_.getMask(kernTag)
+	plan.kernMask, _ = plan.otMap.getMask(kernTag)
 	plan.requestedKerning = plan.kernMask != 0
-	plan.trakMask, _ = plan.map_.getMask(ot.NewTag('t', 'r', 'a', 'k'))
-	plan.requestedTracking = plan.trakMask != 0
 
-	hasGposKern := plan.map_.getFeatureIndex(1, kernTag) != NoFeatureIndex
-	disableGpos := plan.shaper.gposTag() != 0 && plan.shaper.gposTag() != plan.map_.chosenScript[1]
+	hasGposKern := plan.otMap.getFeatureIndex(1, kernTag) != NoFeatureIndex
+	disableGpos := plan.shaper.gposTag() != 0 && plan.shaper.gposTag() != plan.otMap.chosenScript[1]
 
 	// Decide who provides glyph classes. GDEF or Unicode.
 	if planner.tables.GDEF.GlyphClassDef == nil {
@@ -108,20 +110,20 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 		if hasKerx {
 			plan.applyKerx = true
 		} else if planner.tables.Kern != nil {
-			plan.applyKern = true
+			plan.applyKern = planner.scriptFallbackPosition // Not all shapers apply legacy `kern`
 		}
 	}
 
-	plan.applyFallbackKern = !(plan.applyGpos || plan.applyKerx || plan.applyKern)
+	plan.applyFallbackKern = planner.scriptFallbackPosition && !(plan.applyGpos || plan.applyKerx || plan.applyKern)
 
 	plan.zeroMarks = planner.scriptZeroMarks && !plan.applyKerx &&
 		(!plan.applyKern || !hasMachineKerning(planner.tables.Kern))
-	plan.hasGposMark = plan.map_.getMask1(ot.NewTag('m', 'a', 'r', 'k')) != 0
+	plan.hasGposMark = plan.otMap.getMask1(ot.NewTag('m', 'a', 'r', 'k')) != 0
 
 	plan.adjustMarkPositioningWhenZeroing = !plan.applyGpos && !plan.applyKerx &&
 		(!plan.applyKern || !hasCrossKerning(planner.tables.Kern))
 
-	plan.fallbackMarkPositioning = plan.adjustMarkPositioningWhenZeroing && planner.scriptFallbackMarkPositioning
+	plan.fallbackMarkPositioning = plan.adjustMarkPositioningWhenZeroing && planner.scriptFallbackPosition
 
 	// If we're using morx shaping, we cancel mark position adjustment because
 	// Apple Color Emoji assumes this will NOT be done when forming emoji sequences;
@@ -130,25 +132,24 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 		plan.adjustMarkPositioningWhenZeroing = false
 	}
 
-	// currently we always apply trak.
-	plan.applyTrak = plan.requestedTracking && !planner.tables.Trak.IsEmpty()
+	// According to Ned, trak is applied by default for "modern fonts", as detected by presence of STAT table.
+	plan.applyTrak = !planner.tables.Trak.IsEmpty() && planner.tables.STAT != nil
 }
 
 type otShapePlan struct {
 	shaper otComplexShaper
 	props  SegmentProperties
 
-	map_ otMap
+	otMap  otMap
+	aatMap aatMap
 
 	fracMask GlyphMask
 	numrMask GlyphMask
 	dnomMask GlyphMask
 	rtlmMask GlyphMask
 	kernMask GlyphMask
-	trakMask GlyphMask
 
 	hasFrac                          bool
-	requestedTracking                bool
 	requestedKerning                 bool
 	hasVert                          bool
 	hasGposMark                      bool
@@ -176,12 +177,12 @@ func (sp *otShapePlan) init0(tables *font.Font, props SegmentProperties, userFea
 }
 
 func (sp *otShapePlan) substitute(font *Font, buffer *Buffer) {
-	sp.map_.substitute(sp, font, buffer)
+	sp.otMap.substitute(sp, font, buffer)
 }
 
 func (sp *otShapePlan) position(font *Font, buffer *Buffer) {
 	if sp.applyGpos {
-		sp.map_.position(sp, font, buffer)
+		sp.otMap.position(sp, font, buffer)
 	} else if sp.applyKerx {
 		sp.aatLayoutPosition(font, buffer)
 	}
@@ -220,7 +221,7 @@ var (
 )
 
 func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
-	map_ := &planner.map_
+	map_ := &planner.otMap
 
 	map_.enableFeature(ot.NewTag('r', 'v', 'r', 'n'))
 	map_.addGSUBPause(nil)
@@ -241,11 +242,6 @@ func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
 
 	/* Random! */
 	map_.enableFeatureExt(ot.NewTag('r', 'a', 'n', 'd'), ffRandom, otMapMaxValue)
-
-	/* Tracking.  We enable dummy feature here just to allow disabling
-	* AAT 'trak' table using features.
-	* https://github.com/harfbuzz/harfbuzz/issues/1303 */
-	map_.enableFeatureExt(ot.NewTag('t', 'r', 'a', 'k'), ffHasFallback, 1)
 
 	map_.enableFeature(ot.NewTag('H', 'a', 'r', 'f')) /* Considered required. */
 	map_.enableFeature(ot.NewTag('H', 'A', 'R', 'F')) /* Considered discretionary. */
@@ -414,7 +410,7 @@ func (c *otContext) otRotateChars() {
 }
 
 func (c *otContext) setupMasksFraction() {
-	if c.buffer.scratchFlags&bsfHasNonASCII == 0 || !c.plan.hasFrac {
+	if c.buffer.scratchFlags&bsfHasFractionSlash == 0 || !c.plan.hasFrac {
 		return
 	}
 
@@ -441,6 +437,16 @@ func (c *otContext) setupMasksFraction() {
 				end++
 			}
 
+			if start == i || end == i+1 {
+				if start == i {
+					buffer.unsafeToConcat(start, start+1)
+				}
+				if end == i+1 {
+					buffer.unsafeToConcat(end-1, end)
+				}
+				continue
+			}
+
 			buffer.unsafeToBreak(start, end)
 
 			for j := start; j < i; j++ {
@@ -457,11 +463,11 @@ func (c *otContext) setupMasksFraction() {
 }
 
 func (c *otContext) initializeMasks() {
-	c.buffer.resetMasks(c.plan.map_.globalMask)
+	c.buffer.resetMasks(c.plan.otMap.globalMask)
 }
 
 func (c *otContext) setupMasks() {
-	map_ := &c.plan.map_
+	map_ := &c.plan.otMap
 	buffer := c.buffer
 
 	c.setupMasksFraction()
@@ -486,7 +492,29 @@ func zeroWidthDefaultIgnorables(buffer *Buffer) {
 	pos := buffer.Pos
 	for i, info := range buffer.Info {
 		if info.isDefaultIgnorable() {
+			pos[i].XAdvance, pos[i].YAdvance = 0, 0
+			if buffer.Props.Direction.isHorizontal() {
+				pos[i].XOffset = 0
+			} else {
+				pos[i].YOffset = 0
+			}
+		}
+	}
+}
+
+func dealWithVariationSelectors(buffer *Buffer) {
+	if (buffer.scratchFlags&bsfHasVariationSelectorFallback == 0) ||
+		buffer.notFoundVariationSelector == 0xFFFFFFFF {
+		return
+	}
+
+	info := buffer.Info
+	pos := buffer.Pos
+	for i := range info {
+		if info[i].isVariationSelector() {
+			info[i].Glyph = buffer.notFoundVariationSelector
 			pos[i].XAdvance, pos[i].YAdvance, pos[i].XOffset, pos[i].YOffset = 0, 0, 0, 0
+			info[i].setVariationSelector(false)
 		}
 	}
 }
@@ -558,7 +586,7 @@ func (c *otContext) substituteBeforePosition() {
 		fmt.Println("BEFORE SUBSTITUTE:", c.buffer.Info)
 	}
 
-	// substitutePan : glyph fields are now set up ...
+	// otSubstitutePlan : glyph fields are now set up ...
 	// ... apply complex substitution from font
 
 	layoutSubstituteStart(c.font, buffer)
@@ -569,9 +597,11 @@ func (c *otContext) substituteBeforePosition() {
 
 	if c.plan.applyMorx {
 		c.plan.aatLayoutSubstitute(c.font, c.buffer, c.userFeatures)
+		c.buffer.updateDigest()
+	} else {
+		c.buffer.updateDigest()
+		c.plan.substitute(c.font, buffer)
 	}
-
-	c.plan.substitute(c.font, buffer)
 
 	//
 	if c.plan.applyMorx && c.plan.applyGpos {
@@ -579,11 +609,13 @@ func (c *otContext) substituteBeforePosition() {
 	}
 }
 
+// port of hb_ot_substitute_post
 func (c *otContext) substituteAfterPosition() {
 	if c.plan.applyMorx && !c.plan.applyGpos {
 		aatLayoutRemoveDeletedGlyphs(c.buffer)
 	}
 
+	dealWithVariationSelectors(c.buffer)
 	hideDefaultIgnorables(c.buffer, c.font)
 
 	if debugMode {
@@ -628,6 +660,7 @@ func (c *otContext) positionDefault() {
 	} else {
 		for i, inf := range info {
 			pos[i].XAdvance, pos[i].YAdvance = 0, c.font.getGlyphVAdvance(inf.Glyph)
+			// v_origin defaults to non-zero; apply even if only fallback is there.
 			pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphVOrigin(inf.Glyph, 0, 0)
 		}
 	}
@@ -636,6 +669,7 @@ func (c *otContext) positionDefault() {
 	}
 }
 
+// hb_ot_position_plan
 func (c *otContext) positionComplex() {
 	info := c.buffer.Info
 	pos := c.buffer.Pos
@@ -675,9 +709,6 @@ func (c *otContext) positionComplex() {
 
 	// finish off. Has to follow a certain order.
 	zeroWidthDefaultIgnorables(c.buffer)
-	if c.plan.applyMorx {
-		aatLayoutZeroWidthDeletedGlyphs(c.buffer)
-	}
 	otLayoutPositionFinishOffsets(c.font, c.buffer)
 
 	for i, inf := range info {
@@ -708,44 +739,58 @@ func (c *otContext) position() {
 /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
  * Simplifies using them. */
 func propagateFlags(buffer *Buffer) {
-	if buffer.scratchFlags&bsfHasGlyphFlags == 0 {
-		return
+	andMask := glyphFlagDefined
+	if buffer.Flags&ProduceUnsafeToConcat == 0 {
+		andMask &= ^GlyphUnsafeToConcat
 	}
-
-	/* If we are producing SAFE_TO_INSERT_TATWEEL, then do two things:
-	 *
-	 * - If the places that the Arabic shaper marked as SAFE_TO_INSERT_TATWEEL,
-	 *   are UNSAFE_TO_BREAK, then clear the SAFE_TO_INSERT_TATWEEL,
-	 * - Any place that is SAFE_TO_INSERT_TATWEEL, is also now UNSAFE_TO_BREAK.
-	 *
-	 * We couldn't make this interaction earlier. It has to be done here.
-	 */
-	flipTatweel := buffer.Flags&ProduceSafeToInsertTatweel != 0
-
-	clearConcat := (buffer.Flags & ProduceUnsafeToConcat) == 0
 
 	info := buffer.Info
 
+	if buffer.Flags&ProduceSafeToInsertTatweel == 0 {
+		iter, count := buffer.clusterIterator()
+		for start, end := iter.next(); start < count; start, end = iter.next() {
+			if end-start == 1 {
+				info[start].Mask &= andMask
+				continue
+			}
+
+			var mask GlyphMask
+			for i := start; i < end; i++ {
+				mask |= info[i].Mask
+			}
+
+			mask &= andMask
+
+			for i := start; i < end; i++ {
+				info[i].Mask = mask
+			}
+		}
+		return
+	}
+
+	// If we are producing SAFE_TO_INSERT_TATWEEL, then do two things:
+	//
+	// - If the places that the Arabic shaper marked as SAFE_TO_INSERT_TATWEEL,
+	//   are UNSAFE_TO_BREAK, then clear the SAFE_TO_INSERT_TATWEEL,
+	// - Any place that is SAFE_TO_INSERT_TATWEEL, is also now UNSAFE_TO_BREAK.
+	//
+	// We couldn't make this interaction earlier. It has to be done this way.
+
 	iter, count := buffer.clusterIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {
-		var mask uint32
+		var mask GlyphMask
 		for i := start; i < end; i++ {
-			mask |= info[i].Mask & glyphFlagDefined
+			mask |= info[i].Mask
 		}
 
-		if flipTatweel {
-			if mask&GlyphUnsafeToBreak != 0 {
-				mask &= ^GlyphSafeToInsertTatweel
-			}
-			if mask&GlyphSafeToInsertTatweel != 0 {
-				mask |= GlyphUnsafeToBreak | GlyphUnsafeToConcat
-			}
-
+		if mask&GlyphUnsafeToBreak != 0 {
+			mask &= ^GlyphSafeToInsertTatweel
+		}
+		if mask&GlyphSafeToInsertTatweel != 0 {
+			mask |= GlyphUnsafeToBreak | GlyphUnsafeToConcat
 		}
 
-		if clearConcat {
-			mask &= ^GlyphUnsafeToConcat
-		}
+		mask &= andMask
 
 		for i := start; i < end; i++ {
 			info[i].Mask = mask

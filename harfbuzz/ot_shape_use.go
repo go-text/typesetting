@@ -71,7 +71,7 @@ type complexShaperUSE struct {
 }
 
 func (cs *complexShaperUSE) collectFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	/* Do this before any lookups have been applied. */
 	map_.addGSUBPause(cs.setupSyllablesUse)
@@ -113,7 +113,7 @@ func (cs *complexShaperUSE) collectFeatures(plan *otShapePlanner) {
 func (cs *complexShaperUSE) dataCreate(plan *otShapePlan) {
 	var usePlan useShapePlan
 
-	usePlan.rphfMask = plan.map_.getMask1(ot.NewTag('r', 'p', 'h', 'f'))
+	usePlan.rphfMask = plan.otMap.getMask1(ot.NewTag('r', 'p', 'h', 'f'))
 
 	if hasArabicJoining(plan.props.Script) {
 		pl := newArabicPlan(plan)
@@ -169,8 +169,8 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 		allMasks uint32
 	)
 	for i := range masks {
-		masks[i] = plan.map_.getMask1(useTopographicalFeatures[i])
-		if masks[i] == plan.map_.globalMask {
+		masks[i] = plan.otMap.getMask1(useTopographicalFeatures[i])
+		if masks[i] == plan.otMap.globalMask {
 			masks[i] = 0
 		}
 		allMasks |= masks[i]
@@ -291,6 +291,9 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 	const postBaseFlags64 int64 = (1<<useSM_ex_FAbv |
 		1<<useSM_ex_FBlw |
 		1<<useSM_ex_FPst |
+		1<<useSM_ex_FMAbv |
+		1<<useSM_ex_FMBlw |
+		1<<useSM_ex_FMPst |
 		1<<useSM_ex_MAbv |
 		1<<useSM_ex_MBlw |
 		1<<useSM_ex_MPst |
@@ -360,7 +363,7 @@ func reorderUse(_ *otShapePlan, font *Font, buffer *Buffer) bool {
 		reorderSyllableUse(buffer, start, end)
 	}
 	if debugMode {
-		fmt.Println("USE - end reordering USE")
+		fmt.Println("USE - end reordering USE:", buffer.Info)
 	}
 
 	return ret

@@ -84,23 +84,17 @@ func TestUnicodeNormalization(t *testing.T) {
 	assertDecompose(0xCE20, true, 0x110E, 0x1173)
 }
 
-func TestBreakClass(t *testing.T) {
-	if LookupLineBreakClass('\u2024') != BreakIN {
-		t.Fatal("invalid break class for 0x2024")
-	}
-}
-
 func TestLookupType(t *testing.T) {
 	// some manual test cases
 	tests := []struct {
 		args rune
 		want *unicode.RangeTable
 	}{
-		{'a', unicode.Ll},
-		{'.', unicode.Po},
-		{'カ', unicode.Lo},
-		{'🦳', unicode.So},
-		{'\U0001F3FF', unicode.Sk},
+		{'a', Ll},
+		{'.', Po},
+		{'カ', Lo},
+		{'🦳', So},
+		{'\U0001F3FF', Sk},
 		{'\U0001F02C', nil},
 		{-1, nil},
 	}
@@ -167,11 +161,11 @@ func TestLookupLineBreakClass(t *testing.T) {
 		{'\u3000', BreakBA},     // IDEOGRAPHIC SPACE
 		{'\u0009', BreakBA},     //	TAB
 		{'\u00AD', BreakBA},     //	SOFT HYPHEN (SHY)
-		{'\u058A', BreakBA},     //	ARMENIAN HYPHEN
-		{'\u2010', BreakBA},     //	HYPHEN
-		{'\u2012', BreakBA},     //	FIGURE DASH
-		{'\u2013', BreakBA},     //	EN DASH
-		{'\u05BE', BreakBA},     //	HEBREW PUNCTUATION MAQAF
+		{'\u058A', BreakHH},     //	ARMENIAN HYPHEN
+		{'\u2010', BreakHH},     //	HYPHEN
+		{'\u2012', BreakHH},     //	FIGURE DASH
+		{'\u2013', BreakHH},     //	EN DASH
+		{'\u05BE', BreakHH},     //	HEBREW PUNCTUATION MAQAF
 		{'\u0F0B', BreakBA},     //	TIBETAN MARK INTERSYLLABIC TSHEG
 		{'\u1361', BreakBA},     //	ETHIOPIC WORDSPACE
 		{'\u17D8', BreakBA},     //	KHMER SIGN BEYYAL
@@ -244,7 +238,7 @@ func TestLookupLineBreakClass(t *testing.T) {
 		{'\u2CFC', BreakBA},     //	COPTIC OLD NUBIAN VERSE DIVIDER
 		{'\u2CFF', BreakBA},     //	COPTIC MORPHOLOGICAL DIVIDER
 		{'\u2E0E', BreakBA},     // EDITORIAL CORONIS
-		{'\u2E17', BreakBA},     //	DOUBLE OBLIQUE HYPHEN
+		{'\u2E17', BreakHH},     //	DOUBLE OBLIQUE HYPHEN
 		{'\uA60D', BreakBA},     //	VAI COMMA
 		{'\uA60F', BreakBA},     //	VAI QUESTION MARK
 		{'\uA92E', BreakBA},     //	KAYAH LI SIGN CWI
@@ -346,7 +340,7 @@ func TestLookupLineBreakClass(t *testing.T) {
 		{'\u00A0', BreakGL}, //	NO-BREAK SPACE (NBSP)
 		{'\u202F', BreakGL}, //	NARROW NO-BREAK SPACE (NNBSP)
 		{'\u180E', BreakGL}, //	MONGOLIAN VOWEL SEPARATOR (MVS)
-		{'\u034F', BreakGL}, //	COMBINING GRAPHEME JOINER
+		{'\u034F', BreakCM}, //	COMBINING GRAPHEME JOINER
 		{'\u2007', BreakGL}, //	FIGURE SPACE
 		{'\u2011', BreakGL}, //	NON-BREAKING HYPHEN
 		{'\u0F08', BreakGL}, //	TIBETAN MARK SBRUL SHAD
@@ -391,9 +385,9 @@ func TestLookupLineBreakClass(t *testing.T) {
 		{'\u060D', BreakIS}, //	ARABIC DATE SEPARATOR
 		{'\u07F8', BreakIS}, //	NKO COMMA
 		{'\u2044', BreakIS}, //	FRACTION SLASH
-		{'\uFE10', BreakIS}, //	PRESENTATION FORM FOR VERTICAL COMMA
-		{'\uFE13', BreakIS}, //	PRESENTATION FORM FOR VERTICAL COLON
-		{'\uFE14', BreakIS}, //	PRESENTATION FORM FOR VERTICAL SEMICOLON
+		{'\uFE10', BreakCL}, //	PRESENTATION FORM FOR VERTICAL COMMA
+		{'\uFE13', BreakNS}, //	PRESENTATION FORM FOR VERTICAL COLON
+		{'\uFE14', BreakNS}, //	PRESENTATION FORM FOR VERTICAL SEMICOLON
 
 		// LF: Line Feed (A) (Non-tailorable)
 		{'\u000A', BreakLF}, //	LINE FEED (LF)

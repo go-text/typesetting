@@ -1,6 +1,6 @@
 package harfbuzz 
 
-// Code generated with ragel -Z -o ot_myanmar_machine.go ot_myanmar_machine.rl ; sed -i '/^\/\/line/ d' ot_myanmar_machine.go ; goimports -w ot_myanmar_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_shape_myanmar_machine.go ot_shape_myanmar_machine.rl ; sed -i '/^\/\/line/ d' ot_shape_myanmar_machine.go ; goimports -w ot_shape_myanmar_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-myanmar-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Behdad Esfahbod
 
@@ -35,6 +35,7 @@ export DOTTEDCIRCLE = 11;
 export A    = 9;
 export Ra   = 15;
 export CS   = 18;
+export SMPst= 57;
 
 export VAbv = 20;
 export VBlw = 21;
@@ -53,15 +54,15 @@ export ML   = 41;	# Medial Mon La
 
 j = ZWJ|ZWNJ;			# Joiners
 k = (Ra As H);			# Kinzi
-
+sm = SM | SMPst;
 c = C|Ra;			# is_consonant
 
 medial_group = MY? As? MR? ((MW MH? ML? | MH ML? | ML) As?)?;
 main_vowel_group = (VPre.VS?)* VAbv* VBlw* A* (DB As?)?;
 post_vowel_group = VPst MH? ML? As* VAbv* A* (DB As?)?;
-pwo_tone_group = PT A* DB? As?;
+tone_group = sm | PT A* DB? As?;
 
-complex_syllable_tail = As* medial_group main_vowel_group post_vowel_group* pwo_tone_group* SM* j?;
+complex_syllable_tail = As* medial_group main_vowel_group post_vowel_group* tone_group* j?;
 syllable_tail = (H (c|IV).VS?)* (H | complex_syllable_tail);
 
 consonant_syllable =	(k|CS)? (c|IV|GB|DOTTEDCIRCLE).VS? syllable_tail;
@@ -70,7 +71,7 @@ other =			any;
 
 main := |*
 	consonant_syllable	=> { foundSyllableMyanmar (myanmarConsonantSyllable, ts, te, info, &syllableSerial); };
-	j			=> { foundSyllableMyanmar (myanmarNonMyanmarCluster, ts, te, info, &syllableSerial); };
+	j | SMPst			=> { foundSyllableMyanmar (myanmarNonMyanmarCluster, ts, te, info, &syllableSerial); };
 	broken_cluster		=> { foundSyllableMyanmar (myanmarBrokenCluster, ts, te, info, &syllableSerial); buffer.scratchFlags |= bsfHasBrokenSyllable };
 	other			=> { foundSyllableMyanmar (myanmarNonMyanmarCluster, ts, te, info, &syllableSerial); };
 *|;

@@ -69,9 +69,9 @@ func TestSplitByFontGlyphs(t *testing.T) {
 		availableFaces []*font.Face
 	}
 
-	universalFont := &font.Face{Font: &font.Font{Cmap: universalCmap{}}}
-	lowerFont := &font.Face{Font: &font.Font{Cmap: lowerCmap{}}}
-	upperFont := &font.Face{Font: &font.Font{Cmap: upperCmap{}}}
+	universalFont := font.NewFace(&font.Font{Cmap: universalCmap{}})
+	lowerFont := font.NewFace(&font.Font{Cmap: lowerCmap{}})
+	upperFont := font.NewFace(&font.Font{Cmap: upperCmap{}})
 
 	latinFont := loadOpentypeFont(t, "../font/testdata/Roboto-Regular.ttf")
 	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")

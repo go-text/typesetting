@@ -59,9 +59,13 @@ type wordBreakClass = *unicode.RangeTable
 // processed by `computeAttributes`, that is
 // the context provided by previous and next runes in the text
 type cursor struct {
-	prev rune // the rune at index i-1
-	r    rune // the rune at index i
-	next rune // the rune at index i+1
+	index, len    int  // index of the current rune and text length, used for sot and eot
+	isPreviousSot bool // are we after sot, applying LB9 and LB10 ?
+
+	prevPrev rune // the rune at index i-2
+	prev     rune // the rune at index i-1
+	r        rune // the rune at index i
+	next     rune // the rune at index i+1
 
 	// is r included in `ucd.Extended_Pictographic`,
 	// cached for efficiency
@@ -87,18 +91,27 @@ type cursor struct {
 	// see [updateWordRIOdd]
 	isPrevWordRIOdd bool
 
-	prevPrevLine lineBreakClass // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
-	prevLine     lineBreakClass // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
-	line         lineBreakClass // the Line Break Class at index i
-	nextLine     lineBreakClass // the Line Break Class at index i+1
+	prevPrevLine           lineBreakClass // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
+	prevLine               lineBreakClass // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
+	line                   lineBreakClass // the Line Break Class at index i
+	nextLine               lineBreakClass // the Line Break Class at index i+1
+	isPrevPrevDottedCircle bool           // following LB9 and LB10
+	isPrevDottedCircle     bool           // following LB9 and LB10
 
-	// the last rune after spaces, used in rules LB14,LB15,LB16,LB17
+	isPrevNonAssignedExtendedPic bool // following LB9 and LB10
+
+	// the last rune before spaces, used in rules LB14,LB15,LB16,LB17
 	// to match ... SP* ...
-	beforeSpaces lineBreakClass
+	prevBeforeSpaces, beforeSpaces rune
+	beforeSpaceRaw                 rune // do not follow LB9 and LB10
+	beforeSpacesIndex              int
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules LB30a
 	isPrevLinebreakRIOdd bool
+
+	// cached value of ucd.LookupIndicConjunctBreak(cr.r)
+	indicConjunctBreak ucd.IndicConjunctBreak
 
 	// are we in a numeric sequence, as defined in Example 7 of customisation for LB25
 	numSequence numSequenceState
@@ -106,12 +119,17 @@ type cursor struct {
 	// are we in an emoji sequence, as defined in rule GB11
 	// see [updatePictoSequence]
 	pictoSequence pictoSequenceState
+
+	// are we in an indic sequence, as defined in rule GB9c
+	// see [updateIndicConjunctBreakSequence]
+	indicConjunctBreakSequence indicCBSequenceState
 }
 
 // initialise the cursor properties
 // some of them are set in [startIteration]
 func newCursor(text []rune) *cursor {
 	cr := cursor{
+		len:              len(text),
 		prevPrevLine:     ucd.BreakXX,
 		prevWordNoExtend: -1,
 	}
@@ -181,7 +199,7 @@ func computeBreakAttributes(text []rune, attributes []breakAttr) {
 			attr |= mandatoryLineBoundary
 		}
 
-		cr.endIteration(i == 0)
+		cr.endIteration()
 
 		attributes[i] = attr
 	}
