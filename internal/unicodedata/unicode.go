@@ -10,7 +10,7 @@ import (
 
 // LookupType returns the unicode general categorie of the rune,
 // or nil if not found.
-// The returned table is one of the standard library unicode package.
+// The returned table is one of the constants defined in this package.
 func LookupType(r rune) *unicode.RangeTable {
 	for _, table := range allCategories {
 		if unicode.Is(table, r) {
@@ -206,4 +206,26 @@ func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 		return sv.isMainSideways
 	}
 	return !sv.isMainSideways
+}
+
+type IndicConjunctBreak uint8
+
+const (
+	InCBConsonant IndicConjunctBreak = 1 << iota
+	InCBExtend
+	InCBLinker
+)
+
+// LookupIndicConjunctBreak return the value of the Indic_Conjunct_Break,
+// or zero.
+func LookupIndicConjunctBreak(r rune) IndicConjunctBreak {
+	if unicode.Is(indicCBLinker, r) {
+		return InCBLinker
+	} else if unicode.Is(indicCBConsonant, r) {
+		return InCBConsonant
+	} else if unicode.Is(indicCBExtend, r) {
+		return InCBExtend
+	} else {
+		return 0
+	}
 }

@@ -3,7 +3,7 @@ package harfbuzz
 import (
 	"testing"
 
-	"github.com/go-text/typesetting/internal/unicodedata"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 )
 
@@ -114,6 +114,12 @@ var combiningClassTestsMore = []testPairT{
 	/* Unicode-15.0 character additions */
 	{0x10EFD, 220},
 
+	/* Unicode-16.0 character additions */
+	{0x0897, 230},
+
+	/* Unicode-17.0 character additions */
+	{0x1ACF, 230},
+
 	{0x111111, 0},
 }
 
@@ -197,6 +203,15 @@ var generalCategoryTestsMore = []testPairT{
 
 	/* Unicode-15.0 character additions */
 	{0x0CF3, uint(spacingMark)},
+
+	/* Unicode-15.1 character additions */
+	{0x31EF, uint(otherSymbol)},
+
+	/* Unicode-16.0 character additions */
+	{0x10D6E, uint(dashPunctuation)},
+
+	/* Unicode-17.0 character additions */
+	{0x11DE0, uint(decimalNumber)},
 
 	{0x111111, uint(unassigned)},
 }
@@ -457,6 +472,21 @@ var scriptTestsMore = []testPairT{
 	{0x11F00, uint(language.Kawi)},
 	{0x1E4D0, uint(language.Nag_Mundari)},
 
+	/* Unicode-16.0 additions */
+	{0x105C0, uint(language.Todhri)},
+	{0x10D40, uint(language.Garay)},
+	{0x11380, uint(language.Tulu_Tigalari)},
+	{0x11BC0, uint(language.Sunuwar)},
+	{0x16100, uint(language.Gurung_Khema)},
+	{0x16D40, uint(language.Kirat_Rai)},
+	{0x1E5D0, uint(language.Ol_Onal)},
+
+	/* Unicode-16.0 additions */
+	{0x10940, uint(language.Sidetic)},
+	{0x11DB0, uint(language.Tolong_Siki)},
+	{0x16EA0, uint(language.Beria_Erfe)},
+	{0x1E6C0, uint(language.Tai_Yo)},
+
 	{0x111111, uint(language.Unknown)},
 }
 
@@ -467,7 +497,7 @@ type propertyTest struct {
 }
 
 var properties = [...]propertyTest{
-	{"combiningClass", func(u rune) uint { return uint(unicodedata.LookupCombiningClass(u)) }, combiningClassTests, combiningClassTestsMore},
+	{"combiningClass", func(u rune) uint { return uint(ucd.LookupCombiningClass(u)) }, combiningClassTests, combiningClassTestsMore},
 	{"generalCategory", func(u rune) uint { return uint(uni.generalCategory(u)) }, generalCategoryTests, generalCategoryTestsMore},
 	{"mirroring", func(u rune) uint { return uint(uni.mirroring(u)) }, mirroringTests, mirroringTestsMore},
 	{"script", func(u rune) uint { return uint(language.LookupScript(u)) }, scriptTests, scriptTestsMore},
@@ -478,7 +508,7 @@ func TestUnicodeProperties(t *testing.T) {
 		tests := append(p.tests, p.testsMore...)
 		for _, te := range tests {
 			if v := p.getter(te.unicode); v != te.value {
-				t.Errorf("for property %s for rune 0x%x, expected 0x%x, got %d", p.name, te.unicode, te.value, v)
+				t.Errorf("for property %s, for rune 0x%x, expected 0x%x, got 0x%x", p.name, te.unicode, te.value, v)
 			}
 		}
 	}

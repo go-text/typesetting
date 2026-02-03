@@ -19,13 +19,6 @@ func (item *Affine2x3) mustParse(src []byte) {
 	item.Dy = Float1616FromUint(binary.BigEndian.Uint32(src[20:]))
 }
 
-func (item *baseGlyph) mustParse(src []byte) {
-	_ = src[5] // early bound checking
-	item.GlyphID = binary.BigEndian.Uint16(src[0:])
-	item.FirstLayerIndex = binary.BigEndian.Uint16(src[2:])
-	item.NumLayers = binary.BigEndian.Uint16(src[4:])
-}
-
 func (item *ClipBoxFormat1) mustParse(src []byte) {
 	_ = src[8] // early bound checking
 	item.format = src[0]
@@ -97,73 +90,6 @@ func ParseAffine2x3(src []byte) (Affine2x3, int, error) {
 	return item, n, nil
 }
 
-func ParseBaseGlyph(src []byte) (baseGlyph, int, error) {
-	var item baseGlyph
-	n := 0
-	if L := len(src); L < 6 {
-		return item, 0, fmt.Errorf("reading BaseGlyph: "+"EOF: expected length: 6, got %d", L)
-	}
-	item.mustParse(src)
-	n += 6
-	return item, n, nil
-}
-
-func ParseBaseGlyphList(src []byte) (baseGlyphList, int, error) {
-	var item baseGlyphList
-	n := 0
-	if L := len(src); L < 4 {
-		return item, 0, fmt.Errorf("reading BaseGlyphList: "+"EOF: expected length: 4, got %d", L)
-	}
-	arrayLengthPaintRecords := int(binary.BigEndian.Uint32(src[0:]))
-	n += 4
-
-	{
-
-		offset := 4
-		for i := 0; i < arrayLengthPaintRecords; i++ {
-			elem, read, err := ParseBaseGlyphPaintRecord(src[offset:], src)
-			if err != nil {
-				return item, 0, fmt.Errorf("reading BaseGlyphList: %s", err)
-			}
-			item.paintRecords = append(item.paintRecords, elem)
-			offset += read
-		}
-		n = offset
-	}
-	return item, n, nil
-}
-
-func ParseBaseGlyphPaintRecord(src []byte, parentSrc []byte) (baseGlyphPaintRecord, int, error) {
-	var item baseGlyphPaintRecord
-	n := 0
-	if L := len(src); L < 6 {
-		return item, 0, fmt.Errorf("reading BaseGlyphPaintRecord: "+"EOF: expected length: 6, got %d", L)
-	}
-	_ = src[5] // early bound checking
-	item.GlyphID = binary.BigEndian.Uint16(src[0:])
-	offsetPaint := int(binary.BigEndian.Uint32(src[2:]))
-	n += 6
-
-	{
-		if offsetPaint != 0 { // ignore null offset
-			if L := len(parentSrc); L < offsetPaint {
-				return item, 0, fmt.Errorf("reading BaseGlyphPaintRecord: "+"EOF: expected length: %d, got %d", offsetPaint, L)
-			}
-
-			var (
-				err  error
-				read int
-			)
-			item.Paint, read, err = ParsePaintTable(parentSrc[offsetPaint:])
-			if err != nil {
-				return item, 0, fmt.Errorf("reading BaseGlyphPaintRecord: %s", err)
-			}
-			offsetPaint += read
-		}
-	}
-	return item, n, nil
-}
-
 func ParseCOLR1(src []byte) (COLR1, int, error) {
 	var item COLR1
 	n := 0
@@ -196,7 +122,7 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 			}
 
 			var err error
-			item.baseGlyphList, _, err = ParseBaseGlyphList(src[offsetBaseGlyphList:])
+			item.baseGlyphList, _, err = parseBaseGlyphList(src[offsetBaseGlyphList:])
 			if err != nil {
 				return item, 0, fmt.Errorf("reading COLR1: %s", err)
 			}
@@ -507,17 +433,6 @@ func ParseItemVariationData(src []byte) (ItemVariationData, int, error) {
 			return item, 0, fmt.Errorf("reading ItemVariationData: %s", err)
 		}
 	}
-	return item, n, nil
-}
-
-func ParseLayer(src []byte) (Layer, int, error) {
-	var item Layer
-	n := 0
-	if L := len(src); L < 4 {
-		return item, 0, fmt.Errorf("reading Layer: "+"EOF: expected length: 4, got %d", L)
-	}
-	item.mustParse(src)
-	n += 4
 	return item, n, nil
 }
 
@@ -1783,6 +1698,69 @@ func (item *VarColorStop) mustParse(src []byte) {
 	item.PaletteIndex = binary.BigEndian.Uint16(src[2:])
 	item.Alpha = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[6:])
+}
+
+func (item *baseGlyph) mustParse(src []byte) {
+	_ = src[5] // early bound checking
+	item.GlyphID = binary.BigEndian.Uint16(src[0:])
+	item.FirstLayerIndex = binary.BigEndian.Uint16(src[2:])
+	item.NumLayers = binary.BigEndian.Uint16(src[4:])
+}
+
+func parseBaseGlyphList(src []byte) (baseGlyphList, int, error) {
+	var item baseGlyphList
+	n := 0
+	if L := len(src); L < 4 {
+		return item, 0, fmt.Errorf("reading baseGlyphList: "+"EOF: expected length: 4, got %d", L)
+	}
+	arrayLengthPaintRecords := int(binary.BigEndian.Uint32(src[0:]))
+	n += 4
+
+	{
+
+		offset := 4
+		for i := 0; i < arrayLengthPaintRecords; i++ {
+			elem, read, err := parseBaseGlyphPaintRecord(src[offset:], src)
+			if err != nil {
+				return item, 0, fmt.Errorf("reading baseGlyphList: %s", err)
+			}
+			item.paintRecords = append(item.paintRecords, elem)
+			offset += read
+		}
+		n = offset
+	}
+	return item, n, nil
+}
+
+func parseBaseGlyphPaintRecord(src []byte, parentSrc []byte) (baseGlyphPaintRecord, int, error) {
+	var item baseGlyphPaintRecord
+	n := 0
+	if L := len(src); L < 6 {
+		return item, 0, fmt.Errorf("reading baseGlyphPaintRecord: "+"EOF: expected length: 6, got %d", L)
+	}
+	_ = src[5] // early bound checking
+	item.GlyphID = binary.BigEndian.Uint16(src[0:])
+	offsetPaint := int(binary.BigEndian.Uint32(src[2:]))
+	n += 6
+
+	{
+		if offsetPaint != 0 { // ignore null offset
+			if L := len(parentSrc); L < offsetPaint {
+				return item, 0, fmt.Errorf("reading baseGlyphPaintRecord: "+"EOF: expected length: %d, got %d", offsetPaint, L)
+			}
+
+			var (
+				err  error
+				read int
+			)
+			item.Paint, read, err = ParsePaintTable(parentSrc[offsetPaint:])
+			if err != nil {
+				return item, 0, fmt.Errorf("reading baseGlyphPaintRecord: %s", err)
+			}
+			offsetPaint += read
+		}
+	}
+	return item, n, nil
 }
 
 func parseColr0(src []byte) (colr0, int, error) {

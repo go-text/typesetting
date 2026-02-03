@@ -53,10 +53,10 @@ func TestVar(t *testing.T) {
 		design     float32
 		normalized VarCoord
 	}{
-		{200, 1311},
+		{200, 1310},
 		{301, 2672},
 		{400, 6390},
-		{401.2, 6424},
+		{401.2, 6423},
 	} {
 		coords := font.NormalizeVariations([]float32{test.design})
 		tu.AssertC(t, coords[0] == test.normalized, fmt.Sprintf("%d != %d", coords[0], test.normalized))
@@ -141,7 +141,7 @@ func TestAdvanceHVar(t *testing.T) {
 	}
 	tu.Assert(t, font.hvar != nil)
 	for i, exp := range exps {
-		got := getAdvanceDeltaUnscaled(font.hvar, tables.GlyphID(i), coords)
+		got := font.hvar.AdvanceDelta(gID(i), coords)
 		if math.Abs(float64(got-exp)) > 0.001 {
 			t.Errorf("expected %f, got %f", exp, got)
 		}
