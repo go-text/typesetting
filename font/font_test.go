@@ -8,7 +8,6 @@ import (
 
 	hb "github.com/go-text/typesetting-utils/harfbuzz"
 	td "github.com/go-text/typesetting-utils/opentype"
-	"github.com/go-text/typesetting/font/opentype"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
 	tu "github.com/go-text/typesetting/testutils"
@@ -164,7 +163,7 @@ func TestGDEFBlocklist(t *testing.T) {
 	file, err := hb.Files.ReadFile("harfbuzz_reference/in-house/macos/System/Library/Fonts/Supplemental/Courier New.ttf")
 	tu.AssertNoErr(t, err)
 
-	fp, err := opentype.NewLoader(bytes.NewReader(file))
+	fp, err := ot.NewLoader(bytes.NewReader(file))
 	tu.AssertNoErr(t, err)
 
 	ft, err := NewFont(fp)
