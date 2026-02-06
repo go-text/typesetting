@@ -39,7 +39,7 @@ const (
 	Zs                         // Space_Separator
 )
 
-var generalCategoryUint8 = [6942]uint8{
+var gcUint8 = [6942]uint8{
 	0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 5, 5, 7, 8, 9, 10, 11, 12, 13,
 	14, 15, 16, 5, 17, 15, 18, 19, 20, 21, 22, 23, 5, 5, 5, 5, 5, 5, 5, 5,
 	5, 5, 24, 25, 26, 5, 27, 28, 5, 29, 5, 30, 15, 15, 15, 15, 15, 15, 15, 15,
@@ -390,7 +390,7 @@ var generalCategoryUint8 = [6942]uint8{
 	23, 15,
 }
 
-var generalCategoryUint16 = [2608]uint16{
+var gcUint16 = [2608]uint16{
 	0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 7, 8, 9, 10, 11, 12, 13, 13, 13, 14,
 	15, 13, 13, 16, 17, 18, 19, 20, 21, 22, 13, 23, 13, 13, 13, 24, 25, 11, 11, 11,
 	11, 26, 11, 27, 28, 29, 30, 31, 32, 32, 32, 32, 32, 32, 32, 33, 34, 35, 36, 11,
@@ -526,9 +526,9 @@ var generalCategoryUint16 = [2608]uint16{
 
 // Total size 12 KB.
 
-func generalCategoryLookup(u rune) uint8 {
+func gcLookup(u rune) uint8 {
 	if 0 <= u && u < 1114110 {
-		return generalCategoryUint8[6560+((uint(generalCategoryUint8[816+((uint(generalCategoryUint16[(uint(generalCategoryUint8[272+((uint(generalCategoryUint8[uint((((u>>1)>>3)>>4)>>4)]))<<4+uint((((u>>1)>>3)>>4)&15))]))<<4+uint(((u>>1)>>3)&15)]))<<3+uint((u>>1)&7))]))<<1+uint(u&1))]
+		return gcUint8[6560+((uint(gcUint8[816+((uint(gcUint16[(uint(gcUint8[272+((uint(gcUint8[uint((((u>>1)>>3)>>4)>>4)]))<<4+uint((((u>>1)>>3)>>4)&15))]))<<4+uint(((u>>1)>>3)&15)]))<<3+uint((u>>1)&7))]))<<1+uint(u&1))]
 	} else {
 		return 0
 	}

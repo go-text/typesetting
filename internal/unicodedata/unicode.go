@@ -13,7 +13,7 @@ type GeneralCategory uint8
 
 // LookupType returns the unicode general categorie of the rune,
 // or [Unassigned] if not found.
-func LookupType(r rune) GeneralCategory { return GeneralCategory(generalCategoryLookup(r)) }
+func LookupType(r rune) GeneralCategory { return GeneralCategory(gcLookup(r)) }
 
 // IsMark returns true for Spacing_Mark, Enclosing_Mark, Nonspacing_Mark
 func (gc GeneralCategory) IsMark() bool {
