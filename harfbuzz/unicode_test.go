@@ -11,19 +11,13 @@ import (
 
 func TestUnicodeProp(t *testing.T) {
 	runes := []rune{6176, 6155, 0x70f}
-	exps := []unicodeProp{7, 236, 1}
+	exps := []unicodeProp{7, 236, unicodeProp(ucd.Cf)}
 	for i, r := range runes {
 		got, _ := computeUnicodeProps(r)
 		exp := exps[i]
 		if got != exp {
 			t.Fatalf("for rune 0x%x, expected %d, got %d", r, exp, got)
 		}
-	}
-}
-
-func TestGeneralCategory(t *testing.T) {
-	if got := uni.generalCategory(0x70f); got != 1 {
-		t.Errorf("for rune 0x%x, expected 1, got %d", 0x70f, got)
 	}
 }
 
@@ -121,99 +115,6 @@ var combiningClassTestsMore = []testPairT{
 	{0x1ACF, 230},
 
 	{0x111111, 0},
-}
-
-var generalCategoryTests = []testPairT{
-	{0x000D, uint(control)},
-	{0x200E, uint(format)},
-	{0x0378, uint(unassigned)},
-	{0xE000, uint(privateUse)},
-	{0xD800, uint(surrogate)},
-	{0x0061, uint(lowercaseLetter)},
-	{0x02B0, uint(modifierLetter)},
-	{0x3400, uint(otherLetter)},
-	{0x01C5, uint(titlecaseLetter)},
-	{0xFF21, uint(uppercaseLetter)},
-	{0x0903, uint(spacingMark)},
-	{0x20DD, uint(enclosingMark)},
-	{0xA806, uint(nonSpacingMark)},
-	{0xFF10, uint(decimalNumber)},
-	{0x16EE, uint(letterNumber)},
-	{0x17F0, uint(otherNumber)},
-	{0x005F, uint(connectPunctuation)},
-	{0x058A, uint(dashPunctuation)},
-	{0x0F3B, uint(closePunctuation)},
-	{0x2019, uint(finalPunctuation)},
-	{0x2018, uint(initialPunctuation)},
-	{0x2016, uint(otherPunctuation)},
-	{0x0F3A, uint(openPunctuation)},
-	{0x20A0, uint(currencySymbol)},
-	{0x309B, uint(modifierSymbol)},
-	{0xFB29, uint(mathSymbol)},
-	{0x00A6, uint(otherSymbol)},
-	{0x2028, uint(lineSeparator)},
-	{0x2029, uint(paragraphSeparator)},
-	{0x202F, uint(spaceSeparator)},
-
-	{0x111111, uint(unassigned)},
-}
-
-var generalCategoryTestsMore = []testPairT{
-	/* Unicode-5.2 character additions */
-	{0x1F131, uint(otherSymbol)},
-
-	/* Unicode-6.0 character additions */
-	{0x0620, uint(otherLetter)},
-
-	/* Unicode-6.1 character additions */
-	{0x058F, uint(currencySymbol)},
-
-	/* Unicode-6.2 character additions */
-	{0x20BA, uint(currencySymbol)},
-
-	/* Unicode-6.3 character additions */
-	{0x061C, uint(format)},
-
-	/* Unicode-7.0 character additions */
-	{0x058D, uint(otherSymbol)},
-
-	/* Unicode-8.0 character additions */
-	{0x08E3, uint(nonSpacingMark)},
-
-	/* Unicode-9.0 character additions */
-	{0x08D4, uint(nonSpacingMark)},
-
-	/* Unicode-10.0 character additions */
-	{0x09FD, uint(otherPunctuation)},
-
-	/* Unicode-11.0 character additions */
-	{0x0560, uint(lowercaseLetter)},
-
-	/* Unicode-12.0 character additions */
-	{0x0C77, uint(otherPunctuation)},
-
-	/* Unicode-12.1 character additions */
-	{0x32FF, uint(otherSymbol)},
-
-	/* Unicode-13.0 character additions */
-	{0x08BE, uint(otherLetter)},
-
-	/* Unicode-14.0 character additions */
-	{0x20C0, uint(currencySymbol)},
-
-	/* Unicode-15.0 character additions */
-	{0x0CF3, uint(spacingMark)},
-
-	/* Unicode-15.1 character additions */
-	{0x31EF, uint(otherSymbol)},
-
-	/* Unicode-16.0 character additions */
-	{0x10D6E, uint(dashPunctuation)},
-
-	/* Unicode-17.0 character additions */
-	{0x11DE0, uint(decimalNumber)},
-
-	{0x111111, uint(unassigned)},
 }
 
 var mirroringTests = []testPairT{
@@ -498,7 +399,6 @@ type propertyTest struct {
 
 var properties = [...]propertyTest{
 	{"combiningClass", func(u rune) uint { return uint(ucd.LookupCombiningClass(u)) }, combiningClassTests, combiningClassTestsMore},
-	{"generalCategory", func(u rune) uint { return uint(uni.generalCategory(u)) }, generalCategoryTests, generalCategoryTestsMore},
 	{"mirroring", func(u rune) uint { return uint(uni.mirroring(u)) }, mirroringTests, mirroringTestsMore},
 	{"script", func(u rune) uint { return uint(language.LookupScript(u)) }, scriptTests, scriptTestsMore},
 }

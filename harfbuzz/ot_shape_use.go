@@ -375,7 +375,7 @@ func (cs *complexShaperUSE) preprocessText(_ *otShapePlan, buffer *Buffer, _ *Fo
 
 func (cs *complexShaperUSE) compose(_ *otNormalizeContext, a, b rune) (rune, bool) {
 	// avoid recomposing split matras.
-	if uni.generalCategory(a).isMark() {
+	if uni.generalCategory(a).IsMark() {
 		return 0, false
 	}
 
