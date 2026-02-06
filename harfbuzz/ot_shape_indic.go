@@ -6,6 +6,7 @@ import (
 
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 )
 
@@ -1332,7 +1333,17 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(buffer *Buffer, st
 
 	/* Apply 'init' to the Left Matra if it's a word start. */
 	if info[start].complexAux == posPreM {
-		const flagRange = 1<<(nonSpacingMark+1) - 1<<format
+		const flagRange = 1<<ucd.Unassigned |
+			1<<ucd.Co |
+			1<<ucd.Cs |
+			1<<ucd.Ll |
+			1<<ucd.Lm |
+			1<<ucd.Lo |
+			1<<ucd.Lt |
+			1<<ucd.Lu |
+			1<<ucd.Mc |
+			1<<ucd.Me |
+			1<<ucd.Mn
 		if start == 0 || 1<<info[start-1].unicode.generalCategory()&flagRange == 0 {
 			info[start].Mask |= indicPlan.maskArray[indicInit]
 		} else {
@@ -1386,7 +1397,7 @@ func (cs *complexShaperIndic) decompose(c *otNormalizeContext, ab rune) (rune, r
 
 func (cs *complexShaperIndic) compose(c *otNormalizeContext, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if uni.generalCategory(a).isMark() {
+	if uni.generalCategory(a).IsMark() {
 		return 0, false
 	}
 

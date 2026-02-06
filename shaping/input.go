@@ -3,8 +3,6 @@
 package shaping
 
 import (
-	"unicode"
-
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
@@ -472,11 +470,12 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
 // https://bugzilla.gnome.org/show_bug.cgi?id=781123
 // for more details.
 func ignoreFaceChange(r rune) bool {
-	return unicode.Is(ucd.Cc, r) || // control
-		unicode.Is(ucd.Cs, r) || // surrogate
-		unicode.Is(ucd.Zl, r) || // line separator
-		unicode.Is(ucd.Zp, r) || // paragraph separator
-		(unicode.Is(ucd.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
+	g := ucd.LookupType(r)
+	return g == ucd.Cc || // control
+		g == ucd.Cs || // surrogate
+		g == ucd.Zl || // line separator
+		g == ucd.Zp || // paragraph separator
+		(g == ucd.Zs && r != '\u1680') || // space separator != OGHAM SPACE MARK
 		harfbuzz.IsDefaultIgnorable(r)
 }
 

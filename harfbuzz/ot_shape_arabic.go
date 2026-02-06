@@ -7,6 +7,7 @@ import (
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 )
 
@@ -19,23 +20,23 @@ const flagArabicHasStch = bsfShaper0
 /* See:
  * https://github.com/harfbuzz/harfbuzz/commit/6e6f82b6f3dde0fc6c3c7d991d9ec6cfff57823d#commitcomment-14248516 */
 func isWord(genCat generalCategory) bool {
-	const mask = 1<<unassigned |
-		1<<privateUse |
+	const mask = 1<<ucd.Unassigned |
+		1<<ucd.Co |
 		/*1 <<  LowercaseLetter |*/
-		1<<modifierLetter |
-		1<<otherLetter |
+		1<<ucd.Lm |
+		1<<ucd.Lo |
 		/*1 <<  TitlecaseLetter |*/
 		/*1 <<  UppercaseLetter |*/
-		1<<spacingMark |
-		1<<enclosingMark |
-		1<<nonSpacingMark |
-		1<<decimalNumber |
-		1<<letterNumber |
-		1<<otherNumber |
-		1<<currencySymbol |
-		1<<modifierSymbol |
-		1<<mathSymbol |
-		1<<otherSymbol
+		1<<ucd.Mc |
+		1<<ucd.Me |
+		1<<ucd.Mn |
+		1<<ucd.Nd |
+		1<<ucd.Nl |
+		1<<ucd.No |
+		1<<ucd.Sc |
+		1<<ucd.Sk |
+		1<<ucd.Sm |
+		1<<ucd.So
 	return (1<<genCat)&mask != 0
 }
 
@@ -94,7 +95,7 @@ func getJoiningType(u rune, genCat generalCategory) uint8 {
 		}
 	}
 
-	const mask = 1<<nonSpacingMark | 1<<enclosingMark | 1<<format
+	const mask = 1<<ucd.Mn | 1<<ucd.Me | 1<<ucd.Cf
 	if 1<<genCat&mask != 0 {
 		return joiningTypeT
 	}

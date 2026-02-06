@@ -353,7 +353,7 @@ func (cr *cursor) ruleLB1() {
 	case ucd.BreakAI, ucd.BreakSG, ucd.BreakXX:
 		cr.line = ucd.BreakAL
 	case ucd.BreakSA:
-		if unicode.Is(ucd.Mn, cr.r) || unicode.Is(ucd.Mc, cr.r) {
+		if cat := ucd.LookupType(cr.r); cat == ucd.Mn || cat == ucd.Mc {
 			cr.line = ucd.BreakCM
 		} else {
 			cr.line = ucd.BreakAL
@@ -483,7 +483,7 @@ func (cr *cursor) endIteration() {
 		cr.isPrevPrevDottedCircle = cr.isPrevDottedCircle
 		cr.isPrevDottedCircle = cr.r == 0x25CC
 
-		cr.isPrevNonAssignedExtendedPic = cr.isExtentedPic && ucd.LookupType(cr.r) == nil
+		cr.isPrevNonAssignedExtendedPic = cr.isExtentedPic && ucd.LookupType(cr.r) == ucd.Unassigned
 
 		// keep track of the rune before the spaces
 		if cr.prevLine != ucd.BreakSP {

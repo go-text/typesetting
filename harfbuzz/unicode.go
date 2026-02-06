@@ -10,83 +10,7 @@ import (
 var uni = unicodeFuncs{}
 
 // generalCategory is an enum value to allow compact storage (see generalCategories)
-type generalCategory uint8
-
-const (
-	control generalCategory = iota
-	format
-	unassigned
-	privateUse
-	surrogate
-	lowercaseLetter
-	modifierLetter
-	otherLetter
-	titlecaseLetter
-	uppercaseLetter
-	spacingMark
-	enclosingMark
-	nonSpacingMark
-	decimalNumber
-	letterNumber
-	otherNumber
-	connectPunctuation
-	dashPunctuation
-	closePunctuation
-	finalPunctuation
-	initialPunctuation
-	otherPunctuation
-	openPunctuation
-	currencySymbol
-	modifierSymbol
-	mathSymbol
-	otherSymbol
-	lineSeparator
-	paragraphSeparator
-	spaceSeparator
-)
-
-// correspondance with *unicode.RangeTable classes
-var generalCategories = [...]*unicode.RangeTable{
-	control:            ucd.Cc,
-	format:             ucd.Cf,
-	unassigned:         nil,
-	privateUse:         ucd.Co,
-	surrogate:          ucd.Cs,
-	lowercaseLetter:    ucd.Ll,
-	modifierLetter:     ucd.Lm,
-	otherLetter:        ucd.Lo,
-	titlecaseLetter:    ucd.Lt,
-	uppercaseLetter:    ucd.Lu,
-	spacingMark:        ucd.Mc,
-	enclosingMark:      ucd.Me,
-	nonSpacingMark:     ucd.Mn,
-	decimalNumber:      ucd.Nd,
-	letterNumber:       ucd.Nl,
-	otherNumber:        ucd.No,
-	connectPunctuation: ucd.Pc,
-	dashPunctuation:    ucd.Pd,
-	closePunctuation:   ucd.Pe,
-	finalPunctuation:   ucd.Pf,
-	initialPunctuation: ucd.Pi,
-	otherPunctuation:   ucd.Po,
-	openPunctuation:    ucd.Ps,
-	currencySymbol:     ucd.Sc,
-	modifierSymbol:     ucd.Sk,
-	mathSymbol:         ucd.Sm,
-	otherSymbol:        ucd.So,
-	lineSeparator:      ucd.Zl,
-	paragraphSeparator: ucd.Zp,
-	spaceSeparator:     ucd.Zs,
-}
-
-func (g generalCategory) isMark() bool {
-	return g == spacingMark || g == enclosingMark || g == nonSpacingMark
-}
-
-func (g generalCategory) isLetter() bool {
-	return g == lowercaseLetter || g == modifierLetter || g == otherLetter ||
-		g == titlecaseLetter || g == uppercaseLetter
-}
+type generalCategory = ucd.GeneralCategory
 
 // Modified combining marks
 const (
@@ -356,14 +280,7 @@ func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
 
 // retrieves the General Category property for
 // a specified Unicode code point, expressed as enumeration value.
-func (unicodeFuncs) generalCategory(ch rune) generalCategory {
-	for i, cat := range generalCategories {
-		if cat != nil && unicode.Is(cat, ch) {
-			return generalCategory(i)
-		}
-	}
-	return unassigned
-}
+func (unicodeFuncs) generalCategory(ch rune) generalCategory { return ucd.LookupType(ch) }
 
 func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
 	return unicode.Is(ucd.Extended_Pictographic, ch)
@@ -469,17 +386,17 @@ func (b *Buffer) setUnicodeProps() {
 		}
 
 		genCat := info[i].unicode.generalCategory()
-		if genCat == lowercaseLetter ||
-			genCat == uppercaseLetter ||
-			genCat == titlecaseLetter ||
-			genCat == otherLetter ||
-			genCat == spaceSeparator {
+		if genCat == ucd.Ll ||
+			genCat == ucd.Lu ||
+			genCat == ucd.Lt ||
+			genCat == ucd.Lo ||
+			genCat == ucd.Zs {
 			continue
 		}
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if genCat == modifierSymbol && (0x1F3FB <= r && r <= 0x1F3FF) {
+		if genCat == ucd.Sk && (0x1F3FB <= r && r <= 0x1F3FF) {
 			info[i].setContinuation(b)
 		} else if i != 0 && isRegionalIndicator(r) {
 			/* Regional_Indicators are hairy as hell...
@@ -585,10 +502,10 @@ func (b *Buffer) ensureNativeDirection() {
 		var foundNumber, foundLetter, foundRi bool
 		for _, info := range b.Info {
 			gc := info.unicode.generalCategory()
-			if gc.isLetter() {
+			if gc.IsLetter() {
 				foundLetter = true
 				break
-			} else if gc == decimalNumber {
+			} else if gc == ucd.Nd {
 				foundNumber = true
 			} else if isRegionalIndicator(info.codepoint) {
 				foundRi = true
@@ -642,7 +559,7 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 			}
 		}
 
-		if genCat.isMark() {
+		if genCat.IsMark() {
 			flags |= bsfHasContinuations
 			props |= upropsMaskContinuation
 			props |= unicodeProp(uni.modifiedCombiningClass(u)) << 8

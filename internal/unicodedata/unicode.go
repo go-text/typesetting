@@ -8,16 +8,21 @@ import (
 	"github.com/go-text/typesetting/language"
 )
 
+// GeneralCategory is an enum storing the Unicode General Category of a rune.
+type GeneralCategory uint8
+
 // LookupType returns the unicode general categorie of the rune,
-// or nil if not found.
-// The returned table is one of the constants defined in this package.
-func LookupType(r rune) *unicode.RangeTable {
-	for _, table := range allCategories {
-		if unicode.Is(table, r) {
-			return table
-		}
-	}
-	return nil
+// or [Unassigned] if not found.
+func LookupType(r rune) GeneralCategory { return GeneralCategory(generalCategoryLookup(r)) }
+
+// IsMark returns true for Spacing_Mark, Enclosing_Mark, Nonspacing_Mark
+func (gc GeneralCategory) IsMark() bool {
+	return gc == Mc || gc == Me || gc == Mn
+}
+
+// IsLetter returns true for Lowercase_Letter, Modifier_Letter, Other_Letter, Titlecase_Letter, Uppercase_Letter
+func (gc GeneralCategory) IsLetter() bool {
+	return gc == Ll || gc == Lm || gc == Lo || gc == Lt || gc == Lu
 }
 
 // LookupCombiningClass returns the class used for the Canonical Ordering Algorithm in the Unicode Standard,

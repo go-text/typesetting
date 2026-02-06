@@ -272,7 +272,7 @@ func (complexShaperKhmer) decompose(c *otNormalizeContext, ab rune) (rune, rune,
 
 func (complexShaperKhmer) compose(_ *otNormalizeContext, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if uni.generalCategory(a).isMark() {
+	if uni.generalCategory(a).IsMark() {
 		return 0, false
 	}
 

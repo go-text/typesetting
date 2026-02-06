@@ -84,23 +84,92 @@ func TestUnicodeNormalization(t *testing.T) {
 	assertDecompose(0xCE20, true, 0x110E, 0x1173)
 }
 
+var generalCategoryTests = []struct {
+	args rune
+	want GeneralCategory
+}{
+	{0x70f, Cf},
+	{'a', Ll},
+	{'.', Po},
+	{'カ', Lo},
+	{'🦳', So},
+	{'\U0001F3FF', Sk},
+	{'\U0001F02C', 0},
+	{-1, 0},
+	// the following cases are taken from Harfbuzz
+	{0x000D, Cc},
+	{0x200E, Cf},
+	{0x0378, 0},
+	{0xE000, Co},
+	{0xD800, Cs},
+	{0x0061, Ll},
+	{0x02B0, Lm},
+	{0x3400, Lo},
+	{0x01C5, Lt},
+	{0xFF21, Lu},
+	{0x0903, Mc},
+	{0x20DD, Me},
+	{0xA806, Mn},
+	{0xFF10, Nd},
+	{0x16EE, Nl},
+	{0x17F0, No},
+	{0x005F, Pc},
+	{0x058A, Pd},
+	{0x0F3B, Pe},
+	{0x2019, Pf},
+	{0x2018, Pi},
+	{0x2016, Po},
+	{0x0F3A, Ps},
+	{0x20A0, Sc},
+	{0x309B, Sk},
+	{0xFB29, Sm},
+	{0x00A6, So},
+	{0x2028, Zl},
+	{0x2029, Zp},
+	{0x202F, Zs},
+	{0x111111, 0},
+	/* Unicode-5.2 character additions */
+	{0x1F131, So},
+	/* Unicode-6.0 character additions */
+	{0x0620, Lo},
+	/* Unicode-6.1 character additions */
+	{0x058F, Sc},
+	/* Unicode-6.2 character additions */
+	{0x20BA, Sc},
+	/* Unicode-6.3 character additions */
+	{0x061C, Cf},
+	/* Unicode-7.0 character additions */
+	{0x058D, So},
+	/* Unicode-8.0 character additions */
+	{0x08E3, Mn},
+	/* Unicode-9.0 character additions */
+	{0x08D4, Mn},
+	/* Unicode-10.0 character additions */
+	{0x09FD, Po},
+	/* Unicode-11.0 character additions */
+	{0x0560, Ll},
+	/* Unicode-12.0 character additions */
+	{0x0C77, Po},
+	/* Unicode-12.1 character additions */
+	{0x32FF, So},
+	/* Unicode-13.0 character additions */
+	{0x08BE, Lo},
+	/* Unicode-14.0 character additions */
+	{0x20C0, Sc},
+	/* Unicode-15.0 character additions */
+	{0x0CF3, Mc},
+	/* Unicode-15.1 character additions */
+	{0x31EF, So},
+	/* Unicode-16.0 character additions */
+	{0x10D6E, Pd},
+	/* Unicode-17.0 character additions */
+	{0x11DE0, Nd},
+}
+
 func TestLookupType(t *testing.T) {
-	// some manual test cases
-	tests := []struct {
-		args rune
-		want *unicode.RangeTable
-	}{
-		{'a', Ll},
-		{'.', Po},
-		{'カ', Lo},
-		{'🦳', So},
-		{'\U0001F3FF', Sk},
-		{'\U0001F02C', nil},
-		{-1, nil},
-	}
-	for _, tt := range tests {
+	for _, tt := range generalCategoryTests {
 		if got := LookupType(tt.args); got != tt.want {
-			t.Errorf("LookupType(%s) = %v, want %v", string(tt.args), got, tt.want)
+			t.Errorf("LookupType(%s = %0x) = %v, want %v", string(tt.args), tt.args, got, tt.want)
 		}
 	}
 }
@@ -610,4 +679,64 @@ func TestLookupVerticalOrientation(t *testing.T) {
 			t.Errorf("LookupVerticalOrientation(%s) = %v, want %v", string(tt.r), gotIsSideways, tt.wantIsSideways)
 		}
 	}
+}
+
+func BenchmarkGeneralCategory(b *testing.B) {
+	b.Run("packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupType(test.args)
+			}
+		}
+	})
+	b.Run("unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupType(test.args)
+			}
+		}
+	})
+}
+
+var allCategories = [...]*unicode.RangeTable{
+	unicode.Cc,
+	unicode.Cf,
+	unicode.Co,
+	unicode.Cs,
+	unicode.Ll,
+	unicode.Lm,
+	unicode.Lo,
+	unicode.Lt,
+	unicode.Lu,
+	unicode.Mc,
+	unicode.Me,
+	unicode.Mn,
+	unicode.Nd,
+	unicode.Nl,
+	unicode.No,
+	unicode.Pc,
+	unicode.Pd,
+	unicode.Pe,
+	unicode.Pf,
+	unicode.Pi,
+	unicode.Po,
+	unicode.Ps,
+	unicode.Sc,
+	unicode.Sk,
+	unicode.Sm,
+	unicode.So,
+	unicode.Zl,
+	unicode.Zp,
+	unicode.Zs,
+}
+
+// simple implementation using standard library,
+// here for benchmark reference
+func lookupType(r rune) *unicode.RangeTable {
+	for _, table := range allCategories {
+		if unicode.Is(table, r) {
+			return table
+		}
+	}
+	return nil
 }
