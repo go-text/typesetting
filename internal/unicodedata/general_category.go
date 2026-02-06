@@ -524,11 +524,11 @@ var gcUint16 = [2608]uint16{
 	391, 391, 391, 391, 391, 391, 391, 717,
 }
 
-// Total size 12 KB.
+// Total size 12158 B.
 
 func gcLookup(u rune) uint8 {
 	if 0 <= u && u < 1114110 {
-		return gcUint8[6560+((uint(gcUint8[816+((uint(gcUint16[(uint(gcUint8[272+((uint(gcUint8[uint((((u>>1)>>3)>>4)>>4)]))<<4+uint((((u>>1)>>3)>>4)&15))]))<<4+uint(((u>>1)>>3)&15)]))<<3+uint((u>>1)&7))]))<<1+uint(u&1))]
+		return gcUint8[6560+((int(gcUint8[816+((int(gcUint16[(int(gcUint8[272+((int(gcUint8[int((((u>>1)>>3)>>4)>>4)]))<<4+int((((u>>1)>>3)>>4)&15))]))<<4+int(((u>>1)>>3)&15)]))<<3+int((u>>1)&7))]))<<1+int(u&1))]
 	} else {
 		return 0
 	}
