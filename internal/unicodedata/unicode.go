@@ -82,14 +82,10 @@ func LookupWordBreakClass(ch rune) *unicode.RangeTable {
 // http://www.unicode.org/Public/UNIDATA/BidiMirroring.txt.
 //
 // If the input character is declared as a mirroring character in the
-// Unicode standard and has a mirrored equivalent, it is returned with `true`.
-// Otherwise the input character itself returned with `false`.
-func LookupMirrorChar(ch rune) (rune, bool) {
-	m, ok := mirroring[ch]
-	if !ok {
-		m = ch
-	}
-	return m, ok
+// Unicode standard and has a mirrored equivalent, it is returned.
+// Otherwise the input character itself is returned
+func LookupMirrorChar(ch rune) rune {
+	return ch + rune(mirLookup(ch))
 }
 
 // Algorithmic hangul syllables [de]composition, used

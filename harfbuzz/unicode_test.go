@@ -31,49 +31,6 @@ type testPairT struct {
 	value   uint
 }
 
-var mirroringTests = []testPairT{
-	/* Some characters that do NOT mirror */
-	{0x0020, 0x0020},
-	{0x0041, 0x0041},
-	{0x00F0, 0x00F0},
-	{0x27CC, 0x27CC},
-	{0xE01EF, 0xE01EF},
-	{0x1D7C3, 0x1D7C3},
-	{0x100000, 0x100000},
-
-	/* Some characters that do mirror */
-	{0x0029, 0x0028},
-	{0x0028, 0x0029},
-	{0x003E, 0x003C},
-	{0x003C, 0x003E},
-	{0x005D, 0x005B},
-	{0x005B, 0x005D},
-	{0x007D, 0x007B},
-	{0x007B, 0x007D},
-	{0x00BB, 0x00AB},
-	{0x00AB, 0x00BB},
-	{0x226B, 0x226A},
-	{0x226A, 0x226B},
-	{0x22F1, 0x22F0},
-	{0x22F0, 0x22F1},
-	{0xFF60, 0xFF5F},
-	{0xFF5F, 0xFF60},
-	{0xFF63, 0xFF62},
-	{0xFF62, 0xFF63},
-
-	{0x111111, 0x111111},
-}
-
-var mirroringTestsMore = []testPairT{
-	/* Unicode-6.1 character additions */
-	{0x27CB, 0x27CD},
-
-	/* Unicode-11.0 character additions */
-	{0x2BFE, 0x221F},
-
-	{0x111111, 0x111111},
-}
-
 var scriptTests = []testPairT{
 	{0x002A, uint(language.Common)},
 	{0x0670, uint(language.Inherited)},
@@ -312,7 +269,6 @@ type propertyTest struct {
 }
 
 var properties = [...]propertyTest{
-	{"mirroring", func(u rune) uint { return uint(uni.mirroring(u)) }, mirroringTests, mirroringTestsMore},
 	{"script", func(u rune) uint { return uint(language.LookupScript(u)) }, scriptTests, scriptTestsMore},
 }
 

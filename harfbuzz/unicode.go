@@ -288,10 +288,7 @@ func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
 
 // returns the mirroring Glyph code point (for bi-directional
 // replacement) of a code point, or itself
-func (unicodeFuncs) mirroring(ch rune) rune {
-	out, _ := ucd.LookupMirrorChar(ch)
-	return out
-}
+func (unicodeFuncs) mirroring(ch rune) rune { return ucd.LookupMirrorChar(ch) }
 
 /* Space estimates based on:
  * https://unicode.org/charts/PDF/U2000.pdf
