@@ -33,17 +33,7 @@ func (gc GeneralCategory) IsLetter() bool {
 // the principal use of the property is in terms of the numeric values.
 // For the property value names associated with different numeric values,
 // see DerivedCombiningClass.txt and Canonical Combining Class Values."
-func LookupCombiningClass(ch rune) uint8 {
-	for i, t := range combiningClasses {
-		if t == nil {
-			continue
-		}
-		if unicode.Is(t, ch) {
-			return uint8(i)
-		}
-	}
-	return 0
-}
+func LookupCombiningClass(ch rune) uint8 { return cccLookup(ch) }
 
 // LookupLineBreakClass returns the break class for the rune (see the constants BreakXXX)
 func LookupLineBreakClass(ch rune) *unicode.RangeTable {

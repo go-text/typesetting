@@ -31,92 +31,6 @@ type testPairT struct {
 	value   uint
 }
 
-var combiningClassTests = []testPairT{
-	{0x0020, 0},
-	{0x0334, 1},
-	{0x093C, 7},
-	{0x3099, 8},
-	{0x094D, 9},
-	{0x05B0, 10},
-	{0x05B1, 11},
-	{0x05B2, 12},
-	{0x05B3, 13},
-	{0x05B4, 14},
-	{0x05B5, 15},
-	{0x05B6, 16},
-	{0x05B7, 17},
-	{0x05B8, 18},
-	{0x05B9, 19},
-	{0x05BB, 20},
-	{0x05BC, 21},
-	{0x05BD, 22},
-	{0x05BF, 23},
-	{0x05C1, 24},
-	{0x05C2, 25},
-	{0xFB1E, 26},
-	{0x064B, 27},
-	{0x064C, 28},
-	{0x064D, 29},
-	/* ... */
-	{0x05AE, 228},
-	{0x0300, 230},
-	{0x302C, 232},
-	{0x0362, 233},
-	{0x0360, 234},
-	{0x0345, 240},
-
-	{0x111111, 0},
-}
-
-var combiningClassTestsMore = []testPairT{
-	/* Unicode-5.1 character additions */
-	{0x1DCD, 234},
-
-	/* Unicode-5.2 character additions */
-	{0xA8E0, 230},
-
-	/* Unicode-6.0 character additions */
-	{0x135D, 230},
-
-	/* Unicode-6.1 character additions */
-	{0xA674, 230},
-
-	/* Unicode-7.0 character additions */
-	{0x1AB0, 230},
-
-	/* Unicode-8.0 character additions */
-	{0xA69E, 230},
-
-	/* Unicode-9.0 character additions */
-	{0x1E000, 230},
-
-	/* Unicode-10.0 character additions */
-	{0x1DF6, 232},
-
-	/* Unicode-11.0 character additions */
-	{0x07FD, 220},
-
-	/* Unicode-12.0 character additions */
-	{0x0EBA, 9},
-
-	/* Unicode-13.0 character additions */
-	{0x1ABF, 220},
-
-	/* Unicode-14.0 character additions */
-	{0x1DFA, 218},
-
-	/* Unicode-15.0 character additions */
-	{0x10EFD, 220},
-
-	/* Unicode-16.0 character additions */
-	{0x0897, 230},
-
-	/* Unicode-17.0 character additions */
-	{0x1ACF, 230},
-
-	{0x111111, 0},
-}
-
 var mirroringTests = []testPairT{
 	/* Some characters that do NOT mirror */
 	{0x0020, 0x0020},
@@ -398,7 +312,6 @@ type propertyTest struct {
 }
 
 var properties = [...]propertyTest{
-	{"combiningClass", func(u rune) uint { return uint(ucd.LookupCombiningClass(u)) }, combiningClassTests, combiningClassTestsMore},
 	{"mirroring", func(u rune) uint { return uint(uni.mirroring(u)) }, mirroringTests, mirroringTestsMore},
 	{"script", func(u rune) uint { return uint(language.LookupScript(u)) }, scriptTests, scriptTestsMore},
 }

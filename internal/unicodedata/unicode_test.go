@@ -174,23 +174,88 @@ func TestLookupType(t *testing.T) {
 	}
 }
 
-func TestLookupCombiningClass(t *testing.T) {
+var cccTests = []struct {
+	args rune
+	want uint8
+}{
 	// reference values are from https://www.compart.com/en/unicode/combining/
-	tests := []struct {
-		args rune
-		want uint8
-	}{
-		{-1, 0},
-		{'a', 0},
-		{'\u093F', 0},
-		{'\u0E40', 0},
-		{'\u093c', 7},
-		{'\u1039', 9},
-		{'\u0f7b', 130},
-		{'\u1cdd', 220},
-		{'\u0369', 230},
-	}
-	for _, tt := range tests {
+	{-1, 0},
+	{'a', 0},
+	{'\u093F', 0},
+	{'\u0E40', 0},
+	{'\u093c', 7},
+	{'\u1039', 9},
+	{'\u0f7b', 130},
+	{'\u1cdd', 220},
+	{'\u0369', 230},
+	// these are copied from Harfbuzz
+	{0x0020, 0},
+	{0x0334, 1},
+	{0x093C, 7},
+	{0x3099, 8},
+	{0x094D, 9},
+	{0x05B0, 10},
+	{0x05B1, 11},
+	{0x05B2, 12},
+	{0x05B3, 13},
+	{0x05B4, 14},
+	{0x05B5, 15},
+	{0x05B6, 16},
+	{0x05B7, 17},
+	{0x05B8, 18},
+	{0x05B9, 19},
+	{0x05BB, 20},
+	{0x05BC, 21},
+	{0x05BD, 22},
+	{0x05BF, 23},
+	{0x05C1, 24},
+	{0x05C2, 25},
+	{0xFB1E, 26},
+	{0x064B, 27},
+	{0x064C, 28},
+	{0x064D, 29},
+	/* ... */
+	{0x05AE, 228},
+	{0x0300, 230},
+	{0x302C, 232},
+	{0x0362, 233},
+	{0x0360, 234},
+	{0x0345, 240},
+	/* Unicode-5.1 character additions */
+	{0x1DCD, 234},
+	/* Unicode-5.2 character additions */
+	{0xA8E0, 230},
+	/* Unicode-6.0 character additions */
+	{0x135D, 230},
+	/* Unicode-6.1 character additions */
+	{0xA674, 230},
+	/* Unicode-7.0 character additions */
+	{0x1AB0, 230},
+	/* Unicode-8.0 character additions */
+	{0xA69E, 230},
+	/* Unicode-9.0 character additions */
+	{0x1E000, 230},
+	/* Unicode-10.0 character additions */
+	{0x1DF6, 232},
+	/* Unicode-11.0 character additions */
+	{0x07FD, 220},
+	/* Unicode-12.0 character additions */
+	{0x0EBA, 9},
+	/* Unicode-13.0 character additions */
+	{0x1ABF, 220},
+	/* Unicode-14.0 character additions */
+	{0x1DFA, 218},
+	/* Unicode-15.0 character additions */
+	{0x10EFD, 220},
+	/* Unicode-16.0 character additions */
+	{0x0897, 230},
+	/* Unicode-17.0 character additions */
+	{0x1ACF, 230},
+	{0x111111, 0},
+}
+
+func TestLookupCombiningClass(t *testing.T) {
+	for _, tt := range cccTests {
 		if got := LookupCombiningClass(tt.args); got != tt.want {
 			t.Errorf("LookupCombiningClass(%s) = %v, want %v", string(tt.args), got, tt.want)
 		}
@@ -681,18 +746,32 @@ func TestLookupVerticalOrientation(t *testing.T) {
 	}
 }
 
-func BenchmarkGeneralCategory(b *testing.B) {
-	b.Run("packtable", func(b *testing.B) {
+func BenchmarkLookups(b *testing.B) {
+	b.Run("GeneralCategory packtable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = LookupType(test.args)
 			}
 		}
 	})
-	b.Run("unicode.RangeTable", func(b *testing.B) {
+	b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = lookupType(test.args)
+			}
+		}
+	})
+	b.Run("Combining class packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupCombiningClass(test.args)
+			}
+		}
+	})
+	b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupCombiningClass(test.args)
 			}
 		}
 	})
@@ -739,4 +818,17 @@ func lookupType(r rune) *unicode.RangeTable {
 		}
 	}
 	return nil
+}
+
+// used as reference in benchmark
+func lookupCombiningClass(ch rune) uint8 {
+	for i, t := range combiningClasses {
+		if t == nil {
+			continue
+		}
+		if unicode.Is(t, ch) {
+			return uint8(i)
+		}
+	}
+	return 0
 }
