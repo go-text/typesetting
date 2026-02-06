@@ -34,17 +34,7 @@ func (gc GeneralCategory) IsLetter() bool {
 // the principal use of the property is in terms of the numeric values.
 // For the property value names associated with different numeric values,
 // see DerivedCombiningClass.txt and Canonical Combining Class Values."
-func LookupCombiningClass(ch rune) uint8 {
-	for i, t := range combiningClasses {
-		if t == nil {
-			continue
-		}
-		if unicode.Is(t, ch) {
-			return uint8(i)
-		}
-	}
-	return 0
-}
+func LookupCombiningClass(ch rune) uint8 { return cccLookup(ch) }
 
 // LineBreak is a flag storing the Unicode Line Break Property.
 //
