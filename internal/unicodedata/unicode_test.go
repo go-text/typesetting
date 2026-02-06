@@ -638,25 +638,53 @@ func TestLookupWordBreakClass(t *testing.T) {
 	tu.Assert(t, LookupWordBreakClass(0x661) == WordBreakNumeric)
 }
 
+var mirTests = []struct {
+	args rune
+	want rune
+}{
+	{'a', 'a'},
+	{'\u2231', '\u2231'},
+	{'\u0028', '\u0029'},
+	{'\u0029', '\u0028'},
+	{'\u22E0', '\u22E1'},
+	/* Some characters that do NOT mirror */
+	{0x0020, 0x0020},
+	{0x0041, 0x0041},
+	{0x00F0, 0x00F0},
+	{0x27CC, 0x27CC},
+	{0xE01EF, 0xE01EF},
+	{0x1D7C3, 0x1D7C3},
+	{0x100000, 0x100000},
+	/* Some characters that do mirror */
+	{0x0029, 0x0028},
+	{0x0028, 0x0029},
+	{0x003E, 0x003C},
+	{0x003C, 0x003E},
+	{0x005D, 0x005B},
+	{0x005B, 0x005D},
+	{0x007D, 0x007B},
+	{0x007B, 0x007D},
+	{0x00BB, 0x00AB},
+	{0x00AB, 0x00BB},
+	{0x226B, 0x226A},
+	{0x226A, 0x226B},
+	{0x22F1, 0x22F0},
+	{0x22F0, 0x22F1},
+	{0xFF60, 0xFF5F},
+	{0xFF5F, 0xFF60},
+	{0xFF63, 0xFF62},
+	{0xFF62, 0xFF63},
+	/* Unicode-6.1 character additions */
+	{0x27CB, 0x27CD},
+	/* Unicode-11.0 character additions */
+	{0x2BFE, 0x221F},
+	{0x111111, 0x111111},
+}
+
 func TestLookupMirrorChar(t *testing.T) {
-	tests := []struct {
-		args  rune
-		want  rune
-		want1 bool
-	}{
-		{'a', 'a', false},
-		{'\u2231', '\u2231', false},
-		{'\u0028', '\u0029', true},
-		{'\u0029', '\u0028', true},
-		{'\u22E0', '\u22E1', true},
-	}
-	for _, tt := range tests {
-		got, got1 := LookupMirrorChar(tt.args)
-		if got != tt.want {
+	for _, tt := range mirTests {
+		if got := LookupMirrorChar(tt.args); got != tt.want {
 			t.Errorf("LookupMirrorChar() got = %v, want %v", got, tt.want)
-		}
-		if got1 != tt.want1 {
-			t.Errorf("LookupMirrorChar() got1 = %v, want %v", got1, tt.want1)
 		}
 	}
 }
@@ -681,18 +709,48 @@ func TestLookupVerticalOrientation(t *testing.T) {
 	}
 }
 
-func BenchmarkGeneralCategory(b *testing.B) {
-	b.Run("packtable", func(b *testing.B) {
+func BenchmarkLookups(b *testing.B) {
+	b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupType(test.args)
+			}
+		}
+	})
+	b.Run("GeneralCategory packtable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = LookupType(test.args)
 			}
 		}
 	})
-	b.Run("unicode.RangeTable", func(b *testing.B) {
+
+	b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
-				_ = lookupType(test.args)
+				_ = lookupCombiningClass(test.args)
+			}
+		}
+	})
+	b.Run("Combining class packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupCombiningClass(test.args)
+			}
+		}
+	})
+
+	b.Run("Mirroring unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupMirrorChar(test.args)
+			}
+		}
+	})
+	b.Run("Mirroring packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupMirrorChar(test.args)
 			}
 		}
 	})
@@ -739,4 +797,26 @@ func lookupType(r rune) *unicode.RangeTable {
 		}
 	}
 	return nil
+}
+
+// used as reference in benchmark
+func lookupCombiningClass(ch rune) uint8 {
+	for i, t := range combiningClasses {
+		if t == nil {
+			continue
+		}
+		if unicode.Is(t, ch) {
+			return uint8(i)
+		}
+	}
+	return 0
+}
+
+// used as reference in benchmark
+func lookupMirrorChar(ch rune) rune {
+	m, ok := mirroring[ch]
+	if !ok {
+		m = ch
+	}
+	return m
 }
