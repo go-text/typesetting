@@ -8,80 +8,94 @@ import (
 	tu "github.com/go-text/typesetting/testutils"
 )
 
-func TestUnicodeNormalization(t *testing.T) {
-	assertCompose := func(a, b rune, okExp bool, abExp rune) {
-		ab, ok := Compose(a, b)
-		if ok != okExp || ab != abExp {
-			t.Errorf("expected %d, %v got %d, %v", abExp, okExp, ab, ok)
-		}
-	}
+var composeTests = []struct {
+	a, b rune
+	ok   bool
+	ab   rune
+}{
+	{0x41, 0x300, true, 0xC0},
 
 	// Not composable
-	assertCompose(0x0041, 0x0042, false, 0)
-	assertCompose(0x0041, 0, false, 0)
-	assertCompose(0x0066, 0x0069, false, 0)
+	{0x0041, 0x0042, false, 0},
+	{0x0041, 0, false, 0},
+	{0x0066, 0x0069, false, 0},
 
 	// Singletons should not compose
-	assertCompose(0x212B, 0, false, 0)
-	assertCompose(0x00C5, 0, false, 0)
-	assertCompose(0x2126, 0, false, 0)
-	assertCompose(0x03A9, 0, false, 0)
+	{0x212B, 0, false, 0},
+	{0x00C5, 0, false, 0},
+	{0x2126, 0, false, 0},
+	{0x03A9, 0, false, 0},
 
 	// Non-starter pairs should not compose
-	assertCompose(0x0308, 0x0301, false, 0) // !0x0344
-	assertCompose(0x0F71, 0x0F72, false, 0) // !0x0F73
+	{0x0308, 0x0301, false, 0}, // !0x034
+	{0x0F71, 0x0F72, false, 0}, // !0x0F7
 
 	// Pairs
-	assertCompose(0x0041, 0x030A, true, 0x00C5)
-	assertCompose(0x006F, 0x0302, true, 0x00F4)
-	assertCompose(0x1E63, 0x0307, true, 0x1E69)
-	assertCompose(0x0073, 0x0323, true, 0x1E63)
-	assertCompose(0x0064, 0x0307, true, 0x1E0B)
-	assertCompose(0x0064, 0x0323, true, 0x1E0D)
+	{0x0041, 0x030A, true, 0x00C5},
+	{0x006F, 0x0302, true, 0x00F4},
+	{0x1E63, 0x0307, true, 0x1E69},
+	{0x0073, 0x0323, true, 0x1E63},
+	{0x0064, 0x0307, true, 0x1E0B},
+	{0x0064, 0x0323, true, 0x1E0D},
 
 	// Hangul
-	assertCompose(0xD4CC, 0x11B6, true, 0xD4DB)
-	assertCompose(0x1111, 0x1171, true, 0xD4CC)
-	assertCompose(0xCE20, 0x11B8, true, 0xCE31)
-	assertCompose(0x110E, 0x1173, true, 0xCE20)
+	{0xD4CC, 0x11B6, true, 0xD4DB},
+	{0x1111, 0x1171, true, 0xD4CC},
+	{0xCE20, 0x11B8, true, 0xCE31},
+	{0x110E, 0x1173, true, 0xCE20},
 
-	assertCompose(0xAC00, 0x11A7, false, 0)
-	assertCompose(0xAC00, 0x11A8, true, 0xAC01)
-	assertCompose(0xAC01, 0x11A8, false, 0)
+	{0xAC00, 0x11A7, false, 0},
+	{0xAC00, 0x11A8, true, 0xAC01},
+	{0xAC01, 0x11A8, false, 0},
+}
 
-	assertDecompose := func(ab rune, expOk bool, expA, expB rune) {
-		a, b, ok := Decompose(ab)
-		if ok != expOk || a != expA || b != expB {
-			t.Errorf("decompose: expected 0x%x, 0x%x, %v got 0x%x, 0x%x, %v", expA, expB, expOk, a, b, ok)
-		}
-	}
+var decomposeTests = []struct {
+	ab   rune
+	ok   bool
+	a, b rune
+}{
+	{0xC0, true, 0x41, 0x300},
+	{0xAC00, true, 0x1100, 0x1161},
+	{0x01C4, false, 0x01C4, 0},
+	{0x320E, false, 0x320E, 0},
 
 	// Not decomposable
-	assertDecompose(0x0041, false, 0x0041, 0)
-	assertDecompose(0xFB01, false, 0xFB01, 0)
-	assertDecompose(0x1F1EF, false, 0x1F1EF, 0)
+	{0x0041, false, 0x0041, 0},
+	{0xFB01, false, 0xFB01, 0},
+	{0x1F1EF, false, 0x1F1EF, 0},
 
 	// Singletons
-	assertDecompose(0x212B, true, 0x00C5, 0)
-	assertDecompose(0x2126, true, 0x03A9, 0)
+	{0x212B, true, 0x00C5, 0},
+	{0x2126, true, 0x03A9, 0},
 
 	// Non-starter pairs decompose, but not compose
-	assertDecompose(0x0344, true, 0x0308, 0x0301)
-	assertDecompose(0x0F73, true, 0x0F71, 0x0F72)
+	{0x0344, true, 0x0308, 0x0301},
+	{0x0F73, true, 0x0F71, 0x0F72},
 
 	// Pairs
-	assertDecompose(0x00C5, true, 0x0041, 0x030A)
-	assertDecompose(0x00F4, true, 0x006F, 0x0302)
-	assertDecompose(0x1E69, true, 0x1E63, 0x0307)
-	assertDecompose(0x1E63, true, 0x0073, 0x0323)
-	assertDecompose(0x1E0B, true, 0x0064, 0x0307)
-	assertDecompose(0x1E0D, true, 0x0064, 0x0323)
+	{0x00C5, true, 0x0041, 0x030A},
+	{0x00F4, true, 0x006F, 0x0302},
+	{0x1E69, true, 0x1E63, 0x0307},
+	{0x1E63, true, 0x0073, 0x0323},
+	{0x1E0B, true, 0x0064, 0x0307},
+	{0x1E0D, true, 0x0064, 0x0323},
 
 	// Hangul
-	assertDecompose(0xD4DB, true, 0xD4CC, 0x11B6)
-	assertDecompose(0xD4CC, true, 0x1111, 0x1171)
-	assertDecompose(0xCE31, true, 0xCE20, 0x11B8)
-	assertDecompose(0xCE20, true, 0x110E, 0x1173)
+	{0xD4DB, true, 0xD4CC, 0x11B6},
+	{0xD4CC, true, 0x1111, 0x1171},
+	{0xCE31, true, 0xCE20, 0x11B8},
+	{0xCE20, true, 0x110E, 0x1173},
+}
+
+func TestUnicodeNormalization(t *testing.T) {
+	for _, test := range composeTests {
+		ab, ok := Compose(test.a, test.b)
+		tu.Assert(t, ab == test.ab && ok == test.ok)
+	}
+	for _, test := range decomposeTests {
+		a, b, ok := Decompose(test.ab)
+		tu.Assert(t, a == test.a && b == test.b && ok == test.ok)
+	}
 }
 
 var generalCategoryTests = []struct {
@@ -819,6 +833,35 @@ func BenchmarkLookups(b *testing.B) {
 			}
 		}
 	})
+
+	b.Run("Decompose map", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range decomposeTests {
+				_, _, _ = decompose(test.ab)
+			}
+		}
+	})
+	b.Run("Decompose packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range decomposeTests {
+				_, _, _ = Decompose(test.ab)
+			}
+		}
+	})
+	b.Run("Compose map", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range composeTests {
+				_, _ = compose_(test.a, test.b)
+			}
+		}
+	})
+	b.Run("Compose packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range composeTests {
+				_, _ = Compose(test.a, test.b)
+			}
+		}
+	})
 }
 
 var allCategories = [...]*unicode.RangeTable{
@@ -884,4 +927,30 @@ func lookupMirrorChar(ch rune) rune {
 		m = ch
 	}
 	return m
+}
+
+// used as reference in benchmark
+func decompose(ab rune) (a, b rune, ok bool) {
+	if a, b, ok = decomposeHangul(ab); ok {
+		return a, b, true
+	}
+
+	// Check if it's a single-character decomposition.
+	if m1, ok := decompose1[ab]; ok {
+		return m1, 0, true
+	}
+	if m2, ok := decompose2[ab]; ok {
+		return m2[0], m2[1], true
+	}
+	return ab, 0, false
+}
+
+// used as reference in benchmark
+func compose_(a, b rune) (rune, bool) {
+	// Hangul is handled algorithmically.
+	if ab, ok := composeHangul(a, b); ok {
+		return ab, true
+	}
+	u := compose[[2]rune{a, b}]
+	return u, u != 0
 }

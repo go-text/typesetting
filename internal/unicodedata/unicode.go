@@ -3,6 +3,7 @@
 package unicodedata
 
 import (
+	"sort"
 	"unicode"
 
 	"github.com/go-text/typesetting/language"
@@ -129,7 +130,7 @@ func composeHangul(a, b rune) (rune, bool) {
 	return 0, false
 }
 
-// Decompose decompose an input Unicode code point,
+// Decompose decomposes an input Unicode code point,
 // returning the two decomposed code points, if successful.
 // It returns `false` otherwise.
 func Decompose(ab rune) (a, b rune, ok bool) {
@@ -137,14 +138,45 @@ func Decompose(ab rune) (a, b rune, ok bool) {
 		return a, b, true
 	}
 
-	// Check if it's a single-character decomposition.
-	if m1, ok := decompose1[ab]; ok {
-		return m1, 0, true
+	i := int(dmLookup(ab))
+
+	// If no data, there's no decomposition.
+	if i == 0 {
+		return ab, 0, false
 	}
-	if m2, ok := decompose2[ab]; ok {
-		return m2[0], m2[1], true
+	i--
+
+	/* Check if it's a single-character decomposition. */
+	if i < len(dm1P0Map)+len(dm1P2Map) {
+		/* Single-character decompositions currently are only in plane 0 or plane 2. */
+		if i < len(dm1P0Map) {
+			/* Plane 0. */
+			a = rune(dm1P0Map[i])
+		} else {
+			/* Plane 2. */
+			i -= len(dm1P0Map)
+			a = 0x20000 | rune(dm1P2Map[i])
+		}
+		b = 0
+		return a, b, true
 	}
-	return ab, 0, false
+	i -= len(dm1P0Map) + len(dm1P2Map)
+
+	/* Otherwise they are encoded either in a 32bit array or a 64bit array. */
+	if i < len(dm2U32Map) {
+		/* 32bit array. */
+		v := dm2U32Map[i]
+		a = rune(v >> 21)               // HB_CODEPOINT_DECODE3_11_7_14_1(v)
+		b = rune(v>>14)&0x007F | 0x0300 // HB_CODEPOINT_DECODE3_11_7_14_2(v)
+		return a, b, true
+	}
+	i -= len(dm2U32Map)
+
+	/* 64bit array. */
+	v := dm2U64Map[i]
+	a = rune(v >> 42)              // HB_CODEPOINT_DECODE3_1(v)
+	b = rune((v >> 21) & 0x1FFFFF) // HB_CODEPOINT_DECODE3_2(v)
+	return a, b, true
 }
 
 // Compose composes a sequence of two input Unicode code
@@ -155,7 +187,30 @@ func Compose(a, b rune) (rune, bool) {
 	if ab, ok := composeHangul(a, b); ok {
 		return ab, true
 	}
-	u := compose[[2]rune{a, b}]
+	var u rune
+	if (a&0x7FFFF800) == 0x0000 && (b&0x7FFFFF80) == 0x0300 {
+		// If "a" is small enough and "b" is in the U+0300 range,
+		// the composition data is encoded in a 32bit array sorted by "a,b" pair.
+		k := uint32(((a)&0x07FF)<<21 | (b&0x007F)<<14)                    // HB_CODEPOINT_ENCODE3_11_7_14(a, b, 0)
+		const mask uint32 = (0x1FFFFF&0x07FF)<<21 | (0x1FFFFF&0x007F)<<14 // HB_CODEPOINT_ENCODE3_11_7_14(0x1FFFFFu, 0x1FFFFFu, 0)
+		i := sort.Search(len(dm2U32Map), func(i int) bool { return dm2U32Map[i]&mask >= k })
+		if !(i < len(dm2U32Map) && dm2U32Map[i]&mask == k) {
+			return 0, false
+		}
+		v := dm2U32Map[i]
+		u = rune(v & 0x3FFF) // HB_CODEPOINT_DECODE3_11_7_14_3(v)
+	} else {
+		// Otherwise it is stored in a 64bit array sorted by "a,b" pair.
+		k := uint64(a)<<42 | uint64(b)<<21                       // HB_CODEPOINT_ENCODE3(a, b, 0)
+		const mask = uint64(0x1FFFFF)<<42 | uint64(0x1FFFFF)<<21 // HB_CODEPOINT_ENCODE3(0x1FFFFFu, 0x1FFFFFu, 0);
+		i := sort.Search(len(dm2U64Map), func(i int) bool { return dm2U64Map[i]&mask >= k })
+		if !(i < len(dm2U64Map) && dm2U64Map[i]&mask == k) {
+			return 0, false
+		}
+		v := dm2U64Map[i]
+		u = rune(v & 0x1FFFFF) // HB_CODEPOINT_DECODE3_3(v)
+	}
+
 	return u, u != 0
 }
 
