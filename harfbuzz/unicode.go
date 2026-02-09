@@ -1,8 +1,6 @@
 package harfbuzz
 
 import (
-	"unicode"
-
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
@@ -282,9 +280,7 @@ func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
 // a specified Unicode code point, expressed as enumeration value.
 func (unicodeFuncs) generalCategory(ch rune) generalCategory { return ucd.LookupType(ch) }
 
-func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
-	return unicode.Is(ucd.Extended_Pictographic, ch)
-}
+func (unicodeFuncs) isExtendedPictographic(ch rune) bool { return ucd.IsExtendedPictographic(ch) }
 
 // returns the mirroring Glyph code point (for bi-directional
 // replacement) of a code point, or itself
