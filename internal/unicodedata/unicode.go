@@ -220,22 +220,6 @@ func Compose(a, b rune) (rune, bool) {
 	return u, u != 0
 }
 
-// ArabicJoining is a property used to shape Arabic runes.
-// See the table ArabicJoinings.
-type ArabicJoining byte
-
-const (
-	U          ArabicJoining = 'U' // Un-joining, e.g. Full Stop
-	R          ArabicJoining = 'R' // Right-joining, e.g. Arabic Letter Dal
-	Alaph      ArabicJoining = 'a' // Alaph group (included in kind R)
-	DalathRish ArabicJoining = 'd' // Dalat Rish group (included in kind R)
-	D          ArabicJoining = 'D' // Dual-joining, e.g. Arabic Letter Ain
-	C          ArabicJoining = 'C' // Join-Causing, e.g. Tatweel, ZWJ
-	L          ArabicJoining = 'L' // Left-joining, i.e. fictional
-	T          ArabicJoining = 'T' // Transparent, e.g. Arabic Fatha
-	G          ArabicJoining = 'G' // Ignored, e.g. LRE, RLE, ZWNBSP
-)
-
 // LookupVerticalOrientation returns the prefered orientation
 // for the given script.
 func LookupVerticalOrientation(s language.Script) ScriptVerticalOrientation {
