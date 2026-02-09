@@ -244,24 +244,21 @@ func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 	return !sv.isMainSideways
 }
 
+// IndicConjunctBreak is the Indic_Conjunct_Break property used for UAX29, rule GB9c.
 type IndicConjunctBreak uint8
 
 const (
-	InCBConsonant IndicConjunctBreak = 1 << iota
+	InCBLinker IndicConjunctBreak = 1 << iota
+	InCBConsonant
 	InCBExtend
-	InCBLinker
 )
 
 // LookupIndicConjunctBreak return the value of the Indic_Conjunct_Break,
 // or zero.
 func LookupIndicConjunctBreak(r rune) IndicConjunctBreak {
-	if unicode.Is(indicCBLinker, r) {
-		return InCBLinker
-	} else if unicode.Is(indicCBConsonant, r) {
-		return InCBConsonant
-	} else if unicode.Is(indicCBExtend, r) {
-		return InCBExtend
-	} else {
+	i := indicCBLookup(r)
+	if i == 0 {
 		return 0
 	}
+	return 1 << (i - 1)
 }
