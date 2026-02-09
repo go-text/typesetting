@@ -46,11 +46,11 @@ const (
 func (cr *cursor) ruleLB30(breakOp *breakOpportunity) {
 	// (AL | HL | NU) × [OP-[\p{ea=F}\p{ea=W}\p{ea=H}]]
 	if (cr.prevLine == ucd.BreakAL || cr.prevLine == ucd.BreakHL || cr.prevLine == ucd.BreakNU) &&
-		cr.line == ucd.BreakOP && !unicode.Is(ucd.LargeEastAsian, cr.r) {
+		cr.line == ucd.BreakOP && !ucd.IsLargeEastAsian(cr.r) {
 		*breakOp = breakProhibited
 	}
 	// [CP-[\p{ea=F}\p{ea=W}\p{ea=H}]] × (AL | HL | NU)
-	if cr.prevLine == ucd.BreakCP && !unicode.Is(ucd.LargeEastAsian, cr.prev) &&
+	if cr.prevLine == ucd.BreakCP && !ucd.IsLargeEastAsian(cr.prev) &&
 		(cr.line == ucd.BreakAL || cr.line == ucd.BreakHL || cr.line == ucd.BreakNU) {
 		*breakOp = breakProhibited
 	}
@@ -228,10 +228,10 @@ func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
 	// × QU ( [^$EastAsian] | eot )
 	// QU × [^$EastAsian]
 	// ( sot | [^$EastAsian] ) QU ×
-	if (br1 == ucd.BreakQU && !unicode.Is(ucd.LargeEastAsian, cr.prev)) ||
-		(br1 == ucd.BreakQU && (cr.index == cr.len-1 || !unicode.Is(ucd.LargeEastAsian, cr.next))) ||
-		(br0 == ucd.BreakQU && !unicode.Is(ucd.LargeEastAsian, cr.r)) ||
-		((cr.isPreviousSot || !unicode.Is(ucd.LargeEastAsian, cr.prevPrev)) && br0 == ucd.BreakQU) {
+	if (br1 == ucd.BreakQU && !ucd.IsLargeEastAsian(cr.prev)) ||
+		(br1 == ucd.BreakQU && (cr.index == cr.len-1 || !ucd.IsLargeEastAsian(cr.next))) ||
+		(br0 == ucd.BreakQU && !ucd.IsLargeEastAsian(cr.r)) ||
+		((cr.isPreviousSot || !ucd.IsLargeEastAsian(cr.prevPrev)) && br0 == ucd.BreakQU) {
 		*breakOp = breakProhibited
 	}
 

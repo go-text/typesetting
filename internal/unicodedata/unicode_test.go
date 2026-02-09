@@ -746,6 +746,139 @@ func TestIsExtendedPictographic(t *testing.T) {
 	}
 }
 
+var eastAsianWidthTests = []struct {
+	r  rune
+	is bool
+}{
+	{0x32, false},
+	{0x20a8, false},
+	{0xfe53, false},
+	{0x1100, true},
+	{0x20a9, true},
+	{0x231b, true},
+	{0x232a, true},
+	{0x23ea, true},
+	{0x23f0, true},
+	{0x25fd, true},
+	{0x2614, true},
+	{0x2630, true},
+	{0x2648, true},
+	{0x267f, true},
+	{0x268b, true},
+	{0x2693, true},
+	{0x26aa, true},
+	{0x26bd, true},
+	{0x26c4, true},
+	{0x26ce, true},
+	{0x26ea, true},
+	{0x26f3, true},
+	{0x26fa, true},
+	{0x2705, true},
+	{0x270b, true},
+	{0x274c, true},
+	{0x2753, true},
+	{0x2757, true},
+	{0x2796, true},
+	{0x27b0, true},
+	{0x2b1b, true},
+	{0x2b50, true},
+	{0x2e80, true},
+	{0x2e9b, true},
+	{0x2f00, true},
+	{0x2ff0, true},
+	{0x3041, true},
+	{0x3099, true},
+	{0x3105, true},
+	{0x3131, true},
+	{0x3190, true},
+	{0x31ef, true},
+	{0x3220, true},
+	{0x3250, true},
+	{0xa490, true},
+	{0xa960, true},
+	{0xac00, true},
+	{0xf900, true},
+	{0xfe10, true},
+	{0xfe30, true},
+	{0xfe54, true},
+	{0xfe68, true},
+	{0xff01, true},
+	{0xffc2, true},
+	{0xffca, true},
+	{0xffd2, true},
+	{0xffda, true},
+	{0xffe0, true},
+	{0xffe8, true},
+	{0x16fe0, true},
+	{0x16ff0, true},
+	{0x17000, true},
+	{0x18cff, true},
+	{0x18d80, true},
+	{0x1aff0, true},
+	{0x1aff5, true},
+	{0x1affd, true},
+	{0x1b000, true},
+	{0x1b132, true},
+	{0x1b151, true},
+	{0x1b155, true},
+	{0x1b165, true},
+	{0x1b170, true},
+	{0x1d300, true},
+	{0x1d360, true},
+	{0x1f004, true},
+	{0x1f18e, true},
+	{0x1f192, true},
+	{0x1f200, true},
+	{0x1f210, true},
+	{0x1f240, true},
+	{0x1f250, true},
+	{0x1f260, true},
+	{0x1f300, true},
+	{0x1f32d, true},
+	{0x1f337, true},
+	{0x1f37e, true},
+	{0x1f3a0, true},
+	{0x1f3cf, true},
+	{0x1f3e0, true},
+	{0x1f3f4, true},
+	{0x1f3f9, true},
+	{0x1f440, true},
+	{0x1f443, true},
+	{0x1f4ff, true},
+	{0x1f54b, true},
+	{0x1f550, true},
+	{0x1f57a, true},
+	{0x1f596, true},
+	{0x1f5fb, true},
+	{0x1f680, true},
+	{0x1f6cc, true},
+	{0x1f6d1, true},
+	{0x1f6d5, true},
+	{0x1f6dc, true},
+	{0x1f6eb, true},
+	{0x1f6f4, true},
+	{0x1f7e0, true},
+	{0x1f7f0, true},
+	{0x1f90d, true},
+	{0x1f93c, true},
+	{0x1f947, true},
+	{0x1fa70, true},
+	{0x1fa80, true},
+	{0x1fa8e, true},
+	{0x1fac8, true},
+	{0x1face, true},
+	{0x1fadf, true},
+	{0x1faef, true},
+	{0x20000, true},
+	{0x30000, true},
+}
+
+func TestIsLargeAsianWidth(t *testing.T) {
+	for _, test := range eastAsianWidthTests {
+		tu.Assert(t, IsLargeEastAsian(test.r) == test.is)
+	}
+}
+
 func TestLookupLineBreakClass(t *testing.T) {
 	// See https://www.unicode.org/reports/tr14/#DescriptionOfProperties
 	tests := []struct {
@@ -1344,6 +1477,21 @@ func BenchmarkLookups(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range extendedPictoTests {
 				_ = IsExtendedPictographic(test.r)
+			}
+		}
+	})
+
+	b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range eastAsianWidthTests {
+				_ = unicode.Is(LargeEastAsian, test.r)
+			}
+		}
+	})
+	b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range eastAsianWidthTests {
+				_ = IsLargeEastAsian(test.r)
 			}
 		}
 	})

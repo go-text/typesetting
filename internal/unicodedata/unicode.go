@@ -91,6 +91,10 @@ func LookupMirrorChar(ch rune) rune {
 
 func IsExtendedPictographic(ch rune) bool { return emojiLookup(ch) == 1 }
 
+// IsLargeEastAsian matches runes with East_Asian_Width property of
+// F, W or H, and is used for UAX14, rule LB30.
+func IsLargeEastAsian(ch rune) bool { return eastAsianWidthLookup(ch) == 1 }
+
 // Algorithmic hangul syllables [de]composition, used
 // in Compose and Decompose, but also exported for additional shaper
 // processing.
