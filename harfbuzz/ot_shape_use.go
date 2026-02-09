@@ -135,7 +135,7 @@ func (cs *complexShaperUSE) setupMasks(plan *otShapePlan, buffer *Buffer, _ *Fon
 
 	info := buffer.Info
 	for i := range info {
-		info[i].complexCategory = getUSECategory(info[i].codepoint)
+		info[i].complexCategory = useLookup(info[i].codepoint)
 	}
 }
 
