@@ -681,6 +681,336 @@ func TestIsExtendedPictographic(t *testing.T) {
 	}
 }
 
+var eastAsianWidthTests = []struct {
+	r  rune
+	is bool
+}{
+	{0x32, false},
+	{0x20a8, false},
+	{0xfe53, false},
+	{0x1100, true},
+	{0x20a9, true},
+	{0x231b, true},
+	{0x232a, true},
+	{0x23ea, true},
+	{0x23f0, true},
+	{0x25fd, true},
+	{0x2614, true},
+	{0x2630, true},
+	{0x2648, true},
+	{0x267f, true},
+	{0x268b, true},
+	{0x2693, true},
+	{0x26aa, true},
+	{0x26bd, true},
+	{0x26c4, true},
+	{0x26ce, true},
+	{0x26ea, true},
+	{0x26f3, true},
+	{0x26fa, true},
+	{0x2705, true},
+	{0x270b, true},
+	{0x274c, true},
+	{0x2753, true},
+	{0x2757, true},
+	{0x2796, true},
+	{0x27b0, true},
+	{0x2b1b, true},
+	{0x2b50, true},
+	{0x2e80, true},
+	{0x2e9b, true},
+	{0x2f00, true},
+	{0x2ff0, true},
+	{0x3041, true},
+	{0x3099, true},
+	{0x3105, true},
+	{0x3131, true},
+	{0x3190, true},
+	{0x31ef, true},
+	{0x3220, true},
+	{0x3250, true},
+	{0xa490, true},
+	{0xa960, true},
+	{0xac00, true},
+	{0xf900, true},
+	{0xfe10, true},
+	{0xfe30, true},
+	{0xfe54, true},
+	{0xfe68, true},
+	{0xff01, true},
+	{0xffc2, true},
+	{0xffca, true},
+	{0xffd2, true},
+	{0xffda, true},
+	{0xffe0, true},
+	{0xffe8, true},
+	{0x16fe0, true},
+	{0x16ff0, true},
+	{0x17000, true},
+	{0x18cff, true},
+	{0x18d80, true},
+	{0x1aff0, true},
+	{0x1aff5, true},
+	{0x1affd, true},
+	{0x1b000, true},
+	{0x1b132, true},
+	{0x1b151, true},
+	{0x1b155, true},
+	{0x1b165, true},
+	{0x1b170, true},
+	{0x1d300, true},
+	{0x1d360, true},
+	{0x1f004, true},
+	{0x1f18e, true},
+	{0x1f192, true},
+	{0x1f200, true},
+	{0x1f210, true},
+	{0x1f240, true},
+	{0x1f250, true},
+	{0x1f260, true},
+	{0x1f300, true},
+	{0x1f32d, true},
+	{0x1f337, true},
+	{0x1f37e, true},
+	{0x1f3a0, true},
+	{0x1f3cf, true},
+	{0x1f3e0, true},
+	{0x1f3f4, true},
+	{0x1f3f9, true},
+	{0x1f440, true},
+	{0x1f443, true},
+	{0x1f4ff, true},
+	{0x1f54b, true},
+	{0x1f550, true},
+	{0x1f57a, true},
+	{0x1f596, true},
+	{0x1f5fb, true},
+	{0x1f680, true},
+	{0x1f6cc, true},
+	{0x1f6d1, true},
+	{0x1f6d5, true},
+	{0x1f6dc, true},
+	{0x1f6eb, true},
+	{0x1f6f4, true},
+	{0x1f7e0, true},
+	{0x1f7f0, true},
+	{0x1f90d, true},
+	{0x1f93c, true},
+	{0x1f947, true},
+	{0x1fa70, true},
+	{0x1fa80, true},
+	{0x1fa8e, true},
+	{0x1fac8, true},
+	{0x1face, true},
+	{0x1fadf, true},
+	{0x1faef, true},
+	{0x20000, true},
+	{0x30000, true},
+}
+
+func TestIsLargeAsianWidth(t *testing.T) {
+	for _, test := range eastAsianWidthTests {
+		tu.Assert(t, IsLargeEastAsian(test.r) == test.is)
+	}
+}
+
+var indicConjunctBreakTests = []struct {
+	r     rune
+	class IndicConjunctBreak
+}{
+	{-1, 0},
+	{1, 0},
+	{'a', 0},
+	{'9', 0},
+	{0x100, 0},
+	{0x1a60, ICBLinker},
+	{0x1bab, ICBLinker},
+	{0xaaf6, ICBLinker},
+	{0x10a3f, ICBLinker},
+	{0xaae1, ICBConsonant},
+	{0xabc0, ICBConsonant},
+	{0x10a00, ICBConsonant},
+	{0x10a11, ICBConsonant},
+	{0x10a15, ICBConsonant},
+	{0x10a19, ICBConsonant},
+	{0xfe01, ICBExtend},
+	{0xfe20, ICBExtend},
+	{0xff9e, ICBExtend},
+	{0x101fd, ICBExtend},
+	{0x10376, ICBExtend},
+	{0x10a01, ICBExtend},
+	{0x10a05, ICBExtend},
+	{0x10a0c, ICBExtend},
+	{0x10a38, ICBExtend},
+
+	{0x1a50, 0b10},
+	{0x1a51, 0b10},
+	{0x1a52, 0b10},
+	{0x1a53, 0b10},
+	{0x1a54, 0b10},
+	{0x1a55, 0b0},
+	{0x1a56, 0b100},
+	{0x1a57, 0b0},
+	{0x1a58, 0b100},
+	{0x1a59, 0b100},
+	{0x1a5a, 0b100},
+	{0x1a5b, 0b100},
+	{0x1a5c, 0b100},
+	{0x1a5d, 0b100},
+	{0x1a5e, 0b100},
+	{0x1a5f, 0b0},
+	{0x1a60, 0b1},
+	{0x1a61, 0b0},
+	{0x1a62, 0b100},
+	{0x1a63, 0b0},
+	{0x1a64, 0b0},
+	{0x1a65, 0b100},
+	{0x1a66, 0b100},
+	{0x1a67, 0b100},
+	{0x1a68, 0b100},
+	{0x1a69, 0b100},
+	{0x1a6a, 0b100},
+	{0x1a6b, 0b100},
+	{0x1a6c, 0b100},
+	{0x1a6d, 0b0},
+	{0x1a6e, 0b0},
+	{0x1a6f, 0b0},
+	{0x1a70, 0b0},
+	{0x1a71, 0b0},
+	{0x1a72, 0b0},
+	{0x1a73, 0b100},
+	{0x1a74, 0b100},
+	{0x1a75, 0b100},
+	{0x1a76, 0b100},
+	{0x1a77, 0b100},
+	{0x1a78, 0b100},
+	{0x1a79, 0b100},
+	{0x1a7a, 0b100},
+	{0x1a7b, 0b100},
+	{0x1a7c, 0b100},
+	{0x1a7d, 0b0},
+	{0x1a7e, 0b0},
+	{0x1a7f, 0b100},
+	{0x1a80, 0b0},
+	{0x1a81, 0b0},
+	{0x1a82, 0b0},
+	{0x1a83, 0b0},
+	{0x1a84, 0b0},
+	{0x1a85, 0b0},
+	{0x1a86, 0b0},
+	{0x1a87, 0b0},
+	{0x1a88, 0b0},
+	{0x1a89, 0b0},
+	{0x1a8a, 0b0},
+	{0x1a8b, 0b0},
+	{0x1a8c, 0b0},
+	{0x1a8d, 0b0},
+	{0x1a8e, 0b0},
+	{0x1a8f, 0b0},
+	{0x1a90, 0b0},
+	{0x1a91, 0b0},
+	{0x1a92, 0b0},
+	{0x1a93, 0b0},
+	{0x1a94, 0b0},
+	{0x1a95, 0b0},
+	{0x1a96, 0b0},
+	{0x1a97, 0b0},
+	{0x1a98, 0b0},
+	{0x1a99, 0b0},
+	{0x1a9a, 0b0},
+	{0x1a9b, 0b0},
+	{0x1a9c, 0b0},
+	{0x1a9d, 0b0},
+	{0x1a9e, 0b0},
+	{0x1a9f, 0b0},
+	{0x1aa0, 0b0},
+	{0x1aa1, 0b0},
+	{0x1aa2, 0b0},
+	{0x1aa3, 0b0},
+	{0x1aa4, 0b0},
+	{0x1aa5, 0b0},
+	{0x1aa6, 0b0},
+	{0x1aa7, 0b0},
+	{0x1aa8, 0b0},
+	{0x1aa9, 0b0},
+	{0x1aaa, 0b0},
+	{0x1aab, 0b0},
+	{0x1aac, 0b0},
+	{0x1aad, 0b0},
+	{0x1aae, 0b0},
+	{0x1aaf, 0b0},
+	{0x1ab0, 0b100},
+	{0x1ab1, 0b100},
+	{0x1ab2, 0b100},
+	{0x1ab3, 0b100},
+	{0x1ab4, 0b100},
+	{0x1ab5, 0b100},
+	{0x1ab6, 0b100},
+	{0x1ab7, 0b100},
+	{0x1ab8, 0b100},
+	{0x1ab9, 0b100},
+	{0x1aba, 0b100},
+	{0x1abb, 0b100},
+	{0x1abc, 0b100},
+	{0x1abd, 0b100},
+	{0x1abe, 0b100},
+	{0x1abf, 0b100},
+	{0x1ac0, 0b100},
+	{0x1ac1, 0b100},
+	{0x1ac2, 0b100},
+	{0x1ac3, 0b100},
+	{0x1ac4, 0b100},
+	{0x1ac5, 0b100},
+	{0x1ac6, 0b100},
+	{0x1ac7, 0b100},
+	{0x1ac8, 0b100},
+	{0x1ac9, 0b100},
+	{0x1aca, 0b100},
+	{0x1acb, 0b100},
+	{0x1acc, 0b100},
+	{0x1acd, 0b100},
+	{0x1ace, 0b100},
+	{0x1acf, 0b100},
+	{0x1ad0, 0b100},
+	{0x1ad1, 0b100},
+	{0x1ad2, 0b100},
+	{0x1ad3, 0b100},
+	{0x1ad4, 0b100},
+	{0x1ad5, 0b100},
+	{0x1ad6, 0b100},
+	{0x1ad7, 0b100},
+	{0x1ad8, 0b100},
+	{0x1ad9, 0b100},
+	{0x1ada, 0b100},
+	{0x1adb, 0b100},
+	{0x1adc, 0b100},
+	{0x1add, 0b100},
+	{0x1ade, 0b0},
+	{0x1adf, 0b0},
+	{0x1ae0, 0b100},
+	{0x1ae1, 0b100},
+	{0x1ae2, 0b100},
+	{0x1ae3, 0b100},
+	{0x1ae4, 0b100},
+	{0x1ae5, 0b100},
+	{0x1ae6, 0b100},
+	{0x1ae7, 0b100},
+	{0x1ae8, 0b100},
+	{0x1ae9, 0b100},
+	{0x1aea, 0b100},
+	{0x1aeb, 0b100},
+	{0x1aec, 0b0},
+	{0x1aed, 0b0},
+	{0x1aee, 0b0},
+	{0x1aef, 0b0},
+}
+
+func TestIndicConjunctBreak(t *testing.T) {
+	for _, test := range indicConjunctBreakTests {
+		tu.Assert(t, LookupIndicConjunctBreak(test.r) == test.class)
+	}
+}
+
 func TestLookupLineBreakClass(t *testing.T) {
 	// See https://www.unicode.org/reports/tr14/#DescriptionOfProperties
 	tests := []struct {
@@ -1282,6 +1612,36 @@ func BenchmarkLookups(b *testing.B) {
 			}
 		}
 	})
+
+	b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range eastAsianWidthTests {
+				_ = unicode.Is(LargeEastAsian, test.r)
+			}
+		}
+	})
+	b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range eastAsianWidthTests {
+				_ = IsLargeEastAsian(test.r)
+			}
+		}
+	})
+
+	b.Run("IndicConjunctBreak unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = lookupIndicConjunctBreak(test.r)
+			}
+		}
+	})
+	b.Run("IndicConjunctBreak packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = LookupIndicConjunctBreak(test.r)
+			}
+		}
+	})
 }
 
 var allCategories = [...]*unicode.RangeTable{
@@ -1373,4 +1733,17 @@ func compose_(a, b rune) (rune, bool) {
 	}
 	u := compose[[2]rune{a, b}]
 	return u, u != 0
+}
+
+// used as reference in benchmark
+func lookupIndicConjunctBreak(r rune) IndicConjunctBreak {
+	if unicode.Is(indicCBLinker, r) {
+		return InCBLinker
+	} else if unicode.Is(indicCBConsonant, r) {
+		return InCBConsonant
+	} else if unicode.Is(indicCBExtend, r) {
+		return InCBExtend
+	} else {
+		return 0
+	}
 }
