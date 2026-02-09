@@ -89,6 +89,8 @@ func LookupMirrorChar(ch rune) rune {
 	return ch + rune(mirLookup(ch))
 }
 
+func IsExtendedPictographic(ch rune) bool { return emojiLookup(ch) == 1 }
+
 // Algorithmic hangul syllables [de]composition, used
 // in Compose and Decompose, but also exported for additional shaper
 // processing.

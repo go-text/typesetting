@@ -441,7 +441,7 @@ func (cr *cursor) startIteration(text []rune, i int) {
 
 	// query general unicode properties for the current rune
 
-	cr.isExtentedPic = unicode.Is(ucd.Extended_Pictographic, cr.r)
+	cr.isExtentedPic = ucd.IsExtendedPictographic(cr.r)
 	cr.indicConjunctBreak = ucd.LookupIndicConjunctBreak(cr.r)
 
 	cr.prevGrapheme = cr.grapheme
