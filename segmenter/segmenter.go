@@ -13,8 +13,6 @@
 package segmenter
 
 import (
-	"unicode"
-
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
@@ -42,10 +40,6 @@ const (
 )
 
 const paragraphSeparator rune = 0x2029
-
-// lineBreakClass stores the Line Break Property
-// See https://unicode.org/reports/tr14/#Properties
-type lineBreakClass = *unicode.RangeTable
 
 // cursor holds the information for the current index
 // processed by `computeAttributes`, that is
@@ -83,12 +77,12 @@ type cursor struct {
 	// see [updateWordRIOdd]
 	isPrevWordRIOdd bool
 
-	prevPrevLine           lineBreakClass // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
-	prevLine               lineBreakClass // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
-	line                   lineBreakClass // the Line Break Class at index i
-	nextLine               lineBreakClass // the Line Break Class at index i+1
-	isPrevPrevDottedCircle bool           // following LB9 and LB10
-	isPrevDottedCircle     bool           // following LB9 and LB10
+	prevPrevLine           ucd.LineBreak // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
+	prevLine               ucd.LineBreak // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
+	line                   ucd.LineBreak // the Line Break Class at index i
+	nextLine               ucd.LineBreak // the Line Break Class at index i+1
+	isPrevPrevDottedCircle bool          // following LB9 and LB10
+	isPrevDottedCircle     bool          // following LB9 and LB10
 
 	isPrevNonAssignedExtendedPic bool // following LB9 and LB10
 
@@ -122,15 +116,13 @@ type cursor struct {
 func newCursor(text []rune) *cursor {
 	cr := cursor{
 		len:              len(text),
-		prevPrevLine:     ucd.BreakXX,
 		prevWordNoExtend: -1,
 	}
 
 	// `startIteration` set `breakCl` from `nextBreakCl`
 	// so we need to init this field before the first iteration
-	cr.nextLine = ucd.BreakXX
 	if len(text) != 0 {
-		cr.nextLine = ucd.LookupLineBreakClass(text[0])
+		cr.nextLine = ucd.LookupLineBreak(text[0])
 	}
 	return &cr
 }

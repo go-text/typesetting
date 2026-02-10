@@ -36,14 +36,19 @@ func (gc GeneralCategory) IsLetter() bool {
 // see DerivedCombiningClass.txt and Canonical Combining Class Values."
 func LookupCombiningClass(ch rune) uint8 { return cccLookup(ch) }
 
-// LookupLineBreakClass returns the break class for the rune (see the constants BreakXXX)
-func LookupLineBreakClass(ch rune) *unicode.RangeTable {
-	for _, class := range lineBreaks {
-		if unicode.Is(class, ch) {
-			return class
-		}
+// LineBreak is a flag storing the Unicode Line Break Property.
+//
+// See https://unicode.org/reports/tr14/#Properties
+type LineBreak uint64
+
+// LookupLineBreak returns the break class for the rune,
+// or 0 (the XX, Unknown class)
+func LookupLineBreak(ch rune) LineBreak {
+	i := lbLookup(ch)
+	if i == 0 {
+		return 0
 	}
-	return BreakXX
+	return 1 << (i - 1)
 }
 
 // GraphemeBreak is a flag storing the Unicode Grapheme Cluster Break Property.
