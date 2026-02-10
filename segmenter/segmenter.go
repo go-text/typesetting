@@ -113,7 +113,7 @@ type cursor struct {
 
 // initialise the cursor properties
 // some of them are set in [startIteration]
-func newCursor(text []rune) *cursor {
+func newCursor(text []rune) cursor {
 	cr := cursor{
 		len:              len(text),
 		prevWordNoExtend: -1,
@@ -124,7 +124,7 @@ func newCursor(text []rune) *cursor {
 	if len(text) != 0 {
 		cr.nextLine = ucd.LookupLineBreak(text[0])
 	}
-	return &cr
+	return cr
 }
 
 // computeBreakAttributes does the heavy lifting of text segmentation,
