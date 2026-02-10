@@ -445,7 +445,7 @@ func (cr *cursor) startIteration(text []rune, i int) {
 	cr.indicConjunctBreak = ucd.LookupIndicConjunctBreak(cr.r)
 
 	cr.prevGrapheme = cr.grapheme
-	cr.grapheme = ucd.LookupGraphemeBreakClass(cr.r)
+	cr.grapheme = ucd.LookupGraphemeBreak(cr.r)
 
 	if cr.word != ucd.WordBreakExtendFormat {
 		cr.prevPrevWord = cr.prevWord

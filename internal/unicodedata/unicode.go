@@ -46,20 +46,19 @@ func LookupLineBreakClass(ch rune) *unicode.RangeTable {
 	return BreakXX
 }
 
-// LookupGraphemeBreakClass returns the grapheme break property for the rune (see the constants GraphemeBreakXXX),
-// or nil
-func LookupGraphemeBreakClass(ch rune) *unicode.RangeTable {
-	// a lot of runes do not have a grapheme break property :
-	// avoid testing all the graphemeBreaks classes for them
-	if !unicode.Is(graphemeBreakAll, ch) {
-		return nil
+// GraphemeBreak stores the Unicode Grapheme Cluster Break Property.
+//
+// See https://unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
+type GraphemeBreak uint16
+
+// LookupGraphemeBreak returns the grapheme break property for the rune,
+// or 0
+func LookupGraphemeBreak(ch rune) GraphemeBreak {
+	i := gbLookup(ch)
+	if i == 0 {
+		return 0
 	}
-	for _, class := range graphemeBreaks {
-		if unicode.Is(class, ch) {
-			return class
-		}
-	}
-	return nil
+	return 1 << (i - 1)
 }
 
 // LookupordBreakClass returns the word break property for the rune (see the constants ordBreakXXX),
@@ -246,12 +245,6 @@ func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 
 // IndicConjunctBreak is the Indic_Conjunct_Break property used for UAX29, rule GB9c.
 type IndicConjunctBreak uint8
-
-const (
-	InCBLinker IndicConjunctBreak = 1 << iota
-	InCBConsonant
-	InCBExtend
-)
 
 // LookupIndicConjunctBreak return the value of the Indic_Conjunct_Break,
 // or zero.

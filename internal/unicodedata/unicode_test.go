@@ -1457,57 +1457,58 @@ func TestLookupLineBreakClass(t *testing.T) {
 	}
 }
 
-func TestLookupGraphemeBreakClass(t *testing.T) {
-	// See https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
-	tests := []struct {
-		args rune
-		want *unicode.RangeTable
-	}{
-		{-1, nil},
-		{'a', nil},
-		// CR
-		{'\u000D', GraphemeBreakCR}, // CARRIAGE RETURN (CR)
-		// LF
-		{'\u000A', GraphemeBreakLF}, // LINE FEED (LF)
-		// Extend
-		{'\u200C', GraphemeBreakExtend}, // ZERO WIDTH NON-JOINER
-		// ZWJ
-		{'\u200D', GraphemeBreakZWJ}, // ZERO WIDTH JOINER
-		// RI
-		{'\U0001F1E6', GraphemeBreakRegional_Indicator}, // REGIONAL INDICATOR SYMBOL LETTER A
-		// SpacingMark
-		{'\u0E33', GraphemeBreakSpacingMark}, // ( ำ ) THAI CHARACTER SARA AM
-		{'\u0EB3', GraphemeBreakSpacingMark}, // ( ຳ ) LAO VOWEL SIGN AM
+// See https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
+var graphemeBreakTests = []struct {
+	args rune
+	want GraphemeBreak
+}{
+	{-1, 0},
+	{'a', 0},
+	// CR
+	{'\u000D', GB_CR}, // CARRIAGE RETURN (CR)
+	// Control
+	{0xe01f0, GB_Control},
+	// Extend
+	{'\u200C', GB_Extend}, // ZERO WIDTH NON-JOINER
+	// LF
+	{'\u000A', GB_LF}, // LINE FEED (LF)
+	// ZWJ
+	{'\u200D', GB_ZWJ}, // ZERO WIDTH JOINER
+	// RI
+	{'\U0001F1E6', GB_Regional_Indicator}, // REGIONAL INDICATOR SYMBOL LETTER A
+	// SpacingMark
+	{'\u0E33', GB_SpacingMark}, // ( ำ ) THAI CHARACTER SARA AM
+	{'\u0EB3', GB_SpacingMark}, // ( ຳ ) LAO VOWEL SIGN AM
 
-		// L
-		{'\u1100', GraphemeBreakL}, // ( ᄀ ) HANGUL CHOSEONG KIYEOK
-		{'\u115F', GraphemeBreakL}, // ( ᅟ ) HANGUL CHOSEONG FILLER
-		{'\uA960', GraphemeBreakL}, // ( ꥠ ) HANGUL CHOSEONG TIKEUT-MIEUM
-		{'\uA97C', GraphemeBreakL}, // ( ꥼ ) HANGUL CHOSEONG SSANGYEORINHIEUH
-		// V
-		{'\u1160', GraphemeBreakV}, // ( ᅠ ) HANGUL JUNGSEONG FILLER
-		{'\u11A2', GraphemeBreakV}, // ( ᆢ ) HANGUL JUNGSEONG SSANGARAEA
-		{'\uD7B0', GraphemeBreakV}, // ( ힰ ) HANGUL JUNGSEONG O-YEO
-		{'\uD7C6', GraphemeBreakV}, // ( ퟆ ) HANGUL JUNGSEONG ARAEA-E
-		// T
-		{'\u11A8', GraphemeBreakT}, // ( ᆨ ) HANGUL JONGSEONG KIYEOK
-		{'\u11F9', GraphemeBreakT}, // ( ᇹ ) HANGUL JONGSEONG YEORINHIEUH
-		{'\uD7CB', GraphemeBreakT}, // ( ퟋ ) HANGUL JONGSEONG NIEUN-RIEUL
-		{'\uD7FB', GraphemeBreakT}, // ( ퟻ ) HANGUL JONGSEONG PHIEUPH-THIEUTH
-		// LV
-		{'\uAC00', GraphemeBreakLV}, // ( 가 ) HANGUL SYLLABLE GA
-		{'\uAC1C', GraphemeBreakLV}, // ( 개 ) HANGUL SYLLABLE GAE
-		{'\uAC38', GraphemeBreakLV}, // ( 갸 ) HANGUL SYLLABLE GYA
-		// LVT
-		{'\uAC01', GraphemeBreakLVT}, // ( 각 ) HANGUL SYLLABLE GAG
-		{'\uAC02', GraphemeBreakLVT}, // ( 갂 ) HANGUL SYLLABLE GAGG
-		{'\uAC03', GraphemeBreakLVT}, // ( 갃 ) HANGUL SYLLABLE GAGS
-		{'\uAC04', GraphemeBreakLVT}, // ( 간 ) HANGUL SYLLABLE GAN
-	}
-	for _, tt := range tests {
-		if got := LookupGraphemeBreakClass(tt.args); got != tt.want {
-			t.Errorf("LookupGraphemeBreakClass(%x) = %p, want %p", tt.args, got, tt.want)
-		}
+	// L
+	{'\u1100', GB_L}, // ( ᄀ ) HANGUL CHOSEONG KIYEOK
+	{'\u115F', GB_L}, // ( ᅟ ) HANGUL CHOSEONG FILLER
+	{'\uA960', GB_L}, // ( ꥠ ) HANGUL CHOSEONG TIKEUT-MIEUM
+	{'\uA97C', GB_L}, // ( ꥼ ) HANGUL CHOSEONG SSANGYEORINHIEUH
+	// V
+	{'\u1160', GB_V}, // ( ᅠ ) HANGUL JUNGSEONG FILLER
+	{'\u11A2', GB_V}, // ( ᆢ ) HANGUL JUNGSEONG SSANGARAEA
+	{'\uD7B0', GB_V}, // ( ힰ ) HANGUL JUNGSEONG O-YEO
+	{'\uD7C6', GB_V}, // ( ퟆ ) HANGUL JUNGSEONG ARAEA-E
+	// T
+	{'\u11A8', GB_T}, // ( ᆨ ) HANGUL JONGSEONG KIYEOK
+	{'\u11F9', GB_T}, // ( ᇹ ) HANGUL JONGSEONG YEORINHIEUH
+	{'\uD7CB', GB_T}, // ( ퟋ ) HANGUL JONGSEONG NIEUN-RIEUL
+	{'\uD7FB', GB_T}, // ( ퟻ ) HANGUL JONGSEONG PHIEUPH-THIEUTH
+	// LV
+	{'\uAC00', GB_LV}, // ( 가 ) HANGUL SYLLABLE GA
+	{'\uAC1C', GB_LV}, // ( 개 ) HANGUL SYLLABLE GAE
+	{'\uAC38', GB_LV}, // ( 갸 ) HANGUL SYLLABLE GYA
+	// LVT
+	{'\uAC01', GB_LVT}, // ( 각 ) HANGUL SYLLABLE GAG
+	{'\uAC02', GB_LVT}, // ( 갂 ) HANGUL SYLLABLE GAGG
+	{'\uAC03', GB_LVT}, // ( 갃 ) HANGUL SYLLABLE GAGS
+	{'\uAC04', GB_LVT}, // ( 간 ) HANGUL SYLLABLE GAN
+}
+
+func TestLookupGraphemeBreak(t *testing.T) {
+	for _, tt := range graphemeBreakTests {
+		tu.Assert(t, LookupGraphemeBreak(tt.args) == tt.want)
 	}
 }
 
@@ -1707,6 +1708,21 @@ func BenchmarkLookups(b *testing.B) {
 			}
 		}
 	})
+
+	b.Run("GraphemeBreak unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = lookupGraphemeBreak(test.r)
+			}
+		}
+	})
+	b.Run("GraphemeBreak packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = LookupIndicConjunctBreak(test.r)
+			}
+		}
+	})
 }
 
 var allCategories = [...]*unicode.RangeTable{
@@ -1803,12 +1819,27 @@ func compose_(a, b rune) (rune, bool) {
 // used as reference in benchmark
 func lookupIndicConjunctBreak(r rune) IndicConjunctBreak {
 	if unicode.Is(indicCBLinker, r) {
-		return InCBLinker
+		return ICBLinker
 	} else if unicode.Is(indicCBConsonant, r) {
-		return InCBConsonant
+		return ICBConsonant
 	} else if unicode.Is(indicCBExtend, r) {
-		return InCBExtend
+		return ICBExtend
 	} else {
 		return 0
 	}
+}
+
+// used as reference in benchmark
+func lookupGraphemeBreak(ch rune) *unicode.RangeTable {
+	// a lot of runes do not have a grapheme break property :
+	// avoid testing all the graphemeBreaks classes for them
+	if !unicode.Is(graphemeBreakAll, ch) {
+		return nil
+	}
+	for _, class := range graphemeBreaks {
+		if unicode.Is(class, ch) {
+			return class
+		}
+	}
+	return nil
 }
