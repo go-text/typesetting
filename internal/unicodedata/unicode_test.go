@@ -180,9 +180,9 @@ var generalCategoryTests = []struct {
 	{0x11DE0, Nd},
 }
 
-func TestLookupType(t *testing.T) {
+func TestLookupGeneralCategory(t *testing.T) {
 	for _, tt := range generalCategoryTests {
-		if got := LookupType(tt.args); got != tt.want {
+		if got := LookupGeneralCategory(tt.args); got != tt.want {
 			t.Errorf("LookupType(%s = %0x) = %v, want %v", string(tt.args), tt.args, got, tt.want)
 		}
 	}
@@ -879,203 +879,6 @@ func TestIsLargeAsianWidth(t *testing.T) {
 	}
 }
 
-var indicConjunctBreakTests = []struct {
-	r     rune
-	class IndicConjunctBreak
-}{
-	{-1, 0},
-	{1, 0},
-	{'a', 0},
-	{'9', 0},
-	{0x100, 0},
-	{0x1a60, ICBLinker},
-	{0x1bab, ICBLinker},
-	{0xaaf6, ICBLinker},
-	{0x10a3f, ICBLinker},
-	{0xaae1, ICBConsonant},
-	{0xabc0, ICBConsonant},
-	{0x10a00, ICBConsonant},
-	{0x10a11, ICBConsonant},
-	{0x10a15, ICBConsonant},
-	{0x10a19, ICBConsonant},
-	{0xfe01, ICBExtend},
-	{0xfe20, ICBExtend},
-	{0xff9e, ICBExtend},
-	{0x101fd, ICBExtend},
-	{0x10376, ICBExtend},
-	{0x10a01, ICBExtend},
-	{0x10a05, ICBExtend},
-	{0x10a0c, ICBExtend},
-	{0x10a38, ICBExtend},
-
-	{0x1a50, 0b10},
-	{0x1a51, 0b10},
-	{0x1a52, 0b10},
-	{0x1a53, 0b10},
-	{0x1a54, 0b10},
-	{0x1a55, 0b0},
-	{0x1a56, 0b100},
-	{0x1a57, 0b0},
-	{0x1a58, 0b100},
-	{0x1a59, 0b100},
-	{0x1a5a, 0b100},
-	{0x1a5b, 0b100},
-	{0x1a5c, 0b100},
-	{0x1a5d, 0b100},
-	{0x1a5e, 0b100},
-	{0x1a5f, 0b0},
-	{0x1a60, 0b1},
-	{0x1a61, 0b0},
-	{0x1a62, 0b100},
-	{0x1a63, 0b0},
-	{0x1a64, 0b0},
-	{0x1a65, 0b100},
-	{0x1a66, 0b100},
-	{0x1a67, 0b100},
-	{0x1a68, 0b100},
-	{0x1a69, 0b100},
-	{0x1a6a, 0b100},
-	{0x1a6b, 0b100},
-	{0x1a6c, 0b100},
-	{0x1a6d, 0b0},
-	{0x1a6e, 0b0},
-	{0x1a6f, 0b0},
-	{0x1a70, 0b0},
-	{0x1a71, 0b0},
-	{0x1a72, 0b0},
-	{0x1a73, 0b100},
-	{0x1a74, 0b100},
-	{0x1a75, 0b100},
-	{0x1a76, 0b100},
-	{0x1a77, 0b100},
-	{0x1a78, 0b100},
-	{0x1a79, 0b100},
-	{0x1a7a, 0b100},
-	{0x1a7b, 0b100},
-	{0x1a7c, 0b100},
-	{0x1a7d, 0b0},
-	{0x1a7e, 0b0},
-	{0x1a7f, 0b100},
-	{0x1a80, 0b0},
-	{0x1a81, 0b0},
-	{0x1a82, 0b0},
-	{0x1a83, 0b0},
-	{0x1a84, 0b0},
-	{0x1a85, 0b0},
-	{0x1a86, 0b0},
-	{0x1a87, 0b0},
-	{0x1a88, 0b0},
-	{0x1a89, 0b0},
-	{0x1a8a, 0b0},
-	{0x1a8b, 0b0},
-	{0x1a8c, 0b0},
-	{0x1a8d, 0b0},
-	{0x1a8e, 0b0},
-	{0x1a8f, 0b0},
-	{0x1a90, 0b0},
-	{0x1a91, 0b0},
-	{0x1a92, 0b0},
-	{0x1a93, 0b0},
-	{0x1a94, 0b0},
-	{0x1a95, 0b0},
-	{0x1a96, 0b0},
-	{0x1a97, 0b0},
-	{0x1a98, 0b0},
-	{0x1a99, 0b0},
-	{0x1a9a, 0b0},
-	{0x1a9b, 0b0},
-	{0x1a9c, 0b0},
-	{0x1a9d, 0b0},
-	{0x1a9e, 0b0},
-	{0x1a9f, 0b0},
-	{0x1aa0, 0b0},
-	{0x1aa1, 0b0},
-	{0x1aa2, 0b0},
-	{0x1aa3, 0b0},
-	{0x1aa4, 0b0},
-	{0x1aa5, 0b0},
-	{0x1aa6, 0b0},
-	{0x1aa7, 0b0},
-	{0x1aa8, 0b0},
-	{0x1aa9, 0b0},
-	{0x1aaa, 0b0},
-	{0x1aab, 0b0},
-	{0x1aac, 0b0},
-	{0x1aad, 0b0},
-	{0x1aae, 0b0},
-	{0x1aaf, 0b0},
-	{0x1ab0, 0b100},
-	{0x1ab1, 0b100},
-	{0x1ab2, 0b100},
-	{0x1ab3, 0b100},
-	{0x1ab4, 0b100},
-	{0x1ab5, 0b100},
-	{0x1ab6, 0b100},
-	{0x1ab7, 0b100},
-	{0x1ab8, 0b100},
-	{0x1ab9, 0b100},
-	{0x1aba, 0b100},
-	{0x1abb, 0b100},
-	{0x1abc, 0b100},
-	{0x1abd, 0b100},
-	{0x1abe, 0b100},
-	{0x1abf, 0b100},
-	{0x1ac0, 0b100},
-	{0x1ac1, 0b100},
-	{0x1ac2, 0b100},
-	{0x1ac3, 0b100},
-	{0x1ac4, 0b100},
-	{0x1ac5, 0b100},
-	{0x1ac6, 0b100},
-	{0x1ac7, 0b100},
-	{0x1ac8, 0b100},
-	{0x1ac9, 0b100},
-	{0x1aca, 0b100},
-	{0x1acb, 0b100},
-	{0x1acc, 0b100},
-	{0x1acd, 0b100},
-	{0x1ace, 0b100},
-	{0x1acf, 0b100},
-	{0x1ad0, 0b100},
-	{0x1ad1, 0b100},
-	{0x1ad2, 0b100},
-	{0x1ad3, 0b100},
-	{0x1ad4, 0b100},
-	{0x1ad5, 0b100},
-	{0x1ad6, 0b100},
-	{0x1ad7, 0b100},
-	{0x1ad8, 0b100},
-	{0x1ad9, 0b100},
-	{0x1ada, 0b100},
-	{0x1adb, 0b100},
-	{0x1adc, 0b100},
-	{0x1add, 0b100},
-	{0x1ade, 0b0},
-	{0x1adf, 0b0},
-	{0x1ae0, 0b100},
-	{0x1ae1, 0b100},
-	{0x1ae2, 0b100},
-	{0x1ae3, 0b100},
-	{0x1ae4, 0b100},
-	{0x1ae5, 0b100},
-	{0x1ae6, 0b100},
-	{0x1ae7, 0b100},
-	{0x1ae8, 0b100},
-	{0x1ae9, 0b100},
-	{0x1aea, 0b100},
-	{0x1aeb, 0b100},
-	{0x1aec, 0b0},
-	{0x1aed, 0b0},
-	{0x1aee, 0b0},
-	{0x1aef, 0b0},
-}
-
-func TestIndicConjunctBreak(t *testing.T) {
-	for _, test := range indicConjunctBreakTests {
-		tu.Assert(t, LookupIndicConjunctBreak(test.r) == test.class)
-	}
-}
-
 // See https://www.unicode.org/reports/tr14/#DescriptionOfProperties
 var lineBreakTests = []struct {
 	args rune
@@ -1620,6 +1423,203 @@ func TestIsWord(t *testing.T) {
 	}
 }
 
+var indicConjunctBreakTests = []struct {
+	r     rune
+	class IndicConjunctBreak
+}{
+	{-1, 0},
+	{1, 0},
+	{'a', 0},
+	{'9', 0},
+	{0x100, 0},
+	{0x1a60, ICBLinker},
+	{0x1bab, ICBLinker},
+	{0xaaf6, ICBLinker},
+	{0x10a3f, ICBLinker},
+	{0xaae1, ICBConsonant},
+	{0xabc0, ICBConsonant},
+	{0x10a00, ICBConsonant},
+	{0x10a11, ICBConsonant},
+	{0x10a15, ICBConsonant},
+	{0x10a19, ICBConsonant},
+	{0xfe01, ICBExtend},
+	{0xfe20, ICBExtend},
+	{0xff9e, ICBExtend},
+	{0x101fd, ICBExtend},
+	{0x10376, ICBExtend},
+	{0x10a01, ICBExtend},
+	{0x10a05, ICBExtend},
+	{0x10a0c, ICBExtend},
+	{0x10a38, ICBExtend},
+
+	{0x1a50, 0b10},
+	{0x1a51, 0b10},
+	{0x1a52, 0b10},
+	{0x1a53, 0b10},
+	{0x1a54, 0b10},
+	{0x1a55, 0b0},
+	{0x1a56, 0b100},
+	{0x1a57, 0b0},
+	{0x1a58, 0b100},
+	{0x1a59, 0b100},
+	{0x1a5a, 0b100},
+	{0x1a5b, 0b100},
+	{0x1a5c, 0b100},
+	{0x1a5d, 0b100},
+	{0x1a5e, 0b100},
+	{0x1a5f, 0b0},
+	{0x1a60, 0b1},
+	{0x1a61, 0b0},
+	{0x1a62, 0b100},
+	{0x1a63, 0b0},
+	{0x1a64, 0b0},
+	{0x1a65, 0b100},
+	{0x1a66, 0b100},
+	{0x1a67, 0b100},
+	{0x1a68, 0b100},
+	{0x1a69, 0b100},
+	{0x1a6a, 0b100},
+	{0x1a6b, 0b100},
+	{0x1a6c, 0b100},
+	{0x1a6d, 0b0},
+	{0x1a6e, 0b0},
+	{0x1a6f, 0b0},
+	{0x1a70, 0b0},
+	{0x1a71, 0b0},
+	{0x1a72, 0b0},
+	{0x1a73, 0b100},
+	{0x1a74, 0b100},
+	{0x1a75, 0b100},
+	{0x1a76, 0b100},
+	{0x1a77, 0b100},
+	{0x1a78, 0b100},
+	{0x1a79, 0b100},
+	{0x1a7a, 0b100},
+	{0x1a7b, 0b100},
+	{0x1a7c, 0b100},
+	{0x1a7d, 0b0},
+	{0x1a7e, 0b0},
+	{0x1a7f, 0b100},
+	{0x1a80, 0b0},
+	{0x1a81, 0b0},
+	{0x1a82, 0b0},
+	{0x1a83, 0b0},
+	{0x1a84, 0b0},
+	{0x1a85, 0b0},
+	{0x1a86, 0b0},
+	{0x1a87, 0b0},
+	{0x1a88, 0b0},
+	{0x1a89, 0b0},
+	{0x1a8a, 0b0},
+	{0x1a8b, 0b0},
+	{0x1a8c, 0b0},
+	{0x1a8d, 0b0},
+	{0x1a8e, 0b0},
+	{0x1a8f, 0b0},
+	{0x1a90, 0b0},
+	{0x1a91, 0b0},
+	{0x1a92, 0b0},
+	{0x1a93, 0b0},
+	{0x1a94, 0b0},
+	{0x1a95, 0b0},
+	{0x1a96, 0b0},
+	{0x1a97, 0b0},
+	{0x1a98, 0b0},
+	{0x1a99, 0b0},
+	{0x1a9a, 0b0},
+	{0x1a9b, 0b0},
+	{0x1a9c, 0b0},
+	{0x1a9d, 0b0},
+	{0x1a9e, 0b0},
+	{0x1a9f, 0b0},
+	{0x1aa0, 0b0},
+	{0x1aa1, 0b0},
+	{0x1aa2, 0b0},
+	{0x1aa3, 0b0},
+	{0x1aa4, 0b0},
+	{0x1aa5, 0b0},
+	{0x1aa6, 0b0},
+	{0x1aa7, 0b0},
+	{0x1aa8, 0b0},
+	{0x1aa9, 0b0},
+	{0x1aaa, 0b0},
+	{0x1aab, 0b0},
+	{0x1aac, 0b0},
+	{0x1aad, 0b0},
+	{0x1aae, 0b0},
+	{0x1aaf, 0b0},
+	{0x1ab0, 0b100},
+	{0x1ab1, 0b100},
+	{0x1ab2, 0b100},
+	{0x1ab3, 0b100},
+	{0x1ab4, 0b100},
+	{0x1ab5, 0b100},
+	{0x1ab6, 0b100},
+	{0x1ab7, 0b100},
+	{0x1ab8, 0b100},
+	{0x1ab9, 0b100},
+	{0x1aba, 0b100},
+	{0x1abb, 0b100},
+	{0x1abc, 0b100},
+	{0x1abd, 0b100},
+	{0x1abe, 0b100},
+	{0x1abf, 0b100},
+	{0x1ac0, 0b100},
+	{0x1ac1, 0b100},
+	{0x1ac2, 0b100},
+	{0x1ac3, 0b100},
+	{0x1ac4, 0b100},
+	{0x1ac5, 0b100},
+	{0x1ac6, 0b100},
+	{0x1ac7, 0b100},
+	{0x1ac8, 0b100},
+	{0x1ac9, 0b100},
+	{0x1aca, 0b100},
+	{0x1acb, 0b100},
+	{0x1acc, 0b100},
+	{0x1acd, 0b100},
+	{0x1ace, 0b100},
+	{0x1acf, 0b100},
+	{0x1ad0, 0b100},
+	{0x1ad1, 0b100},
+	{0x1ad2, 0b100},
+	{0x1ad3, 0b100},
+	{0x1ad4, 0b100},
+	{0x1ad5, 0b100},
+	{0x1ad6, 0b100},
+	{0x1ad7, 0b100},
+	{0x1ad8, 0b100},
+	{0x1ad9, 0b100},
+	{0x1ada, 0b100},
+	{0x1adb, 0b100},
+	{0x1adc, 0b100},
+	{0x1add, 0b100},
+	{0x1ade, 0b0},
+	{0x1adf, 0b0},
+	{0x1ae0, 0b100},
+	{0x1ae1, 0b100},
+	{0x1ae2, 0b100},
+	{0x1ae3, 0b100},
+	{0x1ae4, 0b100},
+	{0x1ae5, 0b100},
+	{0x1ae6, 0b100},
+	{0x1ae7, 0b100},
+	{0x1ae8, 0b100},
+	{0x1ae9, 0b100},
+	{0x1aea, 0b100},
+	{0x1aeb, 0b100},
+	{0x1aec, 0b0},
+	{0x1aed, 0b0},
+	{0x1aee, 0b0},
+	{0x1aef, 0b0},
+}
+
+func TestIndicConjunctBreak(t *testing.T) {
+	for _, test := range indicConjunctBreakTests {
+		tu.Assert(t, LookupIndicConjunctBreak(test.r) == test.class)
+	}
+}
+
 var mirTests = []struct {
 	args rune
 	want rune
@@ -1692,169 +1692,109 @@ func TestLookupVerticalOrientation(t *testing.T) {
 }
 
 func BenchmarkLookups(b *testing.B) {
-	// b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range generalCategoryTests {
-	// 			_ = lookupType(test.args)
-	// 		}
-	// 	}
-	// })
-	// b.Run("GeneralCategory packtable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range generalCategoryTests {
-	// 			_ = LookupType(test.args)
-	// 		}
-	// 	}
-	// })
+	b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupGeneralCategory(test.args)
+			}
+		}
+	})
+	b.Run("GeneralCategory packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupGeneralCategory(test.args)
+			}
+		}
+	})
 
-	// b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range generalCategoryTests {
-	// 			_ = lookupCombiningClass(test.args)
-	// 		}
-	// 	}
-	// })
-	// b.Run("Combining class packtable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range generalCategoryTests {
-	// 			_ = LookupCombiningClass(test.args)
-	// 		}
-	// 	}
-	// })
+	b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupCombiningClass(test.args)
+			}
+		}
+	})
+	b.Run("Combining class packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupCombiningClass(test.args)
+			}
+		}
+	})
 
-	// b.Run("Mirroring unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range generalCategoryTests {
-	// 			_ = lookupMirrorChar(test.args)
-	// 		}
-	// 	}
-	// })
-	// b.Run("Mirroring packtable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range generalCategoryTests {
-	// 			_ = LookupMirrorChar(test.args)
-	// 		}
-	// 	}
-	// })
+	b.Run("Mirroring unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = lookupMirrorChar(test.args)
+			}
+		}
+	})
+	b.Run("Mirroring packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = LookupMirrorChar(test.args)
+			}
+		}
+	})
 
-	// b.Run("Decompose map", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range decomposeTests {
-	// 			_, _, _ = decompose(test.ab)
-	// 		}
-	// 	}
-	// })
-	// b.Run("Decompose packtable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range decomposeTests {
-	// 			_, _, _ = Decompose(test.ab)
-	// 		}
-	// 	}
-	// })
-	// b.Run("Compose map", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range composeTests {
-	// 			_, _ = compose_(test.a, test.b)
-	// 		}
-	// 	}
-	// })
-	// b.Run("Compose packtable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range composeTests {
-	// 			_, _ = Compose(test.a, test.b)
-	// 		}
-	// 	}
-	// })
+	b.Run("Decompose map", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range decomposeTests {
+				_, _, _ = decompose(test.ab)
+			}
+		}
+	})
+	b.Run("Decompose packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range decomposeTests {
+				_, _, _ = Decompose(test.ab)
+			}
+		}
+	})
+	b.Run("Compose map", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range composeTests {
+				_, _ = compose_(test.a, test.b)
+			}
+		}
+	})
+	b.Run("Compose packtable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range composeTests {
+				_, _ = Compose(test.a, test.b)
+			}
+		}
+	})
 
-	// b.Run("IsExtendedPictographic unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range extendedPictoTests {
-	// 			_ = unicode.Is(Extended_Pictographic, test.r)
-	// 		}
-	// 	}
-	// })
-	// b.Run("IsExtendedPictographic packtab", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range extendedPictoTests {
-	// 			_ = IsExtendedPictographic(test.r)
-	// 		}
-	// 	}
-	// })
+	b.Run("IsExtendedPictographic unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range extendedPictoTests {
+				_ = unicode.Is(Extended_Pictographic, test.r)
+			}
+		}
+	})
+	b.Run("IsExtendedPictographic packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range extendedPictoTests {
+				_ = IsExtendedPictographic(test.r)
+			}
+		}
+	})
 
-	// b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range eastAsianWidthTests {
-	// 			_ = unicode.Is(LargeEastAsian, test.r)
-	// 		}
-	// 	}
-	// })
-	// b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range eastAsianWidthTests {
-	// 			_ = IsLargeEastAsian(test.r)
-	// 		}
-	// 	}
-	// })
-
-	// b.Run("IndicConjunctBreak unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range indicConjunctBreakTests {
-	// 			_ = lookupIndicConjunctBreak(test.r)
-	// 		}
-	// 	}
-	// })
-	// b.Run("IndicConjunctBreak packtab", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range indicConjunctBreakTests {
-	// 			_ = LookupIndicConjunctBreak(test.r)
-	// 		}
-	// 	}
-	// })
-
-	// b.Run("GraphemeBreak unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range indicConjunctBreakTests {
-	// 			_ = lookupGraphemeBreak(test.r)
-	// 		}
-	// 	}
-	// })
-	// b.Run("GraphemeBreak packtab", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range indicConjunctBreakTests {
-	// 			_ = LookupIndicConjunctBreak(test.r)
-	// 		}
-	// 	}
-	// })
-
-	// b.Run("WordBreak unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range wordBreakTests {
-	// 			_ = lookupWordBreak(test.args)
-	// 		}
-	// 	}
-	// })
-	// b.Run("WordBreak packtab", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range wordBreakTests {
-	// 			_ = LookupIndicConjunctBreak(test.args)
-	// 		}
-	// 	}
-	// })
-
-	// b.Run("IsWord unicode.RangeTable", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range isWordTests {
-	// 			_ = unicode.Is(Word, test.args)
-	// 		}
-	// 	}
-	// })
-	// b.Run("IsWord packtab", func(b *testing.B) {
-	// 	for i := 0; i < b.N; i++ {
-	// 		for _, test := range isWordTests {
-	// 			_ = LookupIndicConjunctBreak(test.args)
-	// 		}
-	// 	}
-	// })
+	b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range eastAsianWidthTests {
+				_ = unicode.Is(LargeEastAsian, test.r)
+			}
+		}
+	})
+	b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range eastAsianWidthTests {
+				_ = IsLargeEastAsian(test.r)
+			}
+		}
+	})
 
 	b.Run("LineBreak unicode.RangeTable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -1870,7 +1810,69 @@ func BenchmarkLookups(b *testing.B) {
 			}
 		}
 	})
+
+	b.Run("GraphemeBreak unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = lookupGraphemeBreak(test.r)
+			}
+		}
+	})
+	b.Run("GraphemeBreak packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = LookupIndicConjunctBreak(test.r)
+			}
+		}
+	})
+
+	b.Run("WordBreak unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range wordBreakTests {
+				_ = lookupWordBreak(test.args)
+			}
+		}
+	})
+	b.Run("WordBreak packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range wordBreakTests {
+				_ = LookupIndicConjunctBreak(test.args)
+			}
+		}
+	})
+
+	b.Run("IsWord unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range isWordTests {
+				_ = unicode.Is(Word, test.args)
+			}
+		}
+	})
+	b.Run("IsWord packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range isWordTests {
+				_ = LookupIndicConjunctBreak(test.args)
+			}
+		}
+	})
+
+	b.Run("IndicConjunctBreak unicode.RangeTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = lookupIndicConjunctBreak(test.r)
+			}
+		}
+	})
+	b.Run("IndicConjunctBreak packtab", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range indicConjunctBreakTests {
+				_ = LookupIndicConjunctBreak(test.r)
+			}
+		}
+	})
 }
+
+// legacy code, used (for now) as comparison
 
 var allCategories = [...]*unicode.RangeTable{
 	unicode.Cc,
@@ -1906,7 +1908,7 @@ var allCategories = [...]*unicode.RangeTable{
 
 // simple implementation using standard library,
 // here for benchmark reference
-func lookupType(r rune) *unicode.RangeTable {
+func lookupGeneralCategory(r rune) *unicode.RangeTable {
 	for _, table := range allCategories {
 		if unicode.Is(table, r) {
 			return table

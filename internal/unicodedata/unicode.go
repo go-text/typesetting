@@ -12,9 +12,9 @@ import (
 // GeneralCategory is an enum storing the Unicode General Category of a rune.
 type GeneralCategory uint8
 
-// LookupType returns the unicode general categorie of the rune,
+// LookupGeneralCategory returns the unicode general categorie of the rune,
 // or [Unassigned] if not found.
-func LookupType(r rune) GeneralCategory { return GeneralCategory(gcLookup(r)) }
+func LookupGeneralCategory(r rune) GeneralCategory { return GeneralCategory(gcLookup(r)) }
 
 // IsMark returns true for Spacing_Mark, Enclosing_Mark, Nonspacing_Mark
 func (gc GeneralCategory) IsMark() bool {
@@ -82,6 +82,19 @@ func LookupWordBreak(ch rune) WordBreak {
 // IsWord returns true for all the runes we may found in a word,
 // that is either a Number (Nd, Nl, No) or a rune with the Alphabetic property
 func IsWord(ch rune) bool { return wordLookup(ch) == 1 }
+
+// IndicConjunctBreak is a flag storing the Indic_Conjunct_Break property used for UAX29, rule GB9c.
+type IndicConjunctBreak uint8
+
+// LookupIndicConjunctBreak return the value of the Indic_Conjunct_Break,
+// or zero.
+func LookupIndicConjunctBreak(r rune) IndicConjunctBreak {
+	i := indicCBLookup(r)
+	if i == 0 {
+		return 0
+	}
+	return 1 << (i - 1)
+}
 
 // LookupMirrorChar finds the mirrored equivalent of a character as defined in
 // the file BidiMirroring.txt of the Unicode Character Database available at
@@ -247,17 +260,4 @@ func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 		return sv.isMainSideways
 	}
 	return !sv.isMainSideways
-}
-
-// IndicConjunctBreak is the Indic_Conjunct_Break property used for UAX29, rule GB9c.
-type IndicConjunctBreak uint8
-
-// LookupIndicConjunctBreak return the value of the Indic_Conjunct_Break,
-// or zero.
-func LookupIndicConjunctBreak(r rune) IndicConjunctBreak {
-	i := indicCBLookup(r)
-	if i == 0 {
-		return 0
-	}
-	return 1 << (i - 1)
 }
