@@ -278,7 +278,7 @@ func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
 
 // retrieves the General Category property for
 // a specified Unicode code point, expressed as enumeration value.
-func (unicodeFuncs) generalCategory(ch rune) generalCategory { return ucd.LookupType(ch) }
+func (unicodeFuncs) generalCategory(ch rune) generalCategory { return ucd.LookupGeneralCategory(ch) }
 
 func (unicodeFuncs) isExtendedPictographic(ch rune) bool { return ucd.IsExtendedPictographic(ch) }
 

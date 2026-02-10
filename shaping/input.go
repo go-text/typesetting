@@ -470,7 +470,7 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
 // https://bugzilla.gnome.org/show_bug.cgi?id=781123
 // for more details.
 func ignoreFaceChange(r rune) bool {
-	g := ucd.LookupType(r)
+	g := ucd.LookupGeneralCategory(r)
 	return g == ucd.Cc || // control
 		g == ucd.Cs || // surrogate
 		g == ucd.Zl || // line separator
