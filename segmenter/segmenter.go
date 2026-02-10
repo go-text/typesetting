@@ -47,10 +47,6 @@ const paragraphSeparator rune = 0x2029
 // See https://unicode.org/reports/tr14/#Properties
 type lineBreakClass = *unicode.RangeTable
 
-// graphemeBreakClass stores the Unicode Grapheme Cluster Break Property
-// See https://unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
-type graphemeBreakClass = *unicode.RangeTable
-
 // wordBreakClass stores the Unicode Word Break Property
 // See https://unicode.org/reports/tr29/#Table_Word_Break_Property_Values
 type wordBreakClass = *unicode.RangeTable
@@ -73,8 +69,8 @@ type cursor struct {
 
 	// the following fields persists across iterations
 
-	prevGrapheme graphemeBreakClass // the Grapheme Break property at index i-1
-	grapheme     graphemeBreakClass // the Grapheme Break property at index i
+	prevGrapheme ucd.GraphemeBreak // the Grapheme Break property at index i-1
+	grapheme     ucd.GraphemeBreak // the Grapheme Break property at index i
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules GB12 and GB13

@@ -21,21 +21,20 @@ func (cr *cursor) applyGraphemeBoundaryRules() bool {
 	br0, br1 := cr.prevGrapheme, cr.grapheme
 	if cr.r == '\n' && cr.prev == '\r' {
 		return false // Rule GB3
-	} else if br0 == ucd.GraphemeBreakControl || br0 == ucd.GraphemeBreakCR || br0 == ucd.GraphemeBreakLF ||
-		br1 == ucd.GraphemeBreakControl || br1 == ucd.GraphemeBreakCR || br1 == ucd.GraphemeBreakLF {
+	} else if br0&(ucd.GB_Control|ucd.GB_CR|ucd.GB_LF) != 0 ||
+		br1&(ucd.GB_Control|ucd.GB_CR|ucd.GB_LF) != 0 {
 		return true // Rules GB4 && GB5
-	} else if br0 == ucd.GraphemeBreakL &&
-		(br1 == ucd.GraphemeBreakL || br1 == ucd.GraphemeBreakV || br1 == ucd.GraphemeBreakLV || br1 == ucd.GraphemeBreakLVT) { // rule GB6
+	} else if br0 == ucd.GB_L && br1&(ucd.GB_L|ucd.GB_V|ucd.GB_LV|ucd.GB_LVT) != 0 { // rule GB6
 		return false
-	} else if (br0 == ucd.GraphemeBreakLV || br0 == ucd.GraphemeBreakV) && (br1 == ucd.GraphemeBreakV || br1 == ucd.GraphemeBreakT) {
+	} else if br0&(ucd.GB_LV|ucd.GB_V) != 0 && br1&(ucd.GB_V|ucd.GB_T) != 0 {
 		return false // rule GB7
-	} else if (br0 == ucd.GraphemeBreakLVT || br0 == ucd.GraphemeBreakT) && br1 == ucd.GraphemeBreakT {
+	} else if br0&(ucd.GB_LVT|ucd.GB_T) != 0 && br1 == ucd.GB_T {
 		return false // rule GB8
-	} else if br1 == ucd.GraphemeBreakExtend || br1 == ucd.GraphemeBreakZWJ {
+	} else if br1&(ucd.GB_Extend|ucd.GB_ZWJ) != 0 {
 		return false // Rule GB9
-	} else if br1 == ucd.GraphemeBreakSpacingMark {
+	} else if br1 == ucd.GB_SpacingMark {
 		return false // Rule GB9a
-	} else if br0 == ucd.GraphemeBreakPrepend {
+	} else if br0 == ucd.GB_Prepend {
 		return false // Rule GB9b
 	} else if triggerGB9c {
 		return false // Rule GB9c
@@ -51,7 +50,7 @@ func (cr *cursor) applyGraphemeBoundaryRules() bool {
 // update `isPrevGraphemeRIOdd` used for the rules GB12 and GB13
 // and returns `true` if one of them triggered
 func (cr *cursor) updateGraphemeRIOdd() (trigger bool) {
-	if cr.grapheme == ucd.GraphemeBreakRegional_Indicator {
+	if cr.grapheme == ucd.GB_Regional_Indicator {
 		trigger = cr.isPrevGraphemeRIOdd
 		cr.isPrevGraphemeRIOdd = !cr.isPrevGraphemeRIOdd // switch the parity
 	} else {
@@ -81,9 +80,9 @@ func (cr *cursor) updatePictoSequence() bool {
 		}
 		return false
 	case inPictoExtend:
-		if cr.grapheme == ucd.GraphemeBreakExtend {
+		if cr.grapheme == ucd.GB_Extend {
 			// continue the sequence with an Extend rune
-		} else if cr.grapheme == ucd.GraphemeBreakZWJ {
+		} else if cr.grapheme == ucd.GB_ZWJ {
 			// close the variable part of the sequence with (ZWJ)
 			cr.pictoSequence = seenPictoZWJ
 		} else {
@@ -122,17 +121,17 @@ func (cr *cursor) updateIndicConjunctBreakSequence() bool {
 	switch cr.indicConjunctBreakSequence {
 	case noIndicCBSequence:
 		// we are not in a sequence yet, start it if we have a Consonant
-		if cb == ucd.InCBConsonant {
+		if cb == ucd.ICBConsonant {
 			cr.indicConjunctBreakSequence = inIndicCBSequence
 		}
 		return false
 	case inIndicCBSequence:
-		if cb == ucd.InCBExtend {
+		if cb == ucd.ICBExtend {
 			// continue the sequence
-		} else if cb == ucd.InCBLinker {
+		} else if cb == ucd.ICBLinker {
 			// we now have at least on Linker
 			cr.indicConjunctBreakSequence = seenIndicCBSequence
-		} else if cb == ucd.InCBConsonant {
+		} else if cb == ucd.ICBConsonant {
 			// reset the sequence
 		} else {
 			// stop the sequence
@@ -140,10 +139,10 @@ func (cr *cursor) updateIndicConjunctBreakSequence() bool {
 		}
 		return false
 	case seenIndicCBSequence:
-		if cb&(ucd.InCBExtend|ucd.InCBLinker) != 0 {
+		if cb&(ucd.ICBExtend|ucd.ICBLinker) != 0 {
 			// continue the sequence
 			return false
-		} else if cb == ucd.InCBConsonant {
+		} else if cb == ucd.ICBConsonant {
 			// start a new sequence
 			cr.indicConjunctBreakSequence = inIndicCBSequence
 			return true
