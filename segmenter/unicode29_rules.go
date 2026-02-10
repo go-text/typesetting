@@ -163,11 +163,11 @@ func (cr *cursor) updateIndicConjunctBreakSequence() bool {
 // update `isPrevWordRIOdd` used for the rules WB15 and WB16
 // and returns `true` if one of them triggered
 func (cr *cursor) updateWordRIOdd() (trigger bool) {
-	if cr.word == ucd.WordBreakExtendFormat {
+	if cr.word == ucd.WB_ExtendFormat {
 		return false // skip
 	}
 
-	if cr.word == ucd.WordBreakRegional_Indicator {
+	if cr.word == ucd.WB_Regional_Indicator {
 		trigger = cr.isPrevWordRIOdd
 		cr.isPrevWordRIOdd = !cr.isPrevWordRIOdd // switch the parity
 	} else {
@@ -192,50 +192,44 @@ func (cr *cursor) applyWordBoundaryRules(i int) (isWordBoundary, removePrevNoExt
 
 	if cr.prev == '\u000D' && cr.r == '\u000A' { // Rule WB3
 		isWordBoundary = false
-	} else if prev == ucd.WordBreakNewlineCRLF && isAfterNoExtend {
+	} else if prev == ucd.WB_NewlineCRLF && isAfterNoExtend {
 		// The extra check for prevWordNoExtend is to correctly handle sequences like
 		// Newline ÷ Extend × Extend
 		// since we have not skipped ExtendFormat yet.
 		isWordBoundary = true // Rule WB3a
-	} else if current == ucd.WordBreakNewlineCRLF {
+	} else if current == ucd.WB_NewlineCRLF {
 		isWordBoundary = true // Rule WB3b
 	} else if cr.prev == 0x200D && cr.isExtentedPic {
 		isWordBoundary = false // Rule WB3c
-	} else if prev == ucd.WordBreakWSegSpace &&
-		current == ucd.WordBreakWSegSpace && isAfterNoExtend {
+	} else if prev == ucd.WB_WSegSpace &&
+		current == ucd.WB_WSegSpace && isAfterNoExtend {
 		isWordBoundary = false // Rule WB3d
-	} else if current == ucd.WordBreakExtendFormat {
+	} else if current == ucd.WB_ExtendFormat {
 		isWordBoundary = false // Rules WB4
-	} else if (prev == ucd.WordBreakALetter || prev == ucd.WordBreakHebrew_Letter || prev == ucd.WordBreakNumeric) &&
-		(current == ucd.WordBreakALetter || current == ucd.WordBreakHebrew_Letter || current == ucd.WordBreakNumeric) {
+	} else if prev&(ucd.WB_ALetter|ucd.WB_Hebrew_Letter|ucd.WB_Numeric) != 0 &&
+		current&(ucd.WB_ALetter|ucd.WB_Hebrew_Letter|ucd.WB_Numeric) != 0 {
 		isWordBoundary = false // Rules WB5, WB8, WB9, WB10
-	} else if prev == ucd.WordBreakKatakana && current == ucd.WordBreakKatakana {
+	} else if prev == ucd.WB_Katakana && current == ucd.WB_Katakana {
 		isWordBoundary = false // Rule WB13
-	} else if (prev == ucd.WordBreakALetter ||
-		prev == ucd.WordBreakHebrew_Letter ||
-		prev == ucd.WordBreakNumeric ||
-		prev == ucd.WordBreakKatakana ||
-		prev == ucd.WordBreakExtendNumLet) &&
-		current == ucd.WordBreakExtendNumLet {
+	} else if prev&(ucd.WB_ALetter|ucd.WB_Hebrew_Letter|ucd.WB_Numeric|ucd.WB_Katakana|ucd.WB_ExtendNumLet) != 0 &&
+		current == ucd.WB_ExtendNumLet {
 		isWordBoundary = false // Rule WB13a
-	} else if prev == ucd.WordBreakExtendNumLet &&
-		(current == ucd.WordBreakALetter || current == ucd.WordBreakHebrew_Letter || current == ucd.WordBreakNumeric ||
-			current == ucd.WordBreakKatakana) {
+	} else if prev == ucd.WB_ExtendNumLet &&
+		current&(ucd.WB_ALetter|ucd.WB_Hebrew_Letter|ucd.WB_Numeric|ucd.WB_Katakana) != 0 {
 		isWordBoundary = false // Rule WB13b
-	} else if (prevPrev == ucd.WordBreakALetter || prevPrev == ucd.WordBreakHebrew_Letter) &&
-		(prev == ucd.WordBreakMidLetter || prev == ucd.WordBreakMidNumLet || prev == ucd.WordBreakSingle_Quote) &&
-		(current == ucd.WordBreakALetter || current == ucd.WordBreakHebrew_Letter) {
+	} else if prevPrev&(ucd.WB_ALetter|ucd.WB_Hebrew_Letter) != 0 &&
+		prev&(ucd.WB_MidLetter|ucd.WB_MidNumLet|ucd.WB_Single_Quote) != 0 &&
+		current&(ucd.WB_ALetter|ucd.WB_Hebrew_Letter) != 0 {
 		removePrevNoExtend = true // Rule WB6
 		isWordBoundary = false    // Rule WB7
-	} else if prev == ucd.WordBreakHebrew_Letter && current == ucd.WordBreakSingle_Quote {
+	} else if prev == ucd.WB_Hebrew_Letter && current == ucd.WB_Single_Quote {
 		isWordBoundary = false // Rule WB7a
-	} else if prevPrev == ucd.WordBreakHebrew_Letter && cr.prev == 0x0022 &&
-		current == ucd.WordBreakHebrew_Letter {
+	} else if prevPrev == ucd.WB_Hebrew_Letter && cr.prev == 0x0022 &&
+		current == ucd.WB_Hebrew_Letter {
 		removePrevNoExtend = true // Rule WB7b
 		isWordBoundary = false    // Rule WB7c
-	} else if (prevPrev == ucd.WordBreakNumeric && current == ucd.WordBreakNumeric) &&
-		(prev == ucd.WordBreakMidNum || prev == ucd.WordBreakMidNumLet ||
-			prev == ucd.WordBreakSingle_Quote) {
+	} else if (prevPrev == ucd.WB_Numeric && current == ucd.WB_Numeric) &&
+		prev&(ucd.WB_MidNum|ucd.WB_MidNumLet|ucd.WB_Single_Quote) != 0 {
 		isWordBoundary = false    // Rule WB11
 		removePrevNoExtend = true // Rule WB12
 	} else if triggerWB15_16 {
