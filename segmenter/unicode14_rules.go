@@ -447,12 +447,12 @@ func (cr *cursor) startIteration(text []rune, i int) {
 	cr.prevGrapheme = cr.grapheme
 	cr.grapheme = ucd.LookupGraphemeBreak(cr.r)
 
-	if cr.word != ucd.WordBreakExtendFormat {
+	if cr.word != ucd.WB_ExtendFormat {
 		cr.prevPrevWord = cr.prevWord
 		cr.prevWord = cr.word
 		cr.prevWordNoExtend = i - 1
 	}
-	cr.word = ucd.LookupWordBreakClass(cr.r)
+	cr.word = ucd.LookupWordBreak(cr.r)
 
 	// prevPrevLine and prevLine are handled in endIteration
 	cr.line = cr.nextLine // avoid calling LookupLineBreakClass twice

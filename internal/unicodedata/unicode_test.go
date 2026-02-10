@@ -1512,10 +1512,114 @@ func TestLookupGraphemeBreak(t *testing.T) {
 	}
 }
 
-func TestLookupWordBreakClass(t *testing.T) {
+var wordBreakTests = []struct {
+	args rune
+	want WordBreak
+}{
 	// these runes have changed from Unicode v15.0 to 15.1
-	tu.Assert(t, LookupWordBreakClass(0x6DD) == WordBreakNumeric)
-	tu.Assert(t, LookupWordBreakClass(0x661) == WordBreakNumeric)
+	{0x6DD, WB_Numeric},
+	{0x661, WB_Numeric},
+
+	{'\u000D', WB_NewlineCRLF},            // CARRIAGE RETURN (CR)
+	{'\u000A', WB_NewlineCRLF},            // LINE FEED (LF)
+	{'\u000B', WB_NewlineCRLF},            // LINE TABULATION
+	{'\u000C', WB_NewlineCRLF},            // FORM FEED (FF)
+	{'\u0085', WB_NewlineCRLF},            // NEXT LINE (NEL)
+	{'\u2028', WB_NewlineCRLF},            // LINE SEPARATOR
+	{'\u2029', WB_NewlineCRLF},            // PARAGRAPH SEPARATOR
+	{'\U0001F1E6', WB_Regional_Indicator}, // REGIONAL INDICATOR SYMBOL LETTER A
+	{'\U0001F1FF', WB_Regional_Indicator}, // REGIONAL INDICATOR SYMBOL LETTER Z
+	{'\u3031', WB_Katakana},               // ( 〱 ) VERTICAL KANA REPEAT MARK
+	{'\u3032', WB_Katakana},               // ( 〲 ) VERTICAL KANA REPEAT WITH VOICED SOUND MARK
+	{'\u3033', WB_Katakana},               // ( 〳 ) VERTICAL KANA REPEAT MARK UPPER HALF
+	{'\u3034', WB_Katakana},               // ( 〴 ) VERTICAL KANA REPEAT WITH VOICED SOUND MARK UPPER HALF
+	{'\u3035', WB_Katakana},               // ( 〵 ) VERTICAL KANA REPEAT MARK LOWER HALF
+	{'\u309B', WB_Katakana},               // ( ゛ ) KATAKANA-HIRAGANA VOICED SOUND MARK
+	{'\u309C', WB_Katakana},               // ( ゜ ) KATAKANA-HIRAGANA SEMI-VOICED SOUND MARK
+	{'\u30A0', WB_Katakana},               // ( ゠ ) KATAKANA-HIRAGANA DOUBLE HYPHEN
+	{'\u30FC', WB_Katakana},               // ( ー ) KATAKANA-HIRAGANA PROLONGED SOUND MARK
+	{'\uFF70', WB_Katakana},               // ( ｰ ) HALFWIDTH KATAKANA-HIRAGANA PROLONGED SOUND MARK
+	{'\u00B8', WB_ALetter},                // ( ¸ ) CEDILLA
+	{'\u02C2', WB_ALetter},                // ( ˂ ) MODIFIER LETTER LEFT ARROWHEAD
+	{'\u02C5', WB_ALetter},                // ( ˅ ) MODIFIER LETTER DOWN ARROWHEAD
+	{'\u02D2', WB_ALetter},                // ( ˒ ) MODIFIER LETTER CENTRED RIGHT HALF RING
+	{'\u02D7', WB_ALetter},                // ( ˗ ) MODIFIER LETTER MINUS SIGN
+	{'\u02DE', WB_ALetter},                // ( ˞ ) MODIFIER LETTER RHOTIC HOOK
+	{'\u02DF', WB_ALetter},                // ( ˟ ) MODIFIER LETTER CROSS ACCENT
+	{'\u02E5', WB_ALetter},                // ( ˥ ) MODIFIER LETTER EXTRA-HIGH TONE BAR
+	{'\u02EB', WB_ALetter},                // ( ˫ ) MODIFIER LETTER YANG DEPARTING TONE MARK
+	{'\u02ED', WB_ALetter},                // ( ˭ ) MODIFIER LETTER UNASPIRATED
+	{'\u02EF', WB_ALetter},                // ( ˯ ) MODIFIER LETTER LOW DOWN ARROWHEAD
+	{'\u02FF', WB_ALetter},                // ( ˿ ) MODIFIER LETTER LOW LEFT ARROW
+	{'\u055A', WB_ALetter},                // ( ՚ ) ARMENIAN APOSTROPHE
+	{'\u055B', WB_ALetter},                // ( ՛ ) ARMENIAN EMPHASIS MARK
+	{'\u055C', WB_ALetter},                // ( ՜ ) ARMENIAN EXCLAMATION MARK
+	{'\u055E', WB_ALetter},                // ( ՞ ) ARMENIAN QUESTION MARK
+	{'\u058A', WB_ALetter},                // ( ֊ ) ARMENIAN HYPHEN
+	{'\u05F3', WB_ALetter},                // ( ׳ ) HEBREW PUNCTUATION GERESH
+	{'\u070F', WB_ALetter},                // ( ܏ ) SYRIAC ABBREVIATION MARK
+	{'\uA708', WB_ALetter},                // ( ꜈ ) MODIFIER LETTER EXTRA-HIGH DOTTED TONE BAR
+	{'\uA716', WB_ALetter},                // ( ꜖ ) MODIFIER LETTER EXTRA-LOW LEFT-STEM TONE BAR
+	{'\uA720', WB_ALetter},                // (꜠ ) MODIFIER LETTER STRESS AND HIGH TONE
+	{'\uA721', WB_ALetter},                // (꜡ ) MODIFIER LETTER STRESS AND LOW TONE
+	{'\uA789', WB_ALetter},                // (꞉ ) MODIFIER LETTER COLON
+	{'\uA78A', WB_ALetter},                // ( ꞊ ) MODIFIER LETTER SHORT EQUALS SIGN
+	{'\uAB5B', WB_ALetter},                // ( ꭛ ) MODIFIER BREVE WITH INVERTED BREVE
+	{'\u0027', WB_Single_Quote},           // ( ' ) APOSTROPHE
+	{'\u0022', WB_Double_Quote},           // ( " ) QUOTATION MARK
+	{'\u002E', WB_MidNumLet},              // ( . ) FULL STOP
+	{'\u2018', WB_MidNumLet},              // ( ‘ ) LEFT SINGLE QUOTATION MARK
+	{'\u2019', WB_MidNumLet},              // ( ’ ) RIGHT SINGLE QUOTATION MARK
+	{'\u2024', WB_MidNumLet},              // ( ․ ) ONE DOT LEADER
+	{'\uFE52', WB_MidNumLet},              // ( ﹒ ) SMALL FULL STOP
+	{'\uFF07', WB_MidNumLet},              // ( ＇ ) FULLWIDTH APOSTROPHE
+	{'\uFF0E', WB_MidNumLet},              // ( ． ) FULLWIDTH FULL STOP
+	{'\u003A', WB_MidLetter},              //  ( : ) COLON (used in Swedish)
+	{'\u00B7', WB_MidLetter},              //  ( · ) MIDDLE DOT
+	{'\u0387', WB_MidLetter},              //  ( · ) GREEK ANO TELEIA
+	{'\u055F', WB_MidLetter},              //  ( ՟ ) ARMENIAN ABBREVIATION MARK
+	{'\u05F4', WB_MidLetter},              //  ( ״ ) HEBREW PUNCTUATION GERSHAYIM
+	{'\u2027', WB_MidLetter},              //  ( ‧ ) HYPHENATION POINT
+	{'\uFE13', WB_MidLetter},              //  ( ︓ ) PRESENTATION FORM FOR VERTICAL COLON
+	{'\uFE55', WB_MidLetter},              //  ( ﹕ ) SMALL COLON
+	{'\uFF1A', WB_MidLetter},              //  ( ： ) FULLWIDTH COLON
+	{'\u066C', WB_MidNum},                 // ( ٬ ) ARABIC THOUSANDS SEPARATOR
+	{'\uFE50', WB_MidNum},                 // ( ﹐ ) SMALL COMMA
+	{'\uFE54', WB_MidNum},                 // ( ﹔ ) SMALL SEMICOLON
+	{'\uFF0C', WB_MidNum},                 // ( ， ) FULLWIDTH COMMA
+	{'\uFF1B', WB_MidNum},                 // ( ； ) FULLWIDTH SEMICOLON
+	{'\u202F', WB_ExtendNumLet},           // NARROW NO-BREAK SPACE (NNBSP)
+}
+
+func TestLookupWordBreak(t *testing.T) {
+	for _, tt := range wordBreakTests {
+		tu.Assert(t, LookupWordBreak(tt.args) == tt.want)
+	}
+}
+
+var isWordTests = []struct {
+	args rune
+	want bool
+}{
+	{',', false},
+	{'.', false},
+	{0xffd2, true},
+	{0xffd7, true},
+	{0xffd8, false},
+	{0xffda, true},
+	{0xffdc, true},
+	{0xffdd, false},
+	{0x10000, true},
+	{0x1000b, true},
+	{0x1000c, false},
+	{0x1000d, true},
+	{0x10026, true},
+}
+
+func TestIsWord(t *testing.T) {
+	for _, tt := range isWordTests {
+		tu.Assert(t, IsWord(tt.args) == tt.want)
+	}
 }
 
 var mirTests = []struct {
@@ -1590,136 +1694,166 @@ func TestLookupVerticalOrientation(t *testing.T) {
 }
 
 func BenchmarkLookups(b *testing.B) {
-	b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
+	// b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range generalCategoryTests {
+	// 			_ = lookupType(test.args)
+	// 		}
+	// 	}
+	// })
+	// b.Run("GeneralCategory packtable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range generalCategoryTests {
+	// 			_ = LookupType(test.args)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range generalCategoryTests {
+	// 			_ = lookupCombiningClass(test.args)
+	// 		}
+	// 	}
+	// })
+	// b.Run("Combining class packtable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range generalCategoryTests {
+	// 			_ = LookupCombiningClass(test.args)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("Mirroring unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range generalCategoryTests {
+	// 			_ = lookupMirrorChar(test.args)
+	// 		}
+	// 	}
+	// })
+	// b.Run("Mirroring packtable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range generalCategoryTests {
+	// 			_ = LookupMirrorChar(test.args)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("Decompose map", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range decomposeTests {
+	// 			_, _, _ = decompose(test.ab)
+	// 		}
+	// 	}
+	// })
+	// b.Run("Decompose packtable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range decomposeTests {
+	// 			_, _, _ = Decompose(test.ab)
+	// 		}
+	// 	}
+	// })
+	// b.Run("Compose map", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range composeTests {
+	// 			_, _ = compose_(test.a, test.b)
+	// 		}
+	// 	}
+	// })
+	// b.Run("Compose packtable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range composeTests {
+	// 			_, _ = Compose(test.a, test.b)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("IsExtendedPictographic unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range extendedPictoTests {
+	// 			_ = unicode.Is(Extended_Pictographic, test.r)
+	// 		}
+	// 	}
+	// })
+	// b.Run("IsExtendedPictographic packtab", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range extendedPictoTests {
+	// 			_ = IsExtendedPictographic(test.r)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range eastAsianWidthTests {
+	// 			_ = unicode.Is(LargeEastAsian, test.r)
+	// 		}
+	// 	}
+	// })
+	// b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range eastAsianWidthTests {
+	// 			_ = IsLargeEastAsian(test.r)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("IndicConjunctBreak unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range indicConjunctBreakTests {
+	// 			_ = lookupIndicConjunctBreak(test.r)
+	// 		}
+	// 	}
+	// })
+	// b.Run("IndicConjunctBreak packtab", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range indicConjunctBreakTests {
+	// 			_ = LookupIndicConjunctBreak(test.r)
+	// 		}
+	// 	}
+	// })
+
+	// b.Run("GraphemeBreak unicode.RangeTable", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range indicConjunctBreakTests {
+	// 			_ = lookupGraphemeBreak(test.r)
+	// 		}
+	// 	}
+	// })
+	// b.Run("GraphemeBreak packtab", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		for _, test := range indicConjunctBreakTests {
+	// 			_ = LookupIndicConjunctBreak(test.r)
+	// 		}
+	// 	}
+	// })
+
+	b.Run("WordBreak unicode.RangeTable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupType(test.args)
+			for _, test := range wordBreakTests {
+				_ = lookupWordBreak(test.args)
 			}
 		}
 	})
-	b.Run("GeneralCategory packtable", func(b *testing.B) {
+	b.Run("WordBreak packtab", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = LookupType(test.args)
+			for _, test := range wordBreakTests {
+				_ = LookupIndicConjunctBreak(test.args)
 			}
 		}
 	})
 
-	b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
+	b.Run("IsWord unicode.RangeTable", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupCombiningClass(test.args)
+			for _, test := range isWordTests {
+				_ = unicode.Is(Word, test.args)
 			}
 		}
 	})
-	b.Run("Combining class packtable", func(b *testing.B) {
+	b.Run("IsWord packtab", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = LookupCombiningClass(test.args)
-			}
-		}
-	})
-
-	b.Run("Mirroring unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupMirrorChar(test.args)
-			}
-		}
-	})
-	b.Run("Mirroring packtable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = LookupMirrorChar(test.args)
-			}
-		}
-	})
-
-	b.Run("Decompose map", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range decomposeTests {
-				_, _, _ = decompose(test.ab)
-			}
-		}
-	})
-	b.Run("Decompose packtable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range decomposeTests {
-				_, _, _ = Decompose(test.ab)
-			}
-		}
-	})
-	b.Run("Compose map", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range composeTests {
-				_, _ = compose_(test.a, test.b)
-			}
-		}
-	})
-	b.Run("Compose packtable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range composeTests {
-				_, _ = Compose(test.a, test.b)
-			}
-		}
-	})
-
-	b.Run("IsExtendedPictographic unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range extendedPictoTests {
-				_ = unicode.Is(Extended_Pictographic, test.r)
-			}
-		}
-	})
-	b.Run("IsExtendedPictographic packtab", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range extendedPictoTests {
-				_ = IsExtendedPictographic(test.r)
-			}
-		}
-	})
-
-	b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range eastAsianWidthTests {
-				_ = unicode.Is(LargeEastAsian, test.r)
-			}
-		}
-	})
-	b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range eastAsianWidthTests {
-				_ = IsLargeEastAsian(test.r)
-			}
-		}
-	})
-
-	b.Run("IndicConjunctBreak unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range indicConjunctBreakTests {
-				_ = lookupIndicConjunctBreak(test.r)
-			}
-		}
-	})
-	b.Run("IndicConjunctBreak packtab", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range indicConjunctBreakTests {
-				_ = LookupIndicConjunctBreak(test.r)
-			}
-		}
-	})
-
-	b.Run("GraphemeBreak unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range indicConjunctBreakTests {
-				_ = lookupGraphemeBreak(test.r)
-			}
-		}
-	})
-	b.Run("GraphemeBreak packtab", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range indicConjunctBreakTests {
-				_ = LookupIndicConjunctBreak(test.r)
+			for _, test := range isWordTests {
+				_ = LookupIndicConjunctBreak(test.args)
 			}
 		}
 	})
@@ -1837,6 +1971,21 @@ func lookupGraphemeBreak(ch rune) *unicode.RangeTable {
 		return nil
 	}
 	for _, class := range graphemeBreaks {
+		if unicode.Is(class, ch) {
+			return class
+		}
+	}
+	return nil
+}
+
+// used as reference in benchmark
+func lookupWordBreak(ch rune) *unicode.RangeTable {
+	// a lot of runes do not have a word break property :
+	// avoid testing all the wordBreaks classes for them
+	if !unicode.Is(wordBreakAll, ch) {
+		return nil
+	}
+	for _, class := range wordBreaks {
 		if unicode.Is(class, ch) {
 			return class
 		}

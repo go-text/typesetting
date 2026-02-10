@@ -47,10 +47,6 @@ const paragraphSeparator rune = 0x2029
 // See https://unicode.org/reports/tr14/#Properties
 type lineBreakClass = *unicode.RangeTable
 
-// wordBreakClass stores the Unicode Word Break Property
-// See https://unicode.org/reports/tr29/#Table_Word_Break_Property_Values
-type wordBreakClass = *unicode.RangeTable
-
 // cursor holds the information for the current index
 // processed by `computeAttributes`, that is
 // the context provided by previous and next runes in the text
@@ -77,10 +73,10 @@ type cursor struct {
 	// see [updateGraphemeRIOdd]
 	isPrevGraphemeRIOdd bool
 
-	prevPrevWord     wordBreakClass // the Word Break property at the previous previous, non Extend rune
-	prevWord         wordBreakClass // the Word Break property at the previous, non Extend rune
-	word             wordBreakClass // the Word Break property at index i
-	prevWordNoExtend int            // the index of the last rune NOT having a Extend word break property
+	prevPrevWord     ucd.WordBreak // the Word Break property at the previous previous, non Extend rune
+	prevWord         ucd.WordBreak // the Word Break property at the previous, non Extend rune
+	word             ucd.WordBreak // the Word Break property at index i
+	prevWordNoExtend int           // the index of the last rune NOT having a Extend word break property
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules WB15 and WB16
@@ -372,7 +368,7 @@ func (gr *WordIterator) Next() bool {
 
 	// do we start a word ? if so, mark it
 	if gr.pos < len(gr.src.text) {
-		gr.inWord = unicode.Is(ucd.Word, gr.src.text[gr.pos])
+		gr.inWord = ucd.IsWord(gr.src.text[gr.pos])
 	}
 	// in any case, advance again
 	return gr.Next()
@@ -392,7 +388,7 @@ func (sg *Segmenter) WordIterator() *WordIterator {
 	// check is we start at a word
 	inWord := false
 	if len(sg.text) != 0 {
-		inWord = unicode.Is(ucd.Word, sg.text[0])
+		inWord = ucd.IsWord(sg.text[0])
 	}
 	return &WordIterator{attributeIterator: attributeIterator{src: sg, flag: wordBoundary}, inWord: inWord}
 }

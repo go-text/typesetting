@@ -46,13 +46,12 @@ func LookupLineBreakClass(ch rune) *unicode.RangeTable {
 	return BreakXX
 }
 
-// GraphemeBreak stores the Unicode Grapheme Cluster Break Property.
+// GraphemeBreak is a flag storing the Unicode Grapheme Cluster Break Property.
 //
 // See https://unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
 type GraphemeBreak uint16
 
-// LookupGraphemeBreak returns the grapheme break property for the rune,
-// or 0
+// LookupGraphemeBreak returns the grapheme break property for the rune, or 0.
 func LookupGraphemeBreak(ch rune) GraphemeBreak {
 	i := gbLookup(ch)
 	if i == 0 {
@@ -61,21 +60,23 @@ func LookupGraphemeBreak(ch rune) GraphemeBreak {
 	return 1 << (i - 1)
 }
 
-// LookupordBreakClass returns the word break property for the rune (see the constants ordBreakXXX),
-// or nil
-func LookupWordBreakClass(ch rune) *unicode.RangeTable {
-	// a lot of runes do not have a word break property :
-	// avoid testing all the wordBreaks classes for them
-	if !unicode.Is(wordBreakAll, ch) {
-		return nil
+// WordBreak is a flag storing the Unicode Word Break Property.
+//
+// See https://unicode.org/reports/tr29/#Table_Word_Break_Property_Values
+type WordBreak uint16
+
+// LookupWordBreak returns the word break property for the rune, or 0.
+func LookupWordBreak(ch rune) WordBreak {
+	i := wbLookup(ch)
+	if i == 0 {
+		return 0
 	}
-	for _, class := range wordBreaks {
-		if unicode.Is(class, ch) {
-			return class
-		}
-	}
-	return nil
+	return 1 << (i - 1)
 }
+
+// IsWord returns true for all the runes we may found in a word,
+// that is either a Number (Nd, Nl, No) or a rune with the Alphabetic property
+func IsWord(ch rune) bool { return wordLookup(ch) == 1 }
 
 // LookupMirrorChar finds the mirrored equivalent of a character as defined in
 // the file BidiMirroring.txt of the Unicode Character Database available at
