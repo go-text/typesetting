@@ -5,6 +5,7 @@ import (
 
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-use.cc Copyright © 2015  Mozilla Foundation. Google, Inc. Jonathan Kew, Behdad Esfahbod
@@ -375,11 +376,11 @@ func (cs *complexShaperUSE) preprocessText(_ *otShapePlan, buffer *Buffer, _ *Fo
 
 func (cs *complexShaperUSE) compose(_ *otNormalizeContext, a, b rune) (rune, bool) {
 	// avoid recomposing split matras.
-	if uni.generalCategory(a).IsMark() {
+	if ucd.LookupGeneralCategory(a).IsMark() {
 		return 0, false
 	}
 
-	return uni.compose(a, b)
+	return ucd.Compose(a, b)
 }
 
 func (complexShaperUSE) marksBehavior() (zeroWidthMarks, bool) {
