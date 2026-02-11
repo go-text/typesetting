@@ -5,6 +5,7 @@ import (
 
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-khmer.cc Copyright © 2011,2012  Google, Inc. Behdad Esfahbod
@@ -267,16 +268,16 @@ func (complexShaperKhmer) decompose(c *otNormalizeContext, ab rune) (rune, rune,
 		return 0x17C1, 0x17C5, true
 	}
 
-	return uni.decompose(ab)
+	return ucd.Decompose(ab)
 }
 
 func (complexShaperKhmer) compose(_ *otNormalizeContext, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if uni.generalCategory(a).IsMark() {
+	if ucd.LookupGeneralCategory(a).IsMark() {
 		return 0, false
 	}
 
-	return uni.compose(a, b)
+	return ucd.Compose(a, b)
 }
 
 func (complexShaperKhmer) marksBehavior() (zeroWidthMarks, bool) {

@@ -4,9 +4,6 @@ import (
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
-// uni exposes some lookup functions for Unicode properties.
-var uni = unicodeFuncs{}
-
 // generalCategory is an enum value to allow compact storage (see generalCategories)
 type generalCategory = ucd.GeneralCategory
 
@@ -205,9 +202,7 @@ var modifiedCombiningClass = [256]uint8{
 	255, /* HB_UNICODE_COMBINING_CLASS_INVALID */
 }
 
-type unicodeFuncs struct{}
-
-func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
+func uniModifiedCombiningClass(u rune) uint8 {
 	// Reorder SAKOT to ensure it comes after any tone marks.
 	if u == 0x1A60 {
 		return 254
@@ -272,20 +267,6 @@ func IsDefaultIgnorable(ch rune) bool {
 	}
 }
 
-func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
-	return IsDefaultIgnorable(ch)
-}
-
-// retrieves the General Category property for
-// a specified Unicode code point, expressed as enumeration value.
-func (unicodeFuncs) generalCategory(ch rune) generalCategory { return ucd.LookupGeneralCategory(ch) }
-
-func (unicodeFuncs) isExtendedPictographic(ch rune) bool { return ucd.IsExtendedPictographic(ch) }
-
-// returns the mirroring Glyph code point (for bi-directional
-// replacement) of a code point, or itself
-func (unicodeFuncs) mirroring(ch rune) rune { return ucd.LookupMirrorChar(ch) }
-
 /* Space estimates based on:
  * https://unicode.org/charts/PDF/U2000.pdf
  * https://docs.microsoft.com/en-us/typography/develop/character-design-standards/whitespace
@@ -306,7 +287,7 @@ const (
 	spaceEM6 = 6
 )
 
-func (unicodeFuncs) spaceFallbackType(u rune) uint8 {
+func uniSpaceFallbackType(u rune) uint8 {
 	switch u {
 	// all GC=Zs chars that can use a fallback.
 	case 0x0020:
@@ -346,16 +327,13 @@ func (unicodeFuncs) spaceFallbackType(u rune) uint8 {
 	}
 }
 
-func (unicodeFuncs) isVariationSelector(r rune) bool {
+func uniIsVariationSelector(r rune) bool {
 	/* U+180B..180D, U+180F MONGOLIAN FREE VARIATION SELECTORs are handled in the
 	 * Arabic shaper.  No need to match them here. */
 	/* VARIATION SELECTOR-1..16 */
 	/* VARIATION SELECTOR-17..256 */
 	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }
-
-func (unicodeFuncs) decompose(ab rune) (a, b rune, ok bool) { return ucd.Decompose(ab) }
-func (unicodeFuncs) compose(a, b rune) (rune, bool)         { return ucd.Compose(a, b) }
 
 /* Prepare */
 
@@ -399,7 +377,7 @@ func (b *Buffer) setUnicodeProps() {
 			}
 		} else if info[i].isZwj() {
 			info[i].setContinuation(b)
-			if i+1 < len(b.Info) && uni.isExtendedPictographic(info[i+1].codepoint) {
+			if i+1 < len(b.Info) && ucd.IsExtendedPictographic(info[i+1].codepoint) {
 				i++
 				info[i].setUnicodeProps(b)
 				info[i].setContinuation(b)
@@ -520,11 +498,11 @@ func (b *Buffer) ensureNativeDirection() {
 
 // the returned flag must be ORed with the current
 func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
-	genCat := uni.generalCategory(u)
+	genCat := ucd.LookupGeneralCategory(u)
 	props := unicodeProp(genCat)
 	var flags bufferScratchFlags
 	if u >= 0x80 {
-		if uni.isDefaultIgnorable(u) {
+		if IsDefaultIgnorable(u) {
 			flags |= bsfHasDefaultIgnorables
 			props |= upropsMaskIgnorable
 			if u == 0x200C {
@@ -555,7 +533,7 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 		if genCat.IsMark() {
 			flags |= bsfHasContinuations
 			props |= upropsMaskContinuation
-			props |= unicodeProp(uni.modifiedCombiningClass(u)) << 8
+			props |= unicodeProp(uniModifiedCombiningClass(u)) << 8
 		}
 	}
 
