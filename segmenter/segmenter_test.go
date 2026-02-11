@@ -218,15 +218,3 @@ func BenchmarkSegmentUnicodeReference(b *testing.B) {
 		}
 	}
 }
-
-func BenchmarkComputeBreakAttributes(b *testing.B) {
-	inputs := getLineBreakInputs()
-	var buffer [20_000]breakAttr
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, line := range inputs {
-			computeBreakAttributes(line, buffer[:])
-		}
-	}
-}
