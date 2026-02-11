@@ -14,19 +14,287 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 
 	triggerNumSequence := cr.updateNumSequence()
 
-	// add the line break rules in reverse order to override
-	// the lower priority rules.
-	breakOp := breakEmpty
+	brm1, br0, br1, br2 := cr.prevPrevLine, cr.prevLine, cr.line, cr.nextLine
 
-	cr.ruleLB30(&breakOp)
-	cr.ruleLB30ab(&breakOp)
-	cr.ruleLB29To26(&breakOp)
-	cr.ruleLB25(&breakOp, triggerNumSequence)
-	cr.ruleLB24To22(&breakOp)
-	cr.ruleLB21To8(&breakOp)
-	cr.ruleLB7To4(&breakOp)
+	// LB4 and LB5
+	// BK !
+	// CR !
+	// LF !
+	// NL !
+	// (CR × LF is actually handled in rule LB6)
+	if br0&(ucd.LB_BK|ucd.LB_LF|ucd.LB_NL) != 0 ||
+		(br0 == ucd.LB_CR && cr.r != '\n') {
+		return breakMandatory
+	}
 
-	return breakOp
+	// LB6 : × ( BK | CR | LF | NL )
+	// LB7
+	// × SP
+	// × ZW
+	if br1&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW) != 0 {
+		return breakProhibited
+	}
+
+	// LB 8
+	// there is a catch here : prevLine or beforeSpace are not always
+	// computed at index i-1, because of rules LB9 and LB10
+	// however, rule LB8 and LB8a applies before LB9 and LB10, meaning
+	// we need to use the real class
+	if cr.beforeSpaceLineRaw == ucd.LB_ZW { // rule LB8 : ZW SP* ÷
+		return breakAllowed
+	} else if cr.prevLineRaw == ucd.LB_ZWJ { // rule LB8a : ZWJ ×
+		return breakProhibited
+	}
+
+	// rule LB9 : "Do not break a combining character sequence"
+	// where X is any line break class except BK, CR, LF, NL, SP, or ZW.
+	// see also [endIteration]
+	if br1&(ucd.LB_CM|ucd.LB_ZWJ) != 0 && br0&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW) == 0 {
+		return breakProhibited
+	}
+
+	// LB11
+	// × WJ
+	// WJ ×
+	if br0 == ucd.LB_WJ || br1 == ucd.LB_WJ {
+		return breakProhibited
+	}
+
+	// LB12 : GL ×
+	// LB12a : [^SP BA HY HH] × GL
+	if br0 == ucd.LB_GL ||
+		br0&(ucd.LB_SP|ucd.LB_BA|ucd.LB_HY|ucd.LB_HH) == 0 && br1 == ucd.LB_GL {
+		return breakProhibited
+	}
+
+	// rule LB13
+	// × CL
+	// × CP
+	// × EX
+	// × SY
+	if br1&(ucd.LB_CL|ucd.LB_CP|ucd.LB_EX|ucd.LB_SY) != 0 {
+		return breakProhibited
+	}
+
+	spaceM1 := cr.beforeSpacesLine
+
+	// LB14 : OP SP* ×
+	if spaceM1 == ucd.LB_OP {
+		return breakProhibited
+	}
+
+	// LB15a Do not break after an unresolved initial punctuation that lies at the start of the line, after a space, after opening punctuation, or after an unresolved quotation mark, even after spaces.
+	// (sot | BK | CR | LF | NL | OP | QU | GL | SP | ZW) [\p{Pi}&QU] SP* ×
+	spaceM2 := cr.prevBeforeSpacesLine
+	if (cr.beforeSpacesIndex == 0 || spaceM2&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_OP|ucd.LB_QU|ucd.LB_GL|ucd.LB_SP|ucd.LB_ZW) != 0) &&
+		(ucd.LookupGeneralCategory(cr.beforeSpaces) == ucd.Pi && spaceM1 == ucd.LB_QU) {
+		return breakProhibited
+	}
+	// LB15b Do not break before an unresolved final punctuation that lies at the end of the line, before a space, before a prohibited break, or before an unresolved quotation mark, even after spaces.
+	// × [\p{Pf}&QU] ( SP | GL | WJ | CL | QU | CP | EX | IS | SY | BK | CR | LF | NL | ZW | eot)
+	if (cr.generalCategory == ucd.Pf && br1 == ucd.LB_QU) && (br2&(ucd.LB_SP|ucd.LB_GL|ucd.LB_WJ|ucd.LB_CL|ucd.LB_QU|ucd.LB_CP|ucd.LB_EX|ucd.LB_IS|ucd.LB_SY|ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_ZW) != 0 || cr.index == cr.len-1) {
+		return breakProhibited
+	} else if br0 == ucd.LB_SP && br1 == ucd.LB_IS && br2 == ucd.LB_NU {
+		// LB15c Break before a decimal mark that follows a space, for instance, in ‘subtract .5’.
+		// SP ÷ IS NU
+		return breakAllowed
+	} else if br1 == ucd.LB_IS {
+		// LB15d Otherwise, do not break before ‘;’, ‘,’, or ‘.’, even after spaces.
+		// × IS
+		return breakProhibited
+	}
+
+	// LB16 : (CL | CP) SP* × NS
+	if spaceM1&(ucd.LB_CL|ucd.LB_CP) != 0 && br1 == ucd.LB_NS {
+		return breakProhibited
+	}
+
+	// LB17 : B2 SP* × B2
+	if spaceM1 == ucd.LB_B2 && br1 == ucd.LB_B2 {
+		return breakProhibited
+	}
+
+	// LB18 : SP ÷
+	if br0 == ucd.LB_SP {
+		return breakAllowed
+	}
+
+	// LB19
+	// × [ QU - \p{Pi} ]
+	// [ QU - \p{Pf} ] ×
+	if (br1 == ucd.LB_QU && cr.generalCategory != ucd.Pi) || (br0 == ucd.LB_QU && cr.prevGeneralCategory != ucd.Pf) {
+		return breakProhibited
+	}
+	// LB 19a
+	// [^$EastAsian] × QU
+	// × QU ( [^$EastAsian] | eot )
+	// QU × [^$EastAsian]
+	// ( sot | [^$EastAsian] ) QU ×
+	if (br1 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.prev)) ||
+		(br1 == ucd.LB_QU && (cr.index == cr.len-1 || !ucd.IsLargeEastAsian(cr.next))) ||
+		(br0 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.r)) ||
+		((cr.isPreviousSot || !ucd.IsLargeEastAsian(cr.prevPrev)) && br0 == ucd.LB_QU) {
+		return breakProhibited
+	}
+
+	// LB20
+	// ÷ CB
+	// CB ÷
+	if br0 == ucd.LB_CB || br1 == ucd.LB_CB {
+		return breakAllowed
+	}
+	// LB20a Do not break after a word-initial hyphen.
+	// ( sot | BK | CR | LF | NL | SP | ZW | CB | GL ) ( HY | HH ) × ( AL | HL )
+	if (cr.isPreviousSot || brm1&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW|ucd.LB_CB|ucd.LB_GL) != 0) &&
+		br0&(ucd.LB_HY|ucd.LB_HH) != 0 && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
+		return breakProhibited
+	}
+
+	// LB21
+	// × BA
+	// × HH
+	// × HY
+	// × NS
+	// BB ×
+	if br1&(ucd.LB_BA|ucd.LB_HH|ucd.LB_HY|ucd.LB_NS) != 0 || br0 == ucd.LB_BB {
+		return breakProhibited
+	}
+	// LB21a : HL (HY | HH) × [^HL]
+	if cr.prevPrevLine == ucd.LB_HL && br0&(ucd.LB_HY|ucd.LB_HH) != 0 && br1 != ucd.LB_HL {
+		return breakProhibited
+	}
+	// LB21b : SY × HL
+	if br0 == ucd.LB_SY && br1 == ucd.LB_HL {
+		return breakProhibited
+	}
+
+	// LB22 : × IN
+	if br1 == ucd.LB_IN {
+		return breakProhibited
+	}
+
+	// LB23
+	// (AL | HL) × NU
+	if br0&(ucd.LB_AL|ucd.LB_HL) != 0 && br1 == ucd.LB_NU {
+		return breakProhibited
+	}
+	// NU × (AL | HL)
+	if br0 == ucd.LB_NU && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
+		return breakProhibited
+	}
+	// LB23a
+	// PR × (ID | EB | EM)
+	if br0 == ucd.LB_PR && br1&(ucd.LB_ID|ucd.LB_EB|ucd.LB_EM) != 0 {
+		return breakProhibited
+	}
+	// (ID | EB | EM) × PO
+	if br0&(ucd.LB_ID|ucd.LB_EB|ucd.LB_EM) != 0 && br1 == ucd.LB_PO {
+		return breakProhibited
+	}
+
+	// LB24
+	// (PR | PO) × (AL | HL)
+	if br0&(ucd.LB_PR|ucd.LB_PO) != 0 && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
+		return breakProhibited
+	}
+	// (AL | HL) × (PR | PO)
+	if br0&(ucd.LB_AL|ucd.LB_HL) != 0 && br1&(ucd.LB_PR|ucd.LB_PO) != 0 {
+		return breakProhibited
+	}
+
+	// LB25
+	// (PR | PO) × ( OP | HY )? NU
+	if br0&(ucd.LB_PR|ucd.LB_PO) != 0 && (br1 == ucd.LB_NU ||
+		br1&(ucd.LB_OP|ucd.LB_HY) != 0 && cr.nextLine == ucd.LB_NU) {
+		return breakProhibited
+	}
+	// ( OP | HY | IS ) × NU
+	if br0&(ucd.LB_OP|ucd.LB_HY|ucd.LB_IS) != 0 && br1 == ucd.LB_NU {
+		return breakProhibited
+	}
+	// NU × (NU | SY | IS)
+	if br0 == ucd.LB_NU && br1&(ucd.LB_NU|ucd.LB_SY|ucd.LB_IS) != 0 {
+		return breakProhibited
+	}
+	// NU (NU | SY | IS)* × (NU | SY | IS | CL | CP )
+	if triggerNumSequence {
+		return breakProhibited
+	}
+
+	// LB26
+	// JL × (JL | JV | H2 | H3)
+	if br0 == ucd.LB_JL && br1&(ucd.LB_JL|ucd.LB_JV|ucd.LB_H2|ucd.LB_H3) != 0 {
+		return breakProhibited
+	}
+	// (JV | H2) × (JV | JT)
+	if br0&(ucd.LB_JV|ucd.LB_H2) != 0 && br1&(ucd.LB_JV|ucd.LB_JT) != 0 {
+		return breakProhibited
+	}
+	// (JT | H3) × JT
+	if br0&(ucd.LB_JT|ucd.LB_H3) != 0 && br1 == ucd.LB_JT {
+		return breakProhibited
+	}
+
+	// LB27
+	// (JL | JV | JT | H2 | H3) × PO
+	if br0&(ucd.LB_JL|ucd.LB_JV|ucd.LB_JT|ucd.LB_H2|ucd.LB_H3) != 0 && br1 == ucd.LB_PO {
+		return breakProhibited
+	}
+	// PR × (JL | JV | JT | H2 | H3)
+	if br0 == ucd.LB_PR && br1&(ucd.LB_JL|ucd.LB_JV|ucd.LB_JT|ucd.LB_H2|ucd.LB_H3) != 0 {
+		return breakProhibited
+	}
+
+	// LB28a Do not break inside the orthographic syllables of Brahmic scripts.
+	// AP × (AK | [◌] | AS)
+	if br0 == ucd.LB_AP && (cr.r == 0x25CC || br1&(ucd.LB_AK|ucd.LB_AS) != 0) ||
+		// (AK | [◌] | AS) × (VF | VI)
+		(cr.isPrevDottedCircle || br0&(ucd.LB_AK|ucd.LB_AS) != 0) && br1&(ucd.LB_VF|ucd.LB_VI) != 0 ||
+		// (AK | [◌] | AS) VI × (AK | [◌])
+		(cr.isPrevPrevDottedCircle || brm1&(ucd.LB_AK|ucd.LB_AS) != 0) && br0 == ucd.LB_VI && (br1 == ucd.LB_AK || cr.r == 0x25CC) ||
+		// (AK | [◌] | AS) × (AK | [◌] | AS) VF
+		(cr.isPrevDottedCircle || br0&(ucd.LB_AK|ucd.LB_AS) != 0) && (cr.r == 0x25CC || br1&(ucd.LB_AK|ucd.LB_AS) != 0) && br2 == ucd.LB_VF {
+		return breakProhibited
+	}
+	// LB28 : (AL | HL) × (AL | HL)
+	if br0&(ucd.LB_AL|ucd.LB_HL) != 0 && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
+		return breakProhibited
+	}
+
+	// LB29 : IS × (AL | HL)
+	if br0 == ucd.LB_IS && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
+		return breakProhibited
+	}
+
+	// LB30a
+	// (RI RI)* RI × RI
+	if cr.isPrevLinebreakRIOdd && cr.line == ucd.LB_RI {
+		return breakProhibited
+	}
+
+	// LB30b
+	// EB × EM
+	if cr.prevLine == ucd.LB_EB && cr.line == ucd.LB_EM {
+		return breakProhibited
+	}
+	// [\p{Extended_Pictographic}&\p{Cn}] × EM
+	if cr.isPrevNonAssignedExtendedPic && cr.line == ucd.LB_EM {
+		return breakProhibited
+	}
+
+	// LB 30
+	// (AL | HL | NU) × [OP-[\p{ea=F}\p{ea=W}\p{ea=H}]]
+	if cr.prevLine&(ucd.LB_AL|ucd.LB_HL|ucd.LB_NU) != 0 &&
+		cr.line == ucd.LB_OP && !ucd.IsLargeEastAsian(cr.r) {
+		return breakProhibited
+	}
+	// [CP-[\p{ea=F}\p{ea=W}\p{ea=H}]] × (AL | HL | NU)
+	if cr.prevLine == ucd.LB_CP && !ucd.IsLargeEastAsian(cr.prev) &&
+		cr.line&(ucd.LB_AL|ucd.LB_HL|ucd.LB_NU) != 0 {
+		return breakProhibited
+	}
+
+	return breakEmpty
 }
 
 // breakOpportunity is a convenient enum,
@@ -40,297 +308,6 @@ const (
 	breakAllowed                            // direct break (can always break here)
 	breakMandatory                          // break is mandatory (implies breakAllowed)
 )
-
-func (cr *cursor) ruleLB30(breakOp *breakOpportunity) {
-	// (AL | HL | NU) × [OP-[\p{ea=F}\p{ea=W}\p{ea=H}]]
-	if cr.prevLine&(ucd.LB_AL|ucd.LB_HL|ucd.LB_NU) != 0 &&
-		cr.line == ucd.LB_OP && !ucd.IsLargeEastAsian(cr.r) {
-		*breakOp = breakProhibited
-	}
-	// [CP-[\p{ea=F}\p{ea=W}\p{ea=H}]] × (AL | HL | NU)
-	if cr.prevLine == ucd.LB_CP && !ucd.IsLargeEastAsian(cr.prev) &&
-		cr.line&(ucd.LB_AL|ucd.LB_HL|ucd.LB_NU) != 0 {
-		*breakOp = breakProhibited
-	}
-}
-
-func (cr *cursor) ruleLB30ab(breakOp *breakOpportunity) {
-	// (RI RI)* RI × RI
-	if cr.isPrevLinebreakRIOdd && cr.line == ucd.LB_RI { // LB30a
-		*breakOp = breakProhibited
-	}
-
-	// LB30b
-	// EB × EM
-	if cr.prevLine == ucd.LB_EB && cr.line == ucd.LB_EM {
-		*breakOp = breakProhibited
-	}
-	// [\p{Extended_Pictographic}&\p{Cn}] × EM
-	if cr.isPrevNonAssignedExtendedPic && cr.line == ucd.LB_EM {
-		*breakOp = breakProhibited
-	}
-}
-
-func (cr *cursor) ruleLB29To26(breakOp *breakOpportunity) {
-	bm1, b0, b1, b2 := cr.prevPrevLine, cr.prevLine, cr.line, cr.nextLine
-	// LB29 : IS × (AL | HL)
-	if b0 == ucd.LB_IS && b1&(ucd.LB_AL|ucd.LB_HL) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB28a Do not break inside the orthographic syllables of Brahmic scripts.
-	// AP × (AK | [◌] | AS)
-	if b0 == ucd.LB_AP && (cr.r == 0x25CC || b1&(ucd.LB_AK|ucd.LB_AS) != 0) ||
-		// (AK | [◌] | AS) × (VF | VI)
-		(cr.isPrevDottedCircle || b0&(ucd.LB_AK|ucd.LB_AS) != 0) && b1&(ucd.LB_VF|ucd.LB_VI) != 0 ||
-		// (AK | [◌] | AS) VI × (AK | [◌])
-		(cr.isPrevPrevDottedCircle || bm1&(ucd.LB_AK|ucd.LB_AS) != 0) && b0 == ucd.LB_VI && (b1 == ucd.LB_AK || cr.r == 0x25CC) ||
-		// (AK | [◌] | AS) × (AK | [◌] | AS) VF
-		(cr.isPrevDottedCircle || b0&(ucd.LB_AK|ucd.LB_AS) != 0) && (cr.r == 0x25CC || b1&(ucd.LB_AK|ucd.LB_AS) != 0) && b2 == ucd.LB_VF {
-		*breakOp = breakProhibited
-	}
-
-	// LB28 : (AL | HL) × (AL | HL)
-	if b0&(ucd.LB_AL|ucd.LB_HL) != 0 && b1&(ucd.LB_AL|ucd.LB_HL) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB27
-	// (JL | JV | JT | H2 | H3) × PO
-	if b0&(ucd.LB_JL|ucd.LB_JV|ucd.LB_JT|ucd.LB_H2|ucd.LB_H3) != 0 && b1 == ucd.LB_PO {
-		*breakOp = breakProhibited
-	}
-	// PR × (JL | JV | JT | H2 | H3)
-	if b0 == ucd.LB_PR && b1&(ucd.LB_JL|ucd.LB_JV|ucd.LB_JT|ucd.LB_H2|ucd.LB_H3) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB26
-	// JL × (JL | JV | H2 | H3)
-	if b0 == ucd.LB_JL && b1&(ucd.LB_JL|ucd.LB_JV|ucd.LB_H2|ucd.LB_H3) != 0 {
-		*breakOp = breakProhibited
-	}
-	// (JV | H2) × (JV | JT)
-	if b0&(ucd.LB_JV|ucd.LB_H2) != 0 && b1&(ucd.LB_JV|ucd.LB_JT) != 0 {
-		*breakOp = breakProhibited
-	}
-	// (JT | H3) × JT
-	if b0&(ucd.LB_JT|ucd.LB_H3) != 0 && b1 == ucd.LB_JT {
-		*breakOp = breakProhibited
-	}
-}
-
-// we follow other implementations by using the tailoring described
-// in Example 7
-func (cr *cursor) ruleLB25(breakOp *breakOpportunity, triggerNumSequence bool) {
-	br0, br1 := cr.prevLine, cr.line
-	// (PR | PO) × ( OP | HY )? NU
-	if br0&(ucd.LB_PR|ucd.LB_PO) != 0 && (br1 == ucd.LB_NU ||
-		br1&(ucd.LB_OP|ucd.LB_HY) != 0 && cr.nextLine == ucd.LB_NU) {
-		*breakOp = breakProhibited
-	}
-	// ( OP | HY | IS ) × NU
-	if br0&(ucd.LB_OP|ucd.LB_HY|ucd.LB_IS) != 0 && br1 == ucd.LB_NU {
-		*breakOp = breakProhibited
-	}
-	// NU × (NU | SY | IS)
-	if br0 == ucd.LB_NU && br1&(ucd.LB_NU|ucd.LB_SY|ucd.LB_IS) != 0 {
-		*breakOp = breakProhibited
-	}
-	// NU (NU | SY | IS)* × (NU | SY | IS | CL | CP )
-	if triggerNumSequence {
-		*breakOp = breakProhibited
-	}
-}
-
-func (cr *cursor) ruleLB24To22(breakOp *breakOpportunity) {
-	br0, br1 := cr.prevLine, cr.line
-	// LB24
-	// (PR | PO) × (AL | HL)
-	if br0&(ucd.LB_PR|ucd.LB_PO) != 0 && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
-		*breakOp = breakProhibited
-	}
-	// (AL | HL) × (PR | PO)
-	if br0&(ucd.LB_AL|ucd.LB_HL) != 0 && br1&(ucd.LB_PR|ucd.LB_PO) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB23
-	// (AL | HL) × NU
-	if br0&(ucd.LB_AL|ucd.LB_HL) != 0 && br1 == ucd.LB_NU {
-		*breakOp = breakProhibited
-	}
-	// NU × (AL | HL)
-	if br0 == ucd.LB_NU && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB23a
-	// PR × (ID | EB | EM)
-	if br0 == ucd.LB_PR && br1&(ucd.LB_ID|ucd.LB_EB|ucd.LB_EM) != 0 {
-		*breakOp = breakProhibited
-	}
-	// (ID | EB | EM) × PO
-	if br0&(ucd.LB_ID|ucd.LB_EB|ucd.LB_EM) != 0 && br1 == ucd.LB_PO {
-		*breakOp = breakProhibited
-	}
-
-	// LB22 : × IN
-	if br1 == ucd.LB_IN {
-		*breakOp = breakProhibited
-	}
-}
-
-func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
-	brm1, br0, br1 := cr.prevPrevLine, cr.prevLine, cr.line
-	// LB21
-	// × BA
-	// × HH
-	// × HY
-	// × NS
-	// BB ×
-	if br1&(ucd.LB_BA|ucd.LB_HH|ucd.LB_HY|ucd.LB_NS) != 0 || br0 == ucd.LB_BB {
-		*breakOp = breakProhibited
-	}
-	// LB21a : HL (HY | HH) × [^HL]
-	if cr.prevPrevLine == ucd.LB_HL && br0&(ucd.LB_HY|ucd.LB_HH) != 0 && br1 != ucd.LB_HL {
-		*breakOp = breakProhibited
-	}
-	// LB21b : SY × HL
-	if br0 == ucd.LB_SY && br1 == ucd.LB_HL {
-		*breakOp = breakProhibited
-	}
-	// LB20a Do not break after a word-initial hyphen.
-	// ( sot | BK | CR | LF | NL | SP | ZW | CB | GL ) ( HY | HH ) × ( AL | HL )
-	if (cr.isPreviousSot || brm1&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW|ucd.LB_CB|ucd.LB_GL) != 0) &&
-		br0&(ucd.LB_HY|ucd.LB_HH) != 0 && br1&(ucd.LB_AL|ucd.LB_HL) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB20
-	// ÷ CB
-	// CB ÷
-	if br0 == ucd.LB_CB || br1 == ucd.LB_CB {
-		*breakOp = breakAllowed
-	}
-	// LB19
-	// × [ QU - \p{Pi} ]
-	// [ QU - \p{Pf} ] ×
-	if (br1 == ucd.LB_QU && cr.generalCategory != ucd.Pi) || (br0 == ucd.LB_QU && cr.prevGeneralCategory != ucd.Pf) {
-		*breakOp = breakProhibited
-	}
-	// LB 19a
-	// [^$EastAsian] × QU
-	// × QU ( [^$EastAsian] | eot )
-	// QU × [^$EastAsian]
-	// ( sot | [^$EastAsian] ) QU ×
-	if (br1 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.prev)) ||
-		(br1 == ucd.LB_QU && (cr.index == cr.len-1 || !ucd.IsLargeEastAsian(cr.next))) ||
-		(br0 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.r)) ||
-		((cr.isPreviousSot || !ucd.IsLargeEastAsian(cr.prevPrev)) && br0 == ucd.LB_QU) {
-		*breakOp = breakProhibited
-	}
-
-	// LB18 : SP ÷
-	if br0 == ucd.LB_SP {
-		*breakOp = breakAllowed
-	}
-	// LB17 : B2 SP* × B2
-	spaceM1 := cr.beforeSpacesLine
-	if spaceM1 == ucd.LB_B2 && br1 == ucd.LB_B2 {
-		*breakOp = breakProhibited
-	}
-	// LB16 : (CL | CP) SP* × NS
-	if spaceM1&(ucd.LB_CL|ucd.LB_CP) != 0 && br1 == ucd.LB_NS {
-		*breakOp = breakProhibited
-	}
-	// LB15a Do not break after an unresolved initial punctuation that lies at the start of the line, after a space, after opening punctuation, or after an unresolved quotation mark, even after spaces.
-	// (sot | BK | CR | LF | NL | OP | QU | GL | SP | ZW) [\p{Pi}&QU] SP* ×
-	spaceM2 := cr.prevBeforeSpacesLine
-	if (cr.beforeSpacesIndex == 0 || spaceM2&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_OP|ucd.LB_QU|ucd.LB_GL|ucd.LB_SP|ucd.LB_ZW) != 0) &&
-		(ucd.LookupGeneralCategory(cr.beforeSpaces) == ucd.Pi && spaceM1 == ucd.LB_QU) {
-		*breakOp = breakProhibited
-	}
-	// LB15b Do not break before an unresolved final punctuation that lies at the end of the line, before a space, before a prohibited break, or before an unresolved quotation mark, even after spaces.
-	// × [\p{Pf}&QU] ( SP | GL | WJ | CL | QU | CP | EX | IS | SY | BK | CR | LF | NL | ZW | eot)
-	br2 := cr.nextLine
-	if (cr.generalCategory == ucd.Pf && br1 == ucd.LB_QU) && (br2&(ucd.LB_SP|ucd.LB_GL|ucd.LB_WJ|ucd.LB_CL|ucd.LB_QU|ucd.LB_CP|ucd.LB_EX|ucd.LB_IS|ucd.LB_SY|ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_ZW) != 0 || cr.index == cr.len-1) {
-		*breakOp = breakProhibited
-	}
-	if br0 == ucd.LB_SP && br1 == ucd.LB_IS && br2 == ucd.LB_NU {
-		// LB15c Break before a decimal mark that follows a space, for instance, in ‘subtract .5’.
-		// SP ÷ IS NU
-		*breakOp = breakAllowed
-	} else if br1 == ucd.LB_IS {
-		// LB15d Otherwise, do not break before ‘;’, ‘,’, or ‘.’, even after spaces.
-		// × IS
-		*breakOp = breakProhibited
-	}
-
-	// LB14 : OP SP* ×
-	if spaceM1 == ucd.LB_OP {
-		*breakOp = breakProhibited
-	}
-
-	// rule LB13
-	// × CL
-	// × CP
-	// × EX
-	// × SY
-	if br1&(ucd.LB_CL|ucd.LB_CP|ucd.LB_EX|ucd.LB_SY) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB12 : GL ×
-	if br0 == ucd.LB_GL {
-		*breakOp = breakProhibited
-	}
-	// LB12a : [^SP BA HY HH] × GL
-	if br0&(ucd.LB_SP|ucd.LB_BA|ucd.LB_HY|ucd.LB_HH) == 0 && br1 == ucd.LB_GL {
-		*breakOp = breakProhibited
-	}
-	// LB11
-	// × WJ
-	// WJ ×
-	if br0 == ucd.LB_WJ || br1 == ucd.LB_WJ {
-		*breakOp = breakProhibited
-	}
-
-	// rule LB9 : "Do not break a combining character sequence"
-	// where X is any line break class except BK, CR, LF, NL, SP, or ZW.
-	// see also [endIteration]
-	if br1&(ucd.LB_CM|ucd.LB_ZWJ) != 0 && br0&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW) == 0 {
-		*breakOp = breakProhibited
-	}
-
-	// there is a catch here : prevLine or beforeSpace are not always
-	// computed at index i-1, because of rules LB9 and LB10
-	// however, rule LB8 and LB8a applies before LB9 and LB10, meaning
-	// we need to use the real class
-
-	if cr.beforeSpaceLineRaw == ucd.LB_ZW { // rule LB8 : ZW SP* ÷
-		*breakOp = breakAllowed
-	} else if cr.prevLineRaw == ucd.LB_ZWJ { // rule LB8a : ZWJ ×
-		*breakOp = breakProhibited
-	}
-}
-
-func (cr *cursor) ruleLB7To4(breakOp *breakOpportunity) {
-	// LB7
-	// × SP
-	// × ZW
-	if cr.line&(ucd.LB_SP|ucd.LB_ZW) != 0 {
-		*breakOp = breakProhibited
-	}
-	// LB6 : × ( BK | CR | LF | NL )
-	if cr.line&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL) != 0 {
-		*breakOp = breakProhibited
-	}
-
-	// LB4 and LB5
-	// BK !
-	// CR !
-	// LF !
-	// NL !
-	// (CR × LF is actually handled in rule LB6)
-	if cr.prevLine&(ucd.LB_BK|ucd.LB_LF|ucd.LB_NL) != 0 ||
-		(cr.prevLine == ucd.LB_CR && cr.r != '\n') {
-		*breakOp = breakMandatory
-	}
-}
 
 // apply rule LB1 to resolve break classses AI, SG, XX, SA and CJ.
 // We use the default values specified in https://unicode.org/reports/tr14/#BreakingRules.
