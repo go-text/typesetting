@@ -59,6 +59,9 @@ type cursor struct {
 
 	// the following fields persists across iterations
 
+	prevGeneralCategory ucd.GeneralCategory // for prev
+	generalCategory     ucd.GeneralCategory // for r
+
 	prevGrapheme ucd.GraphemeBreak // the Grapheme Break property at index i-1
 	grapheme     ucd.GraphemeBreak // the Grapheme Break property at index i
 
@@ -79,6 +82,7 @@ type cursor struct {
 
 	prevPrevLine           ucd.LineBreak // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
 	prevLine               ucd.LineBreak // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
+	prevLineRaw            ucd.LineBreak // always for prev (index i-1), despite LB9 and LB10
 	line                   ucd.LineBreak // the Line Break Class at index i
 	nextLine               ucd.LineBreak // the Line Break Class at index i+1
 	isPrevPrevDottedCircle bool          // following LB9 and LB10
@@ -88,9 +92,10 @@ type cursor struct {
 
 	// the last rune before spaces, used in rules LB14,LB15,LB16,LB17
 	// to match ... SP* ...
-	prevBeforeSpaces, beforeSpaces rune
-	beforeSpaceRaw                 rune // do not follow LB9 and LB10
-	beforeSpacesIndex              int
+	prevBeforeSpaces, beforeSpaces         rune
+	prevBeforeSpacesLine, beforeSpacesLine ucd.LineBreak
+	beforeSpaceLineRaw                     ucd.LineBreak // do not follow LB9 and LB10
+	beforeSpacesIndex                      int
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules LB30a

@@ -210,7 +210,7 @@ func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
 	// LB19
 	// × [ QU - \p{Pi} ]
 	// [ QU - \p{Pf} ] ×
-	if (br1 == ucd.LB_QU && ucd.LookupGeneralCategory(cr.r) != ucd.Pi) || (br0 == ucd.LB_QU && ucd.LookupGeneralCategory(cr.prev) != ucd.Pf) {
+	if (br1 == ucd.LB_QU && cr.generalCategory != ucd.Pi) || (br0 == ucd.LB_QU && cr.prevGeneralCategory != ucd.Pf) {
 		*breakOp = breakProhibited
 	}
 	// LB 19a
@@ -230,7 +230,7 @@ func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
 		*breakOp = breakAllowed
 	}
 	// LB17 : B2 SP* × B2
-	spaceM1 := ucd.LookupLineBreak(cr.beforeSpaces)
+	spaceM1 := cr.beforeSpacesLine
 	if spaceM1 == ucd.LB_B2 && br1 == ucd.LB_B2 {
 		*breakOp = breakProhibited
 	}
@@ -240,7 +240,7 @@ func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
 	}
 	// LB15a Do not break after an unresolved initial punctuation that lies at the start of the line, after a space, after opening punctuation, or after an unresolved quotation mark, even after spaces.
 	// (sot | BK | CR | LF | NL | OP | QU | GL | SP | ZW) [\p{Pi}&QU] SP* ×
-	spaceM2 := ucd.LookupLineBreak(cr.prevBeforeSpaces)
+	spaceM2 := cr.prevBeforeSpacesLine
 	if (cr.beforeSpacesIndex == 0 || spaceM2&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_OP|ucd.LB_QU|ucd.LB_GL|ucd.LB_SP|ucd.LB_ZW) != 0) &&
 		(ucd.LookupGeneralCategory(cr.beforeSpaces) == ucd.Pi && spaceM1 == ucd.LB_QU) {
 		*breakOp = breakProhibited
@@ -248,7 +248,7 @@ func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
 	// LB15b Do not break before an unresolved final punctuation that lies at the end of the line, before a space, before a prohibited break, or before an unresolved quotation mark, even after spaces.
 	// × [\p{Pf}&QU] ( SP | GL | WJ | CL | QU | CP | EX | IS | SY | BK | CR | LF | NL | ZW | eot)
 	br2 := cr.nextLine
-	if (ucd.LookupGeneralCategory(cr.r) == ucd.Pf && br1 == ucd.LB_QU) && (br2&(ucd.LB_SP|ucd.LB_GL|ucd.LB_WJ|ucd.LB_CL|ucd.LB_QU|ucd.LB_CP|ucd.LB_EX|ucd.LB_IS|ucd.LB_SY|ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_ZW) != 0 || cr.index == cr.len-1) {
+	if (cr.generalCategory == ucd.Pf && br1 == ucd.LB_QU) && (br2&(ucd.LB_SP|ucd.LB_GL|ucd.LB_WJ|ucd.LB_CL|ucd.LB_QU|ucd.LB_CP|ucd.LB_EX|ucd.LB_IS|ucd.LB_SY|ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_ZW) != 0 || cr.index == cr.len-1) {
 		*breakOp = breakProhibited
 	}
 	if br0 == ucd.LB_SP && br1 == ucd.LB_IS && br2 == ucd.LB_NU {
@@ -301,9 +301,9 @@ func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
 	// however, rule LB8 and LB8a applies before LB9 and LB10, meaning
 	// we need to use the real class
 
-	if ucd.LookupLineBreak(cr.beforeSpaceRaw) == ucd.LB_ZW { // rule LB8 : ZW SP* ÷
+	if cr.beforeSpaceLineRaw == ucd.LB_ZW { // rule LB8 : ZW SP* ÷
 		*breakOp = breakAllowed
-	} else if ucd.LookupLineBreak(cr.prev) == ucd.LB_ZWJ { // rule LB8a : ZWJ ×
+	} else if cr.prevLineRaw == ucd.LB_ZWJ { // rule LB8a : ZWJ ×
 		*breakOp = breakProhibited
 	}
 }
@@ -339,7 +339,7 @@ func (cr *cursor) ruleLB1() {
 	case ucd.LB_AI, ucd.LB_SG, 0:
 		cr.line = ucd.LB_AL
 	case ucd.LB_SA:
-		if cat := ucd.LookupGeneralCategory(cr.r); cat == ucd.Mn || cat == ucd.Mc {
+		if cr.generalCategory == ucd.Mn || cr.generalCategory == ucd.Mc {
 			cr.line = ucd.LB_CM
 		} else {
 			cr.line = ucd.LB_AL
@@ -426,9 +426,15 @@ func (cr *cursor) startIteration(text []rune, i int) {
 	}
 
 	// query general unicode properties for the current rune
+	cr.prevGeneralCategory = cr.generalCategory
+	cr.generalCategory = ucd.LookupGeneralCategory(cr.r)
 
 	cr.isExtentedPic = ucd.IsExtendedPictographic(cr.r)
 	cr.indicConjunctBreak = ucd.LookupIndicConjunctBreak(cr.r)
+
+	// prevPrevLine and prevLine are handled in endIteration
+	cr.line = cr.nextLine
+	cr.nextLine = ucd.LookupLineBreak(cr.next)
 
 	cr.prevGrapheme = cr.grapheme
 	cr.grapheme = ucd.LookupGraphemeBreak(cr.r)
@@ -439,10 +445,6 @@ func (cr *cursor) startIteration(text []rune, i int) {
 		cr.prevWordNoExtend = i - 1
 	}
 	cr.word = ucd.LookupWordBreak(cr.r)
-
-	// prevPrevLine and prevLine are handled in endIteration
-	cr.line = cr.nextLine // avoid calling LookupLineBreakClass twice
-	cr.nextLine = ucd.LookupLineBreak(cr.next)
 }
 
 // end the current iteration, computing some of the properties
@@ -458,25 +460,30 @@ func (cr *cursor) endIteration() {
 	} else { // regular update
 		cr.isPreviousSot = cr.index == 0
 
+		// keep track of the rune before the spaces
+		if cr.line != ucd.LB_SP {
+			cr.beforeSpaces = cr.r
+			cr.prevBeforeSpaces = cr.prev
+			cr.beforeSpacesIndex = cr.index
+
+			cr.beforeSpacesLine = cr.line
+			cr.prevBeforeSpacesLine = cr.prevLine
+		}
+
 		cr.prevPrevLine = cr.prevLine
 		cr.prevLine = cr.line
 
 		cr.isPrevPrevDottedCircle = cr.isPrevDottedCircle
 		cr.isPrevDottedCircle = cr.r == 0x25CC
 
-		cr.isPrevNonAssignedExtendedPic = cr.isExtentedPic && ucd.LookupGeneralCategory(cr.r) == ucd.Unassigned
-
-		// keep track of the rune before the spaces
-		if cr.prevLine != ucd.LB_SP {
-			cr.beforeSpaces = cr.r
-			cr.prevBeforeSpaces = cr.prev
-			cr.beforeSpacesIndex = cr.index
-		}
+		cr.isPrevNonAssignedExtendedPic = cr.isExtentedPic && cr.generalCategory == ucd.Unassigned
 	}
+
+	cr.prevLineRaw = cr.line
 
 	// keep track of the rune before the spaces
 	if cr.prevLine != ucd.LB_SP {
-		cr.beforeSpaceRaw = cr.r
+		cr.beforeSpaceLineRaw = cr.line
 	}
 
 	// update RegionalIndicator parity used for LB30a
