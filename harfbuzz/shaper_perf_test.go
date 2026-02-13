@@ -1,9 +1,9 @@
 package harfbuzz
 
 import (
-	"os"
 	"testing"
 
+	td "github.com/go-text/typesetting-utils/harfbuzz"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
 	tu "github.com/go-text/typesetting/testutils"
@@ -21,7 +21,7 @@ func BenchmarkShaping(b *testing.B) {
 	}{
 		{
 			"fa-thelittleprince.txt - Amiri",
-			"erf_reference/texts/fa-thelittleprince.txt",
+			"perf_reference/texts/fa-thelittleprince.txt",
 			"perf_reference/fonts/Amiri-Regular.ttf",
 			language.Arabic,
 			RightToLeft,
@@ -78,7 +78,7 @@ func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, scri
 
 	font := NewFont(font.NewFace(ft))
 
-	textB, err := os.ReadFile(textFile)
+	textB, err := td.Files.ReadFile(textFile)
 	tu.AssertNoErr(b, err)
 
 	text := []rune(string(textB))

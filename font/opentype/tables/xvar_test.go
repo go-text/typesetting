@@ -183,6 +183,25 @@ func TestParseHvar(t *testing.T) {
 	}
 }
 
+// copied from harfbuzz/src/test-item-varstore.cc
+func TestParseHvarData(t *testing.T) {
+	// HVAR table data from SourceSerif4Variable-Roman_subset.otf
+	const hvar_data = "\x00\x01\x00\x00\x00\x00\x00\x14\x00\x00\x00\xc4\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x01\x00\x00\x00\x10\x00\x02\x00\x00\x00\x74\x00\x00\x00\x7a\x00" +
+		"\x02\x00\x08\xc0\x00\xc0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x40\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc0\x00\xc0\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x40\x00\x40\x00\xc0\x00\xc0\x00\x00\x00\xc0\x00\xc0\x00\x00\x00" +
+		"\xc0\x00\xc0\x00\x00\x00\x00\x00\x40\x00\x40\x00\x00\x00\x40\x00\x40\x00\xc0\x00\xc0" +
+		"\x00\x00\x00\x00\x00\x40\x00\x40\x00\x00\x00\x40\x00\x40\x00\x00\x01\x00\x00\x00\x00" +
+		"\x00\x04\x00\x00\x00\x08\x00\x00\x00\x01\x00\x02\x00\x03\x00\x04\x00\x05\x00\x06\x00\x07\xf9" +
+		"\x0f\x2f\xbf\xfb\xfb\x35\xf9\x04\x04\xf3\xb4\xf2\xfb\x2e\xf3\x04\x04\x0e\xad\xfa\x01\x1a\x01\x15" +
+		"\x22\x59\xd6\xe3\xf6\x06\xf5\x00\x01\x00\x05\x00\x04\x07\x05\x06"
+
+	hvar, _, err := ParseHVAR([]byte(hvar_data))
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, hvar.ItemVariationStore.AxisCount() == 2)
+}
+
 func TestParseAvar(t *testing.T) {
 	for _, filepath := range td.WithAvar {
 		fp := readFontFile(t, filepath)
@@ -205,5 +224,31 @@ func TestParseFvar(t *testing.T) {
 		fvar, _, err := ParseFvar(readTable(t, fp, "fvar"))
 		tu.AssertNoErr(t, err)
 		tu.Assert(t, len(fvar.Axis) == item.AxisCount)
+	}
+}
+
+func TestCoordBits(t *testing.T) {
+	tu.Assert(t, NewCoord(1) == Coord(1<<14))
+	tu.Assert(t, NewCoord(-1) == -Coord(1<<14))
+
+	tu.Assert(t, abs(NewCoord(1)) == abs(NewCoord(-1)))
+	tu.Assert(t, abs(NewCoord(0.123)) < abs(NewCoord(0.56)))
+	tu.Assert(t, abs(NewCoord(0.123)) < abs(NewCoord(-0.56)))
+	tu.Assert(t, abs(NewCoord(-0.123)) < abs(NewCoord(-0.56)))
+}
+
+func TestParseSTAT(t *testing.T) {
+	for _, path := range td.WithAvar {
+		fp := readFontFile(t, path)
+
+		names, _, err := ParseName(readTable(t, fp, "name"))
+		tu.AssertNoErr(t, err)
+
+		stat, _, err := ParseSTAT(readTable(t, fp, "STAT"))
+		tu.AssertNoErr(t, err)
+
+		for _, axis := range stat.designAxes {
+			tu.Assert(t, names.Name(axis.NameID) != "")
+		}
 	}
 }

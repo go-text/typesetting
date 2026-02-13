@@ -325,8 +325,7 @@ func (f *Face) glyphDataFromGlyf(glyph gID) (GlyphOutline, error) {
 	if int(glyph) >= len(f.glyf) {
 		return GlyphOutline{}, errGlyphOutOfRange(glyph)
 	}
-	var points []contourPoint
-	f.getPointsForGlyph(glyph, 0, &points)
+	points := f.getPointsForGlyph(glyph)
 	segments := buildSegments(points[:len(points)-phantomCount])
 	return GlyphOutline{Segments: segments}, nil
 }
