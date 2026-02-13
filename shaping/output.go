@@ -198,7 +198,7 @@ func (out *Output) FromFontUnit(v float32) fixed.Int26_6 {
 // and can be used to speed up line wrapping logic.
 func (out *Output) RecomputeAdvance() {
 	advance := fixed.Int26_6(0)
-	for _, g := range o.Glyphs {
+	for _, g := range out.Glyphs {
 		advance += g.Advance
 	}
 	out.Advance = advance
@@ -227,11 +227,11 @@ func (out *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
 	}
 	if out.Direction.IsVertical() {
 		if lastG.Height == 0 {
-			return o.Advance - lastG.Advance
+			return out.Advance - lastG.Advance
 		}
 	} else { // horizontal
 		if lastG.Width == 0 {
-			return o.Advance - lastG.Advance
+			return out.Advance - lastG.Advance
 		}
 	}
 	return out.Advance - lastG.endLetterSpacing
@@ -248,9 +248,9 @@ func (out *Output) RecalculateAll() {
 		descent fixed.Int26_6
 	)
 
-	if o.Direction.IsVertical() {
-		for i := range o.Glyphs {
-			g := &o.Glyphs[i]
+	if out.Direction.IsVertical() {
+		for i := range out.Glyphs {
+			g := &out.Glyphs[i]
 			advance += g.Advance
 			depth := g.XOffset + g.XBearing // start of the glyph
 			if depth < descent {
@@ -262,8 +262,8 @@ func (out *Output) RecalculateAll() {
 			}
 		}
 	} else { // horizontal
-		for i := range o.Glyphs {
-			g := &o.Glyphs[i]
+		for i := range out.Glyphs {
+			g := &out.Glyphs[i]
 			advance += g.Advance
 			height := g.YBearing + g.YOffset
 			if height > ascent {
