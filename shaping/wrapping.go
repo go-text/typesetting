@@ -1,6 +1,7 @@
 package shaping
 
 import (
+	"math"
 	"sort"
 
 	"github.com/go-text/typesetting/di"
@@ -784,6 +785,10 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 //
 // See also [WrapParagraphF] which supports a decimal [maxWidth].
 func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
+	maxFixed := math.MaxInt32 >> 6
+	if maxWidth > maxFixed {
+		maxWidth = maxFixed
+	}
 	return l.WrapParagraphF(config, fixed.I(maxWidth), paragraph, runs)
 }
 
@@ -956,10 +961,12 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 				if finalVisualRun.Direction.IsVertical() {
 					if finalVisualGlyph.Height == 0 {
 						finalVisualGlyph.YAdvance = 0
+						finalVisualGlyph.Advance = 0
 					}
 				} else { // horizontal
 					if finalVisualGlyph.Width == 0 {
 						finalVisualGlyph.XAdvance = 0
+						finalVisualGlyph.Advance = 0
 					}
 				}
 				beforeTrim := finalVisualRun.Advance

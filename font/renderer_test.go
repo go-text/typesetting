@@ -590,6 +590,9 @@ func TestAppleBitmapGlyph(t *testing.T) {
 		asBitmap, ok := data.(GlyphBitmap)
 		tu.Assert(t, ok)
 		tu.Assert(t, asBitmap.Format == BlackAndWhite)
+
+		_, ok = face.GlyphDataBitmap(gID(gid))
+		tu.Assert(t, ok)
 	}
 }
 
@@ -615,11 +618,15 @@ func TestColorGlyphs(t *testing.T) {
 	face := NewFace(ft)
 	_, ok := face.GlyphData(12).(GlyphColor)
 	tu.Assert(t, ok)
+	_, ok = face.GlyphDataColor(12)
+	tu.Assert(t, ok)
 
 	ld = readFontFile(t, "color/CoralPixels-Regular.ttf")
 	ft, err = NewFont(ld)
 	tu.AssertNoErr(t, err)
 	face = NewFace(ft)
 	_, ok = face.GlyphData(0).(GlyphColor)
+	tu.Assert(t, ok)
+	_, ok = face.GlyphDataColor(0)
 	tu.Assert(t, ok)
 }
