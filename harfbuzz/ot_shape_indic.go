@@ -11,11 +11,6 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-indic.cc, .hh Copyright © 2011,2012  Google, Inc.  Behdad Esfahbod
 
-// UniscribeBugCompatible alters shaping of indic and khmer scripts:
-//   - when `false`, it applies the recommended shaping choices
-//   - when `true`, Uniscribe behavior is reproduced
-var UniscribeBugCompatible = false
-
 // Keep in sync with the code generator.
 const (
 	posStart = iota
@@ -221,7 +216,7 @@ const (
 )
 
 func (cs *complexShaperIndic) collectFeatures(plan *otShapePlanner) {
-	map_ := &plan.map_
+	map_ := &plan.otMap
 
 	/* Do this before any lookups have been applied. */
 	map_.addGSUBPause(setupSyllablesIndic)
@@ -247,8 +242,8 @@ func (cs *complexShaperIndic) collectFeatures(plan *otShapePlanner) {
 }
 
 func (complexShaperIndic) overrideFeatures(plan *otShapePlanner) {
-	plan.map_.disableFeature(ot.NewTag('l', 'i', 'g', 'a'))
-	plan.map_.addGSUBPause(nil)
+	plan.otMap.disableFeature(ot.NewTag('l', 'i', 'g', 'a'))
+	plan.otMap.addGSUBPause(nil)
 }
 
 type indicShapePlan struct {
@@ -262,8 +257,7 @@ type indicShapePlan struct {
 	config      indicConfig
 	viramaGlyph GID // cached value
 
-	isOldSpec              bool
-	uniscribeBugCompatible bool
+	isOldSpec bool
 }
 
 func (indicPlan *indicShapePlan) loadViramaGlyph(font *Font) GID {
@@ -294,8 +288,7 @@ func (cs *complexShaperIndic) dataCreate(plan *otShapePlan) {
 		}
 	}
 
-	indicPlan.isOldSpec = indicPlan.config.hasOldSpec && ((plan.map_.chosenScript[0] & 0x000000FF) != '2')
-	indicPlan.uniscribeBugCompatible = UniscribeBugCompatible
+	indicPlan.isOldSpec = indicPlan.config.hasOldSpec && ((plan.otMap.chosenScript[0] & 0x000000FF) != '2')
 	indicPlan.viramaGlyph = ^GID(0)
 
 	/* Use zero-context wouldSubstitute() matching for new-spec of the main
@@ -307,17 +300,17 @@ func (cs *complexShaperIndic) dataCreate(plan *otShapePlan) {
 	* So, the heuristic here is the way it is.  It should *only* be changed,
 	* as we discover more cases of what Windows does.  DON'T TOUCH OTHERWISE. */
 	zeroContext := !indicPlan.isOldSpec && plan.props.Script != language.Malayalam
-	indicPlan.rphf = newIndicWouldSubstituteFeature(&plan.map_, ot.NewTag('r', 'p', 'h', 'f'), zeroContext)
-	indicPlan.pref = newIndicWouldSubstituteFeature(&plan.map_, ot.NewTag('p', 'r', 'e', 'f'), zeroContext)
-	indicPlan.blwf = newIndicWouldSubstituteFeature(&plan.map_, ot.NewTag('b', 'l', 'w', 'f'), zeroContext)
-	indicPlan.pstf = newIndicWouldSubstituteFeature(&plan.map_, ot.NewTag('p', 's', 't', 'f'), zeroContext)
-	indicPlan.vatu = newIndicWouldSubstituteFeature(&plan.map_, ot.NewTag('v', 'a', 't', 'u'), zeroContext)
+	indicPlan.rphf = newIndicWouldSubstituteFeature(&plan.otMap, ot.NewTag('r', 'p', 'h', 'f'), zeroContext)
+	indicPlan.pref = newIndicWouldSubstituteFeature(&plan.otMap, ot.NewTag('p', 'r', 'e', 'f'), zeroContext)
+	indicPlan.blwf = newIndicWouldSubstituteFeature(&plan.otMap, ot.NewTag('b', 'l', 'w', 'f'), zeroContext)
+	indicPlan.pstf = newIndicWouldSubstituteFeature(&plan.otMap, ot.NewTag('p', 's', 't', 'f'), zeroContext)
+	indicPlan.vatu = newIndicWouldSubstituteFeature(&plan.otMap, ot.NewTag('v', 'a', 't', 'u'), zeroContext)
 
 	for i := range indicPlan.maskArray {
 		if indicFeatures[i].flags&ffGLOBAL != 0 {
 			indicPlan.maskArray[i] = 0
 		} else {
-			indicPlan.maskArray[i] = plan.map_.getMask1(indicFeatures[i].tag)
+			indicPlan.maskArray[i] = plan.otMap.getMask1(indicFeatures[i].tag)
 		}
 	}
 
@@ -877,17 +870,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 
 func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(font *Font, buffer *Buffer, start, end int) {
 	/* We treat placeholder/dotted-circle as if they are consonants, so we
-	* should just chain.  Only if not in compatibility mode that is... */
-
-	if indicPlan.uniscribeBugCompatible {
-		/* For dotted-circle, this is what Uniscribe does:
-		 * If dotted-circle is the last glyph, it just does nothing.
-		 * Ie. It doesn't form Reph. */
-		if buffer.Info[end-1].complexCategory == indSM_ex_DOTTEDCIRCLE {
-			return
-		}
-	}
-
+	 * should just chain... */
 	indicPlan.initialReorderingConsonantSyllable(font, buffer, start, end)
 }
 
@@ -922,7 +905,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font,
 	return ret
 }
 
-func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan, buffer *Buffer, start, end int) {
+func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(buffer *Buffer, start, end int) {
 	info := buffer.Info
 
 	/* This function relies heavily on halant glyphs.  Lots of ligation
@@ -1248,7 +1231,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 			* Uniscribe doesn't do this.
 			* TEST: U+0930,U+094D,U+0915,U+094B,U+094D
 			 */
-			if !indicPlan.uniscribeBugCompatible && isHalant(&info[newRephPos]) {
+			if isHalant(&info[newRephPos]) {
 				for i := base + 1; i < newRephPos; i++ {
 					if ic := info[i].complexCategory; ic == indSM_ex_M || ic == indSM_ex_MPst {
 						/* Ok, got it. */
@@ -1356,19 +1339,6 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 			buffer.unsafeToBreak(start-1, start+1)
 		}
 	}
-
-	// Finish off the clusters and go home!
-	if indicPlan.uniscribeBugCompatible {
-		/* Uniscribe merges the entire syllable into a single cluster... Except for Tamil.
-		 * This means, half forms are submerged into the main consonant's cluster.
-		 * This is unnecessary, and makes cursor positioning harder, but that's what
-		 * Uniscribe does. */
-		switch plan.props.Script {
-		case language.Tamil:
-		default:
-			buffer.mergeClusters(start, end)
-		}
-	}
 }
 
 func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *Font, buffer *Buffer) bool {
@@ -1382,7 +1352,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 
 	iter, count := buffer.syllableIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {
-		indicPlan.finalReorderingSyllableIndic(plan, buffer, start, end)
+		indicPlan.finalReorderingSyllableIndic(buffer, start, end)
 	}
 
 	if debugMode {
@@ -1393,9 +1363,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 }
 
 func (ci complexShaperIndic) preprocessText(_ *otShapePlan, buffer *Buffer, _ *Font) {
-	if !ci.plan.uniscribeBugCompatible {
-		preprocessTextVowelConstraints(buffer)
-	}
+	preprocessTextVowelConstraints(buffer)
 }
 
 func (cs *complexShaperIndic) decompose(c *otNormalizeContext, ab rune) (rune, rune, bool) {

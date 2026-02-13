@@ -34,11 +34,18 @@ func Float214FromUint(v uint16) float32 {
 	return float32(int16(v)) / (1 << 14)
 }
 
-// Coord is real number in [-1;1], stored as a fixed 2.14 integer
+// Coord is a real number in [-1;1], stored as a fixed 2.14 integer
 type Coord int16
 
 func NewCoord(c float64) Coord {
 	return Coord(c * (1 << 14))
+}
+
+func abs(c Coord) Coord {
+	if c < 0 {
+		return -c
+	}
+	return c
 }
 
 func readUint24(b []byte) uint32 {

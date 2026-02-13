@@ -34,20 +34,25 @@ type GlyphPosition struct {
 	attachType  uint8 // attachment type, irrelevant if attachChain is 0
 }
 
-// unicodeProp is a two-byte number. The low byte includes:
-//   - General_Category: 5 bits
-//   - A bit each for:
-//     -> Is it Default_Ignorable(); we have a modified Default_Ignorable().
-//     -> Whether it's one of the four Mongolian Free Variation Selectors,
+// unicodeProp is a two-byte number.  The low byte includes:
+// - Modified General_Category: 5 bits.
+// - A bit each for:
+//   - Is it Default_Ignorable(); we have a modified Default_Ignorable().
+//   - Whether it's one of the four Mongolian Free Variation Selectors,
 //     CGJ, or other characters that are hidden but should not be ignored
-//     like most other Default_Ignorable()s do during matching.
-//     -> Whether it's a grapheme continuation.
+//     like most other Default_Ignorable()s do during GSUB matching.
+//   - Whether it's a grapheme continuation.
 //
-// The high-byte has different meanings, switched by the General_Category:
+// The high-byte has different meanings, switched by the Gen-Cat:
 //   - For Mn,Mc,Me: the modified Combining_Class.
 //   - For Cf: whether it's ZWJ, ZWNJ, or something else.
 //   - For Ws: index of which space character this is, if space fallback
 //     is needed, ie. we don't set this by default, only if asked to.
+//
+// Above I said "modified" General_Category. This is because we need to
+// remember Variation Selectors, and we don't have bits left. So we
+// change their Gen_Cat from Mn to Cf, and use a bit of the high byte to
+// remember them.
 type unicodeProp uint16
 
 const (
@@ -58,6 +63,8 @@ const (
 	// if GEN_CAT=FORMAT, top byte masks
 	upropsMaskCfZwj
 	upropsMaskCfZwnj
+	upropsMaskCfVs
+	upropsMaskCfAatDeleted
 
 	upropsMaskGenCat unicodeProp = 1<<5 - 1 // 11111
 )
@@ -89,7 +96,7 @@ const (
 	// Only two pieces of text both of which clear of this flag can be concatenated safely.
 	// This can be used to optimize paragraph layout, by avoiding re-shaping of each line
 	// after line-breaking, by limiting the reshaping to a small piece around the
-	// breaking positin only, even if the breaking position carries the
+	// breaking position only, even if the breaking position carries the
 	// [GlyphUnsafeToBreak] or when hyphenation or other text transformation
 	// happens at line-break position, in the following way:
 	// 	1. Iterate back from the line-break position until the first cluster start position that is
@@ -213,7 +220,8 @@ func (info *GlyphInfo) setCluster(cluster int, mask GlyphMask) {
 	info.Cluster = cluster
 }
 
-func (info *GlyphInfo) setContinuation() {
+func (info *GlyphInfo) setContinuation(buffer *Buffer) {
+	buffer.scratchFlags |= bsfHasContinuations
 	info.unicode |= upropsMaskContinuation
 }
 
@@ -221,7 +229,7 @@ func (info *GlyphInfo) isContinuation() bool {
 	return info.unicode&upropsMaskContinuation != 0
 }
 
-func (info *GlyphInfo) resetContinutation() { info.unicode &= ^upropsMaskContinuation }
+func (info *GlyphInfo) clearContinuation() { info.unicode &= ^upropsMaskContinuation }
 
 func (info *GlyphInfo) isUnicodeSpace() bool {
 	return info.unicode.generalCategory() == spaceSeparator
@@ -306,9 +314,12 @@ func (info *GlyphInfo) isDefaultIgnorable() bool {
 	return (info.unicode&upropsMaskIgnorable) != 0 && !info.substituted()
 }
 
-func (info *GlyphInfo) isDefaultIgnorableAndNotHidden() bool {
-	return (info.unicode&(upropsMaskIgnorable|upropsMaskHidden) == upropsMaskIgnorable) &&
-		!info.substituted()
+func (info *GlyphInfo) clearDefaultIgnorable() {
+	info.unicode &= ^upropsMaskIgnorable
+}
+
+func (info *GlyphInfo) isHidden() bool {
+	return info.unicode&upropsMaskHidden != 0
 }
 
 func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
@@ -344,4 +355,28 @@ func (info *GlyphInfo) ligatedAndDidntMultiply() bool {
 
 func (info *GlyphInfo) substituted() bool {
 	return info.glyphProps&substituted != 0
+}
+
+func (info *GlyphInfo) isAatDeleted() bool {
+	return info.isUnicodeFormat() && info.unicode&upropsMaskCfAatDeleted != 0
+}
+
+func (info *GlyphInfo) setAatDeleted() {
+	info.setGeneralCategory(format)
+	info.unicode |= upropsMaskCfAatDeleted
+	info.unicode |= upropsMaskHidden
+}
+
+func (info *GlyphInfo) isVariationSelector() bool {
+	return info.unicode.generalCategory() == format && (info.unicode&upropsMaskCfVs) != 0
+}
+
+func (info *GlyphInfo) setVariationSelector(customize bool) {
+	if customize {
+		info.setGeneralCategory(format)
+		info.unicode |= upropsMaskCfVs
+	} else {
+		// Reset to their original condition
+		info.setGeneralCategory(nonSpacingMark)
+	}
 }

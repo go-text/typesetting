@@ -179,3 +179,11 @@ func assertRuneRangesEqual(t *testing.T, cm Cmap) {
 		t.Fatal("inconsistent rune ranges")
 	}
 }
+
+func TestMacromanCmap(t *testing.T) {
+	ld := readFontFile(t, "cmap/Brushstroke-Plain.otf")
+	ft, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	_, ok := ft.Cmap.(remaperMacroman)
+	tu.Assert(t, ok)
+}

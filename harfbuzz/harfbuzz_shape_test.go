@@ -25,7 +25,7 @@ func TestShapeExpected(t *testing.T) {
 	// add tests based on the C++ binary
 	tests = append(tests,
 		// check we properly scale the offset values
-		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=2000;U+0061,U+0062;[gid70=0@-544,-1700+0,-2343|gid71=1@-562,-1912+0,-2343]"),
+		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=2000;U+0061,U+0062;[gid70=0@-544,-1700+0,-2343|gid71=1@-561,-1912+0,-2343]"),
 		newTestData(t, "", "perf_reference/fonts/Roboto-Regular.ttf;--direction=ttb --font-size=3000;U+0061,U+0062;[gid70=0@-816,-2550+0,-3515|gid71=1@-842,-2868+0,-3515]"),
 		// issue
 		newTestData(t, "", "fonts/NotoSansMyanmar-Regular.ttf;--no-glyph-names;U+101B,U+1031,U+102C,U+1037;[372=0+618|31=0+689|368=0+455|378=0@14,0+0]"),
@@ -43,9 +43,11 @@ func TestDebug(t *testing.T) {
 	// when debugging
 	t.Skip()
 
-	// dir := "harfbuzz_reference/in-house/tests"
-	testString := `fonts/AdobeBlank2.ttf;--no-glyph-names --no-positions;U+1F1E6,U+1F1E8;[1=0|1=0]`
-	testD := newTestData(t, ".", testString)
+	// dir := "harfbuzz_reference/aots/"
+	// dir := "harfbuzz_reference/in-house/"
+	dir := "harfbuzz_reference/text-rendering-tests/"
+	testString := `./fonts/TestMORXThirtysix.ttf;;U+0041;*`
+	testD := newTestData(t, dir, testString)
 	out := runShapingTest(t, testD, true)
 	fmt.Println(out)
 }
@@ -143,6 +145,8 @@ func (fo *fontOpts) loadFont(t *testing.T) *Font {
 	}
 
 	font.Ptem = float32(fo.ptem)
+	font.slant = float32(fo.slant)
+	font.xEmbolden = float32(fo.embolden)
 
 	scaleX := scalbnf(float64(fo.fontSizeX), fo.subpixelBits)
 	scaleY := scalbnf(float64(fo.fontSizeY), fo.subpixelBits)
@@ -179,6 +183,7 @@ func (so *shapeOpts) setupBuffer(buffer *Buffer) {
 	}
 	buffer.Flags = flags
 	buffer.Invisible = so.invisibleGlyph
+	buffer.notFoundVariationSelector = so.notFoundVariationSelector
 	buffer.ClusterLevel = so.clusterLevel
 	buffer.GuessSegmentProperties()
 }
@@ -315,7 +320,7 @@ func skipInvalidFontIndex(t *testing.T, ft font.FontID) bool {
 	return false
 }
 
-// skipVerify should be true when debugging, to reduce stdout clutter
+// skipVerify should be true when debugging, to reduce stdout clutter.
 // it returns the serialized output
 func runShapingTest(t *testing.T, test testData, skipVerify bool) string {
 	t.Helper()

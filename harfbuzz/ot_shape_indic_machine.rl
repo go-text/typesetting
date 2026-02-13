@@ -1,6 +1,6 @@
 package harfbuzz 
 
-// Code generated with ragel -Z -o ot_indic_machine.go ot_indic_machine.rl ; sed -i '/^\/\/line/ d' ot_indic_machine.go ; goimports -w ot_indic_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_shape_indic_machine.go ot_shape_indic_machine.rl ; sed -i '/^\/\/line/ d' ot_shape_indic_machine.go ; goimports -w ot_shape_indic_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-indic-machine.rl Copyright © 2015 Google, Inc. Behdad Esfahbod
 
@@ -44,16 +44,18 @@ export Ra    = 15;
 export CM    = 16;
 export Symbol= 17;
 export CS    = 18;
+export SMPst = 57;
 
 c = (C | Ra);			# is_consonant
 n = ((ZWNJ?.RS)? (N.N?)?);	# is_consonant_modifier
 z = ZWJ|ZWNJ;			# is_joiner
 reph = (Ra H | Repha);		# possible reph
+sm = SM | SMPst;
 
 cn = c.ZWJ?.n?;
 symbol = Symbol.N?;
-matra_group = z*.(M | SM? MPst).N?.H?;
-syllable_tail = (z?.SM.SM?.ZWNJ?)? (A | VD)*;
+matra_group = z*.(M | sm? MPst).N?.H?;
+syllable_tail = (z?.sm.sm?.ZWNJ?)? (A | VD)*;
 halant_group = (z?.H.(ZWJ.N?)?);
 final_halant_group = halant_group | H.ZWNJ;
 medial_group = CM?;
@@ -73,6 +75,7 @@ main := |*
 	vowel_syllable		=> { foundSyllableIndic (indicVowelSyllable,ts, te, info, &syllableSerial); };
 	standalone_cluster	=> { foundSyllableIndic (indicStandaloneCluster,ts, te, info, &syllableSerial); };
 	symbol_cluster		=> { foundSyllableIndic (indicSymbolCluster,ts, te, info, &syllableSerial); };
+	SMPst		=> { foundSyllableIndic (indicNonIndicCluster,ts, te, info, &syllableSerial); };
 	broken_cluster		=> { foundSyllableIndic (indicBrokenCluster,ts, te, info, &syllableSerial); buffer.scratchFlags |= bsfHasBrokenSyllable; };
 	other			=> { foundSyllableIndic (indicNonIndicCluster,ts, te, info, &syllableSerial); };
 *|;
