@@ -3,6 +3,8 @@
 package shaping
 
 import (
+	"math"
+
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
@@ -182,24 +184,24 @@ type Output struct {
 
 // ToFontUnit converts a metrics (typically found in [Glyph] fields)
 // to unscaled font units.
-func (o *Output) ToFontUnit(v fixed.Int26_6) float32 {
-	return float32(v) / float32(o.Size) * float32(o.Face.Upem())
+func (out *Output) ToFontUnit(v fixed.Int26_6) float32 {
+	return float32(v) / float32(out.Size) * float32(out.Face.Upem())
 }
 
 // FromFontUnit converts an unscaled font value to the current [Size]
-func (o *Output) FromFontUnit(v float32) fixed.Int26_6 {
-	return fixed.Int26_6(v * float32(o.Size) / float32(o.Face.Upem()))
+func (out *Output) FromFontUnit(v float32) fixed.Int26_6 {
+	return fixed.Int26_6(v * float32(out.Size) / float32(out.Face.Upem()))
 }
 
 // RecomputeAdvance updates only the Advance field based on the current
 // contents of the Glyphs field. It is faster than RecalculateAll(),
 // and can be used to speed up line wrapping logic.
-func (o *Output) RecomputeAdvance() {
+func (out *Output) RecomputeAdvance() {
 	advance := fixed.Int26_6(0)
-	for _, g := range o.Glyphs {
+	for _, g := range out.Glyphs {
 		advance += g.Advance
 	}
-	o.Advance = advance
+	out.Advance = advance
 }
 
 // advanceSpaceAware adjust the value in [Advance]
@@ -210,45 +212,45 @@ func (o *Output) RecomputeAdvance() {
 // because the trailing space in this run will always be internal to the paragraph.
 //
 // TODO: should we take into account multiple spaces ?
-func (o *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
-	L := len(o.Glyphs)
-	if L == 0 || paragraphDir != o.Direction {
-		return o.Advance
+func (out *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
+	L := len(out.Glyphs)
+	if L == 0 || paragraphDir != out.Direction {
+		return out.Advance
 	}
 
 	// adjust the last to account for spaces
 	var lastG Glyph
-	if o.Direction.Progression() == di.FromTopLeft {
-		lastG = o.Glyphs[L-1]
+	if out.Direction.Progression() == di.FromTopLeft {
+		lastG = out.Glyphs[L-1]
 	} else {
-		lastG = o.Glyphs[0]
+		lastG = out.Glyphs[0]
 	}
-	if o.Direction.IsVertical() {
+	if out.Direction.IsVertical() {
 		if lastG.Height == 0 {
-			return o.Advance - lastG.Advance
+			return out.Advance - lastG.Advance
 		}
 	} else { // horizontal
 		if lastG.Width == 0 {
-			return o.Advance - lastG.Advance
+			return out.Advance - lastG.Advance
 		}
 	}
-	return o.Advance - lastG.endLetterSpacing
+	return out.Advance - lastG.endLetterSpacing
 }
 
 // RecalculateAll updates the all other fields of the Output
 // to match the current contents of the Glyphs field.
 // This method will fail with UnimplementedDirectionError if the Output
 // direction is unimplemented.
-func (o *Output) RecalculateAll() {
+func (out *Output) RecalculateAll() {
 	var (
 		advance fixed.Int26_6
 		ascent  fixed.Int26_6
 		descent fixed.Int26_6
 	)
 
-	if o.Direction.IsVertical() {
-		for i := range o.Glyphs {
-			g := &o.Glyphs[i]
+	if out.Direction.IsVertical() {
+		for i := range out.Glyphs {
+			g := &out.Glyphs[i]
 			advance += g.Advance
 			depth := g.XOffset + g.XBearing // start of the glyph
 			if depth < descent {
@@ -260,8 +262,8 @@ func (o *Output) RecalculateAll() {
 			}
 		}
 	} else { // horizontal
-		for i := range o.Glyphs {
-			g := &o.Glyphs[i]
+		for i := range out.Glyphs {
+			g := &out.Glyphs[i]
 			advance += g.Advance
 			height := g.YBearing + g.YOffset
 			if height > ascent {
@@ -273,8 +275,8 @@ func (o *Output) RecalculateAll() {
 			}
 		}
 	}
-	o.Advance = advance
-	o.GlyphBounds = Bounds{
+	out.Advance = advance
+	out.GlyphBounds = Bounds{
 		Ascent:  ascent,
 		Descent: descent,
 	}
@@ -323,6 +325,46 @@ func (out *Output) moveCrossAxis(d fixed.Int26_6) {
 	out.GlyphBounds.Descent += d
 }
 
+func (out *Output) applyTabs(text []rune, columnWidth, runStart fixed.Int26_6) {
+	isVertical := out.Direction.IsVertical()
+	columnWidthF := float64(columnWidth) / 64
+	var advance fixed.Int26_6
+	for i, g := range out.Glyphs {
+		gAdvance := g.XAdvance
+		if isVertical {
+			gAdvance = g.YAdvance
+		}
+		isTab := g.RuneCount == 1 && g.GlyphCount == 1 && text[g.ClusterIndex] == '\t'
+		if !isTab {
+			advance += gAdvance
+			continue
+		}
+
+		var updatedTabAdvance fixed.Int26_6
+		if columnWidth == 0 {
+			// simply trim the advance, nothing else to do
+		} else {
+			// update the advance of the glyph so that the next glyph is "tab-aligned" :
+			// we want the "end" of the tab to be a multiple of columnWidth, that is :
+			// (runStart + advance + updatedTabAdvance) % columnWith == 0
+			glyphStartF := float64(runStart+advance) / 64
+			remainder := math.Mod(glyphStartF, columnWidthF)
+			updatedTabAdvance = fixed.Int26_6((columnWidthF - remainder) * 64)
+		}
+
+		if isVertical {
+			out.Glyphs[i].YAdvance = updatedTabAdvance
+		} else {
+			out.Glyphs[i].XAdvance = updatedTabAdvance
+		}
+
+		advance += updatedTabAdvance
+	}
+
+	// no need to call RecomputeAdvance
+	out.Advance = advance
+}
+
 // AdjustBaselines aligns runs with different baselines.
 //
 // For vertical text, it centralizes 'sideways' runs, so
@@ -367,5 +409,20 @@ func (l Line) AdjustBaselines() {
 			continue
 		}
 		l[i].moveCrossAxis(-middle)
+	}
+}
+
+// AlignTabs updates the advance of glyphs mapped to '\t' runes,
+// so that tabs are aligned on columns defined by [columnWidth].
+//
+// [lineOffset] may be non zero if the line starts after the first column.
+//
+// As a special case, if [columnWidth] is zero,
+// tabs are trimmed (their advance is set to 0).
+func (l Line) AlignTabs(text []rune, columnWidth, lineOffset fixed.Int26_6) {
+	runsAdvance := lineOffset // the position of the start of the current run
+	for i := range l {
+		l[i].applyTabs(text, columnWidth, runsAdvance)
+		runsAdvance += l[i].Advance
 	}
 }
