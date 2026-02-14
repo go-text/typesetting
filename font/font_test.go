@@ -146,3 +146,12 @@ func TestLoadColor(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
 }
+
+func TestBitmapExtents(t *testing.T) {
+	ld := readFontFile(t, "bitmap/cherry-10-r.otb")
+	ft, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	face := NewFace(ft)
+	extents, ok := face.GlyphExtents(41)
+	tu.Assert(t, ok && extents.Width == 819.2 && extents.Height == -1433.6)
+}

@@ -425,6 +425,10 @@ func (f *Face) glyphExtentsRaw(glyph GID) (GlyphExtents, bool) {
 	if ok {
 		return out, ok
 	}
+	out, ok = f.getExtentsFromBitmap(gID(glyph), f.xPpem, f.yPpem)
+	if ok {
+		return out, ok
+	}
 	out, ok = f.getExtentsFromGlyf(gID(glyph))
 	if ok {
 		return out, ok
@@ -434,9 +438,5 @@ func (f *Face) glyphExtentsRaw(glyph GID) (GlyphExtents, bool) {
 		return out, ok
 	}
 	out, ok = f.getExtentsFromCff2(gID(glyph))
-	if ok {
-		return out, ok
-	}
-	out, ok = f.getExtentsFromBitmap(gID(glyph), f.xPpem, f.yPpem)
 	return out, ok
 }
