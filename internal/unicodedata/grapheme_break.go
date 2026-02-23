@@ -162,7 +162,6 @@ var gbUint8 = [2637]uint8{
 func gbBits4(a []uint8, i int) uint8 {
 	return (a[i>>1] >> ((i & 1) << 2)) & 0b1111
 }
-
 func gbLookup(u rune) uint8 {
 	if 0 <= u && u < 921600 {
 		return gbBits4(gbUint8[2437:], int((int(gbUint8[1525+int(int((int(gbUint8[769+int(int((int(gbUint8[265+int(int((int(gbUint8[57+int(int((int(gbBits4(gbUint8[:], int(((((u>>2)>>2)>>2)>>3)>>4))))<<4)+int(((((u>>2)>>2)>>2)>>3)&15))]))<<3)+int((((u>>2)>>2)>>2)&7))]))<<2)+int(((u>>2)>>2)&3))]))<<2)+int((u>>2)&3))]))<<2)+int(u&3))

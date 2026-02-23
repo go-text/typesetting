@@ -125,7 +125,6 @@ var eastAsianWidthUint8 = [2208]uint8{
 func eastAsianWidthBits1(a []uint8, i int) uint8 {
 	return (a[i>>3] >> ((i & 7) << 0)) & 0b1
 }
-
 func eastAsianWidthLookup(u rune) uint8 {
 	if 0 <= u && u < 262142 {
 		return eastAsianWidthBits1(eastAsianWidthUint8[1024:], int((int(eastAsianWidthUint8[int(u>>8)]))<<8)+int(u&255))

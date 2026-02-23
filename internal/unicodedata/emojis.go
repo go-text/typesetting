@@ -46,11 +46,9 @@ var emojiUint8 = [624]uint8{
 func emojiBits4(a []uint8, i int) uint8 {
 	return (a[i>>1] >> ((i & 1) << 2)) & 0b1111
 }
-
 func emojiBits1(a []uint8, i int) uint8 {
 	return (a[i>>3] >> ((i & 7) << 0)) & 0b1
 }
-
 func emojiLookup(u rune) uint8 {
 	if 0 <= u && u < 131070 {
 		return emojiBits1(emojiUint8[224:], int((int(emojiUint8[64+int(int((int(emojiBits4(emojiUint8[:], int((u>>6)>>4))))<<4)+int((u>>6)&15))]))<<6)+int(u&63))
