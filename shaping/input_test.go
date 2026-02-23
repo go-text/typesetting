@@ -374,42 +374,6 @@ func TestSplitScript(t *testing.T) {
 	commonSource2 := []rune("gamma (Γ) est une lettre")
 	commonSource3 := []rune("gamma (Γ [п] Γ) est une lettre") // nested delimiters
 	withInherited := []rune("لمّا")
-
-	// +	for _, tt := range tests {
-	// +		t.Run(tt.name, func(t *testing.T) {
-	// +			inputs := []shaping.Input{{
-	// +				Text:      tt.input,
-	// +				RunStart:  0,
-	// +				RunEnd:    len(tt.input),
-	// +				Direction: tt.wantDirection,
-	// +				Script:    language.Arabic,
-	// +				Face:      nil,             // face doesn't really matter for splitting anyway
-	// +				Size:      fixed.I(10),
-	// +			}}
-	// +
-	// +			got := splitByScript(inputs, tt.wantDirection, nil)
-	// +
-	// +			if len(got) != tt.wantRuns {
-	// +				t.Fatalf("splitByScript produced %d runs, expected %d. \nRun details: %+v", len(got), tt.wantRuns, got)
-	// +			}
-	// +
-	// +			// this is for the single-run cases
-	// +			// we need to verify the integrity of the single run
-	// +			// to ensure
-	// +			//     - the truncation didn't happen early on (when first hitting a diacritic)
-	// +			//     - and the right dominant script label was used
-	// +			if tt.wantRuns == 1 {
-	// +				run := got[0]
-	// +				if run.RunEnd != len(tt.input) {
-	// +					t.Errorf("Run truncated early. End = %d, expected %d", run.RunEnd, len(tt.input))
-	// +				}
-	// +				if run.Script != tt.wantScript {
-	// +					t.Errorf("Run assigned wrong script. Got %s, expected %s", run.Script, tt.wantScript)
-	// +				}
-	// +			}
-	// +		})
-	// +	}
-
 	type run struct {
 		start, end int
 		script     language.Script
