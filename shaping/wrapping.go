@@ -1030,6 +1030,10 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 //
 // See also [WrapNextLineF] which supports a decimal [maxWidth].
 func (l *LineWrapper) WrapNextLine(maxWidth int) (out WrappedLine, done bool) {
+	maxFixed := math.MaxInt32 >> 6
+	if maxWidth > maxFixed {
+		maxWidth = maxFixed
+	}
 	return l.WrapNextLineF(fixed.I(maxWidth))
 }
 
