@@ -25,8 +25,7 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	cr.ruleLB29To26(&breakOp)
 	cr.ruleLB25(&breakOp, triggerNumSequence)
 	cr.ruleLB24To22(&breakOp)
-	cr.ruleLB21To9(&breakOp)
-	cr.ruleLB8(&breakOp)
+	cr.ruleLB21To8(&breakOp)
 	cr.ruleLB7To4(&breakOp)
 
 	return breakOp
@@ -69,18 +68,29 @@ func (cr *cursor) ruleLB30ab(breakOp *breakOpportunity) {
 		*breakOp = breakProhibited
 	}
 	// [\p{Extended_Pictographic}&\p{Cn}] × EM
-	if unicode.Is(ucd.Extended_Pictographic, cr.prev) && ucd.LookupType(cr.prev) == nil &&
-		cr.line == ucd.BreakEM {
+	if cr.isPrevNonAssignedExtendedPic && cr.line == ucd.BreakEM {
 		*breakOp = breakProhibited
 	}
 }
 
 func (cr *cursor) ruleLB29To26(breakOp *breakOpportunity) {
-	b0, b1 := cr.prevLine, cr.line
+	bm1, b0, b1, b2 := cr.prevPrevLine, cr.prevLine, cr.line, cr.nextLine
 	// LB29 : IS × (AL | HL)
 	if b0 == ucd.BreakIS && (b1 == ucd.BreakAL || b1 == ucd.BreakHL) {
 		*breakOp = breakProhibited
 	}
+	// LB28a Do not break inside the orthographic syllables of Brahmic scripts.
+	// AP × (AK | [◌] | AS)
+	if b0 == ucd.BreakAP && (b1 == ucd.BreakAK || cr.r == 0x25CC || b1 == ucd.BreakAS) ||
+		// (AK | [◌] | AS) × (VF | VI)
+		(b0 == ucd.BreakAK || cr.isPrevDottedCircle || b0 == ucd.BreakAS) && (b1 == ucd.BreakVF || b1 == ucd.BreakVI) ||
+		// (AK | [◌] | AS) VI × (AK | [◌])
+		(bm1 == ucd.BreakAK || cr.isPrevPrevDottedCircle || bm1 == ucd.BreakAS) && b0 == ucd.BreakVI && (b1 == ucd.BreakAK || cr.r == 0x25CC) ||
+		// (AK | [◌] | AS) × (AK | [◌] | AS) VF
+		(b0 == ucd.BreakAK || cr.isPrevDottedCircle || b0 == ucd.BreakAS) && (b1 == ucd.BreakAK || cr.r == 0x25CC || b1 == ucd.BreakAS) && b2 == ucd.BreakVF {
+		*breakOp = breakProhibited
+	}
+
 	// LB28 : (AL | HL) × (AL | HL)
 	if (b0 == ucd.BreakAL || b0 == ucd.BreakHL) && (b1 == ucd.BreakAL || b1 == ucd.BreakHL) {
 		*breakOp = breakProhibited
@@ -125,8 +135,8 @@ func (cr *cursor) ruleLB25(breakOp *breakOpportunity, triggerNumSequence bool) {
 		cr.nextLine == ucd.BreakNU {
 		*breakOp = breakProhibited
 	}
-	// ( OP | HY ) × NU
-	if (br0 == ucd.BreakOP || br0 == ucd.BreakHY) && br1 == ucd.BreakNU {
+	// ( OP | HY | IS ) × NU
+	if (br0 == ucd.BreakOP || br0 == ucd.BreakHY || br0 == ucd.BreakIS) && br1 == ucd.BreakNU {
 		*breakOp = breakProhibited
 	}
 	// NU × (NU | SY | IS)
@@ -175,23 +185,30 @@ func (cr *cursor) ruleLB24To22(breakOp *breakOpportunity) {
 	}
 }
 
-func (cr *cursor) ruleLB21To9(breakOp *breakOpportunity) {
-	br0, br1 := cr.prevLine, cr.line
+func (cr *cursor) ruleLB21To8(breakOp *breakOpportunity) {
+	brm1, br0, br1 := cr.prevPrevLine, cr.prevLine, cr.line
 	// LB21
 	// × BA
+	// × HH
 	// × HY
 	// × NS
 	// BB ×
-	if br1 == ucd.BreakBA || br1 == ucd.BreakHY || br1 == ucd.BreakNS || br0 == ucd.BreakBB {
+	if br1 == ucd.BreakBA || br1 == ucd.BreakHH || br1 == ucd.BreakHY || br1 == ucd.BreakNS || br0 == ucd.BreakBB {
 		*breakOp = breakProhibited
 	}
-	// LB21a : HL (HY | BA) ×
+	// LB21a : HL (HY | HH) × [^HL]
 	if cr.prevPrevLine == ucd.BreakHL &&
-		(br0 == ucd.BreakHY || br0 == ucd.BreakBA) {
+		(br0 == ucd.BreakHY || br0 == ucd.BreakHH) && br1 != ucd.BreakHL {
 		*breakOp = breakProhibited
 	}
 	// LB21b : SY × HL
 	if br0 == ucd.BreakSY && br1 == ucd.BreakHL {
+		*breakOp = breakProhibited
+	}
+	// LB20a Do not break after a word-initial hyphen.
+	// ( sot | BK | CR | LF | NL | SP | ZW | CB | GL ) ( HY | HH ) × ( AL | HL )
+	if (cr.isPreviousSot || brm1 == ucd.BreakBK || brm1 == ucd.BreakCR || brm1 == ucd.BreakLF || brm1 == ucd.BreakNL || brm1 == ucd.BreakSP || brm1 == ucd.BreakZW || brm1 == ucd.BreakCB || brm1 == ucd.BreakGL) &&
+		(br0 == ucd.BreakHY || br0 == ucd.BreakHH) && (br1 == ucd.BreakAL || br1 == ucd.BreakHL) {
 		*breakOp = breakProhibited
 	}
 	// LB20
@@ -201,51 +218,78 @@ func (cr *cursor) ruleLB21To9(breakOp *breakOpportunity) {
 		*breakOp = breakAllowed
 	}
 	// LB19
-	// × QU
-	// QU ×
-	if br0 == ucd.BreakQU || br1 == ucd.BreakQU {
+	// × [ QU - \p{Pi} ]
+	// [ QU - \p{Pf} ] ×
+	if (br1 == ucd.BreakQU && ucd.LookupType(cr.r) != ucd.Pi) || (br0 == ucd.BreakQU && ucd.LookupType(cr.prev) != ucd.Pf) {
 		*breakOp = breakProhibited
 	}
+	// LB 19a
+	// [^$EastAsian] × QU
+	// × QU ( [^$EastAsian] | eot )
+	// QU × [^$EastAsian]
+	// ( sot | [^$EastAsian] ) QU ×
+	if (br1 == ucd.BreakQU && !unicode.Is(ucd.LargeEastAsian, cr.prev)) ||
+		(br1 == ucd.BreakQU && (cr.index == cr.len-1 || !unicode.Is(ucd.LargeEastAsian, cr.next))) ||
+		(br0 == ucd.BreakQU && !unicode.Is(ucd.LargeEastAsian, cr.r)) ||
+		((cr.isPreviousSot || !unicode.Is(ucd.LargeEastAsian, cr.prevPrev)) && br0 == ucd.BreakQU) {
+		*breakOp = breakProhibited
+	}
+
 	// LB18 : SP ÷
 	if br0 == ucd.BreakSP {
 		*breakOp = breakAllowed
 	}
 	// LB17 : B2 SP* × B2
-	if cr.beforeSpaces == ucd.BreakB2 && br1 == ucd.BreakB2 {
+	spaceM1 := ucd.LookupLineBreakClass(cr.beforeSpaces)
+	if spaceM1 == ucd.BreakB2 && br1 == ucd.BreakB2 {
 		*breakOp = breakProhibited
 	}
 	// LB16 : (CL | CP) SP* × NS
-	if (cr.beforeSpaces == ucd.BreakCL || cr.beforeSpaces == ucd.BreakCP) && br1 == ucd.BreakNS {
+	if (spaceM1 == ucd.BreakCL || spaceM1 == ucd.BreakCP) && br1 == ucd.BreakNS {
 		*breakOp = breakProhibited
 	}
-	// LB15 : QU SP* × OP
-	if cr.beforeSpaces == ucd.BreakQU && br1 == ucd.BreakOP {
+	// LB15a Do not break after an unresolved initial punctuation that lies at the start of the line, after a space, after opening punctuation, or after an unresolved quotation mark, even after spaces.
+	// (sot | BK | CR | LF | NL | OP | QU | GL | SP | ZW) [\p{Pi}&QU] SP* ×
+	spaceM2 := ucd.LookupLineBreakClass(cr.prevBeforeSpaces)
+	if (cr.beforeSpacesIndex == 0 || spaceM2 == ucd.BreakBK || spaceM2 == ucd.BreakCR || spaceM2 == ucd.BreakLF || spaceM2 == ucd.BreakNL || spaceM2 == ucd.BreakOP || spaceM2 == ucd.BreakQU || spaceM2 == ucd.BreakGL || spaceM2 == ucd.BreakSP || spaceM2 == ucd.BreakZW) &&
+		(ucd.LookupType(cr.beforeSpaces) == ucd.Pi && spaceM1 == ucd.BreakQU) {
 		*breakOp = breakProhibited
 	}
-	// LB14 : OP SP* ×
-	if cr.beforeSpaces == ucd.BreakOP {
+	// LB15b Do not break before an unresolved final punctuation that lies at the end of the line, before a space, before a prohibited break, or before an unresolved quotation mark, even after spaces.
+	// × [\p{Pf}&QU] ( SP | GL | WJ | CL | QU | CP | EX | IS | SY | BK | CR | LF | NL | ZW | eot)
+	br2 := cr.nextLine
+	if (ucd.LookupType(cr.r) == ucd.Pf && br1 == ucd.BreakQU) && (br2 == ucd.BreakSP || br2 == ucd.BreakGL || br2 == ucd.BreakWJ || br2 == ucd.BreakCL || br2 == ucd.BreakQU || br2 == ucd.BreakCP || br2 == ucd.BreakEX || br2 == ucd.BreakIS || br2 == ucd.BreakSY || br2 == ucd.BreakBK || br2 == ucd.BreakCR || br2 == ucd.BreakLF || br2 == ucd.BreakNL || br2 == ucd.BreakZW || cr.index == cr.len-1) {
+		*breakOp = breakProhibited
+	}
+	if br0 == ucd.BreakSP && br1 == ucd.BreakIS && br2 == ucd.BreakNU {
+		// LB15c Break before a decimal mark that follows a space, for instance, in ‘subtract .5’.
+		// SP ÷ IS NU
+		*breakOp = breakAllowed
+	} else if br1 == ucd.BreakIS {
+		// LB15d Otherwise, do not break before ‘;’, ‘,’, or ‘.’, even after spaces.
+		// × IS
 		*breakOp = breakProhibited
 	}
 
-	// rule LB13, with the tailoring described in Example 7
-	// × EX
-	if br1 == ucd.BreakEX {
+	// LB14 : OP SP* ×
+	if spaceM1 == ucd.BreakOP {
 		*breakOp = breakProhibited
 	}
-	// [^NU] × CL
-	// [^NU] × CP
-	// [^NU] × IS
-	// [^NU] × SY
-	if br0 != ucd.BreakNU &&
-		(br1 == ucd.BreakCL || br1 == ucd.BreakCP || br1 == ucd.BreakIS || br1 == ucd.BreakSY) {
+
+	// rule LB13
+	// × CL
+	// × CP
+	// × EX
+	// × SY
+	if br1 == ucd.BreakCL || br1 == ucd.BreakCP || br1 == ucd.BreakEX || br1 == ucd.BreakSY {
 		*breakOp = breakProhibited
 	}
 	// LB12 : GL ×
 	if br0 == ucd.BreakGL {
 		*breakOp = breakProhibited
 	}
-	// LB12a : [^SP BA HY] × GL
-	if (br0 != ucd.BreakSP && br0 != ucd.BreakBA && br0 != ucd.BreakHY) &&
+	// LB12a : [^SP BA HY HH] × GL
+	if (br0 != ucd.BreakSP && br0 != ucd.BreakBA && br0 != ucd.BreakHY && br0 != ucd.BreakHH) &&
 		br1 == ucd.BreakGL {
 		*breakOp = breakProhibited
 	}
@@ -265,19 +309,15 @@ func (cr *cursor) ruleLB21To9(breakOp *breakOpportunity) {
 			*breakOp = breakProhibited
 		}
 	}
-}
 
-func (cr *cursor) ruleLB8(breakOp *breakOpportunity) {
-	// rule LB8 : ZW SP* ÷
-	if cr.beforeSpaces == ucd.BreakZW {
-		*breakOp = breakAllowed
-	}
-	// rule LB8a : ZWJ ×
-	// there is a catch here : prevLine is not always exactly
-	// the class at index i-1, because of rules LB9 and LB10
-	// however, rule LB8a applies before LB9 and LB10, meaning
+	// there is a catch here : prevLine or beforeSpace are not always
+	// computed at index i-1, because of rules LB9 and LB10
+	// however, rule LB8 and LB8a applies before LB9 and LB10, meaning
 	// we need to use the real class
-	if unicode.Is(ucd.BreakZWJ, cr.prev) {
+
+	if unicode.Is(ucd.BreakZW, cr.beforeSpaceRaw) { // rule LB8 : ZW SP* ÷
+		*breakOp = breakAllowed
+	} else if unicode.Is(ucd.BreakZWJ, cr.prev) { // rule LB8a : ZWJ ×
 		*breakOp = breakProhibited
 	}
 }
@@ -313,7 +353,7 @@ func (cr *cursor) ruleLB1() {
 	case ucd.BreakAI, ucd.BreakSG, ucd.BreakXX:
 		cr.line = ucd.BreakAL
 	case ucd.BreakSA:
-		if unicode.Is(unicode.Mn, cr.r) || unicode.Is(unicode.Mc, cr.r) {
+		if unicode.Is(ucd.Mn, cr.r) || unicode.Is(ucd.Mc, cr.r) {
 			cr.line = ucd.BreakCM
 		} else {
 			cr.line = ucd.BreakAL
@@ -380,6 +420,9 @@ func (cr *cursor) updateNumSequence() bool {
 // Some properties depending on the context are rather
 // updated in the previous `endIteration` call.
 func (cr *cursor) startIteration(text []rune, i int) {
+	cr.index = i
+
+	cr.prevPrev = cr.prev
 	cr.prev = cr.r
 	if i < len(text) {
 		cr.r = text[i]
@@ -399,6 +442,7 @@ func (cr *cursor) startIteration(text []rune, i int) {
 	// query general unicode properties for the current rune
 
 	cr.isExtentedPic = unicode.Is(ucd.Extended_Pictographic, cr.r)
+	cr.indicConjunctBreak = ucd.LookupIndicConjunctBreak(cr.r)
 
 	cr.prevGrapheme = cr.grapheme
 	cr.grapheme = ucd.LookupGraphemeBreakClass(cr.r)
@@ -417,7 +461,7 @@ func (cr *cursor) startIteration(text []rune, i int) {
 
 // end the current iteration, computing some of the properties
 // required for the next rune and respecting rule LB9 and LB10
-func (cr *cursor) endIteration(isStart bool) {
+func (cr *cursor) endIteration() {
 	// start by handling rule LB9 and LB10
 	if cr.line == ucd.BreakCM || cr.line == ucd.BreakZWJ {
 		isLB10 := cr.prevLine == ucd.BreakBK ||
@@ -426,18 +470,32 @@ func (cr *cursor) endIteration(isStart bool) {
 			cr.prevLine == ucd.BreakNL ||
 			cr.prevLine == ucd.BreakSP ||
 			cr.prevLine == ucd.BreakZW
-		if isStart || isLB10 { // Rule LB10
+		if cr.index == 0 || isLB10 { // Rule LB10
 			cr.prevLine = ucd.BreakAL
 		} // else rule LB9 : ignore the rune for prevLine and prevPrevLine
 
 	} else { // regular update
+		cr.isPreviousSot = cr.index == 0
+
 		cr.prevPrevLine = cr.prevLine
 		cr.prevLine = cr.line
+
+		cr.isPrevPrevDottedCircle = cr.isPrevDottedCircle
+		cr.isPrevDottedCircle = cr.r == 0x25CC
+
+		cr.isPrevNonAssignedExtendedPic = cr.isExtentedPic && ucd.LookupType(cr.r) == nil
+
+		// keep track of the rune before the spaces
+		if cr.prevLine != ucd.BreakSP {
+			cr.beforeSpaces = cr.r
+			cr.prevBeforeSpaces = cr.prev
+			cr.beforeSpacesIndex = cr.index
+		}
 	}
 
 	// keep track of the rune before the spaces
 	if cr.prevLine != ucd.BreakSP {
-		cr.beforeSpaces = cr.prevLine
+		cr.beforeSpaceRaw = cr.r
 	}
 
 	// update RegionalIndicator parity used for LB30a

@@ -218,8 +218,13 @@ func (mb *aatMapBuilder) addFeature(feature Feature) {
 func (mb *aatMapBuilder) compile(m *aatMap) {
 	// Compute active features per range, and compile each.
 
+	if len(mb.features) == 0 {
+		mb.compileMap(m)
+		return
+	}
+
 	// Sort features by start/end events.
-	var featureEvents []aatFeatureEvent
+	featureEvents := make([]aatFeatureEvent, 0, 2*len(mb.features)+1)
 	for _, feature := range mb.features {
 		if feature.start == feature.end {
 			continue

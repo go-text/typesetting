@@ -21,22 +21,24 @@ func hex(rs []rune) string {
 	return out[1:]
 }
 
-func collectLines(s *Segmenter, input []rune) []string {
+func collectLineBreaks(s *Segmenter, input []rune) []int {
 	s.Init(input)
 	iter := s.LineIterator()
-	var out []string
+	var out []int
 	for iter.Next() {
-		out = append(out, string(iter.Line().Text))
+		line := iter.Line()
+		out = append(out, line.Offset+len(line.Text))
 	}
 	return out
 }
 
-func collectGraphemes(s *Segmenter, input []rune) []string {
+func collectGraphemes(s *Segmenter, input []rune) []int {
 	s.Init(input)
 	iter := s.GraphemeIterator()
-	var out []string
+	var out []int
 	for iter.Next() {
-		out = append(out, string(iter.Grapheme().Text))
+		line := iter.Grapheme()
+		out = append(out, line.Offset+len(line.Text))
 	}
 	return out
 }
@@ -75,9 +77,9 @@ func TestLineBreakUnicodeReference(t *testing.T) {
 		}
 		s, expectedSegments := parseUCDTestLine(t, line)
 		text := []rune(s)
-		actualSegments := collectLines(&seg1, text)
+		actualSegments := collectLineBreaks(&seg1, text)
 		if !reflect.DeepEqual(expectedSegments, actualSegments) {
-			t.Errorf("line %d [%s]: expected %s, got %s", i+1, hex(text), expectedSegments, actualSegments)
+			t.Fatalf("line %d [%s]: expected breaks %v, got %v", i+1, hex(text), expectedSegments, actualSegments)
 		}
 	}
 }
@@ -104,9 +106,8 @@ func parseUCDTestLineBoundary(t *testing.T, line string) (runes []rune, boundari
 	return
 }
 
-func parseUCDTestLine(t *testing.T, line string) (string, []string) {
-	var segments []string
-	var segmentStart int
+func parseUCDTestLine(t *testing.T, line string) (string, []int) {
+	var breaks []int
 
 	runes, boundaries := parseUCDTestLineBoundary(t, line)
 	for i, b := range boundaries {
@@ -115,12 +116,11 @@ func parseUCDTestLine(t *testing.T, line string) (string, []string) {
 		}
 		if b {
 			// boundary here
-			segments = append(segments, string(runes[segmentStart:i]))
-			segmentStart = i
+			breaks = append(breaks, i)
 		}
 	}
 
-	return string(runes), segments
+	return string(runes), breaks
 }
 
 func TestGraphemeBreakUnicodeReference(t *testing.T) {
@@ -140,7 +140,7 @@ func TestGraphemeBreakUnicodeReference(t *testing.T) {
 		text := []rune(s)
 		actualSegments := collectGraphemes(&seg1, text)
 		if !reflect.DeepEqual(expectedSegments, actualSegments) {
-			t.Errorf("line %d [%s]: expected %#v, got %#v", i+1, hex(text), expectedSegments, actualSegments)
+			t.Fatalf("line %d [%s]: expected %v, got %v", i+1, hex(text), expectedSegments, actualSegments)
 		}
 	}
 }

@@ -327,6 +327,9 @@ func positionCluster(plan *otShapePlan, font *Font, buffer *Buffer,
 			// find mark glyphs
 			var j int
 			for j = i + 1; j < end; j++ {
+				if info[j].isHidden() || info[j].isDefaultIgnorable() {
+					continue
+				}
 				if !info[j].isUnicodeMark() {
 					break
 				}
@@ -345,7 +348,7 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 	var start int
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
-		if !info[i].isUnicodeMark() {
+		if !info[i].isUnicodeMark() && !info[i].isHidden() && !info[i].isDefaultIgnorable() {
 			positionCluster(plan, font, buffer, start, i, adjustOffsetsWhenZeroing)
 			start = i
 		}

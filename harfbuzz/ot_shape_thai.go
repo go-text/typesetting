@@ -310,7 +310,7 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 
 		/* Is SARA AM. Decompose and reorder. */
 		buffer.outputRune(nikhahitFromSaraAm(u))
-		buffer.prev().setContinuation()
+		buffer.prev().setContinuation(buffer)
 		buffer.replaceGlyph(saraAaFromSaraAm(u))
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
@@ -332,7 +332,7 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 		} else {
 			/* Since we decomposed, and NIKHAHIT is combining, merge clusters with the
 			* previous cluster. */
-			if start != 0 && buffer.ClusterLevel == MonotoneGraphemes {
+			if start != 0 {
 				buffer.mergeOutClusters(start-1, end)
 			}
 		}
@@ -340,7 +340,7 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 	buffer.swapBuffers()
 
 	/* If font has Thai GSUB, we are done. */
-	if plan.props.Script == language.Thai && !plan.map_.foundScript[0] {
+	if plan.props.Script == language.Thai && !plan.otMap.foundScript[0] {
 		doThaiPuaShaping(buffer, font)
 	}
 }
