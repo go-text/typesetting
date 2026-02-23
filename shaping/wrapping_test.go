@@ -3590,7 +3590,6 @@ func TestMaxWidthRouding(t *testing.T) {
 }
 
 func TestWrapping_oneLine_overflow_bug(t *testing.T) {
-
 	maxWidth := math.MaxInt
 
 	textInput := []rune("Lorem ipsum") // a simple input that fits on one line
@@ -3619,4 +3618,8 @@ func TestWrapping_oneLine_overflow_bug(t *testing.T) {
 	if len(outs) != 0 {
 		t.Errorf("expected no line, got %d", len(outs))
 	}
+
+	l.Prepare(WrapConfig{BreakPolicy: Never}, textInput, NewSliceIterator(out))
+	_, done := l.WrapNextLine(maxWidth)
+	tu.Assert(t, done)
 }
