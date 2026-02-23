@@ -19,7 +19,10 @@ type Font struct {
 	face Face
 
 	gsubAccels, gposAccels []otLayoutLookupAccelerator // accelators for lookup
-	faceUpem               int32                       // cached value of Face.Upem()
+	morxAccels             [][]morxSubtableAccelerator
+	kernAccels, kerxAccels []kernxSubtableAccelerator
+
+	faceUpem int32 // cached value of Face.Upem()
 
 	// Point size of the font. Set to zero to unset.
 	// This is used in AAT layout, when applying 'trak' table.
@@ -58,6 +61,29 @@ type Font struct {
 	// Given a device resolution (in dpi) and a point size, the scale to
 	// get result in pixels is given by : pointSize * dpi / 72
 	XScale, YScale int32
+
+	// slant sets the "synthetic slant" of a font. By default is zero.
+	// Synthetic slant is the graphical skew applied to the font
+	// at rendering time.
+	//
+	// HarfBuzz needs to know this value to adjust shaping results,
+	// metrics, and style values to match the slanted rendering.
+	//
+	// Note: The slant value is a ratio.  For example, a
+	// 20% slant would be represented as a 0.2 value.
+	slant float32
+
+	// embolden sets the "synthetic boldness" of a font.
+	//
+	// Positive values for xEmbolden / yEmbolden make a font
+	// bolder, negative values thinner. Typical values are in the
+	// 0.01 to 0.05 range. The default value is zero.
+	//
+	// Synthetic boldness is applied by offsetting the contour
+	// points of the glyph shape.
+	//
+	// Glyph advance-widths are also adjusted
+	xEmbolden float32
 }
 
 // NewFont constructs a new font object from the specified face.
@@ -83,7 +109,18 @@ func NewFont(face Face) *Font {
 	for i, l := range face.GPOS.Lookups {
 		font.gposAccels[i].init(lookupGPOS(l))
 	}
-
+	font.morxAccels = make([][]morxSubtableAccelerator, len(face.Morx))
+	for i, chain := range face.Morx {
+		font.morxAccels[i] = newMorxChainAccelerator(chain)
+	}
+	font.kernAccels = make([]kernxSubtableAccelerator, len(face.Kern))
+	for i, subtable := range face.Kern {
+		font.kernAccels[i] = newKernxSubtableAccelerator(subtable)
+	}
+	font.kerxAccels = make([]kernxSubtableAccelerator, len(face.Kerx))
+	for i, subtable := range face.Kerx {
+		font.kerxAccels[i] = newKernxSubtableAccelerator(subtable)
+	}
 	return &font
 }
 
@@ -105,6 +142,8 @@ func (f *Font) nominalGlyph(r rune, notFound GID) (GID, bool) {
 	}
 	return g, ok
 }
+
+func (f *Font) xStrength() Position { return roundf(float32(f.XScale) * f.xEmbolden) }
 
 // ---- Convert from font-space to user-space ----
 
@@ -138,6 +177,9 @@ func (f *Font) GlyphExtents(glyph GID) (out GlyphExtents, ok bool) {
 	if !ok {
 		return out, false
 	}
+
+	syntheticGlyphExtents(&ext, f.slant, f.xEmbolden)
+
 	out.XBearing = f.emScalefX(ext.XBearing)
 	out.Width = f.emScalefX(ext.Width)
 	out.YBearing = f.emScalefY(ext.YBearing)
@@ -161,7 +203,11 @@ func (f *Font) GlyphAdvanceForDirection(glyph GID, dir Direction) (x, y Position
 // for horizontal text segments.
 func (f *Font) GlyphHAdvance(glyph GID) Position {
 	adv := f.face.HorizontalAdvance(glyph)
-	return f.emScalefX(adv)
+	out := f.emScalefX(adv)
+	if f.xEmbolden != 0 && out != 0 {
+		out += f.xStrength()
+	}
+	return out
 }
 
 // Fetches the advance for a glyph ID in the font,
@@ -205,27 +251,35 @@ func (f *Font) getGlyphOriginForDirection(glyph GID, direction Direction) (x, y 
 func (f *Font) getGlyphHOriginWithFallback(glyph GID) (Position, Position) {
 	x, y, ok := f.face.GlyphHOrigin(glyph)
 	if !ok {
-		x, y, ok = f.face.GlyphVOrigin(glyph)
-		if ok {
-			x, y := f.emScalefX(float32(x)), f.emScalefY(float32(y))
-			dx, dy := f.guessVOriginMinusHOrigin(glyph)
-			return x - dx, y - dy
-		}
+		xf, yf := f.face.GlyphVOrigin(glyph)
+		x, y := f.emScalefX(xf), f.emScalefY(yf)
+		dx, dy := f.guessVOriginMinusHOrigin(glyph)
+		return x - dx, y - dy
 	}
-	return f.emScalefX(float32(x)), f.emScalefY(float32(y))
+
+	x_, y_ := f.emScalefX(float32(x)), f.emScalefY(float32(y))
+	if f.xEmbolden != 0 {
+		/* Slant is ignored as it does not affect glyph origin */
+
+		/* Embolden */
+		strength := f.xStrength()
+		x_ += strength
+		y_ += strength
+	}
+	return x_, y_
 }
 
 func (f *Font) getGlyphVOriginWithFallback(glyph GID) (Position, Position) {
-	x, y, ok := f.face.GlyphVOrigin(glyph)
-	if !ok {
-		x, y, ok = f.face.GlyphHOrigin(glyph)
-		if ok {
-			x, y := f.emScalefX(float32(x)), f.emScalefY(float32(y))
-			dx, dy := f.guessVOriginMinusHOrigin(glyph)
-			return x + dx, y + dy
-		}
+	x, y := f.face.GlyphVOrigin(glyph)
+	x_, y_ := f.emScalefX(2*x)/2, f.emScalefY(y) // harfbuzz divides by 2 in Position unit
+	/* Slant is ignored as it does not affect glyph origin */
+	/* Embolden */
+	if f.xEmbolden != 0 {
+		strength := f.xStrength()
+		x_ += strength
+		y_ += strength
 	}
-	return f.emScalefX(float32(x)), f.emScalefY(float32(y))
+	return x_, y_
 }
 
 func (f *Font) guessVOriginMinusHOrigin(glyph GID) (x, y Position) {
@@ -306,6 +360,9 @@ func (f *Font) ExtentsForDirection(direction Direction) font.FontExtents {
 			extents.Descender = extents.Ascender - float32(f.XScale)
 			extents.LineGap = 0
 		}
+
+		xStrength := float32(f.XScale) * f.xEmbolden
+		extents.Ascender += xStrength
 	}
 	return extents
 }
@@ -333,6 +390,37 @@ func (font *Font) getYDelta(varStore tables.ItemVarStore, device tables.DeviceTa
 		return font.emScalefY(varStore.GetDelta(tables.VariationStoreIndex(device), font.varCoords()))
 	default:
 		return 0
+	}
+}
+
+func syntheticGlyphExtents(extents *font.GlyphExtents, slant, xEmbolden float32) {
+	/* Slant. */
+	if slant != 0 {
+		x1 := extents.XBearing
+		y1 := extents.YBearing
+		x2 := extents.XBearing + extents.Width
+		y2 := extents.YBearing + extents.Height
+
+		x1 += minF(y1*slant, y2*slant)
+		x2 += maxF(y1*slant, y2*slant)
+
+		extents.XBearing = x1
+		extents.Width = x2 - extents.XBearing
+	}
+
+	/* Embolden. */
+	if xEmbolden != 0 {
+		/* Y */
+		yShift := xEmbolden
+		extents.YBearing += yShift
+		extents.Height -= yShift
+
+		/* X */
+		xShift := xEmbolden
+		// if embolden_in_place {
+		// 	extents.x_bearing -= xShift / 2
+		// }
+		extents.Width += xShift
 	}
 }
 

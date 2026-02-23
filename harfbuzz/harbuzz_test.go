@@ -130,44 +130,54 @@ func TestParseVariations(t *testing.T) {
 }
 
 func TestParseFeature(t *testing.T) {
-	inputs := [...]string{
-		"kern",
-		"+kern",
-		"-kern",
-		"kern=0",
-		"kern=1",
-		"aalt=2",
-		"kern[]",
-		"kern[:]",
-		"kern[5:]",
-		"kern[:5]",
-		"kern[3:5]",
-		"kern[3]",
-		"aalt[3:5]=2",
-	}
-	expecteds := [...]Feature{
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 0, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 0, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("aalt"), Value: 2, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 5, End: FeatureGlobalEnd},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 0, End: 5},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 3, End: 5},
-		{Tag: ot.MustNewTag("kern"), Value: 1, Start: 3, End: 4},
-		{Tag: ot.MustNewTag("aalt"), Value: 2, Start: 3, End: 5},
-	}
-	for i, input := range inputs {
-		f, err := ParseFeature(input)
-		if err != nil {
-			t.Fatalf("unexpected error on input <%s> : %s", input, err)
-		}
-		if exp := expecteds[i]; f != exp {
-			t.Fatalf("for <%s>, expected %v, got %v", input, exp, f)
-		}
+	kern := ot.MustNewTag("kern")
+	abcd := ot.MustNewTag("abcd")
+	for _, test := range []struct {
+		input    string
+		expected Feature
+	}{
+		{"kern", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"+kern", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"-kern", Feature{kern, 0, 0, FeatureGlobalEnd}},
+		{"kern=0", Feature{kern, 0, 0, FeatureGlobalEnd}},
+		{"kern=1", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"aalt=2", Feature{ot.MustNewTag("aalt"), 2, 0, FeatureGlobalEnd}},
+		{"kern[]", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"kern[:]", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"kern[5:]", Feature{kern, 1, 5, FeatureGlobalEnd}},
+		{"kern[:5]", Feature{kern, 1, 0, 5}},
+		{"kern[3:5]", Feature{kern, 1, 3, 5}},
+		{"kern[3]", Feature{kern, 1, 3, 4}},
+		{"aalt[3:5]=2", Feature{ot.MustNewTag("aalt"), 2, 3, 5}},
+		{"abcd", Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{"abcd=1", Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{"+abcd", Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{"abcd=0", Feature{abcd, 0, 0, FeatureGlobalEnd}},
+		{"-abcd", Feature{abcd, 0, 0, FeatureGlobalEnd}},
+		{"abcd=2", Feature{abcd, 2, 0, FeatureGlobalEnd}},
+		{"+abcd=2", Feature{abcd, 2, 0, FeatureGlobalEnd}},
+		{"-abcd=2", Feature{abcd, 2, 0, FeatureGlobalEnd}},
+		{`"abcd" on`, Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{`"abcd" off`, Feature{abcd, 0, 0, FeatureGlobalEnd}},
+		{`"abcd" 1`, Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{`"abcd" 0`, Feature{abcd, 0, 0, FeatureGlobalEnd}},
+		{`"abcd" 2`, Feature{abcd, 2, 0, FeatureGlobalEnd}},
+		{"abcd[0]", Feature{abcd, 1, 0, 1}},
+		{"abcd[1]", Feature{abcd, 1, 1, 2}},
+		{"abcd[1]=1", Feature{abcd, 1, 1, 2}},
+		{"abcd[1]=2", Feature{abcd, 2, 1, 2}},
+		{"abcd[1]=0", Feature{abcd, 0, 1, 2}},
+		{"abcd[]", Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{"abcd[:]", Feature{abcd, 1, 0, FeatureGlobalEnd}},
+		{"abcd[1:]", Feature{abcd, 1, 1, FeatureGlobalEnd}},
+		{"abcd[:1]", Feature{abcd, 1, 0, 1}},
+		{"abcd[1:3]", Feature{abcd, 1, 1, 3}},
+		{"abcd[1:2]=1", Feature{abcd, 1, 1, 2}},
+		{"abcd[1:4]=2", Feature{abcd, 2, 1, 4}},
+	} {
+		f, err := ParseFeature(test.input)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, f == test.expected)
 	}
 }
 

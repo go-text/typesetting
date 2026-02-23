@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"testing"
 
+	hb "github.com/go-text/typesetting-utils/harfbuzz"
 	td "github.com/go-text/typesetting-utils/opentype"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
@@ -145,4 +146,27 @@ func TestLoadColor(t *testing.T) {
 	ft, err = NewFont(ld)
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
+}
+
+func TestParseSTAT(t *testing.T) {
+	for _, path := range td.WithAvar {
+		ld := readFontFile(t, path)
+		ft, err := NewFont(ld)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, ft.STAT != nil)
+	}
+}
+
+func TestGDEFBlocklist(t *testing.T) {
+	t.Skip("requiert a proprietary font")
+
+	file, err := hb.Files.ReadFile("harfbuzz_reference/in-house/macos/System/Library/Fonts/Supplemental/Courier New.ttf")
+	tu.AssertNoErr(t, err)
+
+	fp, err := ot.NewLoader(bytes.NewReader(file))
+	tu.AssertNoErr(t, err)
+
+	ft, err := NewFont(fp)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.GDEF.GlyphClassDef == nil)
 }

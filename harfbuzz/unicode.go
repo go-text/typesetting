@@ -464,22 +464,35 @@ func (b *Buffer) setUnicodeProps() {
 		r := info[i].codepoint
 		info[i].setUnicodeProps(b)
 
+		if r < 0x80 {
+			continue
+		}
+
+		genCat := info[i].unicode.generalCategory()
+		if genCat == lowercaseLetter ||
+			genCat == uppercaseLetter ||
+			genCat == titlecaseLetter ||
+			genCat == otherLetter ||
+			genCat == spaceSeparator {
+			continue
+		}
+
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if info[i].unicode.generalCategory() == modifierSymbol && (0x1F3FB <= r && r <= 0x1F3FF) {
-			info[i].setContinuation()
+		if genCat == modifierSymbol && (0x1F3FB <= r && r <= 0x1F3FF) {
+			info[i].setContinuation(b)
 		} else if i != 0 && isRegionalIndicator(r) {
 			/* Regional_Indicators are hairy as hell...
 			* https://github.com/harfbuzz/harfbuzz/issues/2265 */
 			if isRegionalIndicator(info[i-1].codepoint) && !info[i-1].isContinuation() {
-				info[i].setContinuation()
+				info[i].setContinuation(b)
 			}
 		} else if info[i].isZwj() {
-			info[i].setContinuation()
+			info[i].setContinuation(b)
 			if i+1 < len(b.Info) && uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
 				info[i].setUnicodeProps(b)
-				info[i].setContinuation()
+				info[i].setContinuation(b)
 			}
 		} else if (0xFF9E <= r && r <= 0xFF9F) || (0xE0020 <= r && r <= 0xE007F) {
 			// Or part of the Other_Grapheme_Extend that is not marks.
@@ -495,7 +508,9 @@ func (b *Buffer) setUnicodeProps() {
 			// https://github.com/harfbuzz/harfbuzz/issues/1556
 			// Katakana ones were requested:
 			// https://github.com/harfbuzz/harfbuzz/issues/3844
-			info[i].setContinuation()
+			info[i].setContinuation(b)
+		} else if r == 0x2044 /* FRACTION SLASH */ {
+			b.scratchFlags |= bsfHasFractionSlash
 		}
 	}
 }
@@ -527,7 +542,7 @@ func (b *Buffer) insertDottedCircle(font *Font) {
 }
 
 func (b *Buffer) formClusters() {
-	if b.scratchFlags&bsfHasNonASCII == 0 {
+	if b.scratchFlags&bsfHasContinuations == 0 {
 		return
 	}
 
@@ -570,11 +585,11 @@ func (b *Buffer) ensureNativeDirection() {
 		var foundNumber, foundLetter, foundRi bool
 		for _, info := range b.Info {
 			gc := info.unicode.generalCategory()
-			if gc == decimalNumber {
-				foundNumber = true
-			} else if gc.isLetter() {
+			if gc.isLetter() {
 				foundLetter = true
 				break
+			} else if gc == decimalNumber {
+				foundNumber = true
 			} else if isRegionalIndicator(info.codepoint) {
 				foundRi = true
 			}
@@ -599,8 +614,6 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 	props := unicodeProp(genCat)
 	var flags bufferScratchFlags
 	if u >= 0x80 {
-		flags |= bsfHasNonASCII
-
 		if uni.isDefaultIgnorable(u) {
 			flags |= bsfHasDefaultIgnorables
 			props |= upropsMaskIgnorable
@@ -622,7 +635,7 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 				 * https://github.com/harfbuzz/harfbuzz/issues/463 */
 				props |= upropsMaskHidden
 			} else if u == 0x034F {
-				/* COMBINING GRAPHEME JOINER should not be skipped; at least some times.
+				/* COMBINING GRAPHEME JOINER should not be skipped during GSUB either.
 				 * https://github.com/harfbuzz/harfbuzz/issues/554 */
 				flags |= bsfHasCGJ
 				props |= upropsMaskHidden
@@ -630,6 +643,7 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 		}
 
 		if genCat.isMark() {
+			flags |= bsfHasContinuations
 			props |= upropsMaskContinuation
 			props |= unicodeProp(uni.modifiedCombiningClass(u)) << 8
 		}
