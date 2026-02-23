@@ -374,6 +374,42 @@ func TestSplitScript(t *testing.T) {
 	commonSource2 := []rune("gamma (Γ) est une lettre")
 	commonSource3 := []rune("gamma (Γ [п] Γ) est une lettre") // nested delimiters
 	withInherited := []rune("لمّا")
+
+	// +	for _, tt := range tests {
+	// +		t.Run(tt.name, func(t *testing.T) {
+	// +			inputs := []shaping.Input{{
+	// +				Text:      tt.input,
+	// +				RunStart:  0,
+	// +				RunEnd:    len(tt.input),
+	// +				Direction: tt.wantDirection,
+	// +				Script:    language.Arabic,
+	// +				Face:      nil,             // face doesn't really matter for splitting anyway
+	// +				Size:      fixed.I(10),
+	// +			}}
+	// +
+	// +			got := splitByScript(inputs, tt.wantDirection, nil)
+	// +
+	// +			if len(got) != tt.wantRuns {
+	// +				t.Fatalf("splitByScript produced %d runs, expected %d. \nRun details: %+v", len(got), tt.wantRuns, got)
+	// +			}
+	// +
+	// +			// this is for the single-run cases
+	// +			// we need to verify the integrity of the single run
+	// +			// to ensure
+	// +			//     - the truncation didn't happen early on (when first hitting a diacritic)
+	// +			//     - and the right dominant script label was used
+	// +			if tt.wantRuns == 1 {
+	// +				run := got[0]
+	// +				if run.RunEnd != len(tt.input) {
+	// +					t.Errorf("Run truncated early. End = %d, expected %d", run.RunEnd, len(tt.input))
+	// +				}
+	// +				if run.Script != tt.wantScript {
+	// +					t.Errorf("Run assigned wrong script. Got %s, expected %s", run.Script, tt.wantScript)
+	// +				}
+	// +			}
+	// +		})
+	// +	}
+
 	type run struct {
 		start, end int
 		script     language.Script
@@ -419,6 +455,76 @@ func TestSplitScript(t *testing.T) {
 		var seg Segmenter
 		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR})
 		tu.Assert(t, len(seg.output) == 1)
+		seg.input, seg.output = seg.output, seg.input
+
+		seg.splitByScript()
+		tu.Assert(t, len(seg.output) == len(test.expectedRuns))
+		for i, run := range test.expectedRuns {
+			got := seg.output[i]
+			tu.Assert(t, got.RunStart == run.start)
+			tu.Assert(t, got.RunEnd == run.end)
+			tu.Assert(t, got.Script == run.script)
+		}
+	}
+
+	// Verifies that Arabic diacritics (which usually have
+	// script 'Inherited') are correctly clustered with their base Arabic letters,
+	// rather than being split into a separate shaping run.
+	for _, test := range []struct {
+		text         []rune
+		expectedRuns []run
+	}{
+		{
+			// Arabic Letter + Diacritic
+			// \u0628 => BEH
+			// \u0650 => KASRA (Diacritic)
+			[]rune{'\u0628', '\u0650'},
+			[]run{{0, 2, language.Arabic}},
+		},
+		{
+			// Arabic Word with Multiple Diacritics
+			[]rune{
+				'\u0628', // BEH
+				'\u0650', // KASRA
+				'\u0633', // SEEN
+				'\u0652', // SUKUN
+				'\u0645', // MEEM
+				'\u0650', // KASRA
+			},
+			[]run{{0, 6, language.Arabic}},
+		},
+		{
+			// Mixed Script (CONTROL Case) #1
+			// Arabic Letter + Latin Letter
+			// THESE MUST SPLIT TO 2.
+			[]rune{'\u0628', 'A'},
+			[]run{
+				{0, 1, language.Arabic},
+				{1, 2, language.Latin},
+			},
+		},
+		{
+			// Mixed Script (CONTROL Case) #2
+			// Arabic Letter + Diacritic + Diacritic + Latin Letter + Arabic Letter + Diacritic
+			// THESE MUST SPLIT TO 3.
+			[]rune{'\u0628', '\u0651', '\u0650', 'A', '\u0628', '\u0650'},
+			[]run{
+				{0, 3, language.Arabic},
+				{3, 4, language.Latin},
+				{4, 6, language.Arabic},
+			},
+		},
+		{
+			// Mixed Script (A little 'stress' test)
+			// Latin 's' + Arabic Kasra + Latin 'r' + Arabic Fatha
+			// this is technically valid unicode!
+			// the diacritics should inherit "Latin"
+			[]rune{'s', '\u0651', '\u0650', 'r', '\u064E'},
+			[]run{{0, 5, language.Latin}},
+		},
+	} {
+		var seg Segmenter
+		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR})
 		seg.input, seg.output = seg.output, seg.input
 
 		seg.splitByScript()
