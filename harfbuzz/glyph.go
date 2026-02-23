@@ -371,9 +371,6 @@ func (info *GlyphInfo) setAatDeleted() {
 func (info *GlyphInfo) isVariationSelector() bool {
 	return info.unicode.generalCategory() == ucd.Cf && (info.unicode&upropsMaskCfVs) != 0
 }
-
-func (info *GlyphInfo) setVariationSelector(customize bool) {
-	if customize {
 		info.setGeneralCategory(ucd.Cf)
 		info.unicode |= upropsMaskCfVs
 	} else {

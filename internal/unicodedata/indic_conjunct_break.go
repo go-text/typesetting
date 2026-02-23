@@ -128,9 +128,11 @@ var indicCBUint8 = [2145]uint8{
 func indicCBBits4(a []uint8, i int) uint8 {
 	return (a[i>>1] >> ((i & 1) << 2)) & 0b1111
 }
+
 func indicCBBits2(a []uint8, i int) uint8 {
 	return (a[i>>2] >> ((i & 3) << 1)) & 0b11
 }
+
 func indicCBLookup(u rune) uint8 {
 	if 0 <= u && u < 918000 {
 		return indicCBBits2(indicCBUint8[1313:], (int(indicCBUint8[657+((int(indicCBUint8[249+((int(indicCBUint8[57+((int(indicCBBits4(indicCBUint8[:], int((((u>>4)>>2)>>3)>>4))))<<4+int((((u>>4)>>2)>>3)&15))]))<<3+int(((u>>4)>>2)&7))]))<<2+int((u>>4)&3))]))<<4+int(u&15))

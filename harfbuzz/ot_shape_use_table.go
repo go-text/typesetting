@@ -228,6 +228,7 @@ var useUint8 = [3343]uint8{
 func useBits4(a []uint8, i int) uint8 {
 	return (a[i>>1] >> ((i & 1) << 2)) & 0b1111
 }
+
 func useLookup(u rune) uint8 {
 	if 0 <= u && u < 921600 {
 		return useUint8[2953+int(int((int(useUint8[625+int(int((int(useUint16[int((int(useUint8[113+int(int((int(useBits4(useUint8[:], int((((u>>1)>>3)>>3)>>5))))<<5)+int((((u>>1)>>3)>>3)&31))]))<<3)+int(((u>>1)>>3)&7)]))<<3)+int((u>>1)&7))]))<<1)+int(u&1))]

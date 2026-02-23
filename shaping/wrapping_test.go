@@ -3,6 +3,7 @@ package shaping
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"sort"
@@ -3586,4 +3587,36 @@ func TestMaxWidthRouding(t *testing.T) {
 	wr.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
 	line, _ = wr.WrapNextLineF(run.Advance)
 	tu.Assert(t, line.NextLine == 13)
+}
+
+func TestWrapping_oneLine_overflow_bug(t *testing.T) {
+
+	maxWidth := math.MaxInt
+
+	textInput := []rune("Lorem ipsum") // a simple input that fits on one line
+	face := benchEnFace
+	var shaper HarfbuzzShaper
+	out := []Output{shaper.Shape(Input{
+		Text:      textInput,
+		RunStart:  0,
+		RunEnd:    len(textInput),
+		Direction: di.DirectionLTR,
+		Face:      face,
+		Size:      fixed.I(16),
+		Script:    language.Latin,
+		Language:  language.NewLanguage("EN"),
+	})}
+	iter := NewSliceIterator(out)
+	var l LineWrapper
+
+	outs, _ := l.WrapParagraph(WrapConfig{BreakPolicy: Never}, maxWidth, textInput, iter)
+	if len(outs) != 1 {
+		t.Errorf("expected one line, got %d", len(outs))
+	}
+
+	// the run in iter should have been consumed
+	outs, _ = l.WrapParagraph(WrapConfig{BreakPolicy: Never}, maxWidth, textInput, iter)
+	if len(outs) != 0 {
+		t.Errorf("expected no line, got %d", len(outs))
+	}
 }
