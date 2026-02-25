@@ -242,7 +242,42 @@ type Segmenter struct {
 // and computes the attributes required to segment the text.
 func (seg *Segmenter) Init(paragraph []rune) {
 	seg.text = append(seg.text[:0], paragraph...)
-	seg.attributes = append(seg.attributes[:0], make([]breakAttr, len(paragraph)+1)...)
+	seg.initAttributes()
+}
+
+// InitWithString resets the segmenter storage with the given string input,
+// and computes the attributes required to segment the text.
+//
+// If paragraph includes an invalid UTF-8 sequence, these are replaced with U+FFFD.
+//
+// InitWithString is more efficient than [Init] if the input is a string.
+// No allocation for the text is made if its internal buffer capacity is already large enough.
+func (seg *Segmenter) InitWithString(paragraph string) {
+	seg.text = seg.text[:0]
+	for _, r := range paragraph {
+		seg.text = append(seg.text, r)
+	}
+	seg.initAttributes()
+}
+
+// InitWithBytes resets the segmenter storage with the given byte slice input,
+// and computes the attributes required to segment the text.
+//
+// If paragraph includes an invalid UTF-8 sequence, these are replaced with U+FFFD.
+//
+// InitWithBytes is more efficient than [Init] if the input is a byte slice.
+// No allocation for the text is made if its internal buffer capacity is already large enough.
+func (seg *Segmenter) InitWithBytes(paragraph []byte) {
+	seg.text = seg.text[:0]
+	// The Go compiler should optimize this without allocating a string.
+	for _, r := range string(paragraph) {
+		seg.text = append(seg.text, r)
+	}
+	seg.initAttributes()
+}
+
+func (seg *Segmenter) initAttributes() {
+	seg.attributes = append(seg.attributes[:0], make([]breakAttr, len(seg.text)+1)...)
 	computeBreakAttributes(seg.text, seg.attributes)
 }
 

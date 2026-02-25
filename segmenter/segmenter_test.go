@@ -13,6 +13,15 @@ import (
 	tu "github.com/go-text/typesetting/testutils"
 )
 
+type initMode int
+
+const (
+	initModeRunes initMode = iota
+	initModeString
+	initModeBytes
+	initModeMax
+)
+
 func hex(rs []rune) string {
 	out := ""
 	for _, r := range rs {
@@ -21,8 +30,7 @@ func hex(rs []rune) string {
 	return out[1:]
 }
 
-func collectLineBreaks(s *Segmenter, input []rune) []int {
-	s.Init(input)
+func collectLineBreaks(s *Segmenter) []int {
 	iter := s.LineIterator()
 	var out []int
 	for iter.Next() {
@@ -32,8 +40,7 @@ func collectLineBreaks(s *Segmenter, input []rune) []int {
 	return out
 }
 
-func collectGraphemes(s *Segmenter, input []rune) []int {
-	s.Init(input)
+func collectGraphemes(s *Segmenter) []int {
 	iter := s.GraphemeIterator()
 	var out []int
 	for iter.Next() {
@@ -43,8 +50,7 @@ func collectGraphemes(s *Segmenter, input []rune) []int {
 	return out
 }
 
-func collectWords(s *Segmenter, input []rune) []string {
-	s.Init(input)
+func collectWords(s *Segmenter) []string {
 	iter := s.WordIterator()
 	var out []string
 	for iter.Next() {
@@ -53,8 +59,7 @@ func collectWords(s *Segmenter, input []rune) []string {
 	return out
 }
 
-func collectWordBoundaries(s *Segmenter, input []rune) []bool {
-	s.Init(input)
+func collectWordBoundaries(s *Segmenter) []bool {
 	out := make([]bool, len(s.attributes))
 	for i, a := range s.attributes {
 		out[i] = a&wordBoundary != 0
@@ -71,15 +76,25 @@ func TestLineBreakUnicodeReference(t *testing.T) {
 	lines := strings.Split(string(b), "\n")
 
 	var seg1 Segmenter
-	for i, line := range lines {
-		if len(line) == 0 || strings.HasPrefix(line, "#") {
-			continue
-		}
-		s, expectedSegments := parseUCDTestLine(t, line)
-		text := []rune(s)
-		actualSegments := collectLineBreaks(&seg1, text)
-		if !reflect.DeepEqual(expectedSegments, actualSegments) {
-			t.Fatalf("line %d [%s]: expected breaks %v, got %v", i+1, hex(text), expectedSegments, actualSegments)
+	for mode := initModeRunes; mode < initModeMax; mode++ {
+		for i, line := range lines {
+			if len(line) == 0 || strings.HasPrefix(line, "#") {
+				continue
+			}
+			s, expectedSegments := parseUCDTestLine(t, line)
+			text := []rune(s)
+			switch mode {
+			case initModeRunes:
+				seg1.Init(text)
+			case initModeString:
+				seg1.InitWithString(s)
+			case initModeBytes:
+				seg1.InitWithBytes([]byte(s))
+			}
+			actualSegments := collectLineBreaks(&seg1)
+			if !reflect.DeepEqual(expectedSegments, actualSegments) {
+				t.Fatalf("line %d [%s]: mode %d: expected breaks %v, got %v", i+1, hex(text), mode, expectedSegments, actualSegments)
+			}
 		}
 	}
 }
@@ -132,15 +147,25 @@ func TestGraphemeBreakUnicodeReference(t *testing.T) {
 	lines := strings.Split(string(b), "\n")
 
 	var seg1 Segmenter
-	for i, line := range lines {
-		if len(line) == 0 || strings.HasPrefix(line, "#") {
-			continue
-		}
-		s, expectedSegments := parseUCDTestLine(t, line)
-		text := []rune(s)
-		actualSegments := collectGraphemes(&seg1, text)
-		if !reflect.DeepEqual(expectedSegments, actualSegments) {
-			t.Fatalf("line %d [%s]: expected %v, got %v", i+1, hex(text), expectedSegments, actualSegments)
+	for mode := initModeRunes; mode < initModeMax; mode++ {
+		for i, line := range lines {
+			if len(line) == 0 || strings.HasPrefix(line, "#") {
+				continue
+			}
+			s, expectedSegments := parseUCDTestLine(t, line)
+			text := []rune(s)
+			switch mode {
+			case initModeRunes:
+				seg1.Init(text)
+			case initModeString:
+				seg1.InitWithString(s)
+			case initModeBytes:
+				seg1.InitWithBytes([]byte(s))
+			}
+			actualSegments := collectGraphemes(&seg1)
+			if !reflect.DeepEqual(expectedSegments, actualSegments) {
+				t.Fatalf("line %d [%s]: mode %d: expected %v, got %v", i+1, hex(text), mode, expectedSegments, actualSegments)
+			}
 		}
 	}
 }
@@ -154,31 +179,52 @@ func TestWordBreakUnicodeReference(t *testing.T) {
 	lines := strings.Split(string(b), "\n")
 
 	var seg1 Segmenter
-	for i, line := range lines {
-		if len(line) == 0 || strings.HasPrefix(line, "#") {
-			continue
-		}
-		text, expectedBoundaries := parseUCDTestLineBoundary(t, line)
-		actualBoundaries := collectWordBoundaries(&seg1, text)
-		if !reflect.DeepEqual(expectedBoundaries, actualBoundaries) {
-			t.Errorf("line %d [%s]: expected %#v, got %#v", i+1, hex(text), expectedBoundaries, actualBoundaries)
+	for mode := initMode(0); mode < initModeMax; mode++ {
+		for i, line := range lines {
+			if len(line) == 0 || strings.HasPrefix(line, "#") {
+				continue
+			}
+			s, expectedBoundaries := parseUCDTestLineBoundary(t, line)
+			text := []rune(s)
+			switch mode {
+			case initModeRunes:
+				seg1.Init(text)
+			case initModeString:
+				seg1.InitWithString(string(s))
+			case initModeBytes:
+				seg1.InitWithBytes([]byte(string(s)))
+			}
+			actualBoundaries := collectWordBoundaries(&seg1)
+			if !reflect.DeepEqual(expectedBoundaries, actualBoundaries) {
+				t.Errorf("line %d [%s]: mode %d: expected %#v, got %#v", i+1, hex(text), mode, expectedBoundaries, actualBoundaries)
+			}
 		}
 	}
 }
 
 func TestWordSegmenter(t *testing.T) {
 	var seg Segmenter
-	for _, test := range []struct {
-		input string
-		words []string
-	}{
-		{"My name is Cris", []string{"My", "name", "is", "Cris"}},
-		{"Je m'appelle Benoit.", []string{"Je", "m'appelle", "Benoit"}},
-		{"Hi : nice ?! suit !", []string{"Hi", "nice", "suit"}},
-	} {
-		got := collectWords(&seg, []rune(test.input))
-		if !reflect.DeepEqual(test.words, got) {
-			t.Errorf("for %s, expected %v, got %v", test.input, test.words, got)
+	for mode := initMode(0); mode < initModeMax; mode++ {
+		for _, test := range []struct {
+			input string
+			words []string
+		}{
+			{"My name is Cris", []string{"My", "name", "is", "Cris"}},
+			{"Je m'appelle Benoit.", []string{"Je", "m'appelle", "Benoit"}},
+			{"Hi : nice ?! suit !", []string{"Hi", "nice", "suit"}},
+		} {
+			switch mode {
+			case initModeRunes:
+				seg.Init([]rune(test.input))
+			case initModeString:
+				seg.InitWithString(test.input)
+			case initModeBytes:
+				seg.InitWithBytes([]byte(test.input))
+			}
+			got := collectWords(&seg)
+			if !reflect.DeepEqual(test.words, got) {
+				t.Errorf("for %s, mode %d, expected %v, got %v", test.input, mode, test.words, got)
+			}
 		}
 	}
 }
