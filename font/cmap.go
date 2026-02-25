@@ -634,8 +634,8 @@ func (rs remaperPUASimp) Lookup(r rune) (GID, bool) {
 		return g, true
 	}
 
-	if mapped := arabicPUASimpMap(r); mapped != 0 {
-		return rs.Lookup(mapped)
+	if mapped := puaSimpLookup(r); mapped != 0 {
+		return rs.Lookup(rune(mapped))
 	}
 
 	return 0, false
@@ -651,8 +651,8 @@ func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
 		return g, true
 	}
 
-	if mapped := arabicPUATradMap(r); mapped != 0 {
-		return rs.Lookup(mapped)
+	if mapped := puaTradLookup(r); mapped != 0 {
+		return rs.Lookup(rune(mapped))
 	}
 
 	return 0, false

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // ported from harfbuzz/src/hb-ot-layout-gsubgpos.hh Copyright © 2007,2008,2009,2010  Red Hat, Inc. 2010,2012  Google, Inc.  Behdad Esfahbod
@@ -832,8 +833,8 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 
 	if isLigature {
 		buffer.cur(0).setLigPropsForLigature(ligID, totalComponentCount)
-		if buffer.cur(0).unicode.generalCategory() == nonSpacingMark {
-			buffer.cur(0).setGeneralCategory(otherLetter)
+		if buffer.cur(0).unicode.generalCategory() == ucd.Mn {
+			buffer.cur(0).setGeneralCategory(ucd.Lo)
 		}
 	}
 

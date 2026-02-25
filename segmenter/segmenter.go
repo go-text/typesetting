@@ -13,8 +13,6 @@
 package segmenter
 
 import (
-	"unicode"
-
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
@@ -43,18 +41,6 @@ const (
 
 const paragraphSeparator rune = 0x2029
 
-// lineBreakClass stores the Line Break Property
-// See https://unicode.org/reports/tr14/#Properties
-type lineBreakClass = *unicode.RangeTable
-
-// graphemeBreakClass stores the Unicode Grapheme Cluster Break Property
-// See https://unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
-type graphemeBreakClass = *unicode.RangeTable
-
-// wordBreakClass stores the Unicode Word Break Property
-// See https://unicode.org/reports/tr29/#Table_Word_Break_Property_Values
-type wordBreakClass = *unicode.RangeTable
-
 // cursor holds the information for the current index
 // processed by `computeAttributes`, that is
 // the context provided by previous and next runes in the text
@@ -73,38 +59,43 @@ type cursor struct {
 
 	// the following fields persists across iterations
 
-	prevGrapheme graphemeBreakClass // the Grapheme Break property at index i-1
-	grapheme     graphemeBreakClass // the Grapheme Break property at index i
+	prevGeneralCategory ucd.GeneralCategory // for prev
+	generalCategory     ucd.GeneralCategory // for r
+
+	prevGrapheme ucd.GraphemeBreak // the Grapheme Break property at index i-1
+	grapheme     ucd.GraphemeBreak // the Grapheme Break property at index i
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules GB12 and GB13
 	// see [updateGraphemeRIOdd]
 	isPrevGraphemeRIOdd bool
 
-	prevPrevWord     wordBreakClass // the Word Break property at the previous previous, non Extend rune
-	prevWord         wordBreakClass // the Word Break property at the previous, non Extend rune
-	word             wordBreakClass // the Word Break property at index i
-	prevWordNoExtend int            // the index of the last rune NOT having a Extend word break property
+	prevPrevWord     ucd.WordBreak // the Word Break property at the previous previous, non Extend rune
+	prevWord         ucd.WordBreak // the Word Break property at the previous, non Extend rune
+	word             ucd.WordBreak // the Word Break property at index i
+	prevWordNoExtend int           // the index of the last rune NOT having a Extend word break property
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules WB15 and WB16
 	// see [updateWordRIOdd]
 	isPrevWordRIOdd bool
 
-	prevPrevLine           lineBreakClass // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
-	prevLine               lineBreakClass // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
-	line                   lineBreakClass // the Line Break Class at index i
-	nextLine               lineBreakClass // the Line Break Class at index i+1
-	isPrevPrevDottedCircle bool           // following LB9 and LB10
-	isPrevDottedCircle     bool           // following LB9 and LB10
+	prevPrevLine           ucd.LineBreak // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
+	prevLine               ucd.LineBreak // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
+	prevLineRaw            ucd.LineBreak // always for prev (index i-1), despite LB9 and LB10
+	line                   ucd.LineBreak // the Line Break Class at index i
+	nextLine               ucd.LineBreak // the Line Break Class at index i+1
+	isPrevPrevDottedCircle bool          // following LB9 and LB10
+	isPrevDottedCircle     bool          // following LB9 and LB10
 
 	isPrevNonAssignedExtendedPic bool // following LB9 and LB10
 
 	// the last rune before spaces, used in rules LB14,LB15,LB16,LB17
 	// to match ... SP* ...
-	prevBeforeSpaces, beforeSpaces rune
-	beforeSpaceRaw                 rune // do not follow LB9 and LB10
-	beforeSpacesIndex              int
+	prevBeforeSpaces, beforeSpaces         rune
+	prevBeforeSpacesLine, beforeSpacesLine ucd.LineBreak
+	beforeSpaceLineRaw                     ucd.LineBreak // do not follow LB9 and LB10
+	beforeSpacesIndex                      int
 
 	// true if the `prev` rune was an odd Regional_Indicator, false if it was even or not an RI
 	// used for rules LB30a
@@ -127,20 +118,18 @@ type cursor struct {
 
 // initialise the cursor properties
 // some of them are set in [startIteration]
-func newCursor(text []rune) *cursor {
+func newCursor(text []rune) cursor {
 	cr := cursor{
 		len:              len(text),
-		prevPrevLine:     ucd.BreakXX,
 		prevWordNoExtend: -1,
 	}
 
 	// `startIteration` set `breakCl` from `nextBreakCl`
 	// so we need to init this field before the first iteration
-	cr.nextLine = ucd.BreakXX
 	if len(text) != 0 {
-		cr.nextLine = ucd.LookupLineBreakClass(text[0])
+		cr.nextLine = ucd.LookupLineBreak(text[0])
 	}
-	return &cr
+	return cr
 }
 
 // computeBreakAttributes does the heavy lifting of text segmentation,
@@ -411,7 +400,7 @@ func (gr *WordIterator) Next() bool {
 
 	// do we start a word ? if so, mark it
 	if gr.pos < len(gr.src.text) {
-		gr.inWord = unicode.Is(ucd.Word, gr.src.text[gr.pos])
+		gr.inWord = ucd.IsWord(gr.src.text[gr.pos])
 	}
 	// in any case, advance again
 	return gr.Next()
@@ -431,7 +420,7 @@ func (sg *Segmenter) WordIterator() *WordIterator {
 	// check is we start at a word
 	inWord := false
 	if len(sg.text) != 0 {
-		inWord = unicode.Is(ucd.Word, sg.text[0])
+		inWord = ucd.IsWord(sg.text[0])
 	}
 	return &WordIterator{attributeIterator: attributeIterator{src: sg, flag: wordBoundary}, inWord: inWord}
 }
