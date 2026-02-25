@@ -40,8 +40,8 @@ func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf
 	off := runes.Offset
 	for i := 0; i < runes.Count; i++ {
 		for glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			((rtl && glyphs[glyphCursor].ClusterIndex-off <= i) ||
-				(!rtl && glyphs[glyphCursor].ClusterIndex-off < i)) {
+			((rtl && glyphs[glyphCursor].TextIndex()-off <= i) ||
+				(!rtl && glyphs[glyphCursor].TextIndex()-off < i)) {
 			if rtl {
 				glyphCursor--
 			} else {
@@ -51,11 +51,11 @@ func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf
 		if rtl {
 			glyphCursor++
 		} else if (glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			glyphs[glyphCursor].ClusterIndex-off > i) ||
+			glyphs[glyphCursor].TextIndex()-off > i) ||
 			(glyphCursor == len(glyphs) && len(glyphs) > 1) {
 			glyphCursor--
-			targetClusterIndex := glyphs[glyphCursor].ClusterIndex - off
-			for glyphCursor-1 >= 0 && glyphs[glyphCursor-1].ClusterIndex-off == targetClusterIndex {
+			targetClusterIndex := glyphs[glyphCursor].TextIndex() - off
+			for glyphCursor-1 >= 0 && glyphs[glyphCursor-1].TextIndex()-off == targetClusterIndex {
 				glyphCursor--
 			}
 		}
@@ -79,21 +79,21 @@ func mapRuneToClusterIndex(dir di.Direction, runes Range, glyphs []Glyph, runeId
 	rtl := dir.Progression() == di.TowardTopLeft
 	if !rtl {
 		index = sort.Search(len(glyphs), func(index int) bool {
-			return glyphs[index].ClusterIndex-runes.Offset > runeIdx
+			return glyphs[index].TextIndex()-runes.Offset > runeIdx
 		})
 	} else {
 		index = sort.Search(len(glyphs), func(index int) bool {
-			return glyphs[index].ClusterIndex-runes.Offset < runeIdx
+			return glyphs[index].TextIndex()-runes.Offset < runeIdx
 		})
 	}
 	if index < 1 {
 		return 0
 	}
-	cluster := glyphs[index-1].ClusterIndex
+	cluster := glyphs[index-1].TextIndex()
 	if rtl && cluster-runes.Offset > runeIdx {
 		return index
 	}
-	for index-1 >= 0 && glyphs[index-1].ClusterIndex == cluster {
+	for index-1 >= 0 && glyphs[index-1].TextIndex() == cluster {
 		index--
 	}
 	return index
@@ -113,15 +113,15 @@ func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, bu
 	rtl := dir.Progression() == di.TowardTopLeft
 	if rtl {
 		for gIdx := len(glyphs) - 1; gIdx >= 0; gIdx-- {
-			cluster := glyphs[gIdx].ClusterIndex
+			cluster := glyphs[gIdx].TextIndex()
 			clusterEnd := gIdx
-			for gIdx-1 >= 0 && glyphs[gIdx-1].ClusterIndex == cluster {
+			for gIdx-1 >= 0 && glyphs[gIdx-1].TextIndex() == cluster {
 				gIdx--
 				clusterEnd = gIdx
 			}
 			var nextCluster int
 			if gIdx-1 >= 0 {
-				nextCluster = glyphs[gIdx-1].ClusterIndex
+				nextCluster = glyphs[gIdx-1].TextIndex()
 			} else {
 				nextCluster = runes.Count + runes.Offset
 			}
@@ -133,14 +133,14 @@ func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, bu
 		}
 	} else {
 		for gIdx := 0; gIdx < len(glyphs); gIdx++ {
-			cluster := glyphs[gIdx].ClusterIndex
+			cluster := glyphs[gIdx].TextIndex()
 			clusterStart := gIdx
-			for gIdx+1 < len(glyphs) && glyphs[gIdx+1].ClusterIndex == cluster {
+			for gIdx+1 < len(glyphs) && glyphs[gIdx+1].TextIndex() == cluster {
 				gIdx++
 			}
 			var nextCluster int
 			if gIdx+1 < len(glyphs) {
-				nextCluster = glyphs[gIdx+1].ClusterIndex
+				nextCluster = glyphs[gIdx+1].TextIndex()
 			} else {
 				nextCluster = runes.Count + runes.Offset
 			}
@@ -170,9 +170,9 @@ func mapRunesToClusterIndices3(dir di.Direction, runes Range, glyphs []Glyph, bu
 		for gIdx := len(glyphs) - 1; gIdx >= 0; {
 			glyph := &glyphs[gIdx]
 			// go to the start of the cluster
-			gIdx -= (glyph.GlyphCount - 1)
-			clusterStart := glyph.ClusterIndex - runes.Offset // map back to [0;runes.Count[
-			clusterEnd := glyph.RuneCount + clusterStart
+			gIdx -= (glyph.GlyphsCount() - 1)
+			clusterStart := glyph.TextIndex() - runes.Offset // map back to [0;runes.Count[
+			clusterEnd := glyph.RunesCount() + clusterStart
 			for i := clusterStart; i <= clusterEnd && i < len(mapping); i++ {
 				mapping[i] = gIdx
 			}
@@ -182,13 +182,13 @@ func mapRunesToClusterIndices3(dir di.Direction, runes Range, glyphs []Glyph, bu
 	} else {
 		for gIdx := 0; gIdx < len(glyphs); {
 			glyph := &glyphs[gIdx]
-			clusterStart := glyph.ClusterIndex - runes.Offset // map back to [0;runes.Count[
-			clusterEnd := glyph.RuneCount + clusterStart
+			clusterStart := glyph.TextIndex() - runes.Offset // map back to [0;runes.Count[
+			clusterEnd := glyph.RunesCount() + clusterStart
 			for i := clusterStart; i <= clusterEnd && i < len(mapping); i++ {
 				mapping[i] = gIdx
 			}
 			// go to the next cluster
-			gIdx += glyph.GlyphCount
+			gIdx += glyph.GlyphsCount()
 		}
 	}
 	return mapping
@@ -272,8 +272,8 @@ func (option breakOption) isValid(runeToGlyph []int, out Output) bool {
 		if gIdx >= len(out.Glyphs) || g2Idx >= len(out.Glyphs) {
 			return false
 		}
-		cIdx := out.Glyphs[gIdx].ClusterIndex
-		c2Idx := out.Glyphs[g2Idx].ClusterIndex
+		cIdx := out.Glyphs[gIdx].TextIndex()
+		c2Idx := out.Glyphs[g2Idx].TextIndex()
 		if cIdx == c2Idx {
 			// This break is within a harfbuzz cluster, and is
 			// therefore invalid.

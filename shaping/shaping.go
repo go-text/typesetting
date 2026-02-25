@@ -3,6 +3,8 @@
 package shaping
 
 import (
+	"math"
+
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/harfbuzz"
 	"golang.org/x/image/math/fixed"
@@ -117,8 +119,14 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 	glyphs := make([]Glyph, len(t.buf.Info))
 	for i := range glyphs {
 		g := t.buf.Info[i].Glyph
+
+		cluster := t.buf.Info[i].Cluster
+		if cluster > math.MaxInt32 {
+			cluster = math.MaxInt32
+		}
+
 		glyphs[i] = Glyph{
-			ClusterIndex: t.buf.Info[i].Cluster,
+			clusterIndex: int32(cluster),
 			GlyphID:      g,
 			Mask:         t.buf.Info[i].Mask,
 		}
@@ -170,30 +178,27 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 // countClusters tallies the number of runes and glyphs in each cluster
 // and updates the relevant fields on the provided glyph slice.
 func countClusters(glyphs []Glyph, textLen int, dir di.Progression) {
-	currentCluster := -1
-	runesInCluster := 0
-	glyphsInCluster := 0
-	previousCluster := textLen
+	var currentCluster, runesInCluster, glyphsInCluster, previousCluster int32 = -1, 0, 0, int32(textLen)
 	for i := range glyphs {
-		g := glyphs[i].ClusterIndex
+		g := glyphs[i].clusterIndex
 		if g != currentCluster {
 			// If we're processing a new cluster, count the runes and glyphs
 			// that compose it.
 			runesInCluster = 0
 			glyphsInCluster = 1
 			currentCluster = g
-			nextCluster := -1
+			nextCluster := int32(-1)
 		glyphCountLoop:
 			for k := i + 1; k < len(glyphs); k++ {
-				if glyphs[k].ClusterIndex == g {
+				if glyphs[k].clusterIndex == g {
 					glyphsInCluster++
 				} else {
-					nextCluster = glyphs[k].ClusterIndex
+					nextCluster = glyphs[k].clusterIndex
 					break glyphCountLoop
 				}
 			}
 			if nextCluster == -1 {
-				nextCluster = textLen
+				nextCluster = int32(textLen)
 			}
 			switch dir {
 			case di.FromTopLeft:
@@ -203,7 +208,6 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Progression) {
 			}
 			previousCluster = g
 		}
-		glyphs[i].GlyphCount = glyphsInCluster
-		glyphs[i].RuneCount = runesInCluster
+		glyphs[i].Mask = maskForCounts(glyphs[i].Mask, runesInCluster, glyphsInCluster)
 	}
 }

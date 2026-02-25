@@ -344,10 +344,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      10,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   10,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionLTR,
@@ -362,10 +361,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      0,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   0,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionLTR,
@@ -380,10 +378,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      10,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   10,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionRTL,
@@ -398,10 +395,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      0,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   0,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionRTL,
@@ -416,10 +412,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      10,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   10,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionRTL,
@@ -434,10 +429,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      0,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   0,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionRTL,
@@ -452,10 +446,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      10,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   10,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionLTR,
@@ -470,10 +463,9 @@ func TestAdvanceSpaceAware(t *testing.T) {
 				Advance: 10,
 				Glyphs: []Glyph{
 					{
-						Width:      0,
-						Advance:    10,
-						RuneCount:  1,
-						GlyphCount: 1,
+						Width:   0,
+						Advance: 10,
+						Mask:    maskForCounts(0, 1, 1),
 					},
 				},
 				Direction: di.DirectionLTR,

@@ -18,10 +18,10 @@ func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 		// find the corresponding runes :
 		// to simplify, we assume a simple one to one rune/glyph mapping
 		// which should be common in practice for word separators
-		if !(g.RuneCount == 1 && g.GlyphCount == 1) {
+		if !(g.RunesCount() == 1 && g.GlyphsCount() == 1) {
 			continue
 		}
-		r := text[g.ClusterIndex]
+		r := text[g.clusterIndex]
 		switch r {
 		case '\u0020', // space
 			'\u00A0',                   // no-break space
@@ -59,7 +59,7 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun,
 	halfSpacing := additionalSpacing / 2
 	for startGIdx := 0; startGIdx < len(run.Glyphs); {
 		startGlyph := run.Glyphs[startGIdx]
-		endGIdx := startGIdx + startGlyph.GlyphCount - 1
+		endGIdx := startGIdx + startGlyph.GlyphsCount() - 1
 
 		// start : apply spacing at boundary only if the run is not the first
 		if startGIdx > 0 || !isStartRun {
@@ -73,14 +73,14 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun,
 		}
 
 		// end : apply spacing at boundary only if the run is not the last
-		isLastCluster := startGIdx+startGlyph.GlyphCount >= len(run.Glyphs)
+		isLastCluster := startGIdx+startGlyph.GlyphsCount() >= len(run.Glyphs)
 		if !isLastCluster || !isEndRun {
 			run.Glyphs[endGIdx].Advance += halfSpacing
 			run.Glyphs[endGIdx].endLetterSpacing += halfSpacing
 		}
 
 		// go to next cluster
-		startGIdx += startGlyph.GlyphCount
+		startGIdx += startGlyph.GlyphsCount()
 	}
 
 	run.RecomputeAdvance()

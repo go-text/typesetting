@@ -36,24 +36,18 @@ type Glyph struct {
 	// below the horizontal line at the dot
 	XOffset, YOffset fixed.Int26_6
 
-	// ClusterIndex is the lowest rune index of all runes shaped into
-	// this glyph cluster. All glyphs sharing the same cluster value
-	// are part of the same cluster and will have identical RuneCount
-	// and GlyphCount fields.
+	// private storage for TextIndex(), not using int
+	// to ensure 32 bits size even on 64-bit system.
+	clusterIndex int32
+
+	GlyphID font.GID
+
+	// Mask is a bit flag.
 	//
-	// Deprecated: Use TextIndex() instead.
-	ClusterIndex int
-	// RuneCount is the number of input runes shaped into this output
-	// glyph cluster.
-	//
-	// Deprecated: Use RunesCount() instead.
-	RuneCount int
-	// GlyphCount is the number of glyphs in this output glyph cluster.
-	//
-	// Deprecated: Use GlyphsCount() instead.
-	GlyphCount int
-	GlyphID    font.GID
-	Mask       uint32
+	// The three first bits are public and store the
+	// [Harfbuzz.GlyphMask] flag. The remaining storage
+	// is reserved for internal usage and must not be modified.
+	Mask uint32
 
 	// startLetterSpacing and endLetterSpacing are set when letter spacing is applied,
 	// measuring the whitespace added on one side (half of the user provided letter spacing)
@@ -62,18 +56,24 @@ type Glyph struct {
 	startLetterSpacing, endLetterSpacing fixed.Int26_6
 }
 
+func maskForCounts(mask uint32, runeCount, glyphCount int32) uint32 {
+	// use 8 bits for runeCount and 16 bits for glyphCount,
+	// using the fact that Harfbuzz.GlyphMask is at most 8 bits large (3 for now).
+	return uint32(glyphCount&0xFFFF)<<16 | uint32(runeCount&0xFF)<<8 | mask&0xFF
+}
+
 // TextIndex is the lowest rune index of all runes shaped into
 // this glyph cluster. All glyphs sharing the same cluster value
 // are part of the same cluster and will have identical RunesCount
 // and GlyphsCount values.
-func (g Glyph) TextIndex() int { return g.ClusterIndex }
+func (g *Glyph) TextIndex() int { return int(g.clusterIndex) }
 
 // RuneCount is the number of input runes shaped into this output
 // glyph cluster.
-func (g Glyph) RunesCount() int { return g.RuneCount }
+func (g *Glyph) RunesCount() int { return int(g.Mask & 0x0000FF00 >> 8) }
 
 // GlyphsCount is the number of glyphs in this output glyph cluster.
-func (g Glyph) GlyphsCount() int { return g.GlyphCount }
+func (g *Glyph) GlyphsCount() int { return int(g.Mask & 0xFFFF0000 >> 16) }
 
 // LeftSideBearing returns the distance from the glyph's X origin to
 // its leftmost edge. This value can be negative if the glyph extends
