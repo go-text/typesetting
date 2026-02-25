@@ -37,10 +37,8 @@ func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 		// and distributing space around the glyph content
 		run.Glyphs[i].Advance += additionalSpacing
 		if isVertical {
-			run.Glyphs[i].YAdvance += additionalSpacing
 			run.Glyphs[i].YOffset += additionalSpacing / 2
 		} else {
-			run.Glyphs[i].XAdvance += additionalSpacing
 			run.Glyphs[i].XOffset += additionalSpacing / 2
 		}
 	}
@@ -67,10 +65,8 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun,
 		if startGIdx > 0 || !isStartRun {
 			run.Glyphs[startGIdx].Advance += halfSpacing
 			if isVertical {
-				run.Glyphs[startGIdx].YAdvance += halfSpacing
 				run.Glyphs[startGIdx].YOffset += halfSpacing
 			} else {
-				run.Glyphs[startGIdx].XAdvance += halfSpacing
 				run.Glyphs[startGIdx].XOffset += halfSpacing
 			}
 			run.Glyphs[startGIdx].startLetterSpacing += halfSpacing
@@ -80,11 +76,6 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun,
 		isLastCluster := startGIdx+startGlyph.GlyphCount >= len(run.Glyphs)
 		if !isLastCluster || !isEndRun {
 			run.Glyphs[endGIdx].Advance += halfSpacing
-			if isVertical {
-				run.Glyphs[endGIdx].YAdvance += halfSpacing
-			} else {
-				run.Glyphs[endGIdx].XAdvance += halfSpacing
-			}
 			run.Glyphs[endGIdx].endLetterSpacing += halfSpacing
 		}
 
@@ -104,10 +95,8 @@ func (run *Output) trimStartLetterSpacing() {
 	halfSpacing := firstG.startLetterSpacing
 	firstG.Advance -= halfSpacing
 	if run.Direction.IsVertical() {
-		firstG.YAdvance -= halfSpacing
 		firstG.YOffset -= halfSpacing
 	} else {
-		firstG.XAdvance -= halfSpacing
 		firstG.XOffset -= halfSpacing
 	}
 	firstG.startLetterSpacing = 0

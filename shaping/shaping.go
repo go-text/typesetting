@@ -133,11 +133,9 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 		glyphs[i].XBearing = fixed.I(int(extents.XBearing)) >> scaleShift
 		glyphs[i].YBearing = fixed.I(int(extents.YBearing)) >> scaleShift
 		if isVertical {
-			glyphs[i].YAdvance = fixed.I(int(t.buf.Pos[i].YAdvance)) >> scaleShift
-			glyphs[i].Advance = glyphs[i].YAdvance
+			glyphs[i].Advance = fixed.I(int(t.buf.Pos[i].YAdvance)) >> scaleShift
 		} else {
-			glyphs[i].XAdvance = fixed.I(int(t.buf.Pos[i].XAdvance)) >> scaleShift
-			glyphs[i].Advance = glyphs[i].XAdvance
+			glyphs[i].Advance = fixed.I(int(t.buf.Pos[i].XAdvance)) >> scaleShift
 		}
 		glyphs[i].XOffset = fixed.I(int(t.buf.Pos[i].XOffset)) >> scaleShift
 		glyphs[i].YOffset = fixed.I(int(t.buf.Pos[i].YOffset)) >> scaleShift

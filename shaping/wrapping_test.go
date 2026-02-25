@@ -3087,49 +3087,49 @@ var regressionRuns = []Output{
 		Size:    640,
 		Glyphs: []Glyph{
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 0, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 0, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 1, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 1, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 2, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 2, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 3, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 3, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 4, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 4, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 5, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 5, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 6, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 6, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 7, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 7, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 8, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 8, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 9, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 9, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 10, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 10, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 11, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 11, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 12, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 12, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 13, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 13, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 14, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 14, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 		},
 		LineBounds: Bounds{
@@ -3148,7 +3148,7 @@ var regressionRuns = []Output{
 		Size:    640,
 		Glyphs: []Glyph{
 			{
-				Width: 0, Height: 0, XBearing: 0, YBearing: 0, XAdvance: 166, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 15, RuneCount: 1, GlyphCount: 1, GlyphID: 0x3, Mask: 0x80000000,
+				Width: 0, Height: 0, XBearing: 0, YBearing: 0, Advance: 166, XOffset: 0, YOffset: 0, ClusterIndex: 15, RuneCount: 1, GlyphCount: 1, GlyphID: 0x3, Mask: 0x80000000,
 			},
 		},
 		LineBounds: Bounds{
@@ -3167,28 +3167,28 @@ var regressionRuns = []Output{
 		Size:    640,
 		Glyphs: []Glyph{
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 16, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 16, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 17, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 17, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 18, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 18, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 19, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 19, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 20, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 20, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 21, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 21, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 22, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 22, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 23, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 23, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 		},
 		LineBounds: Bounds{
@@ -3207,10 +3207,10 @@ var regressionRuns = []Output{
 		Size:    640,
 		Glyphs: []Glyph{
 			{
-				Width: 0, Height: 0, XBearing: 0, YBearing: 0, XAdvance: 166, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 24, RuneCount: 2, GlyphCount: 2, GlyphID: 0x3, Mask: 0x80000000,
+				Width: 0, Height: 0, XBearing: 0, YBearing: 0, Advance: 166, XOffset: 0, YOffset: 0, ClusterIndex: 24, RuneCount: 2, GlyphCount: 2, GlyphID: 0x3, Mask: 0x80000000,
 			},
 			{
-				Width: 39, Height: -111, XBearing: 29, YBearing: 495, XAdvance: 0, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 24, RuneCount: 2, GlyphCount: 2, GlyphID: 0x57, Mask: 0x80000000,
+				Width: 39, Height: -111, XBearing: 29, YBearing: 495, Advance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 24, RuneCount: 2, GlyphCount: 2, GlyphID: 0x57, Mask: 0x80000000,
 			},
 		},
 		LineBounds: Bounds{
@@ -3229,19 +3229,19 @@ var regressionRuns = []Output{
 		Size:    640,
 		Glyphs: []Glyph{
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 26, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 26, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 27, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 27, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 28, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 28, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 29, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 29, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 			{
-				Width: 303, Height: -470, XBearing: 31, YBearing: 464, XAdvance: 366, YAdvance: 0, XOffset: 0, YOffset: 0, ClusterIndex: 30, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
+				Width: 303, Height: -470, XBearing: 31, YBearing: 464, Advance: 366, XOffset: 0, YOffset: 0, ClusterIndex: 30, RuneCount: 1, GlyphCount: 1, GlyphID: 0x65f, Mask: 0x80000000,
 			},
 		},
 		LineBounds: Bounds{
@@ -3278,7 +3278,7 @@ func TestTrailingSpace(t *testing.T) {
 		Size:   72,
 		RunEnd: len(text),
 	})
-	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
+	tu.Assert(t, run.Glyphs[0].Advance == fixed.I(1))
 
 	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{BreakPolicy: Always}, 5, text, NewSliceIterator([]Output{run}))
 
@@ -3302,7 +3302,7 @@ func TestLineWrapPostProcess(t *testing.T) {
 			Glyphs: []Glyph{
 				{
 					Width:        10,
-					XAdvance:     10,
+					Advance:      10,
 					ClusterIndex: 0,
 					RuneCount:    1,
 					GlyphCount:   1,
@@ -3319,14 +3319,14 @@ func TestLineWrapPostProcess(t *testing.T) {
 			Direction: di.DirectionRTL,
 			Glyphs: []Glyph{
 				{
-					XAdvance:     10,
+					Advance:      10,
 					Width:        10,
 					ClusterIndex: 1,
 					RuneCount:    1,
 					GlyphCount:   1,
 				},
 				{
-					XAdvance:     10,
+					Advance:      10,
 					Width:        0,
 					ClusterIndex: 2,
 					RuneCount:    1,
@@ -3343,7 +3343,7 @@ func TestLineWrapPostProcess(t *testing.T) {
 			Direction: di.DirectionRTL,
 			Glyphs: []Glyph{
 				{
-					XAdvance:     10,
+					Advance:      10,
 					Width:        10,
 					ClusterIndex: 3,
 					RuneCount:    1,
@@ -3517,7 +3517,7 @@ func TestRequiredBreaks(t *testing.T) {
 		Size:   72,
 		RunEnd: len(text),
 	})
-	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
+	tu.Assert(t, run.Glyphs[0].Advance == fixed.I(1))
 
 	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{BreakPolicy: Always}, 100, text, NewSliceIterator([]Output{run}))
 
@@ -3548,7 +3548,7 @@ func TestTrimmedTrailingWhitespace(t *testing.T) {
 		Size:   72,
 		RunEnd: len(text),
 	})
-	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1) && run.Glyphs[3].XAdvance == fixed.I(1))
+	tu.Assert(t, run.Glyphs[0].Advance == fixed.I(1) && run.Glyphs[3].Advance == fixed.I(1))
 
 	var wrapper LineWrapper
 
@@ -3575,7 +3575,7 @@ func TestMaxWidthRouding(t *testing.T) {
 		Size:   36,
 		RunEnd: len(text),
 	})
-	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1)/2)
+	tu.Assert(t, run.Glyphs[0].Advance == fixed.I(1)/2)
 	tu.Assert(t, run.Advance == 13*fixed.I(1)/2)
 
 	wr := LineWrapper{}

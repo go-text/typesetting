@@ -31,7 +31,6 @@ var (
 	}
 	simpleGlyph_ = Glyph{
 		GlyphID:  simpleGID,
-		XAdvance: fixed.I(10),
 		Advance:  fixed.I(10),
 		Width:    fixed.I(10),
 		Height:   -fixed.I(10),
@@ -39,7 +38,6 @@ var (
 	}
 	simpleGlyphVert = Glyph{
 		GlyphID:  simpleGID,
-		YAdvance: -fixed.I(10),
 		Advance:  -fixed.I(10),
 		Width:    fixed.I(10),
 		Height:   -fixed.I(10),
@@ -47,7 +45,6 @@ var (
 	}
 	deepGlyph = Glyph{
 		GlyphID:  deepGID,
-		XAdvance: fixed.I(10),
 		Advance:  fixed.I(10),
 		XOffset:  -fixed.I(5),
 		Width:    fixed.I(10),
@@ -56,7 +53,6 @@ var (
 	}
 	deepGlyphVert = Glyph{
 		GlyphID:  deepGID,
-		YAdvance: -fixed.I(10),
 		Advance:  -fixed.I(10),
 		XOffset:  -fixed.I(5),
 		Width:    fixed.I(10),
@@ -65,7 +61,6 @@ var (
 	}
 	offsetGlyph = Glyph{
 		GlyphID:  offsetGID,
-		XAdvance: fixed.I(10),
 		Advance:  fixed.I(10),
 		XOffset:  -fixed.I(2),
 		YOffset:  fixed.I(2),
@@ -76,7 +71,6 @@ var (
 	}
 	offsetGlyphVert = Glyph{
 		GlyphID:  offsetGID,
-		YAdvance: -fixed.I(10),
 		Advance:  -fixed.I(10),
 		XOffset:  -fixed.I(2),
 		YOffset:  fixed.I(2),
@@ -109,7 +103,7 @@ func TestRecalculate(t *testing.T) {
 			Input:     []Glyph{simpleGlyph_},
 			Output: Output{
 				Glyphs:  []Glyph{simpleGlyph_},
-				Advance: simpleGlyph_.XAdvance,
+				Advance: simpleGlyph_.Advance,
 				GlyphBounds: Bounds{
 					Ascent:  simpleGlyph_.YBearing,
 					Descent: fixed.I(0),
@@ -123,7 +117,7 @@ func TestRecalculate(t *testing.T) {
 			Input:     []Glyph{simpleGlyph_, deepGlyph},
 			Output: Output{
 				Glyphs:  []Glyph{simpleGlyph_, deepGlyph},
-				Advance: simpleGlyph_.XAdvance + deepGlyph.XAdvance,
+				Advance: simpleGlyph_.Advance + deepGlyph.Advance,
 				GlyphBounds: Bounds{
 					Ascent:  simpleGlyph_.YBearing,
 					Descent: deepGlyph.YBearing + deepGlyph.Height,
@@ -137,7 +131,7 @@ func TestRecalculate(t *testing.T) {
 			Input:     []Glyph{offsetGlyph},
 			Output: Output{
 				Glyphs:  []Glyph{offsetGlyph},
-				Advance: offsetGlyph.XAdvance,
+				Advance: offsetGlyph.Advance,
 				GlyphBounds: Bounds{
 					Ascent:  offsetGlyph.YBearing + offsetGlyph.YOffset,
 					Descent: fixed.I(0),
@@ -151,7 +145,7 @@ func TestRecalculate(t *testing.T) {
 			Input:     []Glyph{simpleGlyphVert},
 			Output: Output{
 				Glyphs:  []Glyph{simpleGlyphVert},
-				Advance: simpleGlyphVert.YAdvance,
+				Advance: simpleGlyphVert.Advance,
 				GlyphBounds: Bounds{
 					Ascent:  simpleGlyphVert.Width,
 					Descent: 0,
@@ -165,7 +159,7 @@ func TestRecalculate(t *testing.T) {
 			Input:     []Glyph{simpleGlyphVert, deepGlyphVert},
 			Output: Output{
 				Glyphs:  []Glyph{simpleGlyphVert, deepGlyphVert},
-				Advance: simpleGlyphVert.YAdvance + deepGlyphVert.YAdvance,
+				Advance: simpleGlyphVert.Advance + deepGlyphVert.Advance,
 				GlyphBounds: Bounds{
 					Ascent:  simpleGlyphVert.Width,
 					Descent: deepGlyphVert.XOffset + deepGlyphVert.XBearing,
@@ -179,7 +173,7 @@ func TestRecalculate(t *testing.T) {
 			Input:     []Glyph{offsetGlyphVert},
 			Output: Output{
 				Glyphs:  []Glyph{offsetGlyphVert},
-				Advance: offsetGlyphVert.YAdvance,
+				Advance: offsetGlyphVert.Advance,
 				GlyphBounds: Bounds{
 					Ascent:  offsetGlyphVert.Width + offsetGlyphVert.XOffset + offsetGlyphVert.XBearing,
 					Descent: offsetGlyphVert.XOffset + offsetGlyphVert.XBearing,
