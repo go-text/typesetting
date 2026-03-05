@@ -87,9 +87,13 @@ func TestLineBreakUnicodeReference(t *testing.T) {
 			case initModeRunes:
 				seg1.Init(text)
 			case initModeString:
-				seg1.InitWithString(s)
+				if err := seg1.InitWithString(s); err != nil {
+					t.Error(err)
+				}
 			case initModeBytes:
-				seg1.InitWithBytes([]byte(s))
+				if err := seg1.InitWithBytes([]byte(s)); err != nil {
+					t.Error(err)
+				}
 			}
 			actualSegments := collectLineBreaks(&seg1)
 			if !reflect.DeepEqual(expectedSegments, actualSegments) {
@@ -158,9 +162,13 @@ func TestGraphemeBreakUnicodeReference(t *testing.T) {
 			case initModeRunes:
 				seg1.Init(text)
 			case initModeString:
-				seg1.InitWithString(s)
+				if err := seg1.InitWithString(s); err != nil {
+					t.Error(err)
+				}
 			case initModeBytes:
-				seg1.InitWithBytes([]byte(s))
+				if err := seg1.InitWithBytes([]byte(s)); err != nil {
+					t.Error(err)
+				}
 			}
 			actualSegments := collectGraphemes(&seg1)
 			if !reflect.DeepEqual(expectedSegments, actualSegments) {
@@ -190,9 +198,13 @@ func TestWordBreakUnicodeReference(t *testing.T) {
 			case initModeRunes:
 				seg1.Init(text)
 			case initModeString:
-				seg1.InitWithString(string(s))
+				if err := seg1.InitWithString(string(s)); err != nil {
+					t.Error(err)
+				}
 			case initModeBytes:
-				seg1.InitWithBytes([]byte(string(s)))
+				if err := seg1.InitWithBytes([]byte(string(s))); err != nil {
+					t.Error(err)
+				}
 			}
 			actualBoundaries := collectWordBoundaries(&seg1)
 			if !reflect.DeepEqual(expectedBoundaries, actualBoundaries) {
@@ -217,13 +229,89 @@ func TestWordSegmenter(t *testing.T) {
 			case initModeRunes:
 				seg.Init([]rune(test.input))
 			case initModeString:
-				seg.InitWithString(test.input)
+				if err := seg.InitWithString(test.input); err != nil {
+					t.Error(err)
+				}
 			case initModeBytes:
-				seg.InitWithBytes([]byte(test.input))
+				if err := seg.InitWithBytes([]byte(test.input)); err != nil {
+					t.Error(err)
+				}
 			}
 			got := collectWords(&seg)
 			if !reflect.DeepEqual(test.words, got) {
 				t.Errorf("for %s, mode %d, expected %v, got %v", test.input, mode, test.words, got)
+			}
+		}
+	}
+}
+
+func TestBytePositions(t *testing.T) {
+	tests := []string{
+		"",
+		"a",
+		"Hello World",
+		"café latte",
+		"🍣寿司🍣",
+		"Hi 🧑‍🧒‍🧒 there", // Emoji with zero-width joiner
+		"This is a test.\ncafé\n🍣寿司🍣",
+		"aaa\ufffdbbb", // U+FFFD (Replacement Character)
+	}
+
+	var seg Segmenter
+	initSeg := func(seg *Segmenter, mode initMode, input string) {
+		switch mode {
+		case initModeRunes:
+			seg.Init([]rune(input))
+		case initModeString:
+			if err := seg.InitWithString(input); err != nil {
+				t.Error(err)
+			}
+		case initModeBytes:
+			if err := seg.InitWithBytes([]byte(input)); err != nil {
+				t.Error(err)
+			}
+		}
+	}
+
+	for mode := initMode(0); mode < initModeMax; mode++ {
+		for _, input := range tests {
+			// Test GraphemeIterator byte positions.
+			initSeg(&seg, mode, input)
+			iter := seg.GraphemeIterator()
+			for iter.Next() {
+				g := iter.Grapheme()
+				got := []rune(input[g.OffsetInBytes : g.OffsetInBytes+g.LengthInBytes])
+				expected := g.Text
+				if !reflect.DeepEqual(got, expected) {
+					t.Errorf("grapheme: input=%q mode=%d: byte slice %q != rune text %q (offset=%d, offsetInBytes=%d, lengthInBytes=%d)",
+						input, mode, got, expected, g.Offset, g.OffsetInBytes, g.LengthInBytes)
+				}
+			}
+
+			// Test LineIterator byte positions.
+			initSeg(&seg, mode, input)
+			lineIter := seg.LineIterator()
+			for lineIter.Next() {
+				l := lineIter.Line()
+				got := []rune(input[l.OffsetInBytes : l.OffsetInBytes+l.LengthInBytes])
+				expected := l.Text
+				if !reflect.DeepEqual(got, expected) {
+					t.Errorf("line: input=%q mode=%d: byte slice %q != rune text %q (offset=%d, offsetInBytes=%d, lengthInBytes=%d)",
+						input, mode, got, expected, l.Offset, l.OffsetInBytes, l.LengthInBytes)
+				}
+			}
+
+			// Test WordIterator byte positions.
+			initSeg(&seg, mode, input)
+			wordIter := seg.WordIterator()
+			for wordIter.Next() {
+				w := wordIter.Word()
+				got := []rune(input[w.OffsetInBytes : w.OffsetInBytes+w.LengthInBytes])
+				expected := w.Text
+				if !reflect.DeepEqual(got, expected) {
+					t.Errorf("word: input=%q mode=%d: byte slice %q != rune text %q (offset=%d, offsetInBytes=%d, lengthInBytes=%d)",
+						input, mode, got, expected, w.Offset, w.OffsetInBytes, w.LengthInBytes)
+				}
 			}
 		}
 	}
