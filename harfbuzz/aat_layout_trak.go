@@ -22,7 +22,7 @@ func (font *Font) getVTracking(track float32) Position {
 }
 
 // track default to 0
-func (c *aatApplyContext) applyTrak(  track float32) {
+func (c *aatApplyContext) applyTrak(track float32) {
 	ptem := c.font.Ptem
 	if ptem <= 0. {
 		// https://developer.apple.com/documentation/coretext/1508745-ctfontcreatewithgraphicsfont
