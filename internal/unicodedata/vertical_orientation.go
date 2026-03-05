@@ -19,7 +19,7 @@ type ScriptVerticalOrientation struct {
 }
 
 // uprightOrMixedScripts is the list of scripts
-// which may use both mode ("upright" or "sideways") for vertical text orientation
+// which may use both modes ("upright" or "sideways") for vertical text orientation
 var uprightOrMixedScripts = [...]ScriptVerticalOrientation{
 	{nil, language.Anatolian_Hieroglyphs, false},
 	{nil, language.Bopomofo, false},
