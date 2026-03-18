@@ -120,6 +120,7 @@ func TestLoadCFF2(t *testing.T) {
 
 	font, err := NewFont(ld)
 	tu.AssertNoErr(t, err)
+	tu.Assert(t, font.Flavor == ot.OpenType)
 
 	tu.Assert(t, font.cff2 != nil)
 	tu.Assert(t, font.cff2.VarStore.AxisCount() == 1)
@@ -140,6 +141,7 @@ func TestLoadColor(t *testing.T) {
 	ld := readFontFile(t, "color/NotoColorEmoji-Regular.ttf")
 	ft, err := NewFont(ld)
 	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.Flavor == ot.TrueType)
 	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
 
 	ld = readFontFile(t, "color/CoralPixels-Regular.ttf")

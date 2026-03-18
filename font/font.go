@@ -136,6 +136,10 @@ type FontID struct {
 //
 // All its methods are read-only and a [*Font] object is thus safe for concurrent use.
 type Font struct {
+	// Flavor represents the kind of font, as indicated by the first four bytes of the file.
+	// It is one of [ot.TrueType], [ot.TrueTypeApple], [ot.PostScript1], [ot.OpenType]
+	Flavor Tag
+
 	// Cmap is the 'cmap' table
 	Cmap    Cmap
 	cmapVar UnicodeVariations
@@ -197,6 +201,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 		out Font
 		err error
 	)
+	out.Flavor = ld.Type
 
 	// 'cmap' handling depend on os2
 	raw, _ := ld.RawTable(ot.MustNewTag("OS/2"))
