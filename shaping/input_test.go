@@ -26,6 +26,7 @@ func Test_ignoreFaceChange(t *testing.T) {
 		{'\ufe02', true},
 		{'\U000E0100', true},
 		{'\u06DD', false},
+		{'\u200f', true},
 	}
 	for _, tt := range tests {
 		if got := ignoreFaceChange(tt.args); got != tt.want {
@@ -657,6 +658,23 @@ func TestSplit(t *testing.T) {
 			di.DirectionTTB,
 			[]run{
 				{0, 8, sideways, language.Mongolian, "mn", latinFont},
+			},
+		},
+		{
+			"\u200fabc", // the mark should not trigger a face change, even "across" different directions/scripts
+			di.DirectionLTR,
+			[]run{
+				{0, 1, di.DirectionRTL, language.Common, "fr", latinFont},
+				{1, 4, di.DirectionLTR, language.Latin, "fr", latinFont},
+			},
+		},
+		{
+			"a\u200fabc", // the mark should not trigger a face change, even "across" different directions/scripts
+			di.DirectionLTR,
+			[]run{
+				{0, 1, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{1, 2, di.DirectionRTL, language.Common, "fr", latinFont},
+				{2, 5, di.DirectionLTR, language.Latin, "fr", latinFont},
 			},
 		},
 	} {
