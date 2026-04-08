@@ -82,7 +82,6 @@ func resolvePairedBrackets(s *isolatingRunSequence) {
 		dirEmbed = ucd.BD_R
 	}
 	p.locateBrackets(s.p.pairTypes, s.p.pairValues)
-	fmt.Println(p.pairPositions)
 	p.resolveBrackets(dirEmbed, s.p.initialTypes)
 }
 

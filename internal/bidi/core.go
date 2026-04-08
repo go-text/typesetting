@@ -698,8 +698,6 @@ func (p *Paragraph) determineLevelRuns() [][]int {
 	return allRuns
 }
 
-const s = "\u05D0\u05D1\u0028\u05D2\u05D3\u005B\u0026\u0065\u0066\u005D\u002E\u0029\u0067\u0068"
-
 // Definition BD13. Determine isolating run sequences.
 func (p *Paragraph) determineIsolatingRunSequences() []*isolatingRunSequence {
 	levelRuns := p.determineLevelRuns()
