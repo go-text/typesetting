@@ -353,6 +353,15 @@ func TestSplitBidi(t *testing.T) {
 				{48, 60, di.DirectionRTL},
 			},
 		},
+		// spaces create a new run
+		{
+			text:             []rune("ااب   "),
+			defaultDirection: di.DirectionLTR,
+			expectedRuns: []run{
+				{0, 3, di.DirectionRTL},
+				{3, 6, di.DirectionLTR},
+			},
+		},
 	} {
 		var seg Segmenter
 		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: test.defaultDirection})
