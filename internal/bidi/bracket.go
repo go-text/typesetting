@@ -120,8 +120,6 @@ type bracketPairer struct {
 // matchOpener reports whether characters at given positions form a matching
 // bracket pair.
 func (p *bracketPairer) matchOpener(pairValues []rune, opener, closer int) bool {
-	fmt.Println(pairValues)
-	fmt.Println("mo", pairValues[p.indexes[opener]] == pairValues[p.indexes[closer]])
 	return pairValues[p.indexes[opener]] == pairValues[p.indexes[closer]]
 }
 

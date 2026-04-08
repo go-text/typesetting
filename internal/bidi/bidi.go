@@ -18,7 +18,6 @@ import (
 type Paragraph struct {
 	text []rune // input values
 
-	// o            Ordering
 	initialTypes []ucd.BidiClass
 	pairTypes    []bracketType
 	pairValues   []rune
@@ -47,24 +46,29 @@ type Paragraph struct {
 type Run struct {
 	// Start and End indicate the subslice of the input text.
 	Start, End int
-
-	IsRTL bool
-
 	level level
 }
 
+func (r Run) IsLeftToRight() bool { return r.level % 2 != 0 }
+
 type Runs struct {
 	levels []level
+	runEnds []int
 }
 
 // NumRuns returns the number of runs.
-func (o *Runs) NumRuns() int {
-	return 0 // FIXME
-}
+func (r *Runs) NumRuns() int { return len(r.runEnds) }
 
-// Run returns the ith run within the ordering.
-func (o *Runs) Run(i int) Run {
-	return Run{} // FIXME
+// Run returns the ith run of segmented text.
+// This method panics if [i] is not in the range [0,NumRuns()[
+func (r *Runs) Run(i int) Run {
+	start := 0
+	if i != 0 {
+		start = r.runEnds[i-1]
+	}
+	end := r.runEnds[i]
+	level := r.levels[start]
+	return Run{start, end, level} 
 }
 
 // Segment applies the Bidi algorithm.
@@ -85,7 +89,7 @@ func (b *Paragraph) SegmentString(text string, defaultDirection DefaultDirection
 	return b.segment(defaultDirection)
 }
 
-func (b *Paragraph) SegmentBytes(text string, defaultDirection DefaultDirection) Runs {
+func (b *Paragraph) SegmentBytes(text []byte, defaultDirection DefaultDirection) Runs {
 	b.text = b.text[:0]
 	// The Go compiler should optimize this without allocating a string.
 	for _, r := range string(text) {
@@ -95,11 +99,47 @@ func (b *Paragraph) SegmentBytes(text string, defaultDirection DefaultDirection)
 }
 
 func (b *Paragraph) segment(defaultDirection DefaultDirection) Runs {
-	b.prepareInput()
-	levels := b.Order(defaultDirection)
-	// TODO : runs from levels
-	return Runs{levels: levels}
+	b.prepareInput() // TODO: optimize for single direction 
+
+	lvl := level(-1)
+	if defaultDirection == LeftToRight {
+		lvl = 0
+	} else if defaultDirection == RightToLeft {
+		lvl = 1
+	}
+
+	p.embeddingLevel = lvl
+
+	p.run()
+	levels := p.getLevels()
+	return p.buildRuns(levels)
 }
+
+func (b *Paragraph) buildRuns(levels []level) Runs {
+	var (
+		isRTL bool
+		// TODO: allocate only once in Paragrpah
+		runEnds []int // exclusive indice : the run is at text[previousEnd:end] 
+	)
+
+	// lvl = 0,2,4,...: left to right
+	// lvl = 1,3,5,...: right to left
+	for i, lvl := range levels {
+		curIsRTL := lvl%2 != 0
+		if i == 0 {
+			isRTL = curIsRTL
+		} else if curIsRTL != isRTL {
+			// close the current run 
+			runEnds = append(runEnds, i)
+			isRTL = curIsRTL
+		}
+	}
+	// close the last run 
+	runEnds = append(runEnds, len(levels))
+
+	return Runs{levels:levels, runEnds:runEnds}
+}
+
 
 type charType = unicodedata.BidiClass
 
@@ -173,117 +213,3 @@ func (p *Paragraph) prepareInput() {
 		}
 	}
 }
-
-// // IsLeftToRight reports whether the principle direction of rendering for this
-// // paragraphs is left-to-right. If this returns false, the principle direction
-// // of rendering is right-to-left.
-// func (p *Paragraph) IsLeftToRight() bool {
-// 	return p.Direction() == LeftToRight
-// }
-
-// // Direction returns the direction of the text of this paragraph.
-// //
-// // The direction may be LeftToRight, RightToLeft, Mixed, or Neutral.
-// func (p *Paragraph) Direction() Direction {
-// 	return p.o.Direction()
-// }
-
-// // TODO: what happens if the position is > len(input)? This should return an error.
-
-// // RunAt reports the Run at the given position of the input text.
-// //
-// // This method can be used for computing line breaks on paragraphs.
-// func (p *Paragraph) RunAt(pos int) Run {
-// 	c := 0
-// 	runNumber := 0
-// 	for i, r := range p.o.runes {
-// 		c += len(r)
-// 		if pos < c {
-// 			runNumber = i
-// 		}
-// 	}
-// 	return p.o.Run(runNumber)
-// }
-
-// func calculateOrdering(levels []level, runes []rune) Ordering {
-// 	var curDir Direction
-
-// 	prevDir := Neutral
-// 	prevI := 0
-
-// 	o := Ordering{}
-// 	// lvl = 0,2,4,...: left to right
-// 	// lvl = 1,3,5,...: right to left
-// 	for i, lvl := range levels {
-// 		if lvl%2 == 0 {
-// 			curDir = LeftToRight
-// 		} else {
-// 			curDir = RightToLeft
-// 		}
-// 		if curDir != prevDir {
-// 			if i > 0 {
-// 				o.runes = append(o.runes, runes[prevI:i])
-// 				o.directions = append(o.directions, prevDir)
-// 				o.startpos = append(o.startpos, prevI)
-// 			}
-// 			prevI = i
-// 			prevDir = curDir
-// 		}
-// 	}
-// 	o.runes = append(o.runes, runes[prevI:])
-// 	o.directions = append(o.directions, prevDir)
-// 	o.startpos = append(o.startpos, prevI)
-// 	return o
-// }
-
-// Order computes the visual ordering of all the runs in a Paragraph.
-func (p *Paragraph) Order(defaultDirection DefaultDirection) []level {
-	if len(p.initialTypes) == 0 {
-		return nil
-	}
-
-	fmt.Println(p.initialTypes)
-	fmt.Println(p.pairTypes)
-
-	lvl := level(-1)
-	if defaultDirection == LeftToRight {
-		lvl = 0
-	} else if defaultDirection == RightToLeft {
-		lvl = 1
-	}
-
-	// if err := validateTypes(p.initialTypes); err != nil {
-	// 	return Ordering{}, err
-	// }
-	// if err := validatePbTypes(p.pairTypes); err != nil {
-	// 	return Ordering{}, err
-	// }
-	// if err := validatePbValues(p.pairValues, p.pairTypes); err != nil {
-	// 	return Ordering{}, err
-	// }
-	// if err := validateParagraphEmbeddingLevel(lvl); err != nil {
-	// 	return Ordering{}, err
-	// }
-
-	p.embeddingLevel = lvl
-
-	p.run()
-
-	return p.getLevels()
-
-	// p.o = calculateOrdering(levels, p.runes)
-	// return p.o, nil
-}
-
-// // Line computes the visual ordering of runs for a single line starting and
-// // ending at the given positions in the original text.
-// func (p *Paragraph) Line(start, end int) (Ordering, error) {
-// 	lineTypes := p.types[start:end]
-// 	para, err := newParagraph(lineTypes, p.pairTypes[start:end], p.pairValues[start:end], -1)
-// 	if err != nil {
-// 		return Ordering{}, err
-// 	}
-// 	levels := para.getLevels([]int{len(lineTypes)})
-// 	o := calculateOrdering(levels, p.runes[start:end])
-// 	return o, nil
-// }
