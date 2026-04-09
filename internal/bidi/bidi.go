@@ -4,8 +4,6 @@
 package bidi
 
 import (
-	"fmt"
-
 	"github.com/go-text/typesetting/internal/unicodedata"
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
@@ -46,13 +44,13 @@ type Paragraph struct {
 type Run struct {
 	// Start and End indicate the subslice of the input text.
 	Start, End int
-	level level
+	level      level
 }
 
-func (r Run) IsLeftToRight() bool { return r.level % 2 != 0 }
+func (r Run) IsLeftToRight() bool { return r.level%2 != 0 }
 
 type Runs struct {
-	levels []level
+	levels  []level
 	runEnds []int
 }
 
@@ -68,7 +66,7 @@ func (r *Runs) Run(i int) Run {
 	}
 	end := r.runEnds[i]
 	level := r.levels[start]
-	return Run{start, end, level} 
+	return Run{start, end, level}
 }
 
 // Segment applies the Bidi algorithm.
@@ -76,30 +74,33 @@ func (r *Runs) Run(i int) Run {
 //
 // [defaultDirection] sets the default direction for a Paragraph. The direction is
 // overridden if the text contains directional characters.
-func (b *Paragraph) Segment(text []rune, defaultDirection DefaultDirection) Runs {
-	b.text = append(b.text[:0], text...)
-	return b.segment(defaultDirection)
+func (p *Paragraph) Segment(text []rune, defaultDirection Direction) Runs {
+	p.text = append(p.text[:0], text...)
+	return p.segment(defaultDirection)
 }
 
-func (b *Paragraph) SegmentString(text string, defaultDirection DefaultDirection) Runs {
-	b.text = b.text[:0]
+func (p *Paragraph) SegmentString(text string, defaultDirection Direction) Runs {
+	p.text = p.text[:0]
 	for _, r := range text {
-		b.text = append(b.text, r)
+		p.text = append(p.text, r)
 	}
-	return b.segment(defaultDirection)
+	return p.segment(defaultDirection)
 }
 
-func (b *Paragraph) SegmentBytes(text []byte, defaultDirection DefaultDirection) Runs {
-	b.text = b.text[:0]
+func (p *Paragraph) SegmentBytes(text []byte, defaultDirection Direction) Runs {
+	p.text = p.text[:0]
 	// The Go compiler should optimize this without allocating a string.
 	for _, r := range string(text) {
-		b.text = append(b.text, r)
+		p.text = append(p.text, r)
 	}
-	return b.segment(defaultDirection)
+	return p.segment(defaultDirection)
 }
 
-func (b *Paragraph) segment(defaultDirection DefaultDirection) Runs {
-	b.prepareInput() // TODO: optimize for single direction 
+func (p *Paragraph) segment(defaultDirection Direction) Runs {
+	p.prepareInput() // TODO: optimize for single direction
+	if len(p.initialTypes) == 0 {
+		return Runs{}
+	}
 
 	lvl := level(-1)
 	if defaultDirection == LeftToRight {
@@ -115,11 +116,11 @@ func (b *Paragraph) segment(defaultDirection DefaultDirection) Runs {
 	return p.buildRuns(levels)
 }
 
-func (b *Paragraph) buildRuns(levels []level) Runs {
+func (p *Paragraph) buildRuns(levels []level) Runs {
 	var (
 		isRTL bool
 		// TODO: allocate only once in Paragrpah
-		runEnds []int // exclusive indice : the run is at text[previousEnd:end] 
+		runEnds []int // exclusive indice : the run is at text[previousEnd:end]
 	)
 
 	// lvl = 0,2,4,...: left to right
@@ -129,17 +130,16 @@ func (b *Paragraph) buildRuns(levels []level) Runs {
 		if i == 0 {
 			isRTL = curIsRTL
 		} else if curIsRTL != isRTL {
-			// close the current run 
+			// close the current run
 			runEnds = append(runEnds, i)
 			isRTL = curIsRTL
 		}
 	}
-	// close the last run 
+	// close the last run
 	runEnds = append(runEnds, len(levels))
 
-	return Runs{levels:levels, runEnds:runEnds}
+	return Runs{levels: levels, runEnds: runEnds}
 }
-
 
 type charType = unicodedata.BidiClass
 
@@ -155,10 +155,10 @@ func max(a, b level) level {
 }
 
 // A Direction indicates the overall flow of text.
-type DefaultDirection uint8
+type Direction uint8
 
 const (
-	Neutral DefaultDirection = iota
+	Neutral Direction = iota
 	LeftToRight
 	RightToLeft
 )
@@ -166,12 +166,6 @@ const (
 // Initialize the p.pairTypes, p.pairValues and p.types from the input previously
 // set by p.SetBytes() or p.SetString(). Also limit the input up to (and including) a paragraph
 // separator (bidi class B).
-//
-// The function p.Order() needs these values to be set, so this preparation could be postponed.
-// But since the SetBytes and SetStrings functions return the length of the input up to the paragraph
-// separator, the whole input needs to be processed anyway and should not be done twice.
-//
-// The function has the same return values as SetBytes() / SetString()
 func (p *Paragraph) prepareInput() {
 	// clear slices from previous SetString or SetBytes
 	if L := len(p.text); cap(p.pairTypes) < L {

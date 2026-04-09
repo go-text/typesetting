@@ -119,7 +119,16 @@ type bracketPairer struct {
 // matchOpener reports whether characters at given positions form a matching
 // bracket pair.
 func (p *bracketPairer) matchOpener(pairValues []rune, opener, closer int) bool {
-	return pairValues[p.indexes[opener]] == pairValues[p.indexes[closer]]
+	// Beware of equivalence for U+3008/U+3009 and U+2329/U+232A :
+	// see https://www.unicode.org/reports/tr9/#BD16
+	o, c := pairValues[p.indexes[opener]], pairValues[p.indexes[closer]]
+	if o == '\u2329' {
+		o = '\u3008'
+	}
+	if c == '\u2329' {
+		c = '\u3008'
+	}
+	return o == c
 }
 
 const maxPairingDepth = 63

@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/go-text/typesetting/internal/unicodedata"
+	tu "github.com/go-text/typesetting/testutils"
 )
 
 // TODO: investigate https://github.com/golang/go/issues/69819
@@ -18,35 +17,41 @@ import (
 // Test copied from https://github.com/golang/go/issues/71809
 func TestN2(t *testing.T) {
 	str := `ع a`
-	p := Paragraph{}
-	p.SetString(str, DefaultDirection(LeftToRight))
-	order, err := p.Order()
-	if err != nil {
-		log.Fatal(err)
+	runs := (&Paragraph{}).Segment([]rune(str), LeftToRight)
+
+	expectedRuns := []Run{
+		{0, 1, 1},
+		{1, 3, 0},
 	}
 
-	expectedRuns := []runInformation{
-		{"ع", RightToLeft, 0, 0},
-		{" a", LeftToRight, 1, 2},
-	}
-
-	if nr, want := order.NumRuns(), len(expectedRuns); nr != want {
-		t.Errorf("order.NumRuns() = %d; want %d", nr, want)
-	}
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
 
 	for i, want := range expectedRuns {
-		r := order.Run(i)
-		if got := r.String(); got != want.str {
-			t.Errorf("Run(%d) = %q; want %q", i, got, want.str)
-		}
-		if s, e := r.Pos(); s != want.start || e != want.end {
-			t.Errorf("Run(%d).start = %d, .end = %d; want start = %d, end = %d", i, s, e, want.start, want.end)
-		}
-		if d := r.Direction(); d != want.dir {
-			t.Errorf("Run(%d).Direction = %d; want %d", i, d, want.dir)
-		}
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
 	}
 }
+
+func TestSpaces(t *testing.T) {
+	str := `ااب   `
+	runs := (&Paragraph{}).Segment([]rune(str), LeftToRight)
+
+	expectedRuns := []Run{
+		{0, 3, 1},
+		{3, 6, 0},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
+	}
+}
+
+// ------------------------- Unicode conformance tests -------------------------
 
 func parseOrdering(line string) ([]int, error) {
 	fields := strings.Fields(line)
@@ -79,11 +84,13 @@ func parseLevels(line string) ([]level, error) {
 }
 
 type testData struct {
-	line             int // just for easier debugging
-	codePoints       []rune
-	expectedLevels   []level
+	line       int // just for easier debugging
+	codePoints []rune
+	parDir     Direction
+
+	expectedLevels []level
+
 	visualOrdering   []int
-	parDir           int
 	resolvedParLevel int
 }
 
@@ -105,9 +112,20 @@ func parseTestLine(line []byte, lineNumber int) (out testData, err error) {
 	}
 
 	// Field 1. Paragraph direction
-	out.parDir, err = strconv.Atoi(fields[1])
+	parDir, err := strconv.Atoi(fields[1])
 	if err != nil {
 		return out, fmt.Errorf("invalid paragraph direction %s: %s", fields[1], err)
+	}
+
+	switch parDir {
+	case 0:
+		out.parDir = LeftToRight
+	case 1:
+		out.parDir = RightToLeft
+	case 2:
+		out.parDir = Neutral
+	default:
+		return out, fmt.Errorf("unsupported paragraph direction %d", parDir)
 	}
 
 	// Field 2. resolved paragraph_dir
@@ -154,51 +172,12 @@ func parseBidiCharacterTests() ([]testData, error) {
 	return out, nil
 }
 
-func runOneSimpleBidi(lineData testData) []Level {
-	var defaultDirection DefaultDirection
-	switch lineData.parDir {
-	case 0:
-		defaultDirection = LeftToRight
-	case 1:
-		defaultDirection = RightToLeft
-	case 2:
-		defaultDirection = Neutral
-	}
-
-	levels := (&Paragraph{}).Segment(lineData.codePoints, defaultDirection).levels
-
-	// ltor := make([]int, len(lineData.codePoints))
-	// for i := range ltor {
-	// 	ltor[i] = i
-	// }
-
-	// ReorderLine(0 /*FRIBIDI_FLAG_REORDER_NSM*/, types, len(types), 0, baseDir, levels, nil, ltor)
-
-	// j := 0
-	// for _, lr := range ltor {
-	// 	if !types[lr].isExplicitOrBn() {
-	// 		ltor[j] = lr
-	// 		j++
-	// 	}
-	// }
-	// ltor = ltor[0:j] // slice to length
-
-	return levels
-}
-
 func TestBidiCharacters(t *testing.T) {
-	ti := time.Now()
-
 	datas, err := parseBidiCharacterTests()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Println("input data parsed in", time.Since(ti))
-	ti = time.Now()
+	tu.AssertNoErr(t, err)
 
 	for _, test := range datas {
-		levels := runOneSimpleBidi(test)
+		levels := (&Paragraph{}).Segment(test.codePoints, test.parDir).levels
 
 		/* Compare */
 		for i, level := range levels {
@@ -207,70 +186,6 @@ func TestBidiCharacters(t *testing.T) {
 				break
 			}
 		}
-
-		// if len(lineData.visualOrdering) != len(ltor) {
-		// 	t.Fatalf("failure visual ordering: got %v, expected %v", ltor, lineData.visualOrdering)
-		// }
-		// for i := range ltor {
-		// 	if lineData.visualOrdering[i] != ltor[i] {
-		// 		t.Fatalf("failure visual ordering: got %v, expected %v", ltor, lineData.visualOrdering)
-		// 	}
-		// }
-	}
-
-	fmt.Println("test run in", time.Since(ti))
-}
-
-func parseCharType(s string) (charType, error) {
-	switch s {
-	case "L":
-		return unicodedata.BD_L, nil
-	case "R":
-		return unicodedata.BD_R, nil
-	case "AL":
-		return unicodedata.BD_AL, nil
-	case "EN":
-		return unicodedata.BD_EN, nil
-	case "AN":
-		return unicodedata.BD_AN, nil
-	case "ES":
-		return unicodedata.BD_ES, nil
-	case "ET":
-		return unicodedata.BD_ET, nil
-	case "CS":
-		return unicodedata.BD_CS, nil
-	case "NSM":
-		return unicodedata.BD_NSM, nil
-	case "BN":
-		return unicodedata.BD_BN, nil
-	case "B":
-		return unicodedata.BD_B, nil
-	case "S":
-		return unicodedata.BD_S, nil
-	case "WS":
-		return unicodedata.BD_WS, nil
-	case "ON":
-		return unicodedata.BD_ON, nil
-	case "LRE":
-		return unicodedata.BD_LRE, nil
-	case "RLE":
-		return unicodedata.BD_RLE, nil
-	case "LRO":
-		return unicodedata.BD_LRO, nil
-	case "RLO":
-		return unicodedata.BD_RLO, nil
-	case "PDF":
-		return unicodedata.BD_PDF, nil
-	case "LRI":
-		return unicodedata.BD_LRI, nil
-	case "RLI":
-		return unicodedata.BD_RLI, nil
-	case "FSI":
-		return unicodedata.BD_FSI, nil
-	case "PDI":
-		return unicodedata.BD_PDI, nil
-	default:
-		return 0, fmt.Errorf("invalid char type %s", s)
 	}
 }
 
@@ -284,26 +199,27 @@ func parseReorderLine(line string) ([]int, error) {
 	return parseOrdering(line)
 }
 
-func parseCharsLine(line string) ([]charType, int, error) {
+func parseCharsLine(line string) (oneBidiData, error) {
 	fields := strings.Split(line, ";")
 	if len(fields) != 2 {
-		return nil, 0, fmt.Errorf("invalid line: %s", line)
+		return oneBidiData{}, fmt.Errorf("invalid line: %s", line)
 	}
 	var err error
 	chars := strings.Fields(fields[0])
-	out := make([]charType, len(chars))
+	out := make([]rune, len(chars))
 	for i, cs := range chars {
-		out[i], err = parseCharType(cs)
-		if err != nil {
-			return nil, 0, err
+		r, ok := runesForClasses[cs]
+		if !ok {
+			return oneBidiData{}, fmt.Errorf("unsupported class %s", cs)
 		}
+		out[i] = r
 	}
 	baseDirFlags, err := strconv.Atoi(strings.TrimSpace(fields[1]))
-	return out, baseDirFlags, err
+	return oneBidiData{out, baseDirFlags}, err
 }
 
 type oneBidiData struct {
-	types       []charType
+	runes       []rune
 	baseDirFlag int
 }
 
@@ -314,7 +230,7 @@ type bidiTest struct {
 }
 
 func parseBidiTests() ([]bidiTest, error) {
-	const filename = "test/unicode-conformance/BidiTest.txt"
+	const filename = "test/BidiTest.txt"
 
 	b, err := os.ReadFile(filename)
 	if err != nil {
@@ -350,8 +266,7 @@ func parseBidiTests() ([]bidiTest, error) {
 		}
 
 		/* Test line */
-		var lineData oneBidiData
-		lineData.types, lineData.baseDirFlag, err = parseCharsLine(line)
+		lineData, err := parseCharsLine(line)
 		if err != nil {
 			return nil, fmt.Errorf("invalid line %d: %s", lineNumber+1, err)
 		}
@@ -360,115 +275,105 @@ func parseBidiTests() ([]bidiTest, error) {
 	return out, nil
 }
 
-// func runOneComplexBidi(data bidiTest) (levelsList [][]Level) {
-// 	for _, line := range data.data {
-// 		for baseDirMode := 0; baseDirMode < 3; baseDirMode++ {
+func runOneComplexBidi(paragraph *Paragraph, data bidiTest) (levelsList [][]Level) {
+	for _, line := range data.data {
+		for baseDirMode := 0; baseDirMode < 3; baseDirMode++ {
 
-// 			if (line.baseDirFlag & (1 << baseDirMode)) == 0 {
-// 				continue
-// 			}
+			if (line.baseDirFlag & (1 << baseDirMode)) == 0 {
+				continue
+			}
 
-// 			var baseDir ParType
-// 			switch baseDirMode {
-// 			case 0:
-// 				baseDir = ucd.BD_ON
-// 			case 1:
-// 				baseDir = ucd.BD_L
-// 			case 2:
-// 				baseDir = ucd.BD_R
-// 			}
+			var defaultDirection Direction
+			switch baseDirMode {
+			case 0:
+				defaultDirection = Neutral
+			case 1:
+				defaultDirection = LeftToRight
+			case 2:
+				defaultDirection = RightToLeft
+			}
 
-// 			// Brackets are not used in the BidiTest.txt file
-// 			levels, _ := GetParEmbeddingLevels(line.types, nil, &baseDir)
-
-// 			ltor := make([]int, len(levels))
-// 			for i := range ltor {
-// 				ltor[i] = i
-// 			}
-
-// 			ReorderLine(0 /*FRIBIDI_FLAG_REORDER_NSM*/, line.types, len(line.types),
-// 				0, baseDir, levels,
-// 				nil, ltor)
-
-// 			j := 0
-// 			for _, lr := range ltor {
-// 				if !line.types[lr].isExplicitOrBn() {
-// 					ltor[j] = lr
-// 					j++
-// 				}
-// 			}
-// 			ltor = ltor[0:j] // slice to length
-
-// 			levelsList = append(levelsList, levels)
-// 			ltorList = append(ltorList, ltor)
-// 		}
-// 	}
-// 	return
-// }
-
-// func TestBidi(t *testing.T) {
-// 	ti := time.Now()
-// 	datas, err := parseBidiTests()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	fmt.Println("parsed BidiTest.txt in", time.Since(ti))
-// 	ti = time.Now()
-
-// 	for index, data := range datas {
-// 		/* Test it */
-// 		levelsList, ltorList := runOneComplexBidi(data)
-
-// 		/* Compare */
-// 		for j := range levelsList {
-// 			levels, ltor := levelsList[j], ltorList[j]
-
-// 			for i, level := range levels {
-// 				if exp := data.levels[i]; level != exp && exp != -1 {
-// 					t.Fatalf("failure on test %d: levels[%d]: expected %d, got %d", index+1, i, exp, level)
-// 					break
-// 				}
-// 			}
-
-// 			if len(data.ltor) != len(ltor) {
-// 				t.Fatalf("failure on test %d: visual ordering: got %v, expected %v", index+1, ltor, data.ltor)
-// 			}
-// 			for i := range ltor {
-// 				if data.ltor[i] != ltor[i] {
-// 					t.Fatalf("failure on test %d: visual ordering: got %v, expected %v", index+1, ltor, data.ltor)
-// 				}
-// 			}
-// 		}
-// 	}
-
-// 	fmt.Println("test run in", time.Since(ti))
-// }
-
-func BenchmarkSimple(b *testing.B) {
-	datas, err := parseBidiCharacterTests()
-	if err != nil {
-		b.Fatal(err)
+			levels := paragraph.Segment(line.runes, defaultDirection).levels
+			levelsList = append(levelsList, levels)
+		}
 	}
+	return
+}
 
-	b.ResetTimer()
+// Unicode BidiTest.txt uses class instead of runes as input :
+// use this map to create a compatible text
+var runesForClasses = map[string]rune{
+	"L":   '\u0061',
+	"R":   '\u05d0',
+	"EN":  '\u0030',
+	"ES":  '\u002B',
+	"ET":  '\u0023',
+	"AN":  '\u0661',
+	"CS":  '\u002E',
+	"B":   '\u000A',
+	"S":   '\u000B',
+	"WS":  '\u0020',
+	"ON":  '\u0021',
+	"BN":  '\u0000',
+	"NSM": '\u0300',
+	"AL":  '\u0608',
+	"LRO": '\u202D',
+	"RLO": '\u202e',
+	"LRE": '\u202A',
+	"RLE": '\u202B',
+	"PDF": '\u202C',
+	"LRI": '\u2066',
+	"RLI": '\u2067',
+	"FSI": '\u2068',
+	"PDI": '\u2069',
+}
 
-	for i := 0; i < b.N; i++ {
-		for _, lineData := range datas {
-			runOneSimpleBidi(lineData)
+func TestBidi(t *testing.T) {
+	datas, err := parseBidiTests()
+	tu.AssertNoErr(t, err)
+
+	for index, data := range datas {
+		/* Test it */
+		levelsList := runOneComplexBidi(&Paragraph{}, data)
+
+		/* Compare */
+		for j := range levelsList {
+			levels := levelsList[j]
+
+			for i, level := range levels {
+				if exp := data.levels[i]; level != exp && exp != -1 {
+					t.Fatalf("failure on test %d: levels[%d]: expected %d, got %d", index+1, i, exp, level)
+					break
+				}
+			}
 		}
 	}
 }
 
-// func BenchmarkComplex(b *testing.B) {
-// 	datas, err := parseBidiTests()
-// 	if err != nil {
-// 		b.Fatal(err)
-// 	}
-// 	b.ResetTimer()
-// 	for i := 0; i < b.N; i++ {
-// 		for _, lineData := range datas {
-// 			runOneComplexBidi(lineData)
-// 		}
-// 	}
-// }
+func BenchmarkSimple(b *testing.B) {
+	datas, err := parseBidiCharacterTests()
+	tu.AssertNoErr(b, err)
+
+	var paragraph Paragraph
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for _, test := range datas {
+			_ = paragraph.Segment(test.codePoints, test.parDir)
+		}
+	}
+}
+
+func BenchmarkComplex(b *testing.B) {
+	datas, err := parseBidiTests()
+	tu.AssertNoErr(b, err)
+
+	var paragraph Paragraph
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, lineData := range datas {
+			runOneComplexBidi(&paragraph, lineData)
+		}
+	}
+}

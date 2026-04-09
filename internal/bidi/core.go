@@ -1,7 +1,6 @@
 package bidi
 
 import (
-	"fmt"
 	"log"
 
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
@@ -93,25 +92,17 @@ func (p *Paragraph) run() {
 		// Rules W1-W7.
 		seq.resolveWeakTypes()
 
-		fmt.Println("after W1-W7", seq.types)
-
 		// 4a) resolving paired brackets
 		// Rule N0
 		resolvePairedBrackets(seq)
-
-		fmt.Println("after N0", seq.types)
 
 		// 4b) resolving neutral types
 		// Rules N1-N3.
 		seq.resolveNeutralTypes()
 
-		fmt.Println("after N1-N3", seq.types)
-
 		// 5) resolving implicit embedding levels
 		// Rules I1, I2.
 		seq.resolveImplicitLevels()
-
-		fmt.Println("after I1 I2", seq.types)
 
 		// Apply the computed levels and types
 		seq.applyLevelsAndTypes()
@@ -605,7 +596,6 @@ func (s *isolatingRunSequence) resolveImplicitLevels() {
 
 	if (s.level & 1) == 0 { // even level
 		for i, t := range s.types {
-			fmt.Println(t)
 			// Rule I1.
 			if t == ucd.BD_L {
 				// no change
@@ -625,8 +615,6 @@ func (s *isolatingRunSequence) resolveImplicitLevels() {
 			}
 		}
 	}
-
-	fmt.Println(s.resolvedLevels)
 }
 
 // Applies the levels and types resolved in rules W1-I2 to the
