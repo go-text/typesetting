@@ -47,7 +47,7 @@ type Run struct {
 	level      level
 }
 
-func (r Run) IsLeftToRight() bool { return r.level%2 != 0 }
+func (r Run) IsLeftToRight() bool { return r.level%2 == 0 }
 
 type Runs struct {
 	levels  []level

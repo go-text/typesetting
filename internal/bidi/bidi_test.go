@@ -43,12 +43,142 @@ func TestSpaces(t *testing.T) {
 	}
 
 	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
-
 	for i, want := range expectedRuns {
 		r := runs.Run(i)
 		tu.Assert(t, r.Start == want.Start && r.End == want.End)
 		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
 	}
+}
+
+// API tests, copied from x/text
+
+func TestSimple(t *testing.T) {
+	str := "Hellö"
+	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+
+	expectedRuns := []Run{
+		{0, 5, 0},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
+	}
+}
+
+func TestMixed(t *testing.T) {
+	str := `العاشر ليونيكود (Unicode Conference)، الذي سيعقد في 10-12 آذار 1997 مبدينة`
+	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+
+	expectedRuns := []Run{
+		{0, 16 + 1, 1},
+		{17, 34 + 1, 0},
+		{35, 51 + 1, 1},
+		{52, 53 + 1, 0},
+		{54, 54 + 1, 1},
+		{55, 56 + 1, 0},
+		{57, 62 + 1, 1},
+		{63, 66 + 1, 0},
+		{67, 73 + 1, 1},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
+	}
+}
+
+func TestExplicitIsolate(t *testing.T) {
+	// https://www.w3.org/International/articles/inline-bidi-markup/uba-basics.en#beyond
+	str := "The names of these states in Arabic are \u2067مصر\u2069, \u2067البحرين\u2069 and \u2067الكويت\u2069 respectively."
+	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+
+	expectedRuns := []Run{
+		{0, 40 + 1, 0},
+		{41, 43 + 1, 1},
+		{44, 47 + 1, 0},
+		{48, 54 + 1, 1},
+		{55, 61 + 1, 0},
+		{62, 67 + 1, 1},
+		{68, 82 + 1, 0},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
+	}
+}
+
+func TestWithoutExplicitIsolate(t *testing.T) {
+	str := "The names of these states in Arabic are مصر, البحرين and الكويت respectively."
+	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+
+	expectedRuns := []Run{
+		{0, 39 + 1, 0},
+		{40, 51 + 1, 1},
+		{52, 56 + 1, 0},
+		{57, 62 + 1, 1},
+		{63, 76 + 1, 0},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
+	}
+}
+
+func TestMixedSimple(t *testing.T) {
+	str := `Uا`
+	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+
+	expectedRuns := []Run{
+		{0, 0 + 1, 0},
+		{1, 1 + 1, 1},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.IsLeftToRight() == want.IsLeftToRight())
+	}
+}
+
+func TestDefaultDirection(t *testing.T) {
+	str := "+"
+	runs := (&Paragraph{}).Segment([]rune(str), RightToLeft)
+	tu.Assert(t, runs.Run(0).IsLeftToRight() == false)
+
+	runs = (&Paragraph{}).Segment([]rune(str), LeftToRight)
+	tu.Assert(t, runs.Run(0).IsLeftToRight() == true)
+}
+
+func TestEmpty(t *testing.T) {
+	runs := (&Paragraph{}).Segment(nil, Neutral)
+	tu.Assert(t, runs.NumRuns() == 0)
+}
+
+func TestNewline(t *testing.T) {
+	str := "Hello\nworld"
+	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+
+	// 5 is the length up to and excluding the \n
+	tu.Assert(t, runs.Run(0).End == 5)
+}
+
+func TestDoubleSetString(t *testing.T) {
+	str := "العاشر ليونيكود (Unicode Conference)،"
+	var p Paragraph
+	_ = p.Segment([]rune(str), Neutral)
+	_ = p.Segment([]rune(str), Neutral)
 }
 
 // ------------------------- Unicode conformance tests -------------------------
