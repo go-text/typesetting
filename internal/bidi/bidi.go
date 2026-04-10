@@ -74,7 +74,7 @@ func (r *Runs) Run(i int) Run {
 // Segment applies the Bidi algorithm.
 // The returned runs are only valid until the next call to [Segment], [SegmentString] or [SegmentBytes].
 //
-// [defaultDirection] sets the default direction for a Paragraph. The direction is
+// [defaultDirection] is the default direction for a Paragraph. The direction is
 // overridden if the text contains directional characters.
 func (p *Paragraph) Segment(text []rune, defaultDirection Direction) Runs {
 	p.text = append(p.text[:0], text...)
