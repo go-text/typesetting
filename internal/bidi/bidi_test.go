@@ -510,8 +510,10 @@ func TestBidi(t *testing.T) {
 func BenchmarkSingleDirection(b *testing.B) {
 	var paragraph Paragraph
 
-	fullLTR := []rune("A sample tesxt with some digits 7 : 8 9.")
-	fullRTL := []rune("דהודהודהודהודהודהודהודהודהו דהודהו דהודהו דהו דהו")
+	fullLTR := []rune(strings.Repeat("A sample tesxt with some digits 7 : 8 9.", 100))
+	fullRTL := []rune(strings.Repeat("דהודהודהודהודהודהודהודהודהו דהודהו דהודהו דהו דהו", 100))
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		_ = paragraph.Segment(fullLTR, Neutral)
 		_ = paragraph.Segment(fullLTR, LeftToRight)
