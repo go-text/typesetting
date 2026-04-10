@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,7 +13,26 @@ import (
 	tu "github.com/go-text/typesetting/testutils"
 )
 
-// TODO: investigate https://github.com/golang/go/issues/69819
+// Test created from https://github.com/golang/go/issues/69819
+func TestNestedIsolates(t *testing.T) {
+	str := "The title is \u2067אבג \u2066C++\u2069 דהו\u2069 in Hebrew."
+	runs := (&Paragraph{}).Segment([]rune(str), LeftToRight)
+
+	expectedRuns := []Run{
+		{0, 14, 0},
+		{14, 19, 1},
+		{19, 22, 2},
+		{22, 27, 1},
+		{27, 39, 0},
+	}
+
+	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
+	for i, want := range expectedRuns {
+		r := runs.Run(i)
+		tu.Assert(t, r.Start == want.Start && r.End == want.End)
+		tu.Assert(t, r.Level == want.Level)
+	}
+}
 
 // Test copied from https://github.com/golang/go/issues/71809
 func TestN2(t *testing.T) {
@@ -25,7 +45,6 @@ func TestN2(t *testing.T) {
 	}
 
 	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
-
 	for i, want := range expectedRuns {
 		r := runs.Run(i)
 		tu.Assert(t, r.Start == want.Start && r.End == want.End)
@@ -50,7 +69,15 @@ func TestSpaces(t *testing.T) {
 	}
 }
 
-// API tests, copied from x/text
+func TestStringBytes(t *testing.T) {
+	str := "The title is \u2067אבג \u2066C++\u2069 דהו\u2069 in Hebrew."
+	outRunes := (&Paragraph{}).Segment([]rune(str), Neutral)
+	outString := (&Paragraph{}).SegmentString(str, Neutral)
+	outBytes := (&Paragraph{}).SegmentBytes([]byte(str), Neutral)
+	tu.Assert(t, reflect.DeepEqual(outRunes, outString) && reflect.DeepEqual(outString, outBytes))
+}
+
+// Tests copied from x/text
 
 func TestSimple(t *testing.T) {
 	str := "Hellö"
@@ -196,9 +223,9 @@ func parseOrdering(line string) ([]int, error) {
 	return out, nil
 }
 
-func parseLevels(line string) ([]level, error) {
+func parseLevels(line string) ([]Level, error) {
 	fields := strings.Fields(line)
-	out := make([]level, len(fields))
+	out := make([]Level, len(fields))
 	for i, f := range fields {
 		if f == "x" {
 			out[i] = -1
@@ -207,7 +234,7 @@ func parseLevels(line string) ([]level, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid level %s: %s", f, err)
 			}
-			out[i] = level(lev)
+			out[i] = Level(lev)
 		}
 	}
 	return out, nil
@@ -218,7 +245,7 @@ type testData struct {
 	codePoints []rune
 	parDir     Direction
 
-	expectedLevels []level
+	expectedLevels []Level
 
 	visualOrdering   []int
 	resolvedParLevel int

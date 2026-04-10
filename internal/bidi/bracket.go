@@ -2,7 +2,6 @@ package bidi
 
 import (
 	"container/list"
-	"fmt"
 	"sort"
 
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
@@ -49,10 +48,6 @@ const (
 type bracketPair struct {
 	opener int
 	closer int
-}
-
-func (b *bracketPair) String() string {
-	return fmt.Sprintf("(%v, %v)", b.opener, b.closer)
 }
 
 // bracketPairs is a slice of bracketPairs with a sort.Interface implementation.

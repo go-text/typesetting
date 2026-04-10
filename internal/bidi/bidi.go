@@ -4,7 +4,6 @@
 package bidi
 
 import (
-	"github.com/go-text/typesetting/internal/unicodedata"
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
@@ -20,11 +19,11 @@ type Paragraph struct {
 	pairTypes    []bracketType
 	pairValues   []rune
 
-	embeddingLevel level // default: = implicitLevel;
+	embeddingLevel Level // default: = implicitLevel;
 
 	// at the paragraph levels
 	resultTypes  []ucd.BidiClass
-	resultLevels []level
+	resultLevels []Level
 
 	// TODO: holds enough for run computation
 
@@ -44,13 +43,13 @@ type Paragraph struct {
 type Run struct {
 	// Start and End indicate the subslice of the input text.
 	Start, End int
-	level      level
+	Level      Level
 }
 
-func (r Run) IsLeftToRight() bool { return r.level%2 == 0 }
+func (r Run) IsLeftToRight() bool { return r.Level%2 == 0 }
 
 type Runs struct {
-	levels  []level
+	levels  []Level
 	runEnds []int
 }
 
@@ -102,10 +101,11 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 		return Runs{}
 	}
 
-	lvl := level(-1)
-	if defaultDirection == LeftToRight {
+	lvl := implicitLevel
+	switch defaultDirection {
+	case LeftToRight:
 		lvl = 0
-	} else if defaultDirection == RightToLeft {
+	case RightToLeft:
 		lvl = 1
 	}
 
@@ -116,7 +116,7 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 	return p.buildRuns(levels)
 }
 
-func (p *Paragraph) buildRuns(levels []level) Runs {
+func (p *Paragraph) buildRuns(levels []Level) Runs {
 	var (
 		isRTL bool
 		// TODO: allocate only once in Paragrpah
@@ -141,13 +141,7 @@ func (p *Paragraph) buildRuns(levels []level) Runs {
 	return Runs{levels: levels, runEnds: runEnds}
 }
 
-type charType = unicodedata.BidiClass
-
-type Level = level
-
-type ParType = charType
-
-func max(a, b level) level {
+func max(a, b Level) Level {
 	if a < b {
 		return b
 	}

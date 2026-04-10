@@ -1,8 +1,6 @@
 package bidi
 
 import (
-	"log"
-
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
@@ -47,12 +45,12 @@ import (
 // base character in RTL runs) and that it adjusts the glyphs used to render
 // mirrored characters that are in RTL runs so that they render appropriately.
 
-// level is the embedding level of a character. Even embedding levels indicate
-// left-to-right order and odd levels indicate right-to-left order. The special
-// level of -1 is reserved for undefined order.
-type level int8
+// Level is the embedding level of a character. Even embedding levels indicate
+// left-to-right order and odd levels indicate right-to-left order.
+type Level int8
 
-const implicitLevel level = -1
+// The special level of -1 is reserved for undefined order,
+const implicitLevel Level = -1
 
 const unknownClass = 0
 
@@ -72,7 +70,7 @@ func (p *Paragraph) run() {
 	}
 
 	// Initialize result levels to paragraph embedding level.
-	p.resultLevels = make([]level, p.Len())
+	p.resultLevels = make([]Level, p.Len())
 	setLevels(p.resultLevels, p.embeddingLevel)
 
 	// 2) Explicit levels and directions
@@ -165,7 +163,7 @@ func (p *Paragraph) determineMatchingIsolates() {
 //
 // Determines the paragraph level based on rules P2, P3. This is also used
 // in rule X5c to find if an FSI should resolve to LRI or RLI.
-func (p *Paragraph) determineParagraphEmbeddingLevel(start, end int) level {
+func (p *Paragraph) determineParagraphEmbeddingLevel(start, end int) Level {
 	var strongType ucd.BidiClass = unknownClass
 
 	// Rule P2.
@@ -175,9 +173,7 @@ func (p *Paragraph) determineParagraphEmbeddingLevel(start, end int) level {
 			break
 		} else if t&(ucd.BD_FSI|ucd.BD_LRI|ucd.BD_RLI) != 0 {
 			i = p.matchingPDI[i] // skip over to the matching PDI
-			if i > end {
-				log.Panic("assert (i <= end)")
-			}
+			// assert (i <= end)
 		}
 	}
 	// Rule P3.
@@ -198,7 +194,7 @@ const maxDepth = 125
 // statuses
 type directionalStatusStack struct {
 	stackCounter        int
-	embeddingLevelStack [maxDepth + 1]level
+	embeddingLevelStack [maxDepth + 1]Level
 	overrideStatusStack [maxDepth + 1]ucd.BidiClass
 	isolateStatusStack  [maxDepth + 1]bool
 }
@@ -207,14 +203,14 @@ func (s *directionalStatusStack) empty()     { s.stackCounter = 0 }
 func (s *directionalStatusStack) pop()       { s.stackCounter-- }
 func (s *directionalStatusStack) depth() int { return s.stackCounter }
 
-func (s *directionalStatusStack) push(level level, overrideStatus ucd.BidiClass, isolateStatus bool) {
+func (s *directionalStatusStack) push(level Level, overrideStatus ucd.BidiClass, isolateStatus bool) {
 	s.embeddingLevelStack[s.stackCounter] = level
 	s.overrideStatusStack[s.stackCounter] = overrideStatus
 	s.isolateStatusStack[s.stackCounter] = isolateStatus
 	s.stackCounter++
 }
 
-func (s *directionalStatusStack) lastEmbeddingLevel() level {
+func (s *directionalStatusStack) lastEmbeddingLevel() Level {
 	return s.embeddingLevelStack[s.stackCounter-1]
 }
 
@@ -252,7 +248,7 @@ func (p *Paragraph) determineExplicitEmbeddingLevels() {
 				}
 			}
 
-			var newLevel level
+			var newLevel Level
 			if isRTL {
 				// least greater odd
 				newLevel = (stack.lastEmbeddingLevel() + 1) | 1
@@ -348,8 +344,8 @@ type isolatingRunSequence struct {
 	indexes []int // indexes to the original string
 
 	types          []ucd.BidiClass // type of each character using the index
-	resolvedLevels []level         // resolved levels after application of rules
-	level          level
+	resolvedLevels []Level         // resolved levels after application of rules
+	level          Level
 	sos, eos       ucd.BidiClass
 }
 
@@ -374,7 +370,7 @@ func (p *Paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 		prevLevel = p.resultLevels[prevChar]
 	}
 
-	var succLevel level
+	var succLevel Level
 	lastType := types[length-1]
 	if lastType&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 {
 		succLevel = p.embeddingLevel
@@ -574,7 +570,7 @@ func (s *isolatingRunSequence) resolveNeutralTypes() {
 	}
 }
 
-func setLevels(levels []level, newLevel level) {
+func setLevels(levels []Level, newLevel Level) {
 	for i := range levels {
 		levels[i] = newLevel
 	}
@@ -591,7 +587,7 @@ func (s *isolatingRunSequence) resolveImplicitLevels() {
 	// on entry, only these types can be in resultTypes
 	// s.assertOnly(L, R, EN, AN)
 
-	s.resolvedLevels = make([]level, len(s.types))
+	s.resolvedLevels = make([]Level, len(s.types))
 	setLevels(s.resolvedLevels, s.level)
 
 	if (s.level & 1) == 0 { // even level
@@ -758,7 +754,7 @@ func (p *Paragraph) assignLevelsToCharactersRemovedByX9() {
 
 // getLevels computes levels array breaking lines at offsets in linebreaks.
 // Rule L1.
-func (p *Paragraph) getLevels() []level {
+func (p *Paragraph) getLevels() []Level {
 	// Note that since the previous processing has removed all
 	// P, S, and WS values from resultTypes, the values referred to
 	// in these rules are the initial types, before any processing
@@ -772,7 +768,7 @@ func (p *Paragraph) getLevels() []level {
 
 	// validateLineBreaks(linebreaks, p.Len())
 
-	result := append([]level(nil), p.resultLevels...) // TODO: preallocate and reuse
+	result := append([]Level(nil), p.resultLevels...) // TODO: preallocate and reuse
 
 	// don't worry about linebreaks since if there is a break within
 	// a series of WS values preceding S, the linebreak itself
@@ -818,7 +814,7 @@ func isRemovedByX9(c ucd.BidiClass) bool {
 }
 
 // typeForLevel reports the strong type (L or R) corresponding to the level.
-func typeForLevel(level level) ucd.BidiClass {
+func typeForLevel(level Level) ucd.BidiClass {
 	if (level & 0x1) == 0 {
 		return ucd.BD_L
 	}
