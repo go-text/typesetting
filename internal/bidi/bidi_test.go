@@ -507,6 +507,19 @@ func TestBidi(t *testing.T) {
 	}
 }
 
+func BenchmarkSingleDirection(b *testing.B) {
+	var paragraph Paragraph
+
+	fullLTR := []rune("A sample tesxt with some digits 7 : 8 9.")
+	fullRTL := []rune("דהודהודהודהודהודהודהודהודהו דהודהו דהודהו דהו דהו")
+	for i := 0; i < b.N; i++ {
+		_ = paragraph.Segment(fullLTR, Neutral)
+		_ = paragraph.Segment(fullLTR, LeftToRight)
+		_ = paragraph.Segment(fullRTL, Neutral)
+		_ = paragraph.Segment(fullRTL, RightToLeft)
+	}
+}
+
 func BenchmarkSimple(b *testing.B) {
 	datas, err := parseBidiCharacterTests()
 	tu.AssertNoErr(b, err)
