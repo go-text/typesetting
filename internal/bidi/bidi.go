@@ -99,10 +99,13 @@ func (p *Paragraph) SegmentBytes(text []byte, defaultDirection Direction) Runs {
 }
 
 func (p *Paragraph) segment(defaultDirection Direction) Runs {
-	p.prepareInput() // TODO: optimize for single direction
+	_, _ = p.prepareInput()
+
 	if len(p.initialTypes) == 0 {
 		return Runs{}
 	}
+
+	// TODO: try to short-circuit the full algorithm for unidirectional text.
 
 	lvl := implicitLevel
 	switch defaultDirection {
@@ -119,6 +122,7 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 	return p.buildRuns()
 }
 
+// depends only on [resultLevels]
 func (p *Paragraph) buildRuns() Runs {
 	var isRTL bool
 
@@ -159,7 +163,7 @@ const (
 // Initialize the p.pairTypes, p.pairValues and p.types from the input previously
 // set by p.SetBytes() or p.SetString(). Also limit the input up to (and including) a paragraph
 // separator (bidi class B).
-func (p *Paragraph) prepareInput() {
+func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass, allStrongAreRTL bool) {
 	// reset storage
 
 	p.runsEnd = p.runsEnd[:0]
@@ -184,9 +188,19 @@ func (p *Paragraph) prepareInput() {
 		p.runForCharacter = make([]int, L)
 	}
 
+	// Try to short-circuit the full algorithm for single direction text
+	classesUnion = ucd.BidiClass(0)
+	allStrongAreRTL = true
+
 	for i, r := range p.text {
-		cls, bracket := ucd.LookupBidiClass(r)
-		if cls == ucd.BD_B {
+		class, bracket := ucd.LookupBidiClass(r)
+
+		classesUnion |= class
+		if class.IsStrong() {
+			allStrongAreRTL = allStrongAreRTL && class.IsRTL()
+		}
+
+		if class == ucd.BD_B {
 			// Unlikely, but trim the arrays and exit
 			p.text = p.text[:i]
 			p.pairTypes = p.pairTypes[:i]
@@ -199,8 +213,8 @@ func (p *Paragraph) prepareInput() {
 			p.runForCharacter = p.runForCharacter[:i]
 			return
 		}
-		p.initialTypes[i] = cls
-		p.resultTypes[i] = cls
+		p.initialTypes[i] = class
+		p.resultTypes[i] = class
 		if bracket.IsOpening() {
 			p.pairTypes[i] = bpOpen
 			p.pairValues[i] = r
@@ -214,4 +228,6 @@ func (p *Paragraph) prepareInput() {
 			p.pairValues[i] = 0
 		}
 	}
+
+	return classesUnion, allStrongAreRTL
 }

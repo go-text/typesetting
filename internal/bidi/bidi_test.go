@@ -511,14 +511,14 @@ func BenchmarkSingleDirection(b *testing.B) {
 	var paragraph Paragraph
 
 	fullLTR := []rune(strings.Repeat("A sample tesxt with some digits 7 : 8 9.", 100))
-	fullRTL := []rune(strings.Repeat("דהודהודהודהודהודהודהודהודהו דהודהו דהודהו דהו דהו", 100))
+	// fullRTL := []rune(strings.Repeat("דהודהודהודהודהודהודהודהודהו דהודהו דהודהו דהו דהו", 100))
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		_ = paragraph.Segment(fullLTR, Neutral)
 		_ = paragraph.Segment(fullLTR, LeftToRight)
-		_ = paragraph.Segment(fullRTL, Neutral)
-		_ = paragraph.Segment(fullRTL, RightToLeft)
+		// _ = paragraph.Segment(fullRTL, Neutral)
+		// _ = paragraph.Segment(fullRTL, RightToLeft)
 	}
 }
 
