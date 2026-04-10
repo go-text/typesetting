@@ -229,8 +229,6 @@ func (p *bracketPairer) locateBrackets(pairTypes []bracketType, pairValues []run
 
 // getStrongTypeN0 maps character's directional code to strong type as required
 // by rule N0.
-//
-// TODO: have separate type for "strong" directionality.
 func (p *bracketPairer) getStrongTypeN0(index int) ucd.BidiClass {
 	switch p.codesIsolatedRun[index] {
 	// in the scope of N0, number types are treated as R
@@ -248,8 +246,6 @@ func (p *bracketPairer) getStrongTypeN0(index int) ucd.BidiClass {
 //
 // It returns ON if no strong type is found. If a single strong type is found,
 // it returns this type. Otherwise it returns the embedding direction.
-//
-// TODO: use separate type for "strong" directionality.
 func (p *bracketPairer) classifyPairContent(loc bracketPair, dirEmbed ucd.BidiClass) ucd.BidiClass {
 	dirOpposite := ucd.BD_ON
 	for i := loc.opener + 1; i < loc.closer; i++ {
