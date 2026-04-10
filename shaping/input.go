@@ -493,7 +493,6 @@ func ignoreFaceChange(r rune) bool {
 		g == ucd.Cs || // surrogate
 		g == ucd.Zl || // line separator
 		g == ucd.Zp || // paragraph separator
-		(g == ucd.Zs && r != '\u1680') || // space separator != OGHAM SPACE MARK
 		harfbuzz.IsDefaultIgnorable(r)
 }
 
