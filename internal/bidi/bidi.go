@@ -99,13 +99,19 @@ func (p *Paragraph) SegmentBytes(text []byte, defaultDirection Direction) Runs {
 }
 
 func (p *Paragraph) segment(defaultDirection Direction) Runs {
-	_, _ = p.prepareInput()
+	allClasses := p.prepareInput()
 
 	if len(p.initialTypes) == 0 {
 		return Runs{}
 	}
 
-	// TODO: try to short-circuit the full algorithm for unidirectional text.
+	// Try to short-circuit the full algorithm for full LTR text :
+	// this mask is very conservative, perhaps there is a better condition here ?
+	const allowed = ucd.BD_CS | ucd.BD_EN | ucd.BD_ES | ucd.BD_L | ucd.BD_WS
+	if defaultDirection != RightToLeft && allClasses & ^allowed == 0 {
+		// full RTL, level 0
+		return p.buildRuns()
+	}
 
 	lvl := implicitLevel
 	switch defaultDirection {
@@ -163,7 +169,7 @@ const (
 // Initialize the p.pairTypes, p.pairValues and p.types from the input previously
 // set by p.SetBytes() or p.SetString(). Also limit the input up to (and including) a paragraph
 // separator (bidi class B).
-func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass, allStrongAreRTL bool) {
+func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass) {
 	// reset storage
 
 	p.runsEnd = p.runsEnd[:0]
@@ -190,15 +196,11 @@ func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass, allStrongAreRTL 
 
 	// Try to short-circuit the full algorithm for single direction text
 	classesUnion = ucd.BidiClass(0)
-	allStrongAreRTL = true
 
 	for i, r := range p.text {
 		class, bracket := ucd.LookupBidiClass(r)
 
 		classesUnion |= class
-		if class.IsStrong() {
-			allStrongAreRTL = allStrongAreRTL && class.IsRTL()
-		}
 
 		if class == ucd.BD_B {
 			// Unlikely, but trim the arrays and exit
@@ -229,5 +231,5 @@ func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass, allStrongAreRTL 
 		}
 	}
 
-	return classesUnion, allStrongAreRTL
+	return classesUnion
 }

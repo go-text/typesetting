@@ -80,11 +80,11 @@ func TestStringBytes(t *testing.T) {
 // Tests copied from x/text
 
 func TestSimple(t *testing.T) {
-	str := "Hellö"
+	str := "He l-lö.9"
 	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
 
 	expectedRuns := []Run{
-		{0, 5, 0},
+		{0, 9, 0},
 	}
 
 	tu.Assert(t, runs.NumRuns() == len(expectedRuns))
