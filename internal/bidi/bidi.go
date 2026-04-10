@@ -110,6 +110,7 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 	const allowed = ucd.BD_CS | ucd.BD_EN | ucd.BD_ES | ucd.BD_L | ucd.BD_WS
 	if defaultDirection != RightToLeft && allClasses & ^allowed == 0 {
 		// full RTL, level 0
+		setLevels(p.resultLevels, 0)
 		return p.buildRuns()
 	}
 
