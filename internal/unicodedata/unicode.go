@@ -265,6 +265,30 @@ func (sv ScriptVerticalOrientation) Orientation(r rune) (isSideways bool) {
 // BidiClass is a flag storing the Bidi_Class property used for UAX9.
 type BidiClass uint32
 
+func (c BidiClass) IsRTL() bool {
+	return c&(BD_R|BD_RLI|BD_AL|BD_RLO|BD_RLE) != 0
+}
+
+func (c BidiClass) IsStrong() bool {
+	return c&(BD_L|BD_R|BD_AL|BD_LRO|BD_RLO|BD_RLE|BD_LRE) != 0
+}
+
+func (c BidiClass) IsIsolate() bool {
+	return c&(BD_LRI|BD_RLI|BD_FSI|BD_PDI) != 0
+}
+
+func (c BidiClass) IsArabic() bool {
+	return c&(BD_AL|BD_AN) != 0
+}
+
+func (c BidiClass) IsNumber() bool {
+	return c&(BD_AN|BD_EN) != 0
+}
+
+func (c BidiClass) IsLetter() bool {
+	return c&(BD_L|BD_R|BD_AL) != 0
+}
+
 // BidiBracket stores the matching bracket
 type BidiBracket uint8
 
