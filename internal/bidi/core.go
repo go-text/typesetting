@@ -70,7 +70,6 @@ func (p *Paragraph) run() {
 	}
 
 	// Initialize result levels to paragraph embedding level.
-	p.resultLevels = make([]Level, p.Len())
 	setLevels(p.resultLevels, p.embeddingLevel)
 
 	// 2) Explicit levels and directions
@@ -128,9 +127,6 @@ func (p *Paragraph) run() {
 //     If there is no matching isolate initiator, or the character is not a PDI,
 //     it is set to -1.
 func (p *Paragraph) determineMatchingIsolates() {
-	p.matchingPDI = make([]int, p.Len())
-	p.matchingIsolateInitiator = make([]int, p.Len())
-
 	for i := range p.matchingIsolateInitiator {
 		p.matchingIsolateInitiator[i] = -1
 	}
@@ -687,10 +683,9 @@ func (p *Paragraph) determineIsolatingRunSequences() []*isolatingRunSequence {
 	levelRuns := p.determineLevelRuns()
 
 	// Compute the run that each character belongs to
-	runForCharacter := make([]int, p.Len())
 	for i, run := range levelRuns {
 		for _, index := range run {
-			runForCharacter[index] = i
+			p.runForCharacter[index] = i
 		}
 	}
 
@@ -710,7 +705,7 @@ func (p *Paragraph) determineIsolatingRunSequences() []*isolatingRunSequence {
 				last := currentRunSequence[len(currentRunSequence)-1]
 				lastT := p.initialTypes[last]
 				if lastT&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 && p.matchingPDI[last] != p.Len() {
-					run = levelRuns[runForCharacter[p.matchingPDI[last]]]
+					run = levelRuns[p.runForCharacter[p.matchingPDI[last]]]
 				} else {
 					break
 				}
@@ -752,9 +747,10 @@ func (p *Paragraph) assignLevelsToCharactersRemovedByX9() {
 // Output
 //
 
-// getLevels computes levels array breaking lines at offsets in linebreaks.
+// computeLevels computes levels array breaking lines at offsets in linebreaks,
+// mutating [resultLevels]
 // Rule L1.
-func (p *Paragraph) getLevels() []Level {
+func (p *Paragraph) computeLevels() {
 	// Note that since the previous processing has removed all
 	// P, S, and WS values from resultTypes, the values referred to
 	// in these rules are the initial types, before any processing
@@ -766,22 +762,18 @@ func (p *Paragraph) getLevels() []Level {
 	// These codes are treated like WS in this implementation,
 	// so they don't interrupt sequences of WS.
 
-	// validateLineBreaks(linebreaks, p.Len())
-
-	result := append([]Level(nil), p.resultLevels...) // TODO: preallocate and reuse
-
 	// don't worry about linebreaks since if there is a break within
 	// a series of WS values preceding S, the linebreak itself
 	// causes the reset.
 	for i, t := range p.initialTypes {
 		if t&(ucd.BD_B|ucd.BD_S) != 0 {
 			// Rule L1, clauses one and two.
-			result[i] = p.embeddingLevel
+			p.resultLevels[i] = p.embeddingLevel
 
 			// Rule L1, clause three.
 			for j := i - 1; j >= 0; j-- {
 				if isWhitespace(p.initialTypes[j]) { // including format codes
-					result[j] = p.embeddingLevel
+					p.resultLevels[j] = p.embeddingLevel
 				} else {
 					break
 				}
@@ -793,13 +785,11 @@ func (p *Paragraph) getLevels() []Level {
 	limit := len(p.initialTypes)
 	for j := limit - 1; j >= 0; j-- {
 		if isWhitespace(p.initialTypes[j]) { // including format codes
-			result[j] = p.embeddingLevel
+			p.resultLevels[j] = p.embeddingLevel
 		} else {
 			break
 		}
 	}
-
-	return result
 }
 
 // isWhitespace reports whether the type is considered a whitespace type for the

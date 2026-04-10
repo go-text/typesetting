@@ -25,8 +25,6 @@ type Paragraph struct {
 	resultTypes  []ucd.BidiClass
 	resultLevels []Level
 
-	// TODO: holds enough for run computation
-
 	// Index of matching PDI for isolate initiator characters. For other
 	// characters, the value of matchingPDI will be set to -1. For isolate
 	// initiators with no matching PDI, matchingPDI will be set to the length of
@@ -37,6 +35,11 @@ type Paragraph struct {
 	// characters, and for PDIs with no matching isolate initiator, the value of
 	// matchingIsolateInitiator will be set to -1.
 	matchingIsolateInitiator []int
+
+	runForCharacter []int
+
+	// exclusive indice of output runs: the run is at text[previousEnd:end]
+	runsEnd []int
 }
 
 // Run is a slice of text with a constant direction.
@@ -69,7 +72,7 @@ func (r *Runs) Run(i int) Run {
 }
 
 // Segment applies the Bidi algorithm.
-// The returned iterator is only valid until the next call to [Segment].
+// The returned runs are only valid until the next call to [Segment], [SegmentString] or [SegmentBytes].
 //
 // [defaultDirection] sets the default direction for a Paragraph. The direction is
 // overridden if the text contains directional characters.
@@ -112,33 +115,29 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 	p.embeddingLevel = lvl
 
 	p.run()
-	levels := p.getLevels()
-	return p.buildRuns(levels)
+	p.computeLevels()
+	return p.buildRuns()
 }
 
-func (p *Paragraph) buildRuns(levels []Level) Runs {
-	var (
-		isRTL bool
-		// TODO: allocate only once in Paragrpah
-		runEnds []int // exclusive indice : the run is at text[previousEnd:end]
-	)
+func (p *Paragraph) buildRuns() Runs {
+	var isRTL bool
 
 	// lvl = 0,2,4,...: left to right
 	// lvl = 1,3,5,...: right to left
-	for i, lvl := range levels {
+	for i, lvl := range p.resultLevels {
 		curIsRTL := lvl%2 != 0
 		if i == 0 {
 			isRTL = curIsRTL
 		} else if curIsRTL != isRTL {
 			// close the current run
-			runEnds = append(runEnds, i)
+			p.runsEnd = append(p.runsEnd, i)
 			isRTL = curIsRTL
 		}
 	}
 	// close the last run
-	runEnds = append(runEnds, len(levels))
+	p.runsEnd = append(p.runsEnd, len(p.resultLevels))
 
-	return Runs{levels: levels, runEnds: runEnds}
+	return Runs{levels: p.resultLevels, runEnds: p.runsEnd}
 }
 
 func max(a, b Level) Level {
@@ -161,17 +160,28 @@ const (
 // set by p.SetBytes() or p.SetString(). Also limit the input up to (and including) a paragraph
 // separator (bidi class B).
 func (p *Paragraph) prepareInput() {
-	// clear slices from previous SetString or SetBytes
-	if L := len(p.text); cap(p.pairTypes) < L {
-		p.pairTypes = make([]bracketType, L)
-		p.pairValues = make([]rune, L)
-		p.initialTypes = make([]ucd.BidiClass, L)
-		p.resultTypes = make([]ucd.BidiClass, L)
-	} else {
+	// reset storage
+
+	p.runsEnd = p.runsEnd[:0]
+
+	if L := len(p.text); cap(p.pairTypes) >= L {
 		p.pairTypes = p.pairTypes[:L]
 		p.pairValues = p.pairValues[:L]
 		p.initialTypes = p.initialTypes[:L]
 		p.resultTypes = p.resultTypes[:L]
+		p.resultLevels = p.resultLevels[:L]
+		p.matchingPDI = p.matchingPDI[:L]
+		p.matchingIsolateInitiator = p.matchingIsolateInitiator[:L]
+		p.runForCharacter = p.runForCharacter[:L]
+	} else {
+		p.pairTypes = make([]bracketType, L)
+		p.pairValues = make([]rune, L)
+		p.initialTypes = make([]ucd.BidiClass, L)
+		p.resultTypes = make([]ucd.BidiClass, L)
+		p.resultLevels = make([]Level, L)
+		p.matchingPDI = make([]int, L)
+		p.matchingIsolateInitiator = make([]int, L)
+		p.runForCharacter = make([]int, L)
 	}
 
 	for i, r := range p.text {
@@ -183,6 +193,10 @@ func (p *Paragraph) prepareInput() {
 			p.pairValues = p.pairValues[:i]
 			p.initialTypes = p.initialTypes[:i]
 			p.resultTypes = p.resultTypes[:i]
+			p.resultLevels = p.resultLevels[:i]
+			p.matchingPDI = p.matchingPDI[:i]
+			p.matchingIsolateInitiator = p.matchingIsolateInitiator[:i]
+			p.runForCharacter = p.runForCharacter[:i]
 			return
 		}
 		p.initialTypes[i] = cls
