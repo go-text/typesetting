@@ -17,7 +17,7 @@ func Test_ignoreFaceChange(t *testing.T) {
 		args rune
 		want bool
 	}{
-		{' ', true},
+		{' ', false},
 		{'a', false},
 		{'\n', true},
 		{'\r', true},
@@ -139,8 +139,13 @@ func TestSplitByFontGlyphs(t *testing.T) {
 				},
 				{
 					Text:     []rune("aaa AAA "),
-					RunStart: 4, RunEnd: 8,
+					RunStart: 4, RunEnd: 7,
 					Face: upperFont,
+				},
+				{
+					Text:     []rune("aaa AAA "),
+					RunStart: 7, RunEnd: 8,
+					Face: lowerFont,
 				},
 			},
 		},
@@ -222,7 +227,12 @@ func TestSplitByFontGlyphs(t *testing.T) {
 			[]Input{
 				{
 					Text:     []rune(" غير الأحلام"),
-					RunStart: 0, RunEnd: len([]rune(" غير الأحلام")),
+					RunStart: 0, RunEnd: 1,
+					Face: latinFont,
+				},
+				{
+					Text:     []rune(" غير الأحلام"),
+					RunStart: 1, RunEnd: len([]rune(" غير الأحلام")),
 					Face: arabicFont,
 				},
 			},
@@ -256,7 +266,12 @@ func TestSplitByFontGlyphs(t *testing.T) {
 			[]Input{
 				{
 					Text:     []rune(" غير الأحلام "),
-					RunStart: 0, RunEnd: len([]rune(" غير الأحلام ")),
+					RunStart: 0, RunEnd: 1,
+					Face: latinFont,
+				},
+				{
+					Text:     []rune(" غير الأحلام "),
+					RunStart: 1, RunEnd: len([]rune(" غير الأحلام ")),
 					Face: arabicFont,
 				},
 			},
@@ -623,11 +638,13 @@ func TestSplit(t *testing.T) {
 				{10, 16, di.DirectionLTR, language.Latin, "fr", latinFont},
 				{16, 23, di.DirectionLTR, language.Cyrillic, "ru", latinFont},
 				{23, 26, di.DirectionLTR, language.Latin, "fr", latinFont},
-				{26, 31, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{26, 27, di.DirectionRTL, language.Arabic, "ar", latinFont},
+				{27, 31, di.DirectionRTL, language.Arabic, "ar", arabicFont},
 				{31, 37, di.DirectionLTR, language.Latin, "fr", latinFont},
 				{37, 44, di.DirectionLTR, language.Cyrillic, "ru", latinFont},
 				{44, 48, di.DirectionLTR, language.Latin, "fr", latinFont},
-				{48, 60, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{48, 49, di.DirectionRTL, language.Arabic, "ar", latinFont},
+				{49, 60, di.DirectionRTL, language.Arabic, "ar", arabicFont},
 			},
 		},
 		// vertical text
