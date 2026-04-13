@@ -428,9 +428,16 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 		// We can safely ignore characters if we have a face or if there is more text,
 		// but we must force the choice of a face if we still don't have one and we reach
 		// the final rune. Otherwise strings like all-whitespace are never assigned a face.
-		if ignoreFaceChange(r) && (currentInput.Face != nil || !isLast || i < input.RunEnd-1) {
-			// add the rune to the current input
-			continue
+		if currentInput.Face != nil || !isLast || i < input.RunEnd-1 {
+			if ignoreFaceChange(r) {
+				// add the rune to the current input
+				continue
+			}
+			if currentInput.Face != nil && isSpace(r) {
+				if _, ok := currentInput.Face.NominalGlyph(rune(' ')); ok {
+					continue
+				}
+			}
 		}
 
 		// select the first font supporting r
@@ -471,12 +478,6 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 // ignoreFaceChange returns `true` is the given rune should not trigger
 // a change of font.
 //
-// We don't want space characters to affect font selection; in general,
-// it's always wrong to select a font just to render a space.
-// We assume that all fonts have the ASCII space, and for other space
-// characters if they don't, HarfBuzz will compatibility-decompose them
-// to ASCII space...
-//
 // We don't want to change fonts for line or paragraph separators.
 //
 // Finaly, we also don't change fonts for what Harfbuzz consider
@@ -494,6 +495,18 @@ func ignoreFaceChange(r rune) bool {
 		g == ucd.Zl || // line separator
 		g == ucd.Zp || // paragraph separator
 		harfbuzz.IsDefaultIgnorable(r)
+}
+
+// isSpace returns `true` if the given rune is a space character.
+//
+// We don't want space characters to affect font selection; in general,
+// it's always wrong to select a font just to render a space.
+// We can check if a font has the ASCII space, and for other space
+// characters if they don't, HarfBuzz will compatibility-decompose them
+// to ASCII space...
+func isSpace(r rune) bool {
+	g := ucd.LookupGeneralCategory(r)
+	return g == ucd.Zs && r != '\u1680'
 }
 
 // enforceLang makes sure the returned language is compatible with
