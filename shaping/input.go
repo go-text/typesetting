@@ -3,11 +3,11 @@
 package shaping
 
 import (
+	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/harfbuzz"
-	"github.com/go-text/typesetting/internal/bidi"
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 	"golang.org/x/image/math/fixed"

@@ -54,7 +54,7 @@ const implicitLevel Level = -1
 
 const unknownClass = 0
 
-func (p *Paragraph) Len() int { return len(p.initialTypes) }
+func (p *Paragraph) len() int { return len(p.initialTypes) }
 
 // The algorithm. Does not include line-based processing (Rules L1, L2).
 // These are applied later in the line-based phase of the algorithm.
@@ -66,7 +66,7 @@ func (p *Paragraph) run() {
 	// Rules P2, P3.
 	// If no externally supplied paragraph embedding level, use default.
 	if p.embeddingLevel == implicitLevel {
-		p.embeddingLevel = p.determineParagraphEmbeddingLevel(0, p.Len())
+		p.embeddingLevel = p.determineParagraphEmbeddingLevel(0, p.len())
 	}
 
 	// Initialize result levels to paragraph embedding level.
@@ -136,7 +136,7 @@ func (p *Paragraph) determineMatchingIsolates() {
 
 		if t := p.resultTypes[i]; t&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 {
 			depthCounter := 1
-			for j := i + 1; j < p.Len(); j++ {
+			for j := i + 1; j < p.len(); j++ {
 				if u := p.resultTypes[j]; u&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 {
 					depthCounter++
 				} else if u == ucd.BD_PDI {
@@ -148,7 +148,7 @@ func (p *Paragraph) determineMatchingIsolates() {
 				}
 			}
 			if p.matchingPDI[i] == -1 {
-				p.matchingPDI[i] = p.Len()
+				p.matchingPDI[i] = p.len()
 			}
 		}
 	}
@@ -373,10 +373,10 @@ func (p *Paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 	} else {
 		// the first character after the end of run sequence
 		limit := indexes[length-1] + 1
-		for ; limit < p.Len() && isRemovedByX9(p.initialTypes[limit]); limit++ {
+		for ; limit < p.len() && isRemovedByX9(p.initialTypes[limit]); limit++ {
 		}
 		succLevel = p.embeddingLevel
-		if limit < p.Len() {
+		if limit < p.len() {
 			succLevel = p.resultLevels[limit]
 		}
 	}
@@ -483,7 +483,6 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 				setTypes(s.types[runStart:runEnd], ucd.BD_EN)
 			}
 			// continue at end of sequence
-			i = runEnd
 		}
 	}
 
@@ -704,7 +703,7 @@ func (p *Paragraph) determineIsolatingRunSequences() []*isolatingRunSequence {
 
 				last := currentRunSequence[len(currentRunSequence)-1]
 				lastT := p.initialTypes[last]
-				if lastT&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 && p.matchingPDI[last] != p.Len() {
+				if lastT&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 && p.matchingPDI[last] != p.len() {
 					run = levelRuns[p.runForCharacter[p.matchingPDI[last]]]
 				} else {
 					break

@@ -1,6 +1,7 @@
-// bidi implements the Unicode Bidi algorithm
+// bidi implements the Unicode Bidi algorithm.
 //
-// The implementation is inspired by x/text/unicode/bidi.
+// The implementation is inspired by x/text/unicode/bidi, providing
+// a similar API.
 package bidi
 
 import (
@@ -9,8 +10,7 @@ import (
 
 // Paragraph is the main entry point of the package.
 //
-// It holds a single text for Bidi processing,
-// stores internal data required to segment a string,
+// It stores internal data required to segment a string,
 // and should be reused to reduce allocations.
 type Paragraph struct {
 	text []rune // input values
@@ -44,13 +44,15 @@ type Paragraph struct {
 
 // Run is a slice of text with a constant direction.
 type Run struct {
-	// Start and End indicate the subslice of the input text.
+	// Start and End indicate the subslice of the input text : text[Start:End]
 	Start, End int
 	Level      Level
 }
 
+// IsLeftToRight returns `true` for a RTL run.
 func (r Run) IsLeftToRight() bool { return r.Level%2 == 0 }
 
+// Runs holds the output of the Bidi algorithm.
 type Runs struct {
 	levels  []Level
 	runEnds []int
@@ -74,13 +76,15 @@ func (r *Runs) Run(i int) Run {
 // Segment applies the Bidi algorithm.
 // The returned runs are only valid until the next call to [Segment], [SegmentString] or [SegmentBytes].
 //
-// [defaultDirection] is the default direction for a Paragraph. The direction is
+// [defaultDirection] is the default direction for the input text. The direction is
 // overridden if the text contains directional characters.
 func (p *Paragraph) Segment(text []rune, defaultDirection Direction) Runs {
 	p.text = append(p.text[:0], text...)
 	return p.segment(defaultDirection)
 }
 
+// SegmentString is the same as [Segment], but avoid allocations
+// if [text] is a string
 func (p *Paragraph) SegmentString(text string, defaultDirection Direction) Runs {
 	p.text = p.text[:0]
 	for _, r := range text {
@@ -89,6 +93,8 @@ func (p *Paragraph) SegmentString(text string, defaultDirection Direction) Runs 
 	return p.segment(defaultDirection)
 }
 
+// SegmentBytes is the same as [Segment], but avoid allocations
+// if [text] is a byte slice.
 func (p *Paragraph) SegmentBytes(text []byte, defaultDirection Direction) Runs {
 	p.text = p.text[:0]
 	// The Go compiler should optimize this without allocating a string.
