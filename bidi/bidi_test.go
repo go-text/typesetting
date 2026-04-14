@@ -316,7 +316,7 @@ func parseTestLine(line []byte, lineNumber int) (out testData, err error) {
 func parseBidiCharacterTests() ([]testData, error) {
 	var out []testData
 	for lineNumber, line := range bytes.Split(bidiCharacterTestSrc, []byte{'\n'}) {
-		if len(line) == 0 || line[0] == '#' || line[0] == '\n' {
+		if line := bytes.TrimSpace(line); len(line) == 0 || line[0] == '#' {
 			continue
 		}
 
@@ -392,7 +392,7 @@ func parseBidiTests() ([]bidiTest, error) {
 		current bidiTest
 	)
 	for lineNumber, lineB := range bytes.Split(bidiTestSrc, []byte{'\n'}) {
-		line := string(lineB)
+		line := string(bytes.TrimSpace(lineB))
 		if len(line) == 0 || line[0] == '#' {
 			// flush the current datas
 			if len(current.data) != 0 {
