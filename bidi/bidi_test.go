@@ -2,9 +2,9 @@ package bidi
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -210,6 +210,12 @@ func TestDoubleSetString(t *testing.T) {
 
 // ------------------------- Unicode conformance tests -------------------------
 
+//go:embed test/BidiCharacterTest.txt
+var bidiCharacterTestSrc []byte
+
+//go:embed test/BidiTest.txt
+var bidiTestSrc []byte
+
 func parseOrdering(line string) ([]int, error) {
 	fields := strings.Fields(line)
 	out := make([]int, len(fields))
@@ -308,14 +314,8 @@ func parseTestLine(line []byte, lineNumber int) (out testData, err error) {
 }
 
 func parseBidiCharacterTests() ([]testData, error) {
-	const filename = "test/BidiCharacterTest.txt"
-
-	b, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
 	var out []testData
-	for lineNumber, line := range bytes.Split(b, []byte{'\n'}) {
+	for lineNumber, line := range bytes.Split(bidiCharacterTestSrc, []byte{'\n'}) {
 		if len(line) == 0 || line[0] == '#' || line[0] == '\n' {
 			continue
 		}
@@ -387,17 +387,11 @@ type bidiTest struct {
 }
 
 func parseBidiTests() ([]bidiTest, error) {
-	const filename = "test/BidiTest.txt"
-
-	b, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
 	var (
 		out     []bidiTest
 		current bidiTest
 	)
-	for lineNumber, lineB := range bytes.Split(b, []byte{'\n'}) {
+	for lineNumber, lineB := range bytes.Split(bidiTestSrc, []byte{'\n'}) {
 		line := string(lineB)
 		if len(line) == 0 || line[0] == '#' {
 			// flush the current datas
@@ -408,6 +402,7 @@ func parseBidiTests() ([]bidiTest, error) {
 			continue
 		}
 
+		var err error
 		if strings.HasPrefix(line, "@Reorder:") {
 			current.ltor, err = parseReorderLine(line)
 			if err != nil {
