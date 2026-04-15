@@ -434,11 +434,22 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 				// add the rune to the current input
 				continue
 			}
-			if currentInput.Face != nil && isSpace {
-				// We must check if the current face contains an ASCII space.
-				// P.e. NotoSansSymbols-Regular-Subsetted.ttf (on Android) doesn't.
-				if _, ok := currentInput.Face.NominalGlyph(rune(' ')); ok {
-					continue
+			if isSpace {
+				if currentInput.Face == nil {
+					for j := i + 1; j < input.RunEnd; j++ {
+						ignore, isSpace := ignoreFaceChange(input.Text[j])
+						if !ignore && !isSpace {
+							currentInput.Face = availableFaces.ResolveFace(input.Text[j])
+							break
+						}
+					}
+				}
+				if currentInput.Face != nil {
+					// We must check if the current face contains an ASCII space.
+					// P.e. NotoSansSymbols-Regular-Subsetted.ttf (on Android) doesn't.
+					if _, ok := currentInput.Face.NominalGlyph(rune(' ')); ok {
+						continue
+					}
 				}
 			}
 		}
