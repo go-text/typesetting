@@ -429,11 +429,14 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 		// but we must force the choice of a face if we still don't have one and we reach
 		// the final rune. Otherwise strings like all-whitespace are never assigned a face.
 		if currentInput.Face != nil || !isLast || i < input.RunEnd-1 {
-			if ignoreFaceChange(r) {
+			ignore, isSpace := ignoreFaceChange(r)
+			if ignore {
 				// add the rune to the current input
 				continue
 			}
-			if currentInput.Face != nil && isSpace(r) {
+			if currentInput.Face != nil && isSpace {
+				// We must check if the current face contains an ASCII space.
+				// P.e. NotoSansSymbols-Regular-Subsetted.ttf (on Android) doesn't.
 				if _, ok := currentInput.Face.NominalGlyph(rune(' ')); ok {
 					continue
 				}
@@ -476,7 +479,14 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 }
 
 // ignoreFaceChange returns `true` is the given rune should not trigger
-// a change of font.
+// a change of font and a second bool that indicates if the rune is a space.
+//
+// We don't want space characters to affect font selection; in general,
+// it's always wrong to select a font just to render a space.
+// We assume that most fonts have the ASCII space, and for other space
+// characters if they don't, HarfBuzz will compatibility-decompose them
+// to ASCII space... We return isSpace because we want to be able to
+// force a space to be rendered with a different font if necessary.
 //
 // We don't want to change fonts for line or paragraph separators.
 //
@@ -488,25 +498,14 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 // https://bugzilla.gnome.org/show_bug.cgi?id=701652
 // https://bugzilla.gnome.org/show_bug.cgi?id=781123
 // for more details.
-func ignoreFaceChange(r rune) bool {
+func ignoreFaceChange(r rune) (ignore, isSpace bool) {
 	g := ucd.LookupGeneralCategory(r)
 	return g == ucd.Cc || // control
-		g == ucd.Cs || // surrogate
-		g == ucd.Zl || // line separator
-		g == ucd.Zp || // paragraph separator
-		harfbuzz.IsDefaultIgnorable(r)
-}
-
-// isSpace returns `true` if the given rune is a space character.
-//
-// We don't want space characters to affect font selection; in general,
-// it's always wrong to select a font just to render a space.
-// We can check if a font has the ASCII space, and for other space
-// characters if they don't, HarfBuzz will compatibility-decompose them
-// to ASCII space...
-func isSpace(r rune) bool {
-	g := ucd.LookupGeneralCategory(r)
-	return g == ucd.Zs && r != '\u1680'
+			g == ucd.Cs || // surrogate
+			g == ucd.Zl || // line separator
+			g == ucd.Zp || // paragraph separator
+			harfbuzz.IsDefaultIgnorable(r),
+		g == ucd.Zs && r != '\u1680'
 }
 
 // enforceLang makes sure the returned language is compatible with

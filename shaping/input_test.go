@@ -14,23 +14,25 @@ import (
 
 func Test_ignoreFaceChange(t *testing.T) {
 	tests := []struct {
-		args rune
-		want bool
+		args        rune
+		wantIgnore  bool
+		wantIsSpace bool
 	}{
-		{' ', false},
-		{'a', false},
-		{'\n', true},
-		{'\r', true},
-		{'\f', true},
-		{'\ufe01', true},
-		{'\ufe02', true},
-		{'\U000E0100', true},
-		{'\u06DD', false},
-		{'\u200f', true},
+		{' ', false, true},
+		{'\u00a0', false, true},
+		{'a', false, false},
+		{'\n', true, false},
+		{'\r', true, false},
+		{'\f', true, false},
+		{'\ufe01', true, false},
+		{'\ufe02', true, false},
+		{'\U000E0100', true, false},
+		{'\u06DD', false, false},
+		{'\u200f', true, false},
 	}
 	for _, tt := range tests {
-		if got := ignoreFaceChange(tt.args); got != tt.want {
-			t.Errorf("ignoreFaceChange() = %v, want %v", got, tt.want)
+		if ignore, isSpace := ignoreFaceChange(tt.args); ignore != tt.wantIgnore || isSpace != tt.wantIsSpace {
+			t.Errorf("ignoreFaceChange(U+%x) = %v, %v, want %v, %v", tt.args, ignore, isSpace, tt.wantIgnore, tt.wantIsSpace)
 		}
 	}
 }
