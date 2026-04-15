@@ -505,7 +505,7 @@ func ignoreFaceChange(r rune) (ignore, isSpace bool) {
 			g == ucd.Zl || // line separator
 			g == ucd.Zp || // paragraph separator
 			harfbuzz.IsDefaultIgnorable(r),
-		g == ucd.Zs && r != '\u1680'
+		g == ucd.Zs && r != '\u1680' // space separator != OGHAM SPACE MARK
 }
 
 // enforceLang makes sure the returned language is compatible with
