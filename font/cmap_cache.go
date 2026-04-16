@@ -11,7 +11,7 @@ package font
  * and the rest (low bits).
  *
  * The memory layout is the following :
- * 	KEY 		= <key bits - cache bits><cache bits>
+ * 	KEY 	= <cache bits><key bits - cache bits>
  * 	VALUE 	= <key bits - cache bits><value bits>
  * with the constraints
  *	KEY in [0, 2^key bits[
@@ -66,5 +66,36 @@ func (c *cache21_19_8) set(key uint32, value uint32) {
 func (c *cache21_19_8) setUnchecked(key uint32, value uint32) {
 	k := key & ((1 << 8) - 1)
 	v := (uint32(key>>8) << 19) | value
+	c[k] = v
+}
+
+// cache21_0_13 is a cache for integer keys,
+// with 0 <= key < 2097152
+type cache21_0_13 [1 << 13]uint8
+
+// clear should be used as init function
+func (c *cache21_0_13) clear() {
+	for i := range c {
+		c[i] = ^uint8(0)
+	}
+}
+
+func (c cache21_0_13) get(key uint32) bool {
+	k := key & ((1 << 13) - 1)
+	v := c[k]
+	return v != ^uint8(0) && v == uint8(key>>13)
+}
+
+func (c *cache21_0_13) set(key uint32) {
+	if (key >> 21) != 0 { /* overflows */
+		return
+	}
+	c.setUnchecked(key)
+}
+
+// assumes key < 2097152
+func (c *cache21_0_13) setUnchecked(key uint32) {
+	k := key & ((1 << 13) - 1)
+	v := uint8(key >> 13)
 	c[k] = v
 }
