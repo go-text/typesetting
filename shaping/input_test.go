@@ -1,6 +1,7 @@
 package shaping
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -682,10 +683,10 @@ func TestSplit(t *testing.T) {
 			Text:      []rune(test.text),
 			RunEnd:    len([]rune(test.text)),
 			Direction: test.dir,
-
-			Size:     10,
-			Language: "fr",
+			Size:      10,
+			Language:  "fr",
 		}, fm)
+		fmt.Println(test.text)
 		tu.Assert(t, len(inputs) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {
 			got := inputs[i]

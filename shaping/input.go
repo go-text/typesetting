@@ -419,6 +419,9 @@ func (seg *Segmenter) splitByFace(faces Fontmap) {
 			}
 		}
 	}
+	if !(len(seg.output) == 1 && seg.output[0].Face == nil) {
+		seg.output = ensureSpaceAreSupported(faces, seg.output)
+	}
 }
 
 func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast bool) []Input {
@@ -466,6 +469,71 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 	currentInput.RunEnd = input.RunEnd
 	buffer = append(buffer, currentInput)
 	return buffer
+}
+
+// ensureSpaceAreSupported checks if the selected face
+// do actually support the ASCII space.
+// It is an assumption that is generally true, but is wrong for instance for
+// NotoSansSymbols-Regular-Subsetted.ttf, found on Android devices.
+func ensureSpaceAreSupported(fm Fontmap, runs []Input) []Input {
+	var (
+		fontWithSpace *font.Face // lazily resolved for performance in the general case
+		out           []Input    // nil until we find a broken font
+	)
+	for i, run := range runs {
+		if _, hasSpace := run.Face.NominalGlyph(' '); hasSpace {
+			if fontWithSpace != nil {
+				out = append(out, run)
+			}
+			continue
+		}
+		// We have to split the run and select an other font
+		if fontWithSpace == nil {
+			fontWithSpace = fm.ResolveFace(' ')
+			out = append(out, runs[:i]...)
+		}
+		out = append(out, splitByWhitespace(run, fontWithSpace)...)
+	}
+	if fontWithSpace == nil {
+		return runs
+	}
+	return out
+}
+
+func splitByWhitespace(run Input, spaceFont *font.Face) []Input {
+	var (
+		inSpaceRun bool
+		currentRun = run
+		out        []Input
+	)
+	for i := run.RunStart; i < run.RunEnd; i++ {
+		r := run.Text[i]
+		isSpace := (ucd.LookupGeneralCategory(r) == ucd.Zs && r != '\u1680')
+		startNewRun := isSpace != inSpaceRun
+		if !startNewRun {
+			// just add the rune to the current run
+			continue
+		}
+
+		if i > run.RunStart { // flush the current run if needed
+			currentRun.RunEnd = i
+			out = append(out, currentRun)
+		}
+
+		// start a new run
+		inSpaceRun = isSpace
+		currentRun = run
+		currentRun.RunStart = i
+
+		if isSpace {
+			currentRun.Face = spaceFont
+		}
+	}
+
+	// flush the last run
+	currentRun.RunEnd = run.RunEnd
+	out = append(out, currentRun)
+	return out
 }
 
 // ignoreFaceChange returns `true` is the given rune should not trigger
