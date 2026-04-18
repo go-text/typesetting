@@ -603,7 +603,7 @@ func TestAppleBitmapGlyph(t *testing.T) {
 		tu.Assert(t, ok)
 		tu.Assert(t, asBitmap.Format == BlackAndWhite)
 
-		_, ok = face.GlyphDataBitmap(gID(gid))
+		_, ok = face.GlyphDataBitmap(gid)
 		tu.Assert(t, ok)
 	}
 }
