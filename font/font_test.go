@@ -200,7 +200,7 @@ func BenchmarkCmap(b *testing.B) {
 	})
 	b.Run("chinese text", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, r := range latinText {
+			for _, r := range chineseText {
 				_, _ = face.NominalGlyph(r)
 			}
 		}
