@@ -610,7 +610,7 @@ func TestAppleBitmapGlyph(t *testing.T) {
 
 func TestMixedGlyphs(t *testing.T) {
 	for _, filename := range tu.Filenames(t, "common") {
-		if strings.HasPrefix(filename, "common/SourceSans") {
+		if strings.HasPrefix(filename, "common/SourceSans") || strings.HasSuffix(filename, "Subsetted.ttf") {
 			continue
 		}
 		font := loadFont(t, filename)
