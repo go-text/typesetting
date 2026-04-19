@@ -11,7 +11,7 @@ package harfbuzz
  * and the rest (low bits).
  *
  * The memory layout is the following :
- * 	KEY 		= <key bits - cache bits><cache bits>
+ * 	KEY 	= <cache bits><key bits - cache bits>
  * 	VALUE 	= <key bits - cache bits><value bits>
  * with the constraints
  *	KEY in [0, 2^key bits[
@@ -46,7 +46,7 @@ func (c *cache15_8_7) clear() {
 	}
 }
 
-func (c cache15_8_7) get(key uint16) (uint16, bool) {
+func (c *cache15_8_7) get(key uint16) (uint16, bool) {
 	k := key & ((1 << 7) - 1)
 	v := c[k]
 	if v == ^uint16(0) || (v>>8) != uint16(key>>7) {
@@ -80,7 +80,7 @@ func (c *cache21_3_8) clear() {
 	}
 }
 
-func (c cache21_3_8) get(key uint32) (uint16, bool) {
+func (c *cache21_3_8) get(key uint32) (uint16, bool) {
 	k := key & ((1 << 8) - 1)
 	v := c[k]
 	if v == ^uint16(0) || (v>>3) != uint16(key>>8) {

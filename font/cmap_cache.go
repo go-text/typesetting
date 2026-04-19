@@ -46,7 +46,7 @@ func (c *cache21_19_8) clear() {
 	}
 }
 
-func (c cache21_19_8) get(key uint32) (uint32, bool) {
+func (c *cache21_19_8) get(key uint32) (uint32, bool) {
 	k := key & ((1 << 8) - 1)
 	v := c[k]
 	if v == ^uint32(0) || (v>>19) != uint32(key>>8) {
@@ -80,7 +80,7 @@ func (c *cache21_0_13) clear() {
 	}
 }
 
-func (c cache21_0_13) get(key uint32) bool {
+func (c *cache21_0_13) get(key uint32) bool {
 	k := key & ((1 << 13) - 1)
 	v := c[k]
 	return v != ^uint8(0) && v == uint8(key>>13)
