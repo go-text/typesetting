@@ -1,32 +1,47 @@
 package font
 
+import "sync"
+
 type glyphExtents struct {
 	valid   bool
 	extents GlyphExtents
 }
 
-type extentsCache []glyphExtents
+type extentsCache struct {
+	mu    sync.RWMutex
+	elems []glyphExtents
+}
 
-func (ec extentsCache) get(gid GID) (GlyphExtents, bool) {
-	if int(gid) >= len(ec) {
+func newExtentsCache(n int) extentsCache {
+	return extentsCache{elems: make([]glyphExtents, n)}
+}
+
+func (ec *extentsCache) get(gid GID) (GlyphExtents, bool) {
+	ec.mu.RLock()
+	if int(gid) >= len(ec.elems) {
+		ec.mu.RUnlock()
 		return GlyphExtents{}, false
 	}
-	ge := ec[gid]
+	ge := ec.elems[gid]
+	ec.mu.RUnlock()
 	return ge.extents, ge.valid
 }
 
-func (ec extentsCache) set(gid GID, extents GlyphExtents) {
-	if int(gid) >= len(ec) {
-		return
+func (ec *extentsCache) set(gid GID, extents GlyphExtents) {
+	ec.mu.Lock()
+	if int(gid) < len(ec.elems) {
+		ec.elems[gid].valid = true
+		ec.elems[gid].extents = extents
 	}
-	ec[gid].valid = true
-	ec[gid].extents = extents
+	ec.mu.Unlock()
 }
 
-func (ec extentsCache) reset() {
-	for i := range ec {
-		ec[i] = glyphExtents{}
+func (ec *extentsCache) reset() {
+	ec.mu.Lock()
+	for i := range ec.elems {
+		ec.elems[i] = glyphExtents{}
 	}
+	ec.mu.Unlock()
 }
 
 func (f *Face) GlyphExtents(glyph GID) (GlyphExtents, bool) {

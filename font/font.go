@@ -629,7 +629,7 @@ type Face struct {
 
 // NewFace wraps [font] and initializes glyph caches.
 func NewFace(font *Font) *Face {
-	out := &Face{Font: font, extentsCache: make(extentsCache, font.nGlyphs)}
+	out := &Face{Font: font, extentsCache: newExtentsCache(int(font.nGlyphs))}
 	out.cmapCache.clear()
 	return out
 }
