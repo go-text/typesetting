@@ -725,3 +725,25 @@ func TestShapingLanguage(t *testing.T) {
 	// without the language information, regular space are used
 	tu.Assert(t, output.Glyphs[3].GlyphID == regularSpace)
 }
+
+func TestSpaceReplacement(t *testing.T) {
+	b, err := td.Files.ReadFile("common/NotoSansSymbols-Regular-Subsetted.ttf")
+	tu.AssertNoErr(t, err)
+	face, err := font.ParseTTF(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	text := []rune("✘  ✘")
+	out := (&HarfbuzzShaper{}).Shape(Input{
+		Text:   text,
+		RunEnd: len(text),
+		Face:   face,
+		Size:   fixed.I(10),
+	})
+	tu.Assert(t, len(out.Glyphs) == 4)
+	tu.Assert(t, out.Glyphs[1].Advance.Round() == 6)
+	tu.Assert(t, out.Glyphs[1].Width.Round() == 0)
+	tu.Assert(t, out.Glyphs[1].GlyphID == font.EmptyGlyph)
+	tu.Assert(t, out.Glyphs[2].Advance.Round() == 6)
+	tu.Assert(t, out.Glyphs[2].Width.Round() == 0)
+	tu.Assert(t, out.Glyphs[2].GlyphID == font.EmptyGlyph)
+}
