@@ -591,7 +591,8 @@ func TestAppleBitmapGlyph(t *testing.T) {
 	ft, err := NewFont(fonts[0])
 	tu.AssertNoErr(t, err)
 
-	face := Face{Font: ft, xPpem: 94, yPpem: 94}
+	face := NewFace(ft)
+	face.SetPpem(94, 94)
 
 	runes := "The quick brown fox jumps over the lazy dog"
 	for _, r := range runes {
@@ -603,14 +604,14 @@ func TestAppleBitmapGlyph(t *testing.T) {
 		tu.Assert(t, ok)
 		tu.Assert(t, asBitmap.Format == BlackAndWhite)
 
-		_, ok = face.GlyphDataBitmap(gID(gid))
+		_, ok = face.GlyphDataBitmap(gid)
 		tu.Assert(t, ok)
 	}
 }
 
 func TestMixedGlyphs(t *testing.T) {
 	for _, filename := range tu.Filenames(t, "common") {
-		if strings.HasPrefix(filename, "common/SourceSans") {
+		if strings.HasPrefix(filename, "common/SourceSans") || strings.HasSuffix(filename, "Subsetted.ttf") {
 			continue
 		}
 		font := loadFont(t, filename)

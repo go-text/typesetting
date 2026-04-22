@@ -4,7 +4,9 @@ package shaping
 
 import (
 	"github.com/go-text/typesetting/di"
+	ft "github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/harfbuzz"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -166,6 +168,9 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 		Gap:     fixed.I(int(fontExtents.LineGap)) >> scaleShift,
 	}
 	out.RecalculateAll()
+
+	replaceNotSupportedSpaces(input.Text, out.Glyphs)
+
 	return out
 }
 
@@ -207,5 +212,23 @@ func countClusters(glyphs []Glyph, textLen int, dir di.Progression) {
 		}
 		glyphs[i].GlyphCount = glyphsInCluster
 		glyphs[i].RuneCount = runesInCluster
+	}
+}
+
+// special handling of non supported white space :
+// our face selection process assumes all fonts contains the ASCII space,
+// but it turns out to be sometimes incorrect, for instance for the
+// NotoSansSymbols-Regular-Subsetted.ttf (found on Android)
+func replaceNotSupportedSpaces(text []rune, glyphs []Glyph) {
+	for i, g := range glyphs {
+		const NotFound ft.GID = 0 // this is the default value used by Harfbuzz
+		if !(g.GlyphID == NotFound && g.GlyphsCount() == 1 && g.RunesCount() == 1) {
+			continue
+		}
+		// only replace glyph corresponding to a space
+		if r := text[g.TextIndex()]; ucd.LookupGeneralCategory(r) == ucd.Zs {
+			glyphs[i].GlyphID = ft.EmptyGlyph
+			glyphs[i].Width, glyphs[i].Height = 0, 0
+		}
 	}
 }

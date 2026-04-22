@@ -2,7 +2,6 @@ package unicodedata
 
 import (
 	"testing"
-	"unicode"
 
 	"github.com/go-text/typesetting/language"
 	tu "github.com/go-text/typesetting/testutils"
@@ -1692,14 +1691,7 @@ func TestLookupVerticalOrientation(t *testing.T) {
 }
 
 func BenchmarkLookups(b *testing.B) {
-	b.Run("GeneralCategory unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupGeneralCategory(test.args)
-			}
-		}
-	})
-	b.Run("GeneralCategory packtable", func(b *testing.B) {
+	b.Run("GeneralCategory", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = LookupGeneralCategory(test.args)
@@ -1707,14 +1699,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupCombiningClass(test.args)
-			}
-		}
-	})
-	b.Run("Combining class packtable", func(b *testing.B) {
+	b.Run("Combining class", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = LookupCombiningClass(test.args)
@@ -1722,14 +1707,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("Mirroring unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupMirrorChar(test.args)
-			}
-		}
-	})
-	b.Run("Mirroring packtable", func(b *testing.B) {
+	b.Run("Mirroring", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = LookupMirrorChar(test.args)
@@ -1737,28 +1715,15 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("Decompose map", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range decomposeTests {
-				_, _, _ = decompose(test.ab)
-			}
-		}
-	})
-	b.Run("Decompose packtable", func(b *testing.B) {
+	b.Run("Decompose", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range decomposeTests {
 				_, _, _ = Decompose(test.ab)
 			}
 		}
 	})
-	b.Run("Compose map", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range composeTests {
-				_, _ = compose_(test.a, test.b)
-			}
-		}
-	})
-	b.Run("Compose packtable", func(b *testing.B) {
+
+	b.Run("Compose", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range composeTests {
 				_, _ = Compose(test.a, test.b)
@@ -1766,14 +1731,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("IsExtendedPictographic unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range extendedPictoTests {
-				_ = unicode.Is(Extended_Pictographic, test.r)
-			}
-		}
-	})
-	b.Run("IsExtendedPictographic packtab", func(b *testing.B) {
+	b.Run("IsExtendedPictographic", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range extendedPictoTests {
 				_ = IsExtendedPictographic(test.r)
@@ -1781,14 +1739,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("IsLargeEastAsian unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range eastAsianWidthTests {
-				_ = unicode.Is(LargeEastAsian, test.r)
-			}
-		}
-	})
-	b.Run("IsLargeEastAsian packtab", func(b *testing.B) {
+	b.Run("IsLargeEastAsian", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range eastAsianWidthTests {
 				_ = IsLargeEastAsian(test.r)
@@ -1796,14 +1747,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("LineBreak unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range lineBreakTests {
-				_ = lookupLineBreak(test.args)
-			}
-		}
-	})
-	b.Run("LineBreak packtab", func(b *testing.B) {
+	b.Run("LineBreak", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range lineBreakTests {
 				_ = LookupLineBreak(test.args)
@@ -1811,14 +1755,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("GraphemeBreak unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range indicConjunctBreakTests {
-				_ = lookupGraphemeBreak(test.r)
-			}
-		}
-	})
-	b.Run("GraphemeBreak packtab", func(b *testing.B) {
+	b.Run("GraphemeBreak", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range indicConjunctBreakTests {
 				_ = LookupIndicConjunctBreak(test.r)
@@ -1826,14 +1763,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("WordBreak unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range wordBreakTests {
-				_ = lookupWordBreak(test.args)
-			}
-		}
-	})
-	b.Run("WordBreak packtab", func(b *testing.B) {
+	b.Run("WordBreak", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range wordBreakTests {
 				_ = LookupIndicConjunctBreak(test.args)
@@ -1841,14 +1771,7 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("IsWord unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range isWordTests {
-				_ = unicode.Is(Word, test.args)
-			}
-		}
-	})
-	b.Run("IsWord packtab", func(b *testing.B) {
+	b.Run("IsWord", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range isWordTests {
 				_ = LookupIndicConjunctBreak(test.args)
@@ -1856,31 +1779,17 @@ func BenchmarkLookups(b *testing.B) {
 		}
 	})
 
-	b.Run("IndicConjunctBreak unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range indicConjunctBreakTests {
-				_ = lookupIndicConjunctBreak(test.r)
-			}
-		}
-	})
-	b.Run("IndicConjunctBreak packtab", func(b *testing.B) {
+	b.Run("IndicConjunctBreak", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range indicConjunctBreakTests {
 				_ = LookupIndicConjunctBreak(test.r)
 			}
 		}
 	})
-	b.Run("Combining class packtable", func(b *testing.B) {
+	b.Run("Combining class", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, test := range generalCategoryTests {
 				_ = LookupCombiningClass(test.args)
-			}
-		}
-	})
-	b.Run("Combining class unicode.RangeTable", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, test := range generalCategoryTests {
-				_ = lookupCombiningClass(test.args)
 			}
 		}
 	})
@@ -1990,150 +1899,4 @@ func TestLookupBidiClass(t *testing.T) {
 		tu.Assert(t, class == test.class)
 		tu.Assert(t, bracket == 0)
 	}
-}
-
-// legacy code, used (for now) as comparison
-
-var allCategories = [...]*unicode.RangeTable{
-	unicode.Cc,
-	unicode.Cf,
-	unicode.Co,
-	unicode.Cs,
-	unicode.Ll,
-	unicode.Lm,
-	unicode.Lo,
-	unicode.Lt,
-	unicode.Lu,
-	unicode.Mc,
-	unicode.Me,
-	unicode.Mn,
-	unicode.Nd,
-	unicode.Nl,
-	unicode.No,
-	unicode.Pc,
-	unicode.Pd,
-	unicode.Pe,
-	unicode.Pf,
-	unicode.Pi,
-	unicode.Po,
-	unicode.Ps,
-	unicode.Sc,
-	unicode.Sk,
-	unicode.Sm,
-	unicode.So,
-	unicode.Zl,
-	unicode.Zp,
-	unicode.Zs,
-}
-
-// simple implementation using standard library,
-// here for benchmark reference
-func lookupGeneralCategory(r rune) *unicode.RangeTable {
-	for _, table := range allCategories {
-		if unicode.Is(table, r) {
-			return table
-		}
-	}
-	return nil
-}
-
-// used as reference in benchmark
-func lookupCombiningClass(ch rune) uint8 {
-	for i, t := range combiningClasses {
-		if t == nil {
-			continue
-		}
-		if unicode.Is(t, ch) {
-			return uint8(i)
-		}
-	}
-	return 0
-}
-
-// used as reference in benchmark
-func lookupMirrorChar(ch rune) rune {
-	m, ok := mirroring[ch]
-	if !ok {
-		m = ch
-	}
-	return m
-}
-
-// used as reference in benchmark
-func decompose(ab rune) (a, b rune, ok bool) {
-	if a, b, ok = decomposeHangul(ab); ok {
-		return a, b, true
-	}
-
-	// Check if it's a single-character decomposition.
-	if m1, ok := decompose1[ab]; ok {
-		return m1, 0, true
-	}
-	if m2, ok := decompose2[ab]; ok {
-		return m2[0], m2[1], true
-	}
-	return ab, 0, false
-}
-
-// used as reference in benchmark
-func compose_(a, b rune) (rune, bool) {
-	// Hangul is handled algorithmically.
-	if ab, ok := composeHangul(a, b); ok {
-		return ab, true
-	}
-	u := compose[[2]rune{a, b}]
-	return u, u != 0
-}
-
-// used as reference in benchmark
-func lookupIndicConjunctBreak(r rune) IndicConjunctBreak {
-	if unicode.Is(indicCBLinker, r) {
-		return ICBLinker
-	} else if unicode.Is(indicCBConsonant, r) {
-		return ICBConsonant
-	} else if unicode.Is(indicCBExtend, r) {
-		return ICBExtend
-	} else {
-		return 0
-	}
-}
-
-// used as reference in benchmark
-func lookupGraphemeBreak(ch rune) *unicode.RangeTable {
-	// a lot of runes do not have a grapheme break property :
-	// avoid testing all the graphemeBreaks classes for them
-	if !unicode.Is(graphemeBreakAll, ch) {
-		return nil
-	}
-	for _, class := range graphemeBreaks {
-		if unicode.Is(class, ch) {
-			return class
-		}
-	}
-	return nil
-}
-
-// used as reference in benchmark
-func lookupWordBreak(ch rune) *unicode.RangeTable {
-	// a lot of runes do not have a word break property :
-	// avoid testing all the wordBreaks classes for them
-	if !unicode.Is(wordBreakAll, ch) {
-		return nil
-	}
-	for _, class := range wordBreaks {
-		if unicode.Is(class, ch) {
-			return class
-		}
-	}
-	return nil
-}
-
-// used as reference in benchmark
-func lookupLineBreak(ch rune) *unicode.RangeTable {
-	for _, class := range lineBreaks {
-		if unicode.Is(class, ch) {
-			return class
-		}
-	}
-	return nil
 }
