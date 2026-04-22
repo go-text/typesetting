@@ -591,7 +591,8 @@ func TestAppleBitmapGlyph(t *testing.T) {
 	ft, err := NewFont(fonts[0])
 	tu.AssertNoErr(t, err)
 
-	face := Face{Font: ft, xPpem: 94, yPpem: 94}
+	face := NewFace(ft)
+	face.SetPpem(94, 94)
 
 	runes := "The quick brown fox jumps over the lazy dog"
 	for _, r := range runes {

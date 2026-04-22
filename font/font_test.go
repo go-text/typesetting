@@ -181,3 +181,35 @@ func TestBitmapExtents(t *testing.T) {
 	extents, ok := face.GlyphExtents(41)
 	tu.Assert(t, ok && extents.Width == 819.2 && extents.Height == -1433.6)
 }
+
+func BenchmarkCmap(b *testing.B) {
+	font := loadFont(b, "common/Roboto-BoldItalic.ttf")
+	face := NewFace(font)
+	latinText := []rune("Hi this is a test with some âccents : $£8")
+	chineseText := []rune("襄陽曲四首/魯中都東樓醉起作-李白 刊误")
+	mixedText := append(latinText, chineseText...)
+
+	b.ResetTimer()
+
+	b.Run("latin text", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, r := range latinText {
+				_, _ = face.NominalGlyph(r)
+			}
+		}
+	})
+	b.Run("chinese text", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, r := range chineseText {
+				_, _ = face.NominalGlyph(r)
+			}
+		}
+	})
+	b.Run("mixed text", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, r := range mixedText {
+				_, _ = face.NominalGlyph(r)
+			}
+		}
+	})
+}

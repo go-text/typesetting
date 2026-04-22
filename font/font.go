@@ -620,8 +620,9 @@ func loadGDEF(ld *ot.Loader, axisCount int, gsub, gpos []byte) (tables.GDEF, err
 type Face struct {
 	*Font
 
-	extentsCache extentsCache
-	cmapCache    cache21_19_8
+	extentsCache          extentsCache
+	cmapCache             cache21_19_8 // supported runes, mapping to GID
+	cmapNotSupportedCache cache21_0_13 // not supported runes
 
 	coords       []tables.Coord
 	xPpem, yPpem uint16
@@ -631,6 +632,7 @@ type Face struct {
 func NewFace(font *Font) *Face {
 	out := &Face{Font: font, extentsCache: make(extentsCache, font.nGlyphs)}
 	out.cmapCache.clear()
+	out.cmapNotSupportedCache.clear()
 	return out
 }
 
@@ -639,12 +641,17 @@ func NewFace(font *Font) *Face {
 // Note that it only looks into the cmap, without taking account substitutions
 // nor variation selectors.
 func (f *Face) NominalGlyph(ch rune) (GID, bool) {
+	if notSupported := f.cmapNotSupportedCache.get(uint32(ch)); notSupported {
+		return 0, false
+	}
 	if g, ok := f.cmapCache.get(uint32(ch)); ok {
 		return GID(g), ok
 	}
 	g, ok := f.Cmap.Lookup(ch)
 	if ok {
 		f.cmapCache.set(uint32(ch), uint32(g))
+	} else {
+		f.cmapNotSupportedCache.set(uint32(ch))
 	}
 	return g, ok
 }
