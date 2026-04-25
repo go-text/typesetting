@@ -3,6 +3,7 @@
 package shaping
 
 import (
+	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
@@ -10,7 +11,6 @@ import (
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 	"golang.org/x/image/math/fixed"
-	"golang.org/x/text/unicode/bidi"
 )
 
 type Input struct {
@@ -218,9 +218,8 @@ func (seg *Segmenter) splitByBidi(text Input) {
 	if text.Direction.Progression() == di.TowardTopLeft {
 		def = bidi.RightToLeft
 	}
-	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
-	out, err := seg.bidiParagraph.Order()
-	if err != nil || out.NumRuns() == 0 {
+	out := seg.bidiParagraph.Segment(text.Text[text.RunStart:text.RunEnd], def)
+	if out.NumRuns() == 0 {
 		seg.output = append(seg.output, text)
 		return
 	}
@@ -229,16 +228,14 @@ func (seg *Segmenter) splitByBidi(text Input) {
 	for i := 0; i < out.NumRuns(); i++ {
 		currentInput := input
 		run := out.Run(i)
-		dir := run.Direction()
-		_, endRune := run.Pos()
-		endRune += text.RunStart // shift by the input run position
-		currentInput.RunEnd = endRune + 1
+
+		currentInput.RunEnd = run.End + text.RunStart // shift by the input run position
 
 		// override the direction
-		if dir == bidi.RightToLeft {
-			currentInput.Direction.SetProgression(di.TowardTopLeft)
-		} else {
+		if run.IsLeftToRight() {
 			currentInput.Direction.SetProgression(di.FromTopLeft)
+		} else {
+			currentInput.Direction.SetProgression(di.TowardTopLeft)
 		}
 
 		seg.output = append(seg.output, currentInput)

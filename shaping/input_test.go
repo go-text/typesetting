@@ -344,13 +344,22 @@ func TestSplitBidi(t *testing.T) {
 		{
 			text:             bidi2Source,
 			defaultDirection: di.DirectionLTR,
-			// spaces are assigned to RTL runs
+			// spaces are assigned to LTR runs
 			expectedRuns: []run{
-				{0, 10, di.DirectionRTL},
-				{10, 26, di.DirectionLTR},
-				{26, 31, di.DirectionRTL},
-				{31, 48, di.DirectionLTR},
-				{48, 60, di.DirectionRTL},
+				{0, 9, di.DirectionRTL},
+				{9, 27, di.DirectionLTR},
+				{27, 30, di.DirectionRTL},
+				{30, 49, di.DirectionLTR},
+				{49, 60, di.DirectionRTL},
+			},
+		},
+		// spaces create a new run
+		{
+			text:             []rune("ااب   "),
+			defaultDirection: di.DirectionLTR,
+			expectedRuns: []run{
+				{0, 3, di.DirectionRTL},
+				{3, 6, di.DirectionLTR},
 			},
 		},
 	} {
@@ -619,15 +628,15 @@ func TestSplit(t *testing.T) {
 			"الحب سماء brown привет fox تمط jumps привет over غير الأحلام",
 			di.DirectionLTR,
 			[]run{
-				{0, 10, di.DirectionRTL, language.Arabic, "ar", arabicFont},
-				{10, 16, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{0, 9, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{9, 16, di.DirectionLTR, language.Latin, "fr", latinFont},
 				{16, 23, di.DirectionLTR, language.Cyrillic, "ru", latinFont},
-				{23, 26, di.DirectionLTR, language.Latin, "fr", latinFont},
-				{26, 31, di.DirectionRTL, language.Arabic, "ar", arabicFont},
-				{31, 37, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{23, 27, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{27, 30, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{30, 37, di.DirectionLTR, language.Latin, "fr", latinFont},
 				{37, 44, di.DirectionLTR, language.Cyrillic, "ru", latinFont},
-				{44, 48, di.DirectionLTR, language.Latin, "fr", latinFont},
-				{48, 60, di.DirectionRTL, language.Arabic, "ar", arabicFont},
+				{44, 49, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{49, 60, di.DirectionRTL, language.Arabic, "ar", arabicFont},
 			},
 		},
 		// vertical text
@@ -678,7 +687,7 @@ func TestSplit(t *testing.T) {
 			},
 		},
 	} {
-		inputs := seg.Split(Input{
+		runs := seg.Split(Input{
 			Text:      []rune(test.text),
 			RunEnd:    len([]rune(test.text)),
 			Direction: test.dir,
@@ -686,9 +695,9 @@ func TestSplit(t *testing.T) {
 			Size:     10,
 			Language: "fr",
 		}, fm)
-		tu.Assert(t, len(inputs) == len(test.expectedRuns))
+		tu.Assert(t, len(runs) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {
-			got := inputs[i]
+			got := runs[i]
 			tu.Assert(t, got.RunStart == run.start)
 			tu.Assert(t, got.RunEnd == run.end)
 			tu.Assert(t, got.Direction == run.dir)
@@ -700,15 +709,15 @@ func TestSplit(t *testing.T) {
 		}
 
 		// check that spliting a "middle" text slice is supported
-		inputs = seg.Split(Input{
+		runs = seg.Split(Input{
 			Text:      []rune("DUMMY" + test.text + "DUMMY"),
 			RunStart:  5,
 			RunEnd:    5 + len([]rune(test.text)),
 			Direction: test.dir,
 		}, fm)
-		tu.Assert(t, len(inputs) == len(test.expectedRuns))
+		tu.Assert(t, len(runs) == len(test.expectedRuns))
 		for i, run := range test.expectedRuns {
-			got := inputs[i]
+			got := runs[i]
 			tu.Assert(t, got.RunStart == 5+run.start)
 			tu.Assert(t, got.RunEnd == 5+run.end)
 			tu.Assert(t, got.Direction == run.dir)
