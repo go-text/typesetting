@@ -58,7 +58,9 @@ func clamp(val, low, high int) int {
 }
 
 // Shape turns an input into an output.
-func (t *HarfbuzzShaper) Shape(input Input) Output {
+// [skipExtents] may be provided to avoid computing glyph extents,
+// which is not required for line wrapping, and sometimes expensive.
+func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 	// Prepare to shape the text.
 	if t.buf == nil {
 		t.buf = harfbuzz.NewBuffer()
@@ -124,16 +126,7 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 			GlyphID:      g,
 			Mask:         t.buf.Info[i].Mask,
 		}
-		extents, ok := font.GlyphExtents(g)
-		if !ok {
-			// Leave the glyph having zero size if it isn't in the font. There
-			// isn't really anything we can do to recover from such an error.
-			continue
-		}
-		glyphs[i].Width = fixed.I(int(extents.Width)) >> scaleShift
-		glyphs[i].Height = fixed.I(int(extents.Height)) >> scaleShift
-		glyphs[i].XBearing = fixed.I(int(extents.XBearing)) >> scaleShift
-		glyphs[i].YBearing = fixed.I(int(extents.YBearing)) >> scaleShift
+
 		if isVertical {
 			glyphs[i].YAdvance = fixed.I(int(t.buf.Pos[i].YAdvance)) >> scaleShift
 			glyphs[i].Advance = glyphs[i].YAdvance
@@ -143,6 +136,18 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 		}
 		glyphs[i].XOffset = fixed.I(int(t.buf.Pos[i].XOffset)) >> scaleShift
 		glyphs[i].YOffset = fixed.I(int(t.buf.Pos[i].YOffset)) >> scaleShift
+
+		if skipExtents {
+			continue
+		}
+		extents, _ := font.GlyphExtents(g)
+		// If the glyph isn't in the font, the following ops leave
+		// the glyph having zero size. There
+		// isn't really anything we can do to recover from such an error.
+		glyphs[i].Width = fixed.I(int(extents.Width)) >> scaleShift
+		glyphs[i].Height = fixed.I(int(extents.Height)) >> scaleShift
+		glyphs[i].XBearing = fixed.I(int(extents.XBearing)) >> scaleShift
+		glyphs[i].YBearing = fixed.I(int(extents.YBearing)) >> scaleShift
 	}
 	countClusters(glyphs, input.RunEnd, input.Direction.Progression())
 	out := Output{
@@ -173,6 +178,13 @@ func (t *HarfbuzzShaper) Shape(input Input) Output {
 
 	return out
 }
+
+// Shape turns an input into an output.
+func (t *HarfbuzzShaper) Shape(input Input) Output { return t.shape(input, false) }
+
+// ShapeNoExtents is the same as [Shape], but do not query glyph extents,
+// making if more efficient when only advance is required.
+func (t *HarfbuzzShaper) ShapeNoExtents(input Input) Output { return t.shape(input, true) }
 
 // countClusters tallies the number of runes and glyphs in each cluster
 // and updates the relevant fields on the provided glyph slice.
