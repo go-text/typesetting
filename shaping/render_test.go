@@ -155,7 +155,7 @@ func drawHRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 		glyphData := out.Face.GlyphData(g.GlyphID).(font.GlyphOutline)
 		drawGlyph(&out, img, dotWithOffset, glyphData, black)
 
-		dot.X += g.XAdvance.Round()
+		dot.X += g.Advance.Round()
 		// draw the advance
 		drawVLine(img, image.Pt(dot.X, 0), img.Bounds().Dy(), red)
 	}
@@ -186,7 +186,7 @@ func drawVRun(out Output, img *image.RGBA, dot image.Point) image.Point {
 		}
 		drawGlyph(&out, img, dotWithOffset, glyphData, black)
 
-		dot.Y += -g.YAdvance.Round()
+		dot.Y += -g.Advance.Round()
 
 		// draw the advance
 		drawHLine(img, image.Pt(0, dot.Y), img.Bounds().Dx(), red)

@@ -53,11 +53,11 @@ func TestShape(t *testing.T) {
 		t.Error("shaper did not propagate input font face to output")
 	}
 	for i, g := range out.Glyphs {
-		if g.GlyphCount != 1 {
-			t.Errorf("out.Glyphs[%d].GlyphCount != %d, is %d", i, 1, g.GlyphCount)
+		if g.GlyphsCount() != 1 {
+			t.Errorf("out.Glyphs[%d].GlyphsCount() != %d, is %d", i, 1, g.GlyphsCount())
 		}
-		if g.RuneCount != 1 {
-			t.Errorf("out.Runes[%d].RuneCount != %d, is %d", i, 1, g.RuneCount)
+		if g.RunesCount() != 1 {
+			t.Errorf("out.Runes[%d].RunesCount() != %d, is %d", i, 1, g.RunesCount())
 		}
 	}
 }
@@ -86,54 +86,48 @@ func TestCountClusters(t *testing.T) {
 			// A[4],A[5],A[6],A[7] => G[4],G[5] (reorder, ligature, etc...)
 			glyphs: []Glyph{
 				{
-					ClusterIndex: 0,
+					clusterIndex: 0,
 				},
 				{
-					ClusterIndex: 1,
+					clusterIndex: 1,
 				},
 				{
-					ClusterIndex: 3,
+					clusterIndex: 3,
 				},
 				{
-					ClusterIndex: 3,
+					clusterIndex: 3,
 				},
 				{
-					ClusterIndex: 4,
+					clusterIndex: 4,
 				},
 				{
-					ClusterIndex: 4,
+					clusterIndex: 4,
 				},
 			},
 			expected: []Glyph{
 				{
-					ClusterIndex: 0,
-					RuneCount:    1,
-					GlyphCount:   1,
+					clusterIndex: 0,
+					Mask:         maskForCounts(0, 1, 1),
 				},
 				{
-					ClusterIndex: 1,
-					RuneCount:    2,
-					GlyphCount:   1,
+					clusterIndex: 1,
+					Mask:         maskForCounts(0, 2, 1),
 				},
 				{
-					ClusterIndex: 3,
-					RuneCount:    1,
-					GlyphCount:   2,
+					clusterIndex: 3,
+					Mask:         maskForCounts(0, 1, 2),
 				},
 				{
-					ClusterIndex: 3,
-					RuneCount:    1,
-					GlyphCount:   2,
+					clusterIndex: 3,
+					Mask:         maskForCounts(0, 1, 2),
 				},
 				{
-					ClusterIndex: 4,
-					RuneCount:    4,
-					GlyphCount:   2,
+					clusterIndex: 4,
+					Mask:         maskForCounts(0, 4, 2),
 				},
 				{
-					ClusterIndex: 4,
-					RuneCount:    4,
-					GlyphCount:   2,
+					clusterIndex: 4,
+					Mask:         maskForCounts(0, 4, 2),
 				},
 			},
 		},
@@ -149,54 +143,48 @@ func TestCountClusters(t *testing.T) {
 			// A[4],A[5],A[6],A[7] => G[0],G[1] (reorder, ligature, etc...)
 			glyphs: []Glyph{
 				{
-					ClusterIndex: 4,
+					clusterIndex: 4,
 				},
 				{
-					ClusterIndex: 4,
+					clusterIndex: 4,
 				},
 				{
-					ClusterIndex: 3,
+					clusterIndex: 3,
 				},
 				{
-					ClusterIndex: 3,
+					clusterIndex: 3,
 				},
 				{
-					ClusterIndex: 1,
+					clusterIndex: 1,
 				},
 				{
-					ClusterIndex: 0,
+					clusterIndex: 0,
 				},
 			},
 			expected: []Glyph{
 				{
-					ClusterIndex: 4,
-					RuneCount:    4,
-					GlyphCount:   2,
+					clusterIndex: 4,
+					Mask:         maskForCounts(0, 4, 2),
 				},
 				{
-					ClusterIndex: 4,
-					RuneCount:    4,
-					GlyphCount:   2,
+					clusterIndex: 4,
+					Mask:         maskForCounts(0, 4, 2),
 				},
 				{
-					ClusterIndex: 3,
-					RuneCount:    1,
-					GlyphCount:   2,
+					clusterIndex: 3,
+					Mask:         maskForCounts(0, 1, 2),
 				},
 				{
-					ClusterIndex: 3,
-					RuneCount:    1,
-					GlyphCount:   2,
+					clusterIndex: 3,
+					Mask:         maskForCounts(0, 1, 2),
 				},
 				{
-					ClusterIndex: 1,
-					RuneCount:    2,
-					GlyphCount:   1,
+					clusterIndex: 1,
+					Mask:         maskForCounts(0, 2, 1),
 				},
 				{
-					ClusterIndex: 0,
-					RuneCount:    1,
-					GlyphCount:   1,
+					clusterIndex: 0,
+					Mask:         maskForCounts(0, 1, 1),
 				},
 			},
 		},
@@ -206,8 +194,8 @@ func TestCountClusters(t *testing.T) {
 			for i := range tc.glyphs {
 				g := tc.glyphs[i]
 				e := tc.expected[i]
-				if !(g.ClusterIndex == e.ClusterIndex && g.RuneCount == e.RuneCount && g.GlyphCount == e.GlyphCount) {
-					t.Errorf("mismatch on glyph %d: expected cluster %d RuneCount %d GlyphCount %d, got cluster %d RuneCount %d GlyphCount %d", i, e.ClusterIndex, e.RuneCount, e.GlyphCount, g.ClusterIndex, g.RuneCount, g.GlyphCount)
+				if !(g.clusterIndex == e.clusterIndex && g.RunesCount() == e.RunesCount() && g.GlyphsCount() == e.GlyphsCount()) {
+					t.Errorf("mismatch on glyph %d: expected cluster %d RunesCount() %d GlyphsCount() %d, got cluster %d RunesCount() %d GlyphsCount() %d", i, e.clusterIndex, e.RunesCount(), e.GlyphsCount(), g.clusterIndex, g.RunesCount(), g.GlyphsCount())
 				}
 			}
 		})
