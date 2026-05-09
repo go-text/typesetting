@@ -468,12 +468,6 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast boo
 // ignoreFaceChange returns `true` is the given rune should not trigger
 // a change of font.
 //
-// We don't want space characters to affect font selection; in general,
-// it's always wrong to select a font just to render a space.
-// We assume that all fonts have the ASCII space, and for other space
-// characters if they don't, HarfBuzz will compatibility-decompose them
-// to ASCII space...
-//
 // We don't want to change fonts for line or paragraph separators.
 //
 // Finaly, we also don't change fonts for what Harfbuzz consider
@@ -490,7 +484,7 @@ func ignoreFaceChange(r rune) bool {
 		g == ucd.Cs || // surrogate
 		g == ucd.Zl || // line separator
 		g == ucd.Zp || // paragraph separator
-		(g == ucd.Zs && r != '\u1680') || // space separator != OGHAM SPACE MARK
+		(g == ucd.Zs && r != '\u1680' && r != ' ') ||
 		harfbuzz.IsDefaultIgnorable(r)
 }
 
