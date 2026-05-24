@@ -403,6 +403,23 @@ func (cd *candidates) resetWithSize(nbFamilies int) {
 	cd.manual = cd.manual[:0]
 }
 
+func (cd *candidates) combine() []int {
+	L := len(cd.withoutFallback) + len(cd.withFallback) + len(cd.manual)
+	result := make([]int, 0, L)
+	seen := make(map[int]struct{}, L)
+
+	for _, indexes := range [][]int{cd.withoutFallback, cd.withFallback, cd.manual} {
+		for _, idx := range indexes {
+			if _, ok := seen[idx]; !ok {
+				seen[idx] = struct{}{}
+				result = append(result, idx)
+			}
+		}
+	}
+
+	return result
+}
+
 func (fm *FontMap) buildCandidates() {
 	if fm.built {
 		return
@@ -472,6 +489,26 @@ func (fm *FontMap) resolveForRune(candidates []int, r rune) *font.Face {
 	return nil
 }
 
+// returns all faces where candidates supported the rune `r`
+func (fm *FontMap) resolveAllForRune(candidates []int, r rune) []*font.Face {
+	faces := make([]*font.Face, 0, len(candidates))
+	for _, footprintIndex := range candidates {
+		// check the coverage
+		if fp := fm.database[footprintIndex]; fp.Runes.Contains(r) {
+			// try to use the font
+			face, err := fm.loadFont(fp)
+			if err != nil { // very unlikely; try another family
+				fm.logger.Printf("failed loading face: %v", err)
+				continue
+			}
+
+			faces = append(faces, face)
+		}
+	}
+
+	return faces
+}
+
 // returns nil if no candidates support the language `lang`
 func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 	for _, footprintIndex := range candidates {
@@ -489,6 +526,75 @@ func (fm *FontMap) resolveForLang(candidates []int, lang LangID) *font.Face {
 	}
 
 	return nil
+}
+
+// returns all faces where candidates support the language `lang`
+func (fm *FontMap) resolveAllForLang(candidates []int, lang LangID) []*font.Face {
+	faces := make([]*font.Face, 0, len(candidates))
+	for _, footprintIndex := range candidates {
+		// check the coverage
+		if fp := fm.database[footprintIndex]; fp.Langs.Contains(lang) {
+			// try to use the font
+			face, err := fm.loadFont(fp)
+			if err != nil { // very unlikely; try another family
+				fm.logger.Printf("failed loading face: %v", err)
+				continue
+			}
+
+			faces = append(faces, face)
+		}
+	}
+
+	return faces
+}
+
+// returns nil if no candidates support the string `s`
+func (fm *FontMap) resolveForString(candidates []int, s string) *font.Face {
+	var rs RuneSet
+	for _, r := range s {
+		rs.Add(r)
+	}
+
+	for _, footprintIndex := range candidates {
+		// check the coverage
+		if fp := fm.database[footprintIndex]; fp.Runes.includes(rs) {
+			// try to use the font
+			face, err := fm.loadFont(fp)
+			if err != nil { // very unlikely; try another family
+				fm.logger.Printf("failed loading face: %v", err)
+				continue
+			}
+
+			return face
+		}
+	}
+
+	return nil
+}
+
+// returns all faces where candidates support the string `s`
+func (fm *FontMap) resolveAllForString(candidates []int, s string) []*font.Face {
+	var rs RuneSet
+	for _, r := range s {
+		rs.Add(r)
+	}
+
+	faces := make([]*font.Face, 0, len(candidates))
+	for _, footprintIndex := range candidates {
+		// check the coverage
+		if fp := fm.database[footprintIndex]; fp.Runes.includes(rs) {
+			// try to use the font
+			face, err := fm.loadFont(fp)
+			if err != nil { // very unlikely; try another family
+				fm.logger.Printf("failed loading face: %v", err)
+				continue
+			}
+
+			faces = append(faces, face)
+		}
+	}
+
+	return faces
 }
 
 // ResolveFace select a font based on the current query (set by [FontMap.SetQuery] and [FontMap.SetScript]),
@@ -568,6 +674,20 @@ func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
 	// and we should never return a nil face.
 }
 
+// ResolveAllFaces select all the fonts based on the current query (set by [FontMap.SetQuery] and [FontMap.SetScript]),
+// and supporting the given rune, applying CSS font selection rules.
+//
+// The matching logic is similar to the one used by [ResolveFace].
+func (fm *FontMap) ResolveAllFaces(r rune) (faces []*font.Face) {
+	// no-op if already built
+	fm.buildCandidates()
+
+	if faces = fm.resolveAllForRune(fm.candidates.combine(), r); len(faces) > 0 {
+		return faces
+	}
+	return fm.resolveAllForRune(fm.scriptMap[fm.script], r)
+}
+
 // ResolveForLang returns the first face supporting the given language
 // (for the actual query), or nil if no one is found.
 //
@@ -593,6 +713,77 @@ func (fm *FontMap) ResolveFaceForLang(lang LangID) *font.Face {
 	}
 
 	return nil
+}
+
+// ResolveAllFacesForLang returns all faces supporting the given language
+// (for the actual query).
+func (fm *FontMap) ResolveAllFacesForLang(lang LangID) []*font.Face {
+	// no-op if already built
+	fm.buildCandidates()
+
+	return fm.resolveAllForLang(fm.candidates.combine(), lang)
+}
+
+// ResolveFaceForString returns the first face supporting the given string
+// (for the actual query).
+//
+// The matching logic is similar to the one used by [ResolveFace].
+func (fm *FontMap) ResolveFaceForString(s string) *font.Face {
+	// no-op if already built
+	fm.buildCandidates()
+
+	// we first look up for an exact family match, without substitutions
+	if face := fm.resolveForString(fm.candidates.withoutFallback, s); face != nil {
+		return face
+	}
+
+	// if no family has matched so far, try again with system fallback,
+	// including fonts with matching script and user provided ones
+	if face := fm.resolveForString(fm.candidates.withFallback, s); face != nil {
+		return face
+	}
+
+	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
+	// and rune coverage.
+	// Note that, when [SetScript] has been called, this step is actually not needed,
+	// since the fonts supporting the given script are already added in [withFallback] fonts
+	if face := fm.resolveForString(fm.candidates.manual, s); face != nil {
+		return face
+	}
+
+	fm.logger.Printf("No font matched for aspect %v, script %s, and string %q -> searching by script coverage only", fm.query.Aspect, fm.script, s)
+	scriptCandidates := fm.scriptMap[fm.script]
+	if face := fm.resolveForString(scriptCandidates, s); face != nil {
+		return face
+	}
+
+	fm.logger.Printf("No font matched for script %s and rune %q -> returning arbitrary face", fm.script, s)
+	// return an arbitrary face
+	if fm.firstFace == nil && len(fm.database) > 0 {
+		for _, fp := range fm.database {
+			face, err := fm.loadFont(fp)
+			if err != nil {
+				// very unlikely; warn and keep going
+				fm.logger.Printf("failed loading face: %v", err)
+				continue
+			}
+			return face
+		}
+	}
+
+	return fm.firstFace
+}
+
+// ResolveAllFacesForString returns all faces supporting the given string
+// (for the actual query).
+func (fm *FontMap) ResolveAllFacesForString(s string) []*font.Face {
+	// no-op if already built
+	fm.buildCandidates()
+
+	if faces := fm.resolveAllForString(fm.candidates.combine(), s); len(faces) > 0 {
+		return faces
+	}
+	return fm.resolveAllForString(fm.scriptMap[fm.script], s)
 }
 
 func (fm *FontMap) loadFont(fp Footprint) (*font.Face, error) {
