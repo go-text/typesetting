@@ -280,8 +280,26 @@ func parseIndexContent(src []byte, header indexStart) ([][]byte, int, error) {
 	if header.count == 0 {
 		return nil, 0, nil
 	}
+	// 5176.CFF.pdf section 5 "INDEX Data" defines OffSize as "1-4", and the
+	// CFF1 header parser rejects anything else (see parseIndexHeader). The
+	// CFF2 INDEX header is decoded by generated code (indexStart.mustParse)
+	// which performs no validation at all, so re-check here: an offSize of 0
+	// makes offsetArraySize 0, which turns the EOF check below into a no-op
+	// and lets the untrusted count field drive the allocation.
 	oSize := int(header.offSize)
-	offsetArraySize := int(header.count+1) * oSize
+	if oSize < 1 || 4 < oSize {
+		return nil, 0, fmt.Errorf("invalid INDEX offset size: %d", oSize)
+	}
+	// The offset array stores count+1 entries of oSize bytes, so any INDEX
+	// that fits in src satisfies count < len(src). Checking that first bounds
+	// the allocation by the input size and keeps the multiplication below
+	// from overflowing int. Note that computing count+1 in uint32, as was
+	// done previously, wraps to 0 for count == 0xFFFFFFFF and defeats the
+	// EOF check even when offSize is valid.
+	if uint64(header.count) >= uint64(len(src)) {
+		return nil, 0, fmt.Errorf("reading INDEX offsets: EOF: expected count below %d, got %d", len(src), header.count)
+	}
+	offsetArraySize := (int(header.count) + 1) * oSize
 	if L := len(src); L < offsetArraySize {
 		return nil, 0, fmt.Errorf("reading INDEX offsets: EOF: expected length: %d, got %d", offsetArraySize, L)
 	}
