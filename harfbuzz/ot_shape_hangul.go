@@ -296,7 +296,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 					i++
 					if i < end {
 						info[i].complexAux = tjmo
-						i++
+						// i++, not used
 					}
 
 					buffer.mergeOutClusters(start, end)

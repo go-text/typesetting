@@ -548,7 +548,7 @@ func parseValueRecord(format ValueFormat, data []byte, offset int) (out ValueRec
 				return out, 0, err
 			}
 		}
-		cursor++ // useless actually
+		// cursor++ // useless actually
 	}
 	return out, offset + 2*size, err
 }
