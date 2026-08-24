@@ -77,7 +77,6 @@ func ParseAATLoopkupExt0(src []byte, valuesCount int) (AATLoopkupExt0, int, erro
 		return item, 0, fmt.Errorf("reading AATLoopkupExt0: "+"EOF: expected length: 2, got %d", L)
 	}
 	item.version = binary.BigEndian.Uint16(src[0:])
-	n += 2
 
 	{
 
@@ -105,7 +104,6 @@ func ParseAATLoopkupExt10(src []byte) (AATLoopkupExt10, int, error) {
 	item.unitSize = binary.BigEndian.Uint16(src[2:])
 	item.FirstGlyph = binary.BigEndian.Uint16(src[4:])
 	arrayLengthValues := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 
@@ -131,7 +129,6 @@ func ParseAATLoopkupExt2(src []byte) (AATLoopkupExt2, int, error) {
 	_ = src[11] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.binSearchHeader.mustParse(src[2:])
-	n += 12
 
 	{
 		arrayLength := int(item.nUnits)
@@ -158,7 +155,6 @@ func ParseAATLoopkupExt4(src []byte) (AATLoopkupExt4, int, error) {
 	_ = src[11] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.binSearchHeader.mustParse(src[2:])
-	n += 12
 
 	{
 		arrayLength := int(item.nUnits)
@@ -186,7 +182,6 @@ func ParseAATLoopkupExt6(src []byte) (AATLoopkupExt6, int, error) {
 	_ = src[11] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.binSearchHeader.mustParse(src[2:])
-	n += 12
 
 	{
 		arrayLength := int(item.nUnits)
@@ -211,7 +206,6 @@ func ParseAATLoopkupExt8(src []byte) (AATLoopkupExt8, int, error) {
 		return item, 0, fmt.Errorf("reading AATLoopkupExt8: "+"EOF: expected length: 2, got %d", L)
 	}
 	item.version = binary.BigEndian.Uint16(src[0:])
-	n += 2
 
 	{
 		var (
@@ -238,7 +232,6 @@ func ParseAATStateTableExt(src []byte, valuesCount int, entryDataSize int) (AATS
 	offsetClass := int(binary.BigEndian.Uint32(src[4:]))
 	item.stateArray = Offset32(binary.BigEndian.Uint32(src[8:]))
 	item.entryTable = Offset32(binary.BigEndian.Uint32(src[12:]))
-	n += 16
 
 	{
 		if offsetClass != 0 { // ignore null offset
@@ -285,7 +278,6 @@ func ParseKerx(src []byte, valuesCount int) (Kerx, int, error) {
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.padding = binary.BigEndian.Uint16(src[2:])
 	item.nTables = binary.BigEndian.Uint32(src[4:])
-	n += 8
 
 	{
 		arrayLength := int(item.nTables)
@@ -369,7 +361,6 @@ func ParseKerxData0(src []byte, tupleCount int) (KerxData0, int, error) {
 	item.searchRange = binary.BigEndian.Uint32(src[4:])
 	item.entrySelector = binary.BigEndian.Uint32(src[8:])
 	item.rangeShift = binary.BigEndian.Uint32(src[12:])
-	n += 16
 
 	{
 		arrayLength := int(item.nPairs)
@@ -411,7 +402,6 @@ func ParseKerxData1(src []byte, tupleCount int, valuesCount int) (KerxData1, int
 		return item, 0, fmt.Errorf("reading KerxData1: "+"EOF: expected length: n + 4, got %d", L)
 	}
 	item.valueTable = Offset32(binary.BigEndian.Uint32(src[n:]))
-	n += 4
 
 	{
 
@@ -434,7 +424,6 @@ func ParseKerxData2(src []byte, parentSrc []byte, valuesCount int) (KerxData2, i
 	offsetLeft := int(binary.BigEndian.Uint32(src[4:]))
 	offsetRight := int(binary.BigEndian.Uint32(src[8:]))
 	item.KerningStart = Offset32(binary.BigEndian.Uint32(src[12:]))
-	n += 16
 
 	{
 		if offsetLeft != 0 { // ignore null offset
@@ -495,7 +484,6 @@ func ParseKerxData4(src []byte, valuesCount int) (KerxData4, int, error) {
 		return item, 0, fmt.Errorf("reading KerxData4: "+"EOF: expected length: n + 4, got %d", L)
 	}
 	item.Flags = binary.BigEndian.Uint32(src[n:])
-	n += 4
 
 	{
 
@@ -521,7 +509,6 @@ func ParseKerxData6(src []byte, parentSrc []byte, tupleCount int, valuesCount in
 	item.columnIndexTableOffset = binary.BigEndian.Uint32(src[12:])
 	item.kerningArrayOffset = binary.BigEndian.Uint32(src[16:])
 	item.kerningVectorOffset = binary.BigEndian.Uint32(src[20:])
-	n += 24
 
 	{
 
@@ -559,7 +546,6 @@ func ParseKerxSubtable(src []byte, valuesCount int) (KerxSubtable, int, error) {
 	item.padding = src[6]
 	item.version = kerxSTVersion(src[7])
 	item.TupleCount = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		var (
@@ -617,7 +603,6 @@ func parseLoopkupRecordExt4(src []byte, parentSrc []byte) (loopkupRecordExt4, in
 	item.LastGlyph = binary.BigEndian.Uint16(src[0:])
 	item.FirstGlyph = binary.BigEndian.Uint16(src[2:])
 	offsetValues := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 		if offsetValues != 0 { // ignore null offset

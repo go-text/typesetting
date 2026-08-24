@@ -113,7 +113,6 @@ func ParseCOLR1(src []byte) (COLR1, int, error) {
 	offsetClipList := int(binary.BigEndian.Uint32(src[n+8:]))
 	offsetVarIndexMap := int(binary.BigEndian.Uint32(src[n+12:]))
 	offsetItemVariationStore := int(binary.BigEndian.Uint32(src[n+16:]))
-	n += 20
 
 	{
 		if offsetBaseGlyphList != 0 { // ignore null offset
@@ -202,7 +201,6 @@ func ParseClip(src []byte, parentSrc []byte) (Clip, int, error) {
 	item.StartGlyphID = binary.BigEndian.Uint16(src[0:])
 	item.EndGlyphID = binary.BigEndian.Uint16(src[2:])
 	offsetClipBox := int(readUint24(src[4:]))
-	n += 7
 
 	{
 		if offsetClipBox != 0 { // ignore null offset
@@ -281,7 +279,6 @@ func ParseClipList(src []byte) (ClipList, int, error) {
 	_ = src[4] // early bound checking
 	item.format = src[0]
 	arrayLengthClips := int(binary.BigEndian.Uint32(src[1:]))
-	n += 5
 
 	{
 
@@ -308,7 +305,6 @@ func ParseColorLine(src []byte) (ColorLine, int, error) {
 	_ = src[2] // early bound checking
 	item.Extend = Extend(src[0])
 	arrayLengthColorStops := int(binary.BigEndian.Uint16(src[1:]))
-	n += 3
 
 	{
 
@@ -334,7 +330,6 @@ func ParseDeltaSetMapping(src []byte) (DeltaSetMapping, int, error) {
 	_ = src[1] // early bound checking
 	item.format = src[0]
 	item.entryFormat = src[1]
-	n += 2
 
 	{
 
@@ -356,7 +351,6 @@ func ParseItemVarStore(src []byte) (ItemVarStore, int, error) {
 	item.format = binary.BigEndian.Uint16(src[0:])
 	offsetVariationRegionList := int(binary.BigEndian.Uint32(src[2:]))
 	arrayLengthItemVariationDatas := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetVariationRegionList != 0 { // ignore null offset
@@ -411,7 +405,6 @@ func ParseItemVariationData(src []byte) (ItemVariationData, int, error) {
 	item.itemCount = binary.BigEndian.Uint16(src[0:])
 	item.wordDeltaCount = binary.BigEndian.Uint16(src[2:])
 	item.regionIndexCount = binary.BigEndian.Uint16(src[4:])
-	n += 6
 
 	{
 		arrayLength := int(item.regionIndexCount)
@@ -443,7 +436,6 @@ func ParseLayerList(src []byte) (LayerList, int, error) {
 		return item, 0, fmt.Errorf("reading LayerList: "+"EOF: expected length: 4, got %d", L)
 	}
 	arrayLengthPaintTables := int(binary.BigEndian.Uint32(src[0:]))
-	n += 4
 
 	{
 
@@ -507,7 +499,6 @@ func ParsePaintComposite(src []byte) (PaintComposite, int, error) {
 	offsetSourcePaint := int(readUint24(src[1:]))
 	item.CompositeMode = CompositeMode(src[4])
 	offsetBackdropPaint := int(readUint24(src[5:]))
-	n += 8
 
 	{
 		if offsetSourcePaint != 0 { // ignore null offset
@@ -556,7 +547,6 @@ func ParsePaintGlyph(src []byte) (PaintGlyph, int, error) {
 	item.format = src[0]
 	offsetPaint := int(readUint24(src[1:]))
 	item.GlyphID = binary.BigEndian.Uint16(src[4:])
-	n += 6
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -593,7 +583,6 @@ func ParsePaintLinearGradient(src []byte) (PaintLinearGradient, int, error) {
 	item.Y1 = int16(binary.BigEndian.Uint16(src[10:]))
 	item.X2 = int16(binary.BigEndian.Uint16(src[12:]))
 	item.Y2 = int16(binary.BigEndian.Uint16(src[14:]))
-	n += 16
 
 	{
 		if offsetColorLine != 0 { // ignore null offset
@@ -627,7 +616,6 @@ func ParsePaintRadialGradient(src []byte) (PaintRadialGradient, int, error) {
 	item.X1 = int16(binary.BigEndian.Uint16(src[10:]))
 	item.Y1 = int16(binary.BigEndian.Uint16(src[12:]))
 	item.Radius1 = binary.BigEndian.Uint16(src[14:])
-	n += 16
 
 	{
 		if offsetColorLine != 0 { // ignore null offset
@@ -656,7 +644,6 @@ func ParsePaintRotate(src []byte) (PaintRotate, int, error) {
 	item.format = src[0]
 	offsetPaint := int(readUint24(src[1:]))
 	item.Angle = Coord(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -690,7 +677,6 @@ func ParsePaintRotateAroundCenter(src []byte) (PaintRotateAroundCenter, int, err
 	item.Angle = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.CenterX = int16(binary.BigEndian.Uint16(src[6:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[8:]))
-	n += 10
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -723,7 +709,6 @@ func ParsePaintScale(src []byte) (PaintScale, int, error) {
 	offsetPaint := int(readUint24(src[1:]))
 	item.ScaleX = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.ScaleY = Coord(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -758,7 +743,6 @@ func ParsePaintScaleAroundCenter(src []byte) (PaintScaleAroundCenter, int, error
 	item.ScaleY = Coord(binary.BigEndian.Uint16(src[6:]))
 	item.CenterX = int16(binary.BigEndian.Uint16(src[8:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[10:]))
-	n += 12
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -790,7 +774,6 @@ func ParsePaintScaleUniform(src []byte) (PaintScaleUniform, int, error) {
 	item.format = src[0]
 	offsetPaint := int(readUint24(src[1:]))
 	item.Scale = Coord(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -824,7 +807,6 @@ func ParsePaintScaleUniformAroundCenter(src []byte) (PaintScaleUniformAroundCent
 	item.Scale = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.CenterX = int16(binary.BigEndian.Uint16(src[6:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[8:]))
-	n += 10
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -857,7 +839,6 @@ func ParsePaintSkew(src []byte) (PaintSkew, int, error) {
 	offsetPaint := int(readUint24(src[1:]))
 	item.XSkewAngle = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.YSkewAngle = Coord(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -892,7 +873,6 @@ func ParsePaintSkewAroundCenter(src []byte) (PaintSkewAroundCenter, int, error) 
 	item.YSkewAngle = Coord(binary.BigEndian.Uint16(src[6:]))
 	item.CenterX = int16(binary.BigEndian.Uint16(src[8:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[10:]))
-	n += 12
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -938,7 +918,6 @@ func ParsePaintSweepGradient(src []byte) (PaintSweepGradient, int, error) {
 	item.CenterY = int16(binary.BigEndian.Uint16(src[6:]))
 	item.StartAngle = Coord(binary.BigEndian.Uint16(src[8:]))
 	item.EndAngle = Coord(binary.BigEndian.Uint16(src[10:]))
-	n += 12
 
 	{
 		if offsetColorLine != 0 { // ignore null offset
@@ -1053,7 +1032,6 @@ func ParsePaintTransform(src []byte) (PaintTransform, int, error) {
 	item.format = src[0]
 	offsetPaint := int(readUint24(src[1:]))
 	offsetTransform := int(readUint24(src[4:]))
-	n += 7
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1100,7 +1078,6 @@ func ParsePaintTranslate(src []byte) (PaintTranslate, int, error) {
 	offsetPaint := int(readUint24(src[1:]))
 	item.Dx = int16(binary.BigEndian.Uint16(src[4:]))
 	item.Dy = int16(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1138,7 +1115,6 @@ func ParsePaintVarLinearGradient(src []byte) (PaintVarLinearGradient, int, error
 	item.X2 = int16(binary.BigEndian.Uint16(src[12:]))
 	item.Y2 = int16(binary.BigEndian.Uint16(src[14:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[16:])
-	n += 20
 
 	{
 		if offsetColorLine != 0 { // ignore null offset
@@ -1173,7 +1149,6 @@ func ParsePaintVarRadialGradient(src []byte) (PaintVarRadialGradient, int, error
 	item.Y1 = int16(binary.BigEndian.Uint16(src[12:]))
 	item.Radius1 = binary.BigEndian.Uint16(src[14:])
 	item.VarIndexBase = binary.BigEndian.Uint32(src[16:])
-	n += 20
 
 	{
 		if offsetColorLine != 0 { // ignore null offset
@@ -1203,7 +1178,6 @@ func ParsePaintVarRotate(src []byte) (PaintVarRotate, int, error) {
 	offsetPaint := int(readUint24(src[1:]))
 	item.Angle = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[6:])
-	n += 10
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1238,7 +1212,6 @@ func ParsePaintVarRotateAroundCenter(src []byte) (PaintVarRotateAroundCenter, in
 	item.CenterX = int16(binary.BigEndian.Uint16(src[6:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[8:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[10:])
-	n += 14
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1272,7 +1245,6 @@ func ParsePaintVarScale(src []byte) (PaintVarScale, int, error) {
 	item.ScaleX = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.ScaleY = Coord(binary.BigEndian.Uint16(src[6:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1308,7 +1280,6 @@ func ParsePaintVarScaleAroundCenter(src []byte) (PaintVarScaleAroundCenter, int,
 	item.CenterX = int16(binary.BigEndian.Uint16(src[8:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[10:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[12:])
-	n += 16
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1341,7 +1312,6 @@ func ParsePaintVarScaleUniform(src []byte) (PaintVarScaleUniform, int, error) {
 	offsetPaint := int(readUint24(src[1:]))
 	item.Scale = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[6:])
-	n += 10
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1376,7 +1346,6 @@ func ParsePaintVarScaleUniformAroundCenter(src []byte) (PaintVarScaleUniformArou
 	item.CenterX = int16(binary.BigEndian.Uint16(src[6:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[8:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[10:])
-	n += 14
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1410,7 +1379,6 @@ func ParsePaintVarSkew(src []byte) (PaintVarSkew, int, error) {
 	item.XSkewAngle = Coord(binary.BigEndian.Uint16(src[4:]))
 	item.YSkewAngle = Coord(binary.BigEndian.Uint16(src[6:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1446,7 +1414,6 @@ func ParsePaintVarSkewAroundCenter(src []byte) (PaintVarSkewAroundCenter, int, e
 	item.CenterX = int16(binary.BigEndian.Uint16(src[8:]))
 	item.CenterY = int16(binary.BigEndian.Uint16(src[10:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[12:])
-	n += 16
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1493,7 +1460,6 @@ func ParsePaintVarSweepGradient(src []byte) (PaintVarSweepGradient, int, error) 
 	item.StartAngle = Coord(binary.BigEndian.Uint16(src[8:]))
 	item.EndAngle = Coord(binary.BigEndian.Uint16(src[10:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[12:])
-	n += 16
 
 	{
 		if offsetColorLine != 0 { // ignore null offset
@@ -1522,7 +1488,6 @@ func ParsePaintVarTransform(src []byte) (PaintVarTransform, int, error) {
 	item.format = src[0]
 	offsetPaint := int(readUint24(src[1:]))
 	offsetTransform := int(readUint24(src[4:]))
-	n += 7
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1570,7 +1535,6 @@ func ParsePaintVarTranslate(src []byte) (PaintVarTranslate, int, error) {
 	item.Dx = int16(binary.BigEndian.Uint16(src[4:]))
 	item.Dy = int16(binary.BigEndian.Uint16(src[6:]))
 	item.VarIndexBase = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1612,7 +1576,6 @@ func ParseVarColorLine(src []byte) (VarColorLine, int, error) {
 	_ = src[2] // early bound checking
 	item.Extend = Extend(src[0])
 	arrayLengthColorStops := int(binary.BigEndian.Uint16(src[1:]))
-	n += 3
 
 	{
 
@@ -1656,7 +1619,6 @@ func ParseVariationRegionList(src []byte) (VariationRegionList, int, error) {
 	_ = src[3] // early bound checking
 	item.axisCount = binary.BigEndian.Uint16(src[0:])
 	arrayLengthVariationRegions := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -1714,7 +1676,6 @@ func parseBaseGlyphList(src []byte) (baseGlyphList, int, error) {
 		return item, 0, fmt.Errorf("reading baseGlyphList: "+"EOF: expected length: 4, got %d", L)
 	}
 	arrayLengthPaintRecords := int(binary.BigEndian.Uint32(src[0:]))
-	n += 4
 
 	{
 
@@ -1741,7 +1702,6 @@ func parseBaseGlyphPaintRecord(src []byte, parentSrc []byte) (baseGlyphPaintReco
 	_ = src[5] // early bound checking
 	item.GlyphID = binary.BigEndian.Uint16(src[0:])
 	offsetPaint := int(binary.BigEndian.Uint32(src[2:]))
-	n += 6
 
 	{
 		if offsetPaint != 0 { // ignore null offset
@@ -1775,7 +1735,6 @@ func parseColr0(src []byte) (colr0, int, error) {
 	offsetBaseGlyphRecords := int(binary.BigEndian.Uint32(src[4:]))
 	offsetLayerRecords := int(binary.BigEndian.Uint32(src[8:]))
 	item.numLayerRecords = binary.BigEndian.Uint16(src[12:])
-	n += 14
 
 	{
 		if offsetBaseGlyphRecords != 0 { // ignore null offset

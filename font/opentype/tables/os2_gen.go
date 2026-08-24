@@ -55,7 +55,6 @@ func ParseOs2(src []byte) (Os2, int, error) {
 	item.STypoLineGap = int16(binary.BigEndian.Uint16(src[72:]))
 	item.usWinAscent = binary.BigEndian.Uint16(src[74:])
 	item.usWinDescent = binary.BigEndian.Uint16(src[76:])
-	n += 78
 
 	{
 

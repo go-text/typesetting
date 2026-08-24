@@ -19,7 +19,6 @@ func ParseLtag(src []byte) (Ltag, int, error) {
 	item.version = binary.BigEndian.Uint32(src[0:])
 	item.flags = binary.BigEndian.Uint32(src[4:])
 	item.numTags = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		arrayLength := int(item.numTags)

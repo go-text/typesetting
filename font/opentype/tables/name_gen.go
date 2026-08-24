@@ -19,7 +19,6 @@ func ParseName(src []byte) (Name, int, error) {
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.count = binary.BigEndian.Uint16(src[2:])
 	offsetStringData := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 		if offsetStringData != 0 { // ignore null offset

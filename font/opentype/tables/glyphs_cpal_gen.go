@@ -29,7 +29,6 @@ func ParseCPAL(src []byte) (CPAL, int, error) {
 	item.numPalettes = binary.BigEndian.Uint16(src[4:])
 	item.numColorRecords = binary.BigEndian.Uint16(src[6:])
 	offsetColorRecordsArray := int(binary.BigEndian.Uint32(src[8:]))
-	n += 12
 
 	{
 		if offsetColorRecordsArray != 0 { // ignore null offset

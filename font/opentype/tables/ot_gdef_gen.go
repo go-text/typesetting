@@ -37,7 +37,6 @@ func ParseAttachList(src []byte) (AttachList, int, error) {
 	_ = src[3] // early bound checking
 	offsetCoverage := int(binary.BigEndian.Uint16(src[0:]))
 	arrayLengthAttachPoints := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 		if offsetCoverage != 0 { // ignore null offset
@@ -92,7 +91,6 @@ func ParseAttachPoint(src []byte) (AttachPoint, int, error) {
 		return item, 0, fmt.Errorf("reading AttachPoint: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthPointIndices := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -169,7 +167,6 @@ func ParseCaretValue3(src []byte) (CaretValue3, int, error) {
 	item.caretValueFormat = binary.BigEndian.Uint16(src[0:])
 	item.Coordinate = int16(binary.BigEndian.Uint16(src[2:]))
 	item.deviceOffset = Offset16(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 
@@ -217,7 +214,6 @@ func ParseClassDef1(src []byte) (ClassDef1, int, error) {
 	item.format = binary.BigEndian.Uint16(src[0:])
 	item.StartGlyphID = binary.BigEndian.Uint16(src[2:])
 	arrayLengthClassValueArray := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 
@@ -243,7 +239,6 @@ func ParseClassDef2(src []byte) (ClassDef2, int, error) {
 	_ = src[3] // early bound checking
 	item.format = binary.BigEndian.Uint16(src[0:])
 	arrayLengthClassRangeRecords := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -295,7 +290,6 @@ func ParseCoverage1(src []byte) (Coverage1, int, error) {
 	_ = src[3] // early bound checking
 	item.format = binary.BigEndian.Uint16(src[0:])
 	arrayLengthGlyphs := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -321,7 +315,6 @@ func ParseCoverage2(src []byte) (Coverage2, int, error) {
 	_ = src[3] // early bound checking
 	item.format = binary.BigEndian.Uint16(src[0:])
 	arrayLengthRanges := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -351,7 +344,6 @@ func ParseGDEF(src []byte) (GDEF, int, error) {
 	offsetAttachList := int(binary.BigEndian.Uint16(src[6:]))
 	offsetLigCaretList := int(binary.BigEndian.Uint16(src[8:]))
 	offsetMarkAttachClass := int(binary.BigEndian.Uint16(src[10:]))
-	n += 12
 
 	{
 		if offsetGlyphClassDef != 0 { // ignore null offset
@@ -442,7 +434,6 @@ func ParseLigCaretList(src []byte) (LigCaretList, int, error) {
 	_ = src[3] // early bound checking
 	offsetCoverage := int(binary.BigEndian.Uint16(src[0:]))
 	arrayLengthLigGlyphs := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 		if offsetCoverage != 0 { // ignore null offset
@@ -497,7 +488,6 @@ func ParseLigGlyph(src []byte) (LigGlyph, int, error) {
 		return item, 0, fmt.Errorf("reading LigGlyph: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthCaretValues := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -537,7 +527,6 @@ func ParseMarkGlyphSets(src []byte) (MarkGlyphSets, int, error) {
 	_ = src[3] // early bound checking
 	item.format = binary.BigEndian.Uint16(src[0:])
 	arrayLengthCoverages := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 

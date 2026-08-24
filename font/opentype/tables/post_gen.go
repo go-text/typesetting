@@ -25,7 +25,6 @@ func ParsePost(src []byte) (Post, int, error) {
 	item.memoryUsage[1] = binary.BigEndian.Uint32(src[20:])
 	item.memoryUsage[2] = binary.BigEndian.Uint32(src[24:])
 	item.memoryUsage[3] = binary.BigEndian.Uint32(src[28:])
-	n += 32
 
 	{
 		var (
@@ -63,7 +62,6 @@ func ParsePostNames20(src []byte) (PostNames20, int, error) {
 		return item, 0, fmt.Errorf("reading PostNames20: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthGlyphNameIndexes := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 

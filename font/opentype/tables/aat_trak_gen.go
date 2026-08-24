@@ -19,7 +19,6 @@ func ParseTrackData(src []byte, parentSrc []byte) (TrackData, int, error) {
 	item.nTracks = binary.BigEndian.Uint16(src[0:])
 	item.nSizes = binary.BigEndian.Uint16(src[2:])
 	offsetSizeTable := int(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 		if offsetSizeTable != 0 { // ignore null offset
@@ -67,7 +66,6 @@ func ParseTrackTableEntry(src []byte, grandParentSrc []byte, perSizeTrackingCoun
 	item.Track = Float1616FromUint(binary.BigEndian.Uint32(src[0:]))
 	item.NameIndex = binary.BigEndian.Uint16(src[4:])
 	offsetPerSizeTracking := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetPerSizeTracking != 0 { // ignore null offset
@@ -101,7 +99,6 @@ func ParseTrak(src []byte) (Trak, int, error) {
 	offsetHoriz := int(binary.BigEndian.Uint16(src[6:]))
 	offsetVert := int(binary.BigEndian.Uint16(src[8:]))
 	item.reserved = binary.BigEndian.Uint16(src[10:])
-	n += 12
 
 	{
 		if offsetHoriz != 0 { // ignore null offset

@@ -61,7 +61,6 @@ func ParseBitmapData17(src []byte) (BitmapData17, int, error) {
 	_ = src[8] // early bound checking
 	item.SmallGlyphMetrics.mustParse(src[0:])
 	arrayLengthImage := int(binary.BigEndian.Uint32(src[5:]))
-	n += 9
 
 	{
 
@@ -84,7 +83,6 @@ func ParseBitmapData18(src []byte) (BitmapData18, int, error) {
 	_ = src[11] // early bound checking
 	item.BigGlyphMetrics.mustParse(src[0:])
 	arrayLengthImage := int(binary.BigEndian.Uint32(src[8:]))
-	n += 12
 
 	{
 
@@ -105,7 +103,6 @@ func ParseBitmapData19(src []byte) (BitmapData19, int, error) {
 		return item, 0, fmt.Errorf("reading BitmapData19: "+"EOF: expected length: 4, got %d", L)
 	}
 	arrayLengthImage := int(binary.BigEndian.Uint32(src[0:]))
-	n += 4
 
 	{
 
@@ -123,10 +120,9 @@ func ParseBitmapData1Or2(src []byte) (BitmapData1Or2, int, error) {
 	var item BitmapData1Or2
 	n := 0
 	if L := len(src); L < 5 {
-		return item, 0, fmt.Errorf("reading BitmapData1or2: "+"EOF: expected length: 5, got %d", L)
+		return item, 0, fmt.Errorf("reading BitmapData1Or2: "+"EOF: expected length: 5, got %d", L)
 	}
 	item.SmallGlyphMetrics.mustParse(src[0:])
-	n += 5
 
 	{
 
@@ -157,7 +153,6 @@ func ParseCBLC(src []byte) (CBLC, int, error) {
 	item.majorVersion = binary.BigEndian.Uint16(src[0:])
 	item.minorVersion = binary.BigEndian.Uint16(src[2:])
 	arrayLengthBitmapSizes := int(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 
@@ -235,7 +230,6 @@ func ParseIndexData4(src []byte) (IndexData4, int, error) {
 		return item, 0, fmt.Errorf("reading IndexData4: "+"EOF: expected length: 4, got %d", L)
 	}
 	item.numGlyphs = binary.BigEndian.Uint32(src[0:])
-	n += 4
 
 	{
 		arrayLength := int(item.numGlyphs + 1)
@@ -263,7 +257,6 @@ func ParseIndexData5(src []byte) (IndexData5, int, error) {
 	item.ImageSize = binary.BigEndian.Uint32(src[0:])
 	item.BigMetrics.mustParse(src[4:])
 	arrayLengthGlyphIdArray := int(binary.BigEndian.Uint32(src[12:]))
-	n += 16
 
 	{
 
@@ -290,7 +283,6 @@ func ParseIndexSubHeader(src []byte, sbitOffsetsCount int) (IndexSubHeader, int,
 	item.indexFormat = indexVersion(binary.BigEndian.Uint16(src[0:]))
 	item.ImageFormat = binary.BigEndian.Uint16(src[2:])
 	item.ImageDataOffset = Offset32(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 		var (

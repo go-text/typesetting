@@ -27,7 +27,6 @@ func ParseMorx(src []byte, valuesCount int) (Morx, int, error) {
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.unused = binary.BigEndian.Uint16(src[2:])
 	item.nChains = binary.BigEndian.Uint32(src[4:])
-	n += 8
 
 	{
 		arrayLength := int(item.nChains)
@@ -57,7 +56,6 @@ func ParseMorxChain(src []byte, valuesCount int) (MorxChain, int, error) {
 	item.chainLength = binary.BigEndian.Uint32(src[4:])
 	item.nFeatureEntries = binary.BigEndian.Uint32(src[8:])
 	item.nSubtable = binary.BigEndian.Uint32(src[12:])
-	n += 16
 
 	{
 		arrayLength := int(item.nFeatureEntries)
@@ -102,7 +100,6 @@ func ParseMorxChainSubtable(src []byte, valuesCount int) (MorxChainSubtable, int
 	item.ignored[1] = src[6]
 	item.version = MorxSubtableVersion(src[7])
 	item.SubFeatureFlags = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		var (
@@ -155,7 +152,6 @@ func ParseMorxSubtableContextual(src []byte, valuesCount int) (MorxSubtableConte
 		return item, 0, fmt.Errorf("reading MorxSubtableContextual: "+"EOF: expected length: n + 4, got %d", L)
 	}
 	offsetSubstitutions := int(binary.BigEndian.Uint32(src[n:]))
-	n += 4
 
 	{
 		if offsetSubstitutions != 0 { // ignore null offset
@@ -192,7 +188,6 @@ func ParseMorxSubtableInsertion(src []byte, valuesCount int) (MorxSubtableInsert
 		return item, 0, fmt.Errorf("reading MorxSubtableInsertion: "+"EOF: expected length: n + 4, got %d", L)
 	}
 	offsetInsertions := int(binary.BigEndian.Uint32(src[n:]))
-	n += 4
 
 	{
 		if offsetInsertions != 0 { // ignore null offset
@@ -237,7 +232,6 @@ func ParseMorxSubtableLigature(src []byte, valuesCount int) (MorxSubtableLigatur
 	item.ligActionOffset = Offset32(binary.BigEndian.Uint32(src[n:]))
 	item.componentOffset = Offset32(binary.BigEndian.Uint32(src[n+4:]))
 	item.ligatureOffset = Offset32(binary.BigEndian.Uint32(src[n+8:]))
-	n += 12
 
 	{
 

@@ -26,7 +26,6 @@ func ParseFeat(src []byte) (Feat, int, error) {
 	item.featureNameCount = binary.BigEndian.Uint16(src[4:])
 	item.none1 = binary.BigEndian.Uint16(src[6:])
 	item.none2 = binary.BigEndian.Uint32(src[8:])
-	n += 12
 
 	{
 		arrayLength := int(item.featureNameCount)
@@ -57,7 +56,6 @@ func ParseFeatureName(src []byte, parentSrc []byte) (FeatureName, int, error) {
 	offsetSettingTable := int(binary.BigEndian.Uint32(src[4:]))
 	item.FeatureFlags = binary.BigEndian.Uint16(src[8:])
 	item.NameIndex = binary.BigEndian.Uint16(src[10:])
-	n += 12
 
 	{
 		if offsetSettingTable != 0 { // ignore null offset

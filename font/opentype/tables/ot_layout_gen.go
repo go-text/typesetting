@@ -35,7 +35,6 @@ func ParseConditionSet(src []byte) (ConditionSet, int, error) {
 		return item, 0, fmt.Errorf("reading ConditionSet: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthConditions := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -75,7 +74,6 @@ func ParseFeature(src []byte) (Feature, int, error) {
 	_ = src[3] // early bound checking
 	item.featureParamsOffset = binary.BigEndian.Uint16(src[0:])
 	arrayLengthLookupListIndices := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -99,7 +97,6 @@ func ParseFeatureList(src []byte) (FeatureList, int, error) {
 		return item, 0, fmt.Errorf("reading FeatureList: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthRecords := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -133,7 +130,6 @@ func ParseFeatureTableSubstitution(src []byte) (FeatureTableSubstitution, int, e
 	item.majorVersion = binary.BigEndian.Uint16(src[0:])
 	item.minorVersion = binary.BigEndian.Uint16(src[2:])
 	arrayLengthSubstitutions := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 
@@ -160,7 +156,6 @@ func ParseFeatureTableSubstitutionRecord(src []byte, parentSrc []byte) (FeatureT
 	_ = src[5] // early bound checking
 	item.FeatureIndex = binary.BigEndian.Uint16(src[0:])
 	offsetAlternateFeature := int(binary.BigEndian.Uint32(src[2:]))
-	n += 6
 
 	{
 		if offsetAlternateFeature != 0 { // ignore null offset
@@ -189,7 +184,6 @@ func ParseFeatureVariation(src []byte) (FeatureVariation, int, error) {
 	item.majorVersion = binary.BigEndian.Uint16(src[0:])
 	item.minorVersion = binary.BigEndian.Uint16(src[2:])
 	arrayLengthFeatureVariationRecords := int(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 
@@ -216,7 +210,6 @@ func ParseFeatureVariationRecord(src []byte, parentSrc []byte) (FeatureVariation
 	_ = src[7] // early bound checking
 	offsetConditionSet := int(binary.BigEndian.Uint32(src[0:]))
 	offsetSubstitutions := int(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 		if offsetConditionSet != 0 { // ignore null offset
@@ -259,7 +252,6 @@ func ParseLangSys(src []byte) (LangSys, int, error) {
 	item.lookupOrderOffset = binary.BigEndian.Uint16(src[0:])
 	item.RequiredFeatureIndex = binary.BigEndian.Uint16(src[2:])
 	arrayLengthFeatureIndices := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 
@@ -288,7 +280,6 @@ func ParseLayout(src []byte) (Layout, int, error) {
 	offsetScriptList := int(binary.BigEndian.Uint16(src[4:]))
 	offsetFeatureList := int(binary.BigEndian.Uint16(src[6:]))
 	offsetLookupList := int(binary.BigEndian.Uint16(src[8:]))
-	n += 10
 
 	{
 		if offsetScriptList != 0 { // ignore null offset
@@ -353,7 +344,6 @@ func ParseLookup(src []byte) (Lookup, int, error) {
 	item.lookupType = binary.BigEndian.Uint16(src[0:])
 	item.LookupFlag = binary.BigEndian.Uint16(src[2:])
 	arrayLengthSubtableOffsets := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 
@@ -371,7 +361,6 @@ func ParseLookup(src []byte) (Lookup, int, error) {
 		return item, 0, fmt.Errorf("reading Lookup: "+"EOF: expected length: n + 2, got %d", L)
 	}
 	item.MarkFilteringSet = binary.BigEndian.Uint16(src[n:])
-	n += 2
 
 	{
 
@@ -390,7 +379,6 @@ func ParseScript(src []byte) (Script, int, error) {
 	_ = src[3] // early bound checking
 	offsetDefaultLangSys := int(binary.BigEndian.Uint16(src[0:]))
 	arrayLengthLangSysRecords := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 		if offsetDefaultLangSys != 0 { // ignore null offset
@@ -437,7 +425,6 @@ func ParseScriptList(src []byte) (ScriptList, int, error) {
 		return item, 0, fmt.Errorf("reading ScriptList: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthRecords := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -474,7 +461,6 @@ func parseLookupList(src []byte) (lookupList, int, error) {
 		return item, 0, fmt.Errorf("reading lookupList: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthLookups := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 

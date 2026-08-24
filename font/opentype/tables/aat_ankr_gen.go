@@ -66,7 +66,6 @@ func ParseAATLookupRecord4(src []byte, parentSrc []byte) (AATLookupRecord4, int,
 	item.LastGlyph = binary.BigEndian.Uint16(src[0:])
 	item.FirstGlyph = binary.BigEndian.Uint16(src[2:])
 	offsetValues := int(binary.BigEndian.Uint16(src[4:]))
-	n += 6
 
 	{
 		if offsetValues != 0 { // ignore null offset
@@ -97,7 +96,6 @@ func ParseAATLoopkup0(src []byte, valuesCount int) (AATLoopkup0, int, error) {
 		return item, 0, fmt.Errorf("reading AATLoopkup0: "+"EOF: expected length: 2, got %d", L)
 	}
 	item.version = binary.BigEndian.Uint16(src[0:])
-	n += 2
 
 	{
 
@@ -125,7 +123,6 @@ func ParseAATLoopkup10(src []byte) (AATLoopkup10, int, error) {
 	item.unitSize = binary.BigEndian.Uint16(src[2:])
 	item.FirstGlyph = binary.BigEndian.Uint16(src[4:])
 	arrayLengthValues := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 
@@ -151,7 +148,6 @@ func ParseAATLoopkup2(src []byte) (AATLoopkup2, int, error) {
 	_ = src[11] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.binSearchHeader.mustParse(src[2:])
-	n += 12
 
 	{
 		arrayLength := int(item.nUnits)
@@ -178,7 +174,6 @@ func ParseAATLoopkup4(src []byte) (AATLoopkup4, int, error) {
 	_ = src[11] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.binSearchHeader.mustParse(src[2:])
-	n += 12
 
 	{
 		arrayLength := int(item.nUnits - 1)
@@ -206,7 +201,6 @@ func ParseAATLoopkup6(src []byte) (AATLoopkup6, int, error) {
 	_ = src[11] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.binSearchHeader.mustParse(src[2:])
-	n += 12
 
 	{
 		arrayLength := int(item.nUnits)
@@ -231,7 +225,6 @@ func ParseAATLoopkup8(src []byte) (AATLoopkup8, int, error) {
 		return item, 0, fmt.Errorf("reading AATLoopkup8: "+"EOF: expected length: 2, got %d", L)
 	}
 	item.version = binary.BigEndian.Uint16(src[0:])
-	n += 2
 
 	{
 		var (
@@ -256,7 +249,6 @@ func ParseAATLoopkup8Data(src []byte) (AATLoopkup8Data, int, error) {
 	_ = src[3] // early bound checking
 	item.FirstGlyph = binary.BigEndian.Uint16(src[0:])
 	arrayLengthValues := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -284,7 +276,6 @@ func ParseAnkr(src []byte, valuesCount int) (Ankr, int, error) {
 	item.flags = binary.BigEndian.Uint16(src[2:])
 	offsetLookupTable := int(binary.BigEndian.Uint32(src[4:]))
 	offsetGlyphDataTable := int(binary.BigEndian.Uint32(src[8:]))
-	n += 12
 
 	{
 		if offsetLookupTable != 0 { // ignore null offset

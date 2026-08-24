@@ -20,7 +20,6 @@ func ParseAATKernSubtableHeader(src []byte) (AATKernSubtableHeader, int, error) 
 	item.Coverage = src[4]
 	item.version = kernSTVersion(src[5])
 	item.TupleCount = binary.BigEndian.Uint16(src[6:])
-	n += 8
 
 	{
 		var (
@@ -64,7 +63,6 @@ func ParseAATStateTable(src []byte) (AATStateTable, int, error) {
 	offsetClassTable := int(binary.BigEndian.Uint16(src[2:]))
 	item.stateArray = Offset16(binary.BigEndian.Uint16(src[4:]))
 	item.entryTable = Offset16(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetClassTable != 0 { // ignore null offset
@@ -107,7 +105,6 @@ func ParseClassTable(src []byte) (ClassTable, int, error) {
 	_ = src[3] // early bound checking
 	item.StartGlyph = binary.BigEndian.Uint16(src[0:])
 	arrayLengthValues := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 
@@ -132,7 +129,6 @@ func ParseKernData0(src []byte) (KernData0, int, error) {
 	item.searchRange = binary.BigEndian.Uint16(src[2:])
 	item.entrySelector = binary.BigEndian.Uint16(src[4:])
 	item.rangeShift = binary.BigEndian.Uint16(src[6:])
-	n += 8
 
 	{
 		arrayLength := int(item.nPairs)
@@ -168,7 +164,6 @@ func ParseKernData1(src []byte) (KernData1, int, error) {
 		return item, 0, fmt.Errorf("reading KernData1: "+"EOF: expected length: n + 2, got %d", L)
 	}
 	item.valueTable = binary.BigEndian.Uint16(src[n:])
-	n += 2
 
 	{
 
@@ -191,7 +186,6 @@ func ParseKernData2(src []byte, parentSrc []byte) (KernData2, int, error) {
 	offsetLeft := int(binary.BigEndian.Uint16(src[2:]))
 	offsetRight := int(binary.BigEndian.Uint16(src[4:]))
 	item.KerningStart = Offset16(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		if offsetLeft != 0 { // ignore null offset
@@ -243,7 +237,6 @@ func ParseKernData3(src []byte) (KernData3, int, error) {
 	item.leftClassCount = src[3]
 	item.RightClassCount = src[4]
 	item.flags = src[5]
-	n += 6
 
 	{
 		arrayLength := int(item.kernValueCount)
@@ -308,7 +301,6 @@ func ParseOTKernSubtableHeader(src []byte) (OTKernSubtableHeader, int, error) {
 	item.length = binary.BigEndian.Uint16(src[2:])
 	item.format = kernSTVersion(src[4])
 	item.Coverage = src[5]
-	n += 6
 
 	{
 		var (

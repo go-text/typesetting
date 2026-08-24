@@ -19,7 +19,6 @@ func ParseBitmapGlyphData(src []byte) (BitmapGlyphData, int, error) {
 	item.OriginOffsetX = int16(binary.BigEndian.Uint16(src[0:]))
 	item.OriginOffsetY = int16(binary.BigEndian.Uint16(src[2:]))
 	item.GraphicType = Tag(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 
@@ -39,7 +38,6 @@ func ParseSbix(src []byte, numGlyphs int) (Sbix, int, error) {
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.Flags = binary.BigEndian.Uint16(src[2:])
 	arrayLengthStrikes := int(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 
@@ -79,7 +77,6 @@ func ParseStrike(src []byte, numGlyphs int) (Strike, int, error) {
 	_ = src[3] // early bound checking
 	item.Ppem = binary.BigEndian.Uint16(src[0:])
 	item.Ppi = binary.BigEndian.Uint16(src[2:])
-	n += 4
 
 	{
 

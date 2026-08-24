@@ -19,7 +19,6 @@ func ParseSVG(src []byte) (SVG, int, error) {
 	item.version = binary.BigEndian.Uint16(src[0:])
 	offsetSVGDocumentList := int(binary.BigEndian.Uint32(src[2:]))
 	item.reserved = binary.BigEndian.Uint32(src[6:])
-	n += 10
 
 	{
 		if offsetSVGDocumentList != 0 { // ignore null offset
@@ -45,7 +44,6 @@ func ParseSVGDocumentList(src []byte) (SVGDocumentList, int, error) {
 		return item, 0, fmt.Errorf("reading SVGDocumentList: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthDocumentRecords := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -78,7 +76,6 @@ func ParseVORG(src []byte) (VORG, int, error) {
 	item.minorVersion = binary.BigEndian.Uint16(src[2:])
 	item.DefaultVertOriginY = int16(binary.BigEndian.Uint16(src[4:]))
 	arrayLengthVertOriginYMetrics := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 

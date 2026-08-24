@@ -281,7 +281,6 @@ func ParseCmap(src []byte) (Cmap, int, error) {
 	_ = src[3] // early bound checking
 	item.version = binary.BigEndian.Uint16(src[0:])
 	item.numTables = binary.BigEndian.Uint16(src[2:])
-	n += 4
 
 	{
 		arrayLength := int(item.numTables)
@@ -362,7 +361,6 @@ func ParseCmapSubtable10(src []byte) (CmapSubtable10, int, error) {
 	item.language = binary.BigEndian.Uint32(src[8:])
 	item.StartCharCode = binary.BigEndian.Uint32(src[12:])
 	arrayLengthGlyphIdArray := int(binary.BigEndian.Uint32(src[16:]))
-	n += 20
 
 	{
 
@@ -391,7 +389,6 @@ func ParseCmapSubtable12(src []byte) (CmapSubtable12, int, error) {
 	item.length = binary.BigEndian.Uint32(src[4:])
 	item.language = binary.BigEndian.Uint32(src[8:])
 	arrayLengthGroups := int(binary.BigEndian.Uint32(src[12:]))
-	n += 16
 
 	{
 
@@ -420,7 +417,6 @@ func ParseCmapSubtable13(src []byte) (CmapSubtable13, int, error) {
 	item.length = binary.BigEndian.Uint32(src[4:])
 	item.language = binary.BigEndian.Uint32(src[8:])
 	arrayLengthGroups := int(binary.BigEndian.Uint32(src[12:]))
-	n += 16
 
 	{
 
@@ -447,7 +443,6 @@ func ParseCmapSubtable14(src []byte) (CmapSubtable14, int, error) {
 	item.format = binary.BigEndian.Uint16(src[0:])
 	item.length = binary.BigEndian.Uint32(src[2:])
 	arrayLengthVarSelectors := int(binary.BigEndian.Uint32(src[6:]))
-	n += 10
 
 	{
 
@@ -472,7 +467,6 @@ func ParseCmapSubtable2(src []byte) (CmapSubtable2, int, error) {
 		return item, 0, fmt.Errorf("reading CmapSubtable2: "+"EOF: expected length: 2, got %d", L)
 	}
 	item.format = binary.BigEndian.Uint16(src[0:])
-	n += 2
 
 	{
 
@@ -496,7 +490,6 @@ func ParseCmapSubtable4(src []byte) (CmapSubtable4, int, error) {
 	item.searchRange = binary.BigEndian.Uint16(src[8:])
 	item.entrySelector = binary.BigEndian.Uint16(src[10:])
 	item.rangeShift = binary.BigEndian.Uint16(src[12:])
-	n += 14
 
 	{
 		arrayLength := int(item.segCountX2 / 2)
@@ -515,50 +508,49 @@ func ParseCmapSubtable4(src []byte) (CmapSubtable4, int, error) {
 		return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: n + 2, got %d", L)
 	}
 	item.reservedPad = binary.BigEndian.Uint16(src[n:])
-	n += 2
 
 	{
 		arrayLength := int(item.segCountX2 / 2)
 
-		if L := len(src); L < n+arrayLength*2 {
-			return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: %d, got %d", n+arrayLength*2, L)
+		if L := len(src); L < n+2+arrayLength*2 {
+			return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: %d, got %d", n+2+arrayLength*2, L)
 		}
 
 		item.StartCode = make([]uint16, arrayLength) // allocation guarded by the previous check
 		for i := range item.StartCode {
-			item.StartCode[i] = binary.BigEndian.Uint16(src[n+i*2:])
+			item.StartCode[i] = binary.BigEndian.Uint16(src[n+2+i*2:])
 		}
 		n += arrayLength * 2
 	}
 	{
 		arrayLength := int(item.segCountX2 / 2)
 
-		if L := len(src); L < n+arrayLength*2 {
-			return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: %d, got %d", n+arrayLength*2, L)
+		if L := len(src); L < n+2+arrayLength*2 {
+			return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: %d, got %d", n+2+arrayLength*2, L)
 		}
 
 		item.IdDelta = make([]uint16, arrayLength) // allocation guarded by the previous check
 		for i := range item.IdDelta {
-			item.IdDelta[i] = binary.BigEndian.Uint16(src[n+i*2:])
+			item.IdDelta[i] = binary.BigEndian.Uint16(src[n+2+i*2:])
 		}
 		n += arrayLength * 2
 	}
 	{
 		arrayLength := int(item.segCountX2 / 2)
 
-		if L := len(src); L < n+arrayLength*2 {
-			return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: %d, got %d", n+arrayLength*2, L)
+		if L := len(src); L < n+2+arrayLength*2 {
+			return item, 0, fmt.Errorf("reading CmapSubtable4: "+"EOF: expected length: %d, got %d", n+2+arrayLength*2, L)
 		}
 
 		item.IdRangeOffsets = make([]uint16, arrayLength) // allocation guarded by the previous check
 		for i := range item.IdRangeOffsets {
-			item.IdRangeOffsets[i] = binary.BigEndian.Uint16(src[n+i*2:])
+			item.IdRangeOffsets[i] = binary.BigEndian.Uint16(src[n+2+i*2:])
 		}
 		n += arrayLength * 2
 	}
 	{
 
-		item.GlyphIDArray = src[n:]
+		item.GlyphIDArray = src[n+2:]
 		n = len(src)
 	}
 	return item, n, nil
@@ -576,7 +568,6 @@ func ParseCmapSubtable6(src []byte) (CmapSubtable6, int, error) {
 	item.language = binary.BigEndian.Uint16(src[4:])
 	item.FirstCode = binary.BigEndian.Uint16(src[6:])
 	arrayLengthGlyphIdArray := int(binary.BigEndian.Uint16(src[8:]))
-	n += 10
 
 	{
 
@@ -600,7 +591,6 @@ func ParseDefaultUVSTable(src []byte) (DefaultUVSTable, int, error) {
 		return item, 0, fmt.Errorf("reading DefaultUVSTable: "+"EOF: expected length: 4, got %d", L)
 	}
 	arrayLengthRanges := int(binary.BigEndian.Uint32(src[0:]))
-	n += 4
 
 	{
 
@@ -627,7 +617,6 @@ func ParseEncodingRecord(src []byte, parentSrc []byte) (EncodingRecord, int, err
 	item.PlatformID = PlatformID(binary.BigEndian.Uint16(src[0:]))
 	item.EncodingID = EncodingID(binary.BigEndian.Uint16(src[2:]))
 	offsetSubtable := int(binary.BigEndian.Uint32(src[4:]))
-	n += 8
 
 	{
 		if offsetSubtable != 0 { // ignore null offset
@@ -656,7 +645,6 @@ func ParseUVSMappingTable(src []byte) (UVSMappingTable, int, error) {
 		return item, 0, fmt.Errorf("reading UVSMappingTable: "+"EOF: expected length: 4, got %d", L)
 	}
 	arrayLengthRanges := int(binary.BigEndian.Uint32(src[0:]))
-	n += 4
 
 	{
 
@@ -685,7 +673,6 @@ func ParseVariationSelector(src []byte, parentSrc []byte) (VariationSelector, in
 	item.VarSelector[2] = src[2]
 	offsetDefaultUVS := int(binary.BigEndian.Uint32(src[3:]))
 	offsetNonDefaultUVS := int(binary.BigEndian.Uint32(src[7:]))
-	n += 11
 
 	{
 		if offsetDefaultUVS != 0 { // ignore null offset

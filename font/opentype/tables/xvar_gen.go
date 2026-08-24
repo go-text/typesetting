@@ -69,7 +69,6 @@ func ParseAvar(src []byte) (Avar, int, error) {
 	item.minorVersion = binary.BigEndian.Uint16(src[2:])
 	item.reserved = binary.BigEndian.Uint16(src[4:])
 	arrayLengthAxisSegmentMaps := int(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 
@@ -161,7 +160,6 @@ func ParseAxisValue4(src []byte) (AxisValue4, int, error) {
 	item.axisCount = binary.BigEndian.Uint16(src[2:])
 	item.flags = binary.BigEndian.Uint16(src[4:])
 	item.valueNameID = NameID(binary.BigEndian.Uint16(src[6:]))
-	n += 8
 
 	{
 		arrayLength := int(item.axisCount)
@@ -226,7 +224,6 @@ func ParseFvar(src []byte) (Fvar, int, error) {
 	item.axisSize = binary.BigEndian.Uint16(src[10:])
 	item.instanceCount = binary.BigEndian.Uint16(src[12:])
 	item.instanceSize = binary.BigEndian.Uint16(src[14:])
-	n += 16
 
 	{
 
@@ -272,7 +269,6 @@ func ParseGlyphVariationData(src []byte, axisCount int) (GlyphVariationData, int
 	_ = src[3] // early bound checking
 	item.tupleVariationCount = binary.BigEndian.Uint16(src[0:])
 	offsetSerializedData := int(binary.BigEndian.Uint16(src[2:]))
-	n += 4
 
 	{
 		if offsetSerializedData != 0 { // ignore null offset
@@ -315,7 +311,6 @@ func ParseGvar(src []byte) (Gvar, int, error) {
 	item.glyphCount = binary.BigEndian.Uint16(src[12:])
 	item.flags = binary.BigEndian.Uint16(src[14:])
 	item.glyphVariationDataArrayOffset = Offset32(binary.BigEndian.Uint32(src[16:]))
-	n += 20
 
 	{
 		if offsetSharedTuples != 0 { // ignore null offset
@@ -361,7 +356,6 @@ func ParseHVAR(src []byte) (HVAR, int, error) {
 	offsetAdvanceWidthMapping := int(binary.BigEndian.Uint32(src[8:]))
 	offsetLsbMapping := int(binary.BigEndian.Uint32(src[12:]))
 	offsetRsbMapping := int(binary.BigEndian.Uint32(src[16:]))
-	n += 20
 
 	{
 		if offsetItemVariationStore != 0 { // ignore null offset
@@ -435,7 +429,6 @@ func ParseInstanceRecord(src []byte, coordinatesCount int) (InstanceRecord, int,
 	_ = src[3] // early bound checking
 	item.SubfamilyNameID = binary.BigEndian.Uint16(src[0:])
 	item.flags = binary.BigEndian.Uint16(src[2:])
-	n += 4
 
 	{
 
@@ -473,7 +466,6 @@ func ParseMVAR(src []byte) (MVAR, int, error) {
 	item.valueRecordSize = binary.BigEndian.Uint16(src[6:])
 	item.valueRecordCount = binary.BigEndian.Uint16(src[8:])
 	offsetItemVariationStore := int(binary.BigEndian.Uint16(src[10:]))
-	n += 12
 
 	{
 		if offsetItemVariationStore != 0 { // ignore null offset
@@ -514,7 +506,6 @@ func ParseSTAT(src []byte) (STAT, int, error) {
 	item.axisValueCount = binary.BigEndian.Uint16(src[12:])
 	offsetAxisValues := int(binary.BigEndian.Uint32(src[14:]))
 	item.elidedFallbackNameID = binary.BigEndian.Uint16(src[18:])
-	n += 20
 
 	{
 		if offsetDesignAxes != 0 { // ignore null offset
@@ -559,7 +550,6 @@ func ParseSegmentMaps(src []byte) (SegmentMaps, int, error) {
 		return item, 0, fmt.Errorf("reading SegmentMaps: "+"EOF: expected length: 2, got %d", L)
 	}
 	arrayLengthAxisValueMaps := int(binary.BigEndian.Uint16(src[0:]))
-	n += 2
 
 	{
 
@@ -622,7 +612,6 @@ func ParseTupleVariationHeader(src []byte, axisCount int) (TupleVariationHeader,
 	_ = src[3] // early bound checking
 	item.VariationDataSize = binary.BigEndian.Uint16(src[0:])
 	item.tupleIndex = binary.BigEndian.Uint16(src[2:])
-	n += 4
 
 	{
 
@@ -661,7 +650,6 @@ func ParseVVAR(src []byte) (VVAR, int, error) {
 		return item, 0, fmt.Errorf("reading VVAR: "+"EOF: expected length: n + 4, got %d", L)
 	}
 	offsetVOrgMapping := int(binary.BigEndian.Uint32(src[n:]))
-	n += 4
 
 	{
 		if offsetVOrgMapping != 0 { // ignore null offset

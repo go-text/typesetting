@@ -71,7 +71,6 @@ func ParseGlyph(src []byte) (Glyph, int, error) {
 	item.YMin = int16(binary.BigEndian.Uint16(src[4:]))
 	item.XMax = int16(binary.BigEndian.Uint16(src[6:]))
 	item.YMax = int16(binary.BigEndian.Uint16(src[8:]))
-	n += 10
 
 	{
 
@@ -113,20 +112,19 @@ func ParseSimpleGlyph(src []byte, endPtsOfContoursCount int) (SimpleGlyph, int, 
 		return item, 0, fmt.Errorf("reading SimpleGlyph: "+"EOF: expected length: n + 2, got %d", L)
 	}
 	arrayLengthInstructions := int(binary.BigEndian.Uint16(src[n:]))
-	n += 2
 
 	{
 
-		L := int(n + arrayLengthInstructions)
+		L := int(n + 2 + arrayLengthInstructions)
 		if len(src) < L {
 			return item, 0, fmt.Errorf("reading SimpleGlyph: "+"EOF: expected length: %d, got %d", L, len(src))
 		}
-		item.Instructions = src[n:L]
+		item.Instructions = src[n+2 : L]
 		n = L
 	}
 	{
 
-		err := item.parsePoints(src[n:], endPtsOfContoursCount)
+		err := item.parsePoints(src[n+2:], endPtsOfContoursCount)
 		if err != nil {
 			return item, 0, fmt.Errorf("reading SimpleGlyph: %s", err)
 		}
