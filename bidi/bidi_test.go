@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	tu "github.com/go-text/typesetting/testutils"
 )
 
@@ -194,11 +195,17 @@ func TestEmpty(t *testing.T) {
 }
 
 func TestNewline(t *testing.T) {
-	str := "Hello\nworld"
-	runs := (&Paragraph{}).Segment([]rune(str), Neutral)
+	c, _ := ucd.LookupBidiClass('\n')
+	tu.Assert(t, c == ucd.BD_B) // paragraph separator
+	c, _ = ucd.LookupBidiClass('\u2028')
+	tu.Assert(t, c == ucd.BD_WS) // line separator
 
-	// 5 is the length up to and excluding the \n
-	tu.Assert(t, runs.Run(0).End == 5)
+	runs := (&Paragraph{}).Segment([]rune("Hello\nworld"), Neutral)
+	// 6 is the length up to and including the \n
+	tu.Assert(t, runs.Run(0).End == 6)
+
+	runs = (&Paragraph{}).Segment([]rune("Hello\u2028world"), Neutral)
+	tu.Assert(t, runs.Run(0).End == 11)
 }
 
 func TestDoubleSetString(t *testing.T) {

@@ -430,6 +430,7 @@ func TestSplitScript(t *testing.T) {
 		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR})
 		tu.Assert(t, len(seg.output) == 1)
 		seg.input, seg.output = seg.output, seg.input
+		seg.output = seg.output[:0] // reset but keep underlyng storage
 
 		seg.splitByScript()
 		tu.Assert(t, len(seg.output) == len(test.expectedRuns))
@@ -500,6 +501,7 @@ func TestSplitScript(t *testing.T) {
 		var seg Segmenter
 		seg.splitByBidi(Input{Text: test.text, RunEnd: len(test.text), Direction: di.DirectionLTR})
 		seg.input, seg.output = seg.output, seg.input
+		seg.output = seg.output[:0] // reset but keep underlyng storage
 
 		seg.splitByScript()
 		tu.Assert(t, len(seg.output) == len(test.expectedRuns))
@@ -598,6 +600,16 @@ func TestSplit(t *testing.T) {
 			"\n",
 			di.DirectionLTR,
 			[]run{{0, 1, di.DirectionLTR, language.Common, "fr", latinFont}},
+		},
+		{
+			// BIDI algorithm should be applied on each paragraph
+			// even if line wrapping itself handles \n in a run
+			"hello\nworld",
+			di.DirectionLTR,
+			[]run{
+				{0, 6, di.DirectionLTR, language.Latin, "fr", latinFont},
+				{6, 11, di.DirectionLTR, language.Latin, "fr", latinFont},
+			},
 		},
 		{
 			"The quick brown fox jumps over the lazy dog.",

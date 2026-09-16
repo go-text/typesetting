@@ -171,7 +171,8 @@ func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	seg.reset()
 	seg.splitByBidi(text) // fills output
 
-	seg.input, seg.output = seg.output, seg.input // output is empty
+	seg.input, seg.output = seg.output, seg.input
+	seg.output = seg.output[:0] // reset but keep underlyng storage
 	seg.splitByScript()
 
 	seg.enforceLanguages()
@@ -179,7 +180,7 @@ func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	// if needed, resolve text orientation for vertical text
 	if text.Direction.IsVertical() && !text.Direction.HasVerticalOrientation() {
 		seg.input, seg.output = seg.output, seg.input
-		seg.output = seg.output[:0]
+		seg.output = seg.output[:0] // reset but keep underlyng storage
 		seg.splitByVertOrientation()
 	}
 
@@ -203,43 +204,66 @@ func (seg *Segmenter) reset() {
 	seg.input = seg.input[:0]
 	seg.output = seg.output[:0]
 
-	// bidiParagraph is reset when using SetString
-
 	seg.delimStack = seg.delimStack[:0]
 }
 
+// we split vertical text like horizontal one
 func (seg *Segmenter) splitByBidi(text Input) {
-	// split vertical text like horizontal one
+	// do nothing for empty runs
 	if text.RunStart >= text.RunEnd {
 		seg.output = append(seg.output, text)
 		return
 	}
+
 	def := bidi.LeftToRight
 	if text.Direction.Progression() == di.TowardTopLeft {
 		def = bidi.RightToLeft
 	}
-	out := seg.bidiParagraph.Segment(text.Text[text.RunStart:text.RunEnd], def)
-	if out.NumRuns() == 0 {
-		seg.output = append(seg.output, text)
-		return
+
+	// our BIDI implementation does not handle multiple paragraphs
+	currentStart := text.RunStart
+	for i := text.RunStart; i < text.RunEnd; i++ {
+		if ucd.IsBidiB(text.Text[i]) {
+			// we have a break : keep the separator on this
+			// paragraph and create a new run
+			newRun := text
+			newRun.RunStart, newRun.RunEnd = currentStart, i+1
+			currentStart = i + 1
+			seg.input = append(seg.input, newRun)
+		}
+	}
+	// flush the last run, if not empty
+	if currentStart < text.RunEnd {
+		newRun := text
+		newRun.RunStart = currentStart
+		seg.input = append(seg.input, newRun)
 	}
 
-	input := text // start a rune 0 of the run
-	for i := 0; i < out.NumRuns(); i++ {
-		currentInput := input
-		run := out.Run(i)
-
-		currentInput.RunEnd = run.End + text.RunStart // shift by the input run position
-
-		// override the direction
-		if run.IsLeftToRight() {
-			currentInput.Direction.SetProgression(di.FromTopLeft)
-		} else {
-			currentInput.Direction.SetProgression(di.TowardTopLeft)
+	// apply BIDI on each paragraph
+	for _, inputRun := range seg.input {
+		out := seg.bidiParagraph.Segment(inputRun.Text[inputRun.RunStart:inputRun.RunEnd], def)
+		if out.NumRuns() == 0 {
+			seg.output = append(seg.output, inputRun)
+			continue
 		}
 
-		seg.output = append(seg.output, currentInput)
-		input.RunStart = currentInput.RunEnd
+		input := inputRun // start at rune 0 of the run
+		for i := 0; i < out.NumRuns(); i++ {
+			currentInput := input
+			innerRun := out.Run(i)
+
+			currentInput.RunEnd = innerRun.End + inputRun.RunStart // shift by the input run position
+
+			// override the direction
+			if innerRun.IsLeftToRight() {
+				currentInput.Direction.SetProgression(di.FromTopLeft)
+			} else {
+				currentInput.Direction.SetProgression(di.TowardTopLeft)
+			}
+
+			seg.output = append(seg.output, currentInput)
+			input.RunStart = currentInput.RunEnd
+		}
 	}
 }
 
