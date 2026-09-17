@@ -155,6 +155,7 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 		Direction: input.Direction,
 		Face:      input.Face,
 		Size:      input.Size,
+		level:     input.level,
 	}
 	out.Runes.Offset = input.RunStart
 	out.Runes.Count = input.RunEnd - input.RunStart
