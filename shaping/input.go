@@ -41,6 +41,9 @@ type Input struct {
 
 	// Language is an identifier for the language of the text.
 	Language language.Language
+
+	// BIDI embedding level
+	level bidi.Level
 }
 
 // FontFeature sets one font feature.
@@ -230,6 +233,7 @@ func (seg *Segmenter) splitByBidi(text Input) {
 		run := out.Run(i)
 
 		currentInput.RunEnd = run.End + text.RunStart // shift by the input run position
+		currentInput.level = run.Level
 
 		// override the direction
 		if run.IsLeftToRight() {

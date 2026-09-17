@@ -3400,93 +3400,154 @@ func TestComputeBidiOrdering(t *testing.T) {
 	type testcase struct {
 		name                string
 		input               []Output
-		direction           di.Direction
 		expectedVisualOrder []int
 	}
 	for _, tc := range []testcase{
 		{
-			name:      "ltr",
-			direction: di.DirectionLTR,
+			name: "ltr",
 			input: []Output{
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
+				{level: 0},
+				{level: 0},
+				{level: 0},
 			},
 			expectedVisualOrder: []int{0, 1, 2},
 		},
 		{
-			name:      "rtl",
-			direction: di.DirectionRTL,
+			name: "rtl",
 			input: []Output{
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
+				{level: 1},
+				{level: 1},
+				{level: 1},
 			},
 			expectedVisualOrder: []int{2, 1, 0},
 		},
 		{
-			name:      "bidi-ltr",
-			direction: di.DirectionLTR,
+			name: "bidi-ltr",
 			input: []Output{
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
+				{level: 0},
+				{level: 1},
+				{level: 1},
+				{level: 1},
+				{level: 0},
 			},
 			expectedVisualOrder: []int{0, 3, 2, 1, 4},
 		},
 		{
-			name:      "bidi-ltr-complex",
-			direction: di.DirectionLTR,
+			name: "bidi-ltr-complex",
 			input: []Output{
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionRTL},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+				{level: 1},
+				{level: 1},
 			},
 			expectedVisualOrder: []int{1, 0, 2, 4, 3, 5, 7, 6, 8, 10, 9},
 		},
 		{
-			name:      "bidi-rtl",
-			direction: di.DirectionRTL,
+			name: "bidi-rtl",
 			input: []Output{
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
+				{level: 1},
+				{level: 2},
+				{level: 2},
+				{level: 2},
+				{level: 1},
 			},
 			expectedVisualOrder: []int{4, 1, 2, 3, 0},
 		},
 		{
-			name:      "bidi-rtl-complex",
-			direction: di.DirectionRTL,
+			name: "bidi-rtl-complex",
 			input: []Output{
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionRTL},
-				{Direction: di.DirectionLTR},
-				{Direction: di.DirectionLTR},
+				{level: 2},
+				{level: 2},
+				{level: 1},
+				{level: 2},
+				{level: 2},
+				{level: 1},
+				{level: 2},
+				{level: 2},
+				{level: 1},
+				{level: 2},
+				{level: 2},
 			},
 			expectedVisualOrder: []int{9, 10, 8, 6, 7, 5, 3, 4, 2, 0, 1},
 		},
+		{
+			name: "nested bidi",
+			input: []Output{
+				{level: 1},
+				{level: 2},
+				{level: 1},
+				{level: 0},
+			},
+			expectedVisualOrder: []int{2, 1, 0, 3},
+		},
+		{
+			name: "bidi example 1",
+			input: []Output{
+				{level: 0},
+				{level: 0},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+			},
+			expectedVisualOrder: []int{0, 1, 3, 2, 4},
+		},
+		{
+			name: "bidi example 2",
+			input: []Output{
+				{level: 0},
+				{level: 2},
+				{level: 2},
+				{level: 1},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+			},
+			expectedVisualOrder: []int{0, 4, 5, 3, 2, 1, 6},
+		},
+		{
+			name: "bidi example 3",
+			input: []Output{
+				{level: 0},
+				{level: 0},
+				{level: 2},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+				{level: 1},
+				{level: 1},
+				{level: 0},
+				{level: 0},
+			},
+			expectedVisualOrder: []int{0, 1, 4, 3, 2, 5, 7, 6, 8, 9},
+		},
+		{
+			name: "bidi example 4",
+			input: []Output{
+				{level: 1}, // 0
+				{level: 1}, // 1
+				{level: 2}, // 2
+				{level: 2}, // 3
+				{level: 4}, // 4
+				{level: 4}, // 5
+				{level: 3}, // 6
+				{level: 3}, // 7
+				{level: 3}, // 8
+				{level: 2}, // 9
+				{level: 1}, // 10
+				{level: 1}, // 11
+			},
+			expectedVisualOrder: []int{11, 10, 2, 3, 7, 8, 6, 5, 4, 9, 1, 0},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			computeBidiOrdering(tc.direction, tc.input)
+			computeBidiOrdering(tc.input)
 			for visualIndex, logicalIndex := range tc.expectedVisualOrder {
 				if tc.input[logicalIndex].VisualIndex != int32(visualIndex) {
 					t.Errorf("line[%d]: expected visual index %v, got %v", logicalIndex, visualIndex, tc.input[logicalIndex].VisualIndex)
