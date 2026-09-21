@@ -24,12 +24,25 @@ func TestWrite(t *testing.T) {
 			tu.AssertNoErr(t, err)
 		}
 
-		content := WriteTTF(tables)
-		font2, err := NewLoader(bytes.NewReader(content))
+		contentT := WriteOpentype(tables, TrueType)
+		font2T, err := NewLoader(bytes.NewReader(contentT))
 		tu.AssertNoErr(t, err)
+		tu.Assert(t, font2T.Type == TrueType)
 
 		for _, table := range tables {
-			t2, err := font2.RawTable(table.Tag)
+			t2, err := font2T.RawTable(table.Tag)
+			tu.AssertNoErr(t, err)
+
+			tu.Assert(t, bytes.Equal(table.Content, t2))
+		}
+
+		contentO := WriteOpentype(tables, OpenType)
+		font2O, err := NewLoader(bytes.NewReader(contentO))
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, font2O.Type == OpenType)
+
+		for _, table := range tables {
+			t2, err := font2O.RawTable(table.Tag)
 			tu.AssertNoErr(t, err)
 
 			tu.Assert(t, bytes.Equal(table.Content, t2))
