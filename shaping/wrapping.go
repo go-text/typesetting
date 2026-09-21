@@ -428,6 +428,9 @@ type WrapConfig struct {
 	// Direction describes the text layout of the overall paragraph, rather than
 	// individual runs of text. This is used to compute the correct visual order of
 	// bidirectional text runs.
+	//
+	// When using runs obtained by [Segmenter.Split], this should match the [Input.Direction]
+	// provided to the segmenter.
 	Direction di.Direction
 	// TruncateAfterLines is the number of lines of text to allow before truncating
 	// the text. A value of zero means no limit.
@@ -920,11 +923,11 @@ func computeBidiOrdering(finalLine Line) {
 	// find highest and lowest odd level
 	highest, lowestOdd := bidi.Level(0), bidi.Level(math.MaxInt8)
 	for _, run := range finalLine {
-		if run.level > highest {
-			highest = run.level
+		if run.Level > highest {
+			highest = run.Level
 		}
-		if run.level%2 != 0 && run.level < lowestOdd {
-			lowestOdd = run.level
+		if run.Level%2 != 0 && run.Level < lowestOdd {
+			lowestOdd = run.Level
 		}
 	}
 	// From the highest level found in the text to the lowest odd level on each line,
@@ -934,7 +937,7 @@ func computeBidiOrdering(finalLine Line) {
 		// find contiguous runs
 		contiguousStart := -1
 		for i, run := range finalLine {
-			if run.level >= level {
+			if run.Level >= level {
 				if contiguousStart == -1 { // start the sequence
 					contiguousStart = i
 				} // else : add to contiguous
