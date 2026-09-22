@@ -209,19 +209,6 @@ func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass) {
 
 		classesUnion |= class
 
-		if class == ucd.BD_B {
-			// Unlikely, but trim the arrays and exit
-			p.text = p.text[:i]
-			p.pairTypes = p.pairTypes[:i]
-			p.pairValues = p.pairValues[:i]
-			p.initialTypes = p.initialTypes[:i]
-			p.resultTypes = p.resultTypes[:i]
-			p.resultLevels = p.resultLevels[:i]
-			p.matchingPDI = p.matchingPDI[:i]
-			p.matchingIsolateInitiator = p.matchingIsolateInitiator[:i]
-			p.runForCharacter = p.runForCharacter[:i]
-			return
-		}
 		p.initialTypes[i] = class
 		p.resultTypes[i] = class
 		if bracket.IsOpening() {
@@ -235,6 +222,20 @@ func (p *Paragraph) prepareInput() (classesUnion ucd.BidiClass) {
 		} else {
 			p.pairTypes[i] = bpNone
 			p.pairValues[i] = 0
+		}
+
+		if class == ucd.BD_B {
+			// Unlikely, but trim the arrays and exit
+			p.text = p.text[:i+1]
+			p.pairTypes = p.pairTypes[:i+1]
+			p.pairValues = p.pairValues[:i+1]
+			p.initialTypes = p.initialTypes[:i+1]
+			p.resultTypes = p.resultTypes[:i+1]
+			p.resultLevels = p.resultLevels[:i+1]
+			p.matchingPDI = p.matchingPDI[:i+1]
+			p.matchingIsolateInitiator = p.matchingIsolateInitiator[:i+1]
+			p.runForCharacter = p.runForCharacter[:i+1]
+			return
 		}
 	}
 

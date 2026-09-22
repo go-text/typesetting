@@ -86,6 +86,11 @@ func (b BidiClass) String() string {
 	}
 }
 
+// IsBidiB returns true for paragraph separators (BIDI class = 'B').
+func IsBidiB(r rune) bool {
+	return r == 0xa || r == 0xd || r == 0x1c || r == 0x1d || r == 0x1e || r == 0x85 || r == 0x2029
+}
+
 const (
 	bidiBracketMask        = 0b10000
 	bidiBracketOpenMask    = 0b1000

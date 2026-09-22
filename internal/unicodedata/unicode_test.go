@@ -1900,3 +1900,25 @@ func TestLookupBidiClass(t *testing.T) {
 		tu.Assert(t, bracket == 0)
 	}
 }
+
+func isBidiBNaive(r rune) bool {
+	c, _ := LookupBidiClass(r)
+	return c == BD_B
+}
+
+func BenchmarkIsBidiD(b *testing.B) {
+	b.Run("naive (full lookup)", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = isBidiBNaive(test.args)
+			}
+		}
+	})
+	b.Run("optimized", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, test := range generalCategoryTests {
+				_ = IsBidiB(test.args)
+			}
+		}
+	})
+}
