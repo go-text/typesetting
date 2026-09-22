@@ -18,6 +18,9 @@ type setType = gID
 type maskT uint64
 
 func addRangeTo(dst *maskT, a, b setType, shift uint) {
+	if *dst == all {
+		return
+	}
 	if (b>>shift)-(a>>shift) >= mb1 {
 		*dst = ^maskT(0)
 	} else {
@@ -81,10 +84,10 @@ func (sd *setDigest) add(g setType) {
 
 // addRange adds the given, inclusive range to the set,
 // in an efficient manner.
+// Each sub-digest checks its own fullness (hb_set_digest_bits_pattern_t::add_range):
+// a range of 63 glyphs or more fills the shift-0 digest, and the other two must
+// still take every range after it.
 func (sd *setDigest) addRange(a, b setType) {
-	if sd[0] == all || sd[1] == all || sd[2] == all {
-		return
-	}
 	addRangeTo(&sd[0], a, b, shift0)
 	addRangeTo(&sd[1], a, b, shift1)
 	addRangeTo(&sd[2], a, b, shift2)
