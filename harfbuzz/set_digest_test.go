@@ -1,6 +1,12 @@
 package harfbuzz
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/go-text/typesetting/font"
+	tu "github.com/go-text/typesetting/testutils"
+)
 
 func TestDigest(t *testing.T) {
 	const (
@@ -61,5 +67,40 @@ func TestDigestRangeAfterFlood(t *testing.T) {
 	}
 	if d.mayHave(730) {
 		t.Errorf("<may have> for 730, which no range covers, means the filter flooded")
+	}
+}
+
+// TestDigestKerningAfterFlood shapes pairs whose first glyph a lookup's coverage
+// lists after a range of 63 glyphs or more: Raleway's kern lookup covers f-s (and
+// their accented forms) that way, Commissioner's N-T and o-u. The digest dropped
+// those ranges and the pairs went unkerned, while AV, LT and fo, whose first glyph
+// is in the coverage's first range, were kerned all along. The advances are
+// HarfBuzz's (14.5), in font units.
+func TestDigestKerningAfterFlood(t *testing.T) {
+	for _, test := range []struct {
+		file    string
+		text    string
+		advance Position // of the first glyph
+	}{
+		{"common/Raleway-v4020-Regular.otf", "ro", 335},
+		{"common/Raleway-v4020-Regular.otf", "ke", 503},
+		{"common/Raleway-v4020-Regular.otf", "ly", 255},
+		{"common/Raleway-v4020-Regular.otf", "ov", 577},
+		{"common/Raleway-v4020-Regular.otf", "AV", 617},
+		{"common/Raleway-v4020-Regular.otf", "LT", 471},
+		{"common/Commissioner-VF.ttf", "To", 1114},
+		{"common/Commissioner-VF.ttf", "Ta", 1074},
+		{"common/Commissioner-VF.ttf", "Ro", 1246},
+		{"common/Commissioner-VF.ttf", "ov", 1164},
+		{"common/Commissioner-VF.ttf", "fo", 708},
+	} {
+		ft := openFontFileTT(t, test.file)
+		fnt := NewFont(font.NewFace(ft))
+		buffer := NewBuffer()
+		buffer.AddRunes([]rune(test.text), 0, -1)
+		buffer.GuessSegmentProperties()
+		buffer.Shape(fnt, nil)
+		tu.AssertC(t, buffer.Pos[0].XAdvance == test.advance,
+			fmt.Sprintf("%s %q: first advance %d, expected %d (kerned)", test.file, test.text, buffer.Pos[0].XAdvance, test.advance))
 	}
 }
