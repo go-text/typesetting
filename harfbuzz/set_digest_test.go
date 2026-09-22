@@ -46,3 +46,20 @@ func TestDigestHas(t *testing.T) {
 		}
 	}
 }
+
+func TestDigestRangeAfterFlood(t *testing.T) {
+	// A range spanning 63 glyphs or more fills the shift-0 sub-digest; the ranges
+	// added after it must still reach the other two (Noto Sans Arabic's ccmp
+	// coverage: [577-718] first, the noon at 759 in a later range).
+	var d setDigest
+	d.addRange(577, 718)
+	d.addRange(737, 762)
+	for _, g := range []setType{577, 700, 718, 737, 759, 762} {
+		if !d.mayHave(g) {
+			t.Errorf("expected <may have> for %d, which is in an added range", g)
+		}
+	}
+	if d.mayHave(730) {
+		t.Errorf("<may have> for 730, which no range covers, means the filter flooded")
+	}
+}
