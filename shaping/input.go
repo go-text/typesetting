@@ -257,7 +257,7 @@ func (seg *Segmenter) splitByBidi(text Input) {
 			innerRun := out.Run(i)
 
 			currentInput.RunEnd = innerRun.End + inputRun.RunStart // shift by the input run position
-			currentInput.Level = run.Level
+			currentInput.Level = innerRun.Level
 
 			// override the direction
 			if innerRun.IsLeftToRight() {
