@@ -41,6 +41,9 @@ type Input struct {
 
 	// Language is an identifier for the language of the text.
 	Language language.Language
+
+	// Level is BIDI embedding level of this run.
+	Level bidi.Level
 }
 
 // FontFeature sets one font feature.
@@ -155,6 +158,7 @@ type delimEntry struct {
 //   - Script
 //   - Language
 //   - Face
+//   - Level
 //
 // [text.Direction] is used during bidi ordering, and should refer to the general
 // context [text] is used in (typically the user system preference for GUI apps.)
@@ -253,6 +257,7 @@ func (seg *Segmenter) splitByBidi(text Input) {
 			innerRun := out.Run(i)
 
 			currentInput.RunEnd = innerRun.End + inputRun.RunStart // shift by the input run position
+			currentInput.Level = innerRun.Level
 
 			// override the direction
 			if innerRun.IsLeftToRight() {
