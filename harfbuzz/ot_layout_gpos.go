@@ -82,8 +82,11 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 			pos[i].XOffset += pos[j].XOffset
 		}
 	} else /*if (type_ & attachTypeMark)*/ {
-		pos[i].XOffset += pos[j].XOffset
-		pos[i].YOffset += pos[j].YOffset
+		if direction.isHorizontal() {
+			pos[i].XOffset += pos[j].XOffset
+		} else {
+			pos[i].YOffset += pos[j].YOffset
+		}
 
 		// i is the position of the mark; j is the base.
 		if j < i {
@@ -599,6 +602,34 @@ func (c *otApplyContext) getAnchor3(anchor tables.AnchorFormat3) (x, y float32) 
 	return x, y
 }
 
+func resolveCrossOffset(pos []GlyphPosition,
+	glyphPos int,
+	direction Direction,
+) Position {
+	horizontal := direction.isHorizontal()
+	offset := pos[glyphPos].XOffset
+	if horizontal {
+		offset = pos[glyphPos].YOffset
+	}
+	for pos[glyphPos].attachType&attachTypeCursive != 0 {
+		chain := pos[glyphPos].attachChain
+		if chain == 0 {
+			break
+		}
+		parent := glyphPos + int(chain)
+		if parent >= len(pos) {
+			break
+		}
+		glyphPos = parent
+		shift := pos[glyphPos].XOffset
+		if horizontal {
+			shift = pos[glyphPos].YOffset
+		}
+		offset += shift
+	}
+	return offset
+}
+
 func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyphIndex int, anchors tables.AnchorMatrix, glyphPos int) bool {
 	buffer := c.buffer
 	markClass := marks.MarkRecords[markIndex].MarkClass
@@ -615,17 +646,24 @@ func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyph
 	buffer.unsafeToBreak(glyphPos, buffer.idx+1)
 	markX, markY := c.getAnchor(markAnchor, buffer.cur(0).Glyph)
 
-	o := buffer.curPos(0)
-	o.XOffset = roundf(baseX - markX)
-	o.YOffset = roundf(baseY - markY)
+	baseOffset := resolveCrossOffset(buffer.Pos, glyphPos, buffer.Props.Direction)
+
+	mark := buffer.curPos(0)
 	chain := glyphPos - buffer.idx
 	if int(int16(chain)) != chain { // overflow
-		o.attachChain = 0
+		mark.attachChain = 0
 		buffer.idx++
 		return true
 	}
-	o.attachType = attachTypeMark
-	o.attachChain = int16(chain)
+	mark.attachChain = int16(chain)
+	mark.attachType = attachTypeMark
+	mark.XOffset = roundf(baseX - markX)
+	mark.YOffset = roundf(baseY - markY)
+	if buffer.Props.Direction.isHorizontal() {
+		mark.YOffset += baseOffset
+	} else {
+		mark.XOffset += baseOffset
+	}
 	buffer.scratchFlags |= bsfHasGPOSAttachment
 
 	buffer.idx++
