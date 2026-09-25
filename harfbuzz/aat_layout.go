@@ -513,15 +513,25 @@ func (c *aatApplyContext) outputGlyphs(glyphs []GID) bool {
 		c.bufferGlyphSet.addGlyphs(glyphs)
 	}
 	for _, glyph := range glyphs {
+		atEndOfText := c.buffer.idx == len(c.buffer.Info)
+		if atEndOfText {
+			c.buffer.outputGlyphIndex(glyph)
+		}
+		info := c.buffer.cur(0)
+		if atEndOfText {
+			info = c.buffer.prev()
+		}
 		if glyph == deletedGlyph {
 			c.buffer.scratchFlags |= bsfAatHasDeleted
-			c.buffer.cur(0).setAatDeleted()
+			info.setAatDeleted()
 		} else {
 			if c.gdef.GlyphClassDef != nil {
-				c.buffer.cur(0).glyphProps = c.gdef.GlyphProps(gID(glyph))
+				info.glyphProps = c.gdef.GlyphProps(gID(glyph))
 			}
 		}
-		c.buffer.outputGlyphIndex(glyph)
+		if !atEndOfText {
+			c.buffer.outputGlyphIndex(glyph)
+		}
 	}
 	return true
 }
