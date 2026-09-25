@@ -344,11 +344,14 @@ func (c *otApplyContext) applyGPOSPair1(inner tables.PairPosData1, index int) bo
 		return false
 	}
 
-	ap1 := c.applyGPOSValueRecord(inner.ValueFormat1, record.ValueRecord1, buffer.curPos(0))
-	ap2 := c.applyGPOSValueRecord(inner.ValueFormat2, record.ValueRecord2, &buffer.Pos[pos])
+	appliedFirst := c.applyGPOSValueRecord(inner.ValueFormat1, record.ValueRecord1, buffer.curPos(0))
+	appliedSecond := c.applyGPOSValueRecord(inner.ValueFormat2, record.ValueRecord2, &buffer.Pos[pos])
 
-	if ap1 || ap2 {
+	if appliedFirst || appliedSecond {
 		buffer.unsafeToBreak(buffer.idx, pos+1)
+	} else {
+		// Even a zero-valued pair record is a concat hazard.
+		buffer.unsafeToConcat(buffer.idx, pos+1)
 	}
 
 	if inner.ValueFormat2 != 0 {
