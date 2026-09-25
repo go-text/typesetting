@@ -741,6 +741,19 @@ func (c *otApplyContext) applyGPOSMarkToLigature(data tables.MarkLigPos, markInd
 	for j := buffer.idx; j > c.lastBaseUntil; j-- {
 		ma := skippyIter.match(&buffer.Info[j-1])
 		if ma == match {
+			// https://github.com/harfbuzz/harfbuzz/issues/4124
+
+			/* We only want to attach to the first of a MultipleSubst sequence,
+			 * which might have been ligated into a preceding ligature, and in that
+			 * case the mark should attach to that ligature.
+			 * https://github.com/harfbuzz/harfbuzz/issues/4969
+			 * Reject others... */
+			accept := !buffer.Info[j-1].multiplied() || 0 == buffer.Info[j-1].getLigComp()
+			if _, covered := (data.LigatureCoverage).Index(gID(buffer.Info[j-1].Glyph)); !accept && !covered {
+				ma = skip
+			}
+		}
+		if ma == match {
 			c.lastBase = j - 1
 			break
 		}
