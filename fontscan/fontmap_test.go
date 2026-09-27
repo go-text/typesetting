@@ -471,3 +471,13 @@ func TestUseSystemFontsTwice(t *testing.T) {
 	tu.Assert(t, len(fm.database) == 1)
 	tu.Assert(t, len(fm.scriptMap[language.Latin]) == 1)
 }
+
+func TestSetScriptUnchanged(t *testing.T) {
+	fm := NewFontMap(nil)
+	fm.SetScript(language.Latin)
+	fm.built = true
+	fm.SetScript(language.Latin)
+	tu.Assert(t, fm.built)
+	fm.SetScript(language.Arabic)
+	tu.Assert(t, !fm.built)
+}
