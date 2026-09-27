@@ -97,9 +97,12 @@ func (store ItemVarStore) GetDelta(index VariationStoreIndex, coords []Coord) fl
 	}
 	deltaSet := varData.DeltaSets[index.DeltaSetInner]
 	var delta float32
+	regions := store.VariationRegionList.VariationRegions
 	for i, regionIndex := range varData.RegionIndexes {
-		region := store.VariationRegionList.VariationRegions[regionIndex]
-		v := region.Evaluate(coords)
+		if int(regionIndex) >= len(regions) {
+			return 0
+		}
+		v := regions[regionIndex].Evaluate(coords)
 		delta += float32(deltaSet[i]) * v
 	}
 	return delta
@@ -129,6 +132,9 @@ type VariationRegion struct {
 // Evaluate returns the scalar factor of the region
 func (vr VariationRegion) Evaluate(coords []Coord) float32 {
 	v := float32(1)
+	if len(coords) > len(vr.RegionAxes) {
+		coords = coords[:len(vr.RegionAxes)]
+	}
 	for axis, coord := range coords {
 		factor := vr.RegionAxes[axis].evaluate(coord)
 		v *= factor
