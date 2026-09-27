@@ -53,6 +53,14 @@ func TestN2(t *testing.T) {
 	}
 }
 
+// U+05FF is unassigned. DerivedBidiClass @missing gives it R. With class 0
+// instead, the text splits into three runs.
+func TestUnassignedDefaultsToBlockClass(t *testing.T) {
+	runs := (&Paragraph{}).Segment([]rune("א\u05FFב"), RightToLeft)
+	tu.Assert(t, runs.NumRuns() == 1)
+	tu.Assert(t, !runs.Run(0).IsLeftToRight())
+}
+
 func TestSpaces(t *testing.T) {
 	str := `ااب   `
 	runs := (&Paragraph{}).Segment([]rune(str), LeftToRight)

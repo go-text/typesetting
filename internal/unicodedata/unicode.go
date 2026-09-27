@@ -300,12 +300,59 @@ func (bb BidiBracket) Reverse(r rune) rune {
 	return bracketsXORMasks[bb&bidiBracketReverseMask] ^ r
 }
 
-// LookupBidiClass return the value of the Bidi_Class,
-// or zero.
+// bidiClassDefaults gives the class of unassigned code points, taken from
+// DerivedBidiClass.txt. It holds the @missing lines and the reserved code
+// points listed as BN. Code points outside these ranges default to L. The
+// generated table only covers assigned code points. [LookupBidiClass] handles
+// noncharacters on its own.
+var bidiClassDefaults = [...]struct {
+	lo, hi rune
+	class  BidiClass
+}{
+	{0x2065, 0x2065, BD_BN},
+	{0xFDD0, 0xFDEF, BD_BN},
+	{0xFFF0, 0xFFF8, BD_BN},
+	{0xE0000, 0xE0FFF, BD_BN},
+	{0x0590, 0x05FF, BD_R},
+	{0x0600, 0x07BF, BD_AL},
+	{0x07C0, 0x085F, BD_R},
+	{0x0860, 0x08FF, BD_AL},
+	{0x20A0, 0x20CF, BD_ET},
+	{0xFB1D, 0xFB4F, BD_R},
+	{0xFB50, 0xFDCF, BD_AL},
+	{0xFDF0, 0xFDFF, BD_AL},
+	{0xFE70, 0xFEFF, BD_AL},
+	{0x10800, 0x10CFF, BD_R},
+	{0x10D00, 0x10D3F, BD_AL},
+	{0x10D40, 0x10EBF, BD_R},
+	{0x10EC0, 0x10EFF, BD_AL},
+	{0x10F00, 0x10F2F, BD_R},
+	{0x10F30, 0x10F6F, BD_AL},
+	{0x10F70, 0x10FFF, BD_R},
+	{0x1E800, 0x1EC6F, BD_R},
+	{0x1EC70, 0x1ECBF, BD_AL},
+	{0x1ECC0, 0x1ECFF, BD_R},
+	{0x1ED00, 0x1ED4F, BD_AL},
+	{0x1ED50, 0x1EDFF, BD_R},
+	{0x1EE00, 0x1EEFF, BD_AL},
+	{0x1EF00, 0x1EFFF, BD_R},
+}
+
+// LookupBidiClass returns the Bidi_Class of r.
+// Unassigned code points get the default of their block from
+// DerivedBidiClass.txt.
 func LookupBidiClass(r rune) (BidiClass, BidiBracket) {
 	i := bidiLookup(r)
 	if i == 0 {
-		return 0, 0
+		if r&0xFFFE == 0xFFFE { // noncharacter U+xxFFFE, U+xxFFFF
+			return BD_BN, 0
+		}
+		for _, d := range bidiClassDefaults {
+			if d.lo <= r && r <= d.hi {
+				return d.class, 0
+			}
+		}
+		return BD_L, 0
 	}
 	class := i & 0xFF
 	return 1 << (class - 1), BidiBracket(i >> 8)

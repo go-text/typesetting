@@ -179,6 +179,30 @@ var generalCategoryTests = []struct {
 	{0x11DE0, Nd},
 }
 
+func TestLookupBidiClassDefaults(t *testing.T) {
+	for _, test := range []struct {
+		r    rune
+		want BidiClass
+	}{
+		{'A', BD_L},
+		{0x05D0, BD_R},
+		{0x0378, BD_L},   // unassigned, Greek
+		{0x05FF, BD_R},   // unassigned, Hebrew block
+		{0x074B, BD_AL},  // unassigned, Syriac block
+		{0x20C1, BD_ET},  // unassigned, Currency Symbols block
+		{0xFDD0, BD_BN},  // noncharacter
+		{0x3FFFE, BD_BN}, // noncharacter
+		{0xE0080, BD_BN}, // unassigned, Tags block
+		{0x1EEFF, BD_AL},
+		{0x1EFFF, BD_R},
+		{0x1F000, BD_ON},
+	} {
+		if got, _ := LookupBidiClass(test.r); got != test.want {
+			t.Errorf("U+%04X: got bidi class %d, want %d", test.r, got, test.want)
+		}
+	}
+}
+
 func TestLookupGeneralCategory(t *testing.T) {
 	for _, tt := range generalCategoryTests {
 		if got := LookupGeneralCategory(tt.args); got != tt.want {
