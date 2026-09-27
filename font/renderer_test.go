@@ -693,3 +693,20 @@ func BenchmarkGlyphData(b *testing.B) {
 		})
 	}
 }
+
+func TestSVGTruncatedGzip(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"truncated header", []byte{0x1f, 0x8b}},
+		{"invalid compression method", []byte{0x1f, 0x8b, 0, 0, 0, 0, 0, 0, 0, 0}},
+		{"truncated stream", []byte{0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := svg{{svg: tc.data}}
+			_, ok := s.glyphData(0, 1000)
+			tu.Assert(t, !ok)
+		})
+	}
+}
