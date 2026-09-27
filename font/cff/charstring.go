@@ -21,7 +21,7 @@ func (f *CFF) LoadGlyph(glyph tables.GlyphID) ([]ot.Segment, ps.PathBounds, erro
 	var (
 		psi    ps.Machine
 		loader type2CharstringHandler
-		index  byte = 0
+		index  uint16
 		err    error
 	)
 	if f.fdSelect != nil {
@@ -152,7 +152,7 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []tables.Coord) ([]ot.Segm
 	var (
 		psi    ps.Machine
 		loader cff2CharstringHandler
-		index  byte = 0
+		index  uint16
 		err    error
 	)
 	if f.fdSelect != nil {

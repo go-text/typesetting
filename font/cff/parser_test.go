@@ -412,6 +412,13 @@ func TestHintmaskAtEnd(t *testing.T) {
 	tu.AssertNoErr(t, err)
 }
 
+func TestFdSelect4LargeIndex(t *testing.T) {
+	fds := fdSelect4{ranges: []range4{{first: 0, fd: 300}}, sentinel: 10}
+	fd, err := fds.fontDictIndex(3)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, fd == 300)
+}
+
 func TestParseIndex2EmptyAtEnd(t *testing.T) {
 	out, err := parseIndex2([]byte{0, 0, 0, 0}, 0)
 	if err != nil || len(out) != 0 {
