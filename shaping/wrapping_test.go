@@ -3681,6 +3681,24 @@ func TestComputeBidiOrderingLevels(t *testing.T) {
 	}
 }
 
+// the single run fast path must post-process the line like the general path
+func TestWrapParagraphSingleRunTrimsTrailingSpace(t *testing.T) {
+	text := []rune("The quick ")
+	// wrapping modifies the runs, so each wrap gets freshly shaped ones
+	shape := func() Output {
+		return (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	}
+	run := shape()
+
+	var w, w2 LineWrapper
+	lines, _ := w.WrapParagraph(WrapConfig{}, 10000, text, NewSliceIterator([]Output{shape()}))
+	w2.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{shape()}))
+	line, _ := w2.WrapNextLine(10000)
+	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == line.Line[0].Advance)
+	tu.Assert(t, lines[0][0].Advance == run.Advance-line.TrimmedTrailingWhitespace)
+	tu.Assert(t, line.TrimmedTrailingWhitespace > 0)
+}
+
 // wrapAllLines wraps the prepared paragraph of l, alternating the given
 // widths line by line, and returns copies of the wrapped lines.
 func wrapAllLines(l *LineWrapper, widths []int) []WrappedLine {
