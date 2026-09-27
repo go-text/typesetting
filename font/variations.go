@@ -53,9 +53,29 @@ type gvar struct {
 	sharedTupleActiveIdx []int              // with length tupleCount
 }
 
-func newGvar(table tables.Gvar, glyf tables.Glyf) (gvar, error) {
+func newGvar(table tables.Gvar, glyf tables.Glyf, axisCount int) (gvar, error) {
 	if len(table.GlyphVariationDatas) != len(glyf) {
 		return gvar{}, fmt.Errorf("invalid 'gvar' table: mismatch in glyphs count")
+	}
+	checkAxis := func(t tables.Tuple) error {
+		if t.Values != nil && len(t.Values) != axisCount {
+			return fmt.Errorf("gvar: invalid number of axis (%d != %d)", len(t.Values), axisCount)
+		}
+		return nil
+	}
+	for _, ts := range table.SharedTuples.SharedTuples {
+		if err := checkAxis(ts); err != nil {
+			return gvar{}, err
+		}
+	}
+	for _, vs := range table.GlyphVariationDatas {
+		for _, h := range vs.TupleVariationHeaders {
+			for _, t := range [3]tables.Tuple{h.PeakTuple, h.IntermediateTuples[0], h.IntermediateTuples[1]} {
+				if err := checkAxis(t); err != nil {
+					return gvar{}, err
+				}
+			}
+		}
 	}
 
 	out := gvar{
@@ -76,7 +96,7 @@ func newGvar(table tables.Gvar, glyf tables.Glyf) (gvar, error) {
 		err := parseGlyphVariationSerializedData(vs.SerializedData,
 			vs.HasSharedPointNumbers(), pointsNumberCountAll, false, tvs)
 		if err != nil {
-			return out, err
+			return gvar{}, err
 		}
 		out.variations[i] = tvs
 	}
