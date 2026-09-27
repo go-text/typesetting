@@ -39,12 +39,6 @@ func (f *CFF) LoadGlyph(glyph tables.GlyphID) ([]ot.Segment, ps.PathBounds, erro
 // type2CharstringHandler implements operators needed to fetch Type2 charstring metrics
 type type2CharstringHandler struct {
 	cs ps.CharstringReader
-
-	// found in private DICT, needed since we can't differenciate
-	// no width set from 0 width
-	// `width` must be initialized to default width
-	nominalWidthX float64
-	width         float64
 }
 
 func (type2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
@@ -56,9 +50,6 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 		case 11: // return
 			return state.Return() // do not clear the arg stack
 		case 14: // endchar
-			if state.ArgStack.Top > 0 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			met.cs.ClosePath()
 			return ps.ErrInterrupt
 		case 10: // callsubr
@@ -66,19 +57,10 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 		case 29: // callgsubr
 			return ps.GlobalSubr(state) // do not clear the arg stack
 		case 21: // rmoveto
-			if state.ArgStack.Top > 2 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			err = met.cs.Rmoveto(state)
 		case 22: // hmoveto
-			if state.ArgStack.Top > 1 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			err = met.cs.Hmoveto(state)
 		case 4: // vmoveto
-			if state.ArgStack.Top > 1 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			err = met.cs.Vmoveto(state)
 		case 1, 18: // hstem, hstemhm
 			met.cs.Hstem(state)
@@ -87,9 +69,6 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 		case 19, 20: // hintmask, cntrmask
 			// variable number of arguments, but always even
 			// for xxxmask, if there are arguments on the stack, then this is an impliied stem
-			if state.ArgStack.Top&1 != 0 {
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			met.cs.Hintmask(state)
 			// the stack is managed by the previous call
 			return nil
