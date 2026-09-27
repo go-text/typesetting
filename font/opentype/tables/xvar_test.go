@@ -252,3 +252,18 @@ func TestParseSTAT(t *testing.T) {
 		}
 	}
 }
+
+func TestItemVarStoreOutOfRange(t *testing.T) {
+	store := ItemVarStore{
+		format: 1,
+		VariationRegionList: VariationRegionList{axisCount: 1, VariationRegions: []VariationRegion{
+			{RegionAxes: []RegionAxisCoordinates{{StartCoord: -1, PeakCoord: 1, EndCoord: 1}}},
+		}},
+		ItemVariationDatas: []ItemVariationData{{RegionIndexes: []uint16{3}, DeltaSets: [][]int16{{10}}}},
+	}
+	// region index 3 is out of range
+	tu.Assert(t, store.GetDelta(VariationStoreIndex{}, []Coord{1}) == 0)
+	// more coordinates than region axes
+	store.ItemVariationDatas[0].RegionIndexes[0] = 0
+	tu.Assert(t, store.GetDelta(VariationStoreIndex{}, []Coord{1, 1}) == 10)
+}
