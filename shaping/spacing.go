@@ -128,11 +128,17 @@ func (run *Output) trimStartLetterSpacing() {
 		return
 	}
 	reversed := run.Direction.Progression() == di.TowardTopLeft
-	firstG := &run.Glyphs[0]
+	first := 0
 	if reversed {
-		firstG = &run.Glyphs[len(run.Glyphs)-1]
+		first = len(run.Glyphs) - 1
 	}
-	halfSpacing := firstG.startLetterSpacing
+	halfSpacing := run.Glyphs[first].startLetterSpacing
+	if halfSpacing == 0 {
+		return
+	}
+	// Do not mutate the caller's glyphs, so that the runs may be wrapped again.
+	run.Glyphs = append([]Glyph(nil), run.Glyphs...)
+	firstG := &run.Glyphs[first]
 	firstG.Advance -= halfSpacing
 	if run.Direction.IsVertical() {
 		firstG.YAdvance -= halfSpacing

@@ -838,27 +838,27 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			// This next block locates the first/last visual glyph on the line and
 			// zeroes its advance if it is whitespace.
 			if L := len(finalVisualRun.Glyphs); L > 0 {
-				var finalVisualGlyph *Glyph
-				if l.config.Direction.Progression() == di.FromTopLeft {
-					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
-				} else {
-					finalVisualGlyph = &finalVisualRun.Glyphs[0]
+				gIdx := L - 1
+				if l.config.Direction.Progression() == di.TowardTopLeft {
+					gIdx = 0
 				}
-
+				finalVisualGlyph := &finalVisualRun.Glyphs[gIdx]
+				var isSpace bool
 				if finalVisualRun.Direction.IsVertical() {
-					if finalVisualGlyph.Height == 0 {
-						finalVisualGlyph.YAdvance = 0
-						finalVisualGlyph.Advance = 0
-					}
+					isSpace = finalVisualGlyph.Height == 0
 				} else { // horizontal
-					if finalVisualGlyph.Width == 0 {
-						finalVisualGlyph.XAdvance = 0
-						finalVisualGlyph.Advance = 0
-					}
+					isSpace = finalVisualGlyph.Width == 0
 				}
-				beforeTrim := finalVisualRun.Advance
-				finalVisualRun.RecomputeAdvance()
-				trimmed = beforeTrim - finalVisualRun.Advance
+				if isSpace && finalVisualGlyph.Advance != 0 {
+					// do not mutate the caller's glyphs, so that the runs may be wrapped again
+					finalVisualRun.Glyphs = append([]Glyph(nil), finalVisualRun.Glyphs...)
+					finalVisualGlyph = &finalVisualRun.Glyphs[gIdx]
+					trimmed = finalVisualGlyph.Advance
+					finalVisualGlyph.XAdvance = 0
+					finalVisualGlyph.YAdvance = 0
+					finalVisualGlyph.Advance = 0
+					finalVisualRun.Advance -= trimmed
+				}
 			}
 		}
 

@@ -3668,3 +3668,30 @@ func TestWrapping_oneLine_overflow_bug(t *testing.T) {
 	_, done := l.WrapNextLine(maxWidth)
 	tu.Assert(t, done)
 }
+
+// wrapping must not mutate the caller's glyphs, so that the same runs can be wrapped again
+func TestWrappingDoesNotMutateRuns(t *testing.T) {
+	text := []rune("aa bb cc")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	runs := []Output{run}
+	AddSpacing(runs, text, 0, fixed.I(4))
+	before := append([]Glyph(nil), runs[0].Glyphs...)
+
+	var w LineWrapper
+	lines, _ := w.WrapParagraphF(WrapConfig{}, runs[0].Advance*3/4, text, NewSliceIterator(runs))
+	tu.Assert(t, len(lines) == 2)
+	tu.Assert(t, reflect.DeepEqual(before, runs[0].Glyphs))
+
+	lines, _ = w.WrapParagraphF(WrapConfig{}, runs[0].Advance, text, NewSliceIterator(runs))
+	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == runs[0].Advance)
+}
+
+func TestCutRunWithoutLetterSpacingDoesNotAllocate(t *testing.T) {
+	text := []rune("abcd")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
+	allocs := testing.AllocsPerRun(10, func() { cutRun(run, mapping, 0, 1, true) })
+	if allocs != 0 {
+		t.Fatalf("cutting an unspaced run allocated %v times", allocs)
+	}
+}
