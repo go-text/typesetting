@@ -3248,7 +3248,7 @@ func TestTrailingSpace(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   72,
+		Size:   fixed.I(2), // 1 px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
@@ -3548,7 +3548,7 @@ func TestRequiredBreaks(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   72,
+		Size:   fixed.I(2), // 1 px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
@@ -3579,7 +3579,7 @@ func TestTrimmedTrailingWhitespace(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   72,
+		Size:   fixed.I(2), // 1 px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1) && run.Glyphs[3].XAdvance == fixed.I(1))
@@ -3606,7 +3606,7 @@ func TestMaxWidthRouding(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   36,
+		Size:   fixed.I(1), // half px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1)/2)
