@@ -216,3 +216,9 @@ func TestWouldApplyContext2OutOfRangeClass(t *testing.T) {
 	tu.Assert(t, !c.wouldApplyLookupContext2(tables.SequenceContextFormat2{ClassDef: classDef}, 0, 0))
 	tu.Assert(t, !c.wouldApplyLookupChainedContext2(tables.ChainedSequenceContextFormat2{InputClassDef: classDef}, 0, 0))
 }
+
+func TestMarkFilteringSetOutOfRange(t *testing.T) {
+	var c otApplyContext
+	props := uint32(font.UseMarkFilteringSet) | 3<<16
+	tu.Assert(t, !c.matchPropertiesMark(&GlyphInfo{}, tables.GPMark, props))
+}

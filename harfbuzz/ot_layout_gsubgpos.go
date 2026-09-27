@@ -441,8 +441,12 @@ func (c *otApplyContext) matchPropertiesMark(info *GlyphInfo, glyphProps uint16,
 	/* If using mark filtering sets, the high uint16 of
 	 * matchProps has the set index. */
 	if uint16(matchProps)&font.UseMarkFilteringSet != 0 {
-		_, has := c.gdef.MarkGlyphSetsDef.Coverages[matchProps>>16].Index(gID(info.Glyph))
-		return has
+		sets := c.gdef.MarkGlyphSetsDef.Coverages
+		if set := matchProps >> 16; set < uint32(len(sets)) {
+			_, has := sets[set].Index(gID(info.Glyph))
+			return has
+		}
+		return false
 	}
 
 	/* The second byte of matchProps has the meaning

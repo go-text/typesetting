@@ -159,8 +159,10 @@ func (c *otApplyContext) applyGSUB(table tables.GSUBLookup) bool {
 		c.applySubsSequence(data.Sequences[index].SubstituteGlyphIDs)
 
 	case tables.AlternateSubs:
-		alternates := data.AlternateSets[index].AlternateGlyphIDs
-		return c.applySubsAlternate(alternates)
+		if index >= len(data.AlternateSets) { // tables.Parse does not check this index
+			return false
+		}
+		return c.applySubsAlternate(data.AlternateSets[index].AlternateGlyphIDs)
 
 	case tables.LigatureSubs:
 		ligatureSet := data.LigatureSets[index].Ligatures
