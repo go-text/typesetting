@@ -226,11 +226,25 @@ func clamp(v float32) float32 {
 }
 
 func (f *Face) getGlyphAdvanceVar(gid gID, isVertical bool) float32 {
-	_, phantoms := f.getGlyfPoints(gid, false)
+	cache := &f.hAdvanceCache
 	if isVertical {
-		return clamp(phantoms[phantomTop].Y - phantoms[phantomBottom].Y)
+		cache = &f.vAdvanceCache
 	}
-	return clamp(phantoms[phantomRight].X - phantoms[phantomLeft].X)
+	if *cache == nil {
+		*cache = newAdvanceCache(f.nGlyphs)
+	}
+	if adv, ok := cache.get(gid); ok {
+		return adv
+	}
+	_, phantoms := f.getGlyfPoints(gid, false)
+	var adv float32
+	if isVertical {
+		adv = clamp(phantoms[phantomTop].Y - phantoms[phantomBottom].Y)
+	} else {
+		adv = clamp(phantoms[phantomRight].X - phantoms[phantomLeft].X)
+	}
+	cache.set(gid, adv)
+	return adv
 }
 
 func (f *Face) HorizontalAdvance(gid GID) float32 {

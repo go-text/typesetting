@@ -731,3 +731,41 @@ func TestCFF2Var(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkAdvanceNoHVar(b *testing.B) {
+	font := loadFont(b, "toys/GVAR-no-HVAR.ttf")
+	face := NewFace(font)
+	face.SetVariations([]Variation{{Tag: ot.MustNewTag("wght"), Value: 600}})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for gid := GID(0); gid < 15; gid++ {
+			_ = face.HorizontalAdvance(gid)
+		}
+	}
+}
+
+func TestAdvanceCacheLazyAndInvalidated(t *testing.T) {
+	font := loadFont(t, "toys/GVAR-no-HVAR.ttf")
+	face := NewFace(font)
+	if face.hAdvanceCache != nil || face.vAdvanceCache != nil {
+		t.Fatal("allocated fallback advance cache before it was needed")
+	}
+	face.HorizontalAdvance(0)
+	if face.vAdvanceCache != nil {
+		t.Fatal("horizontal advance allocated the vertical cache")
+	}
+	for _, coords := range [][]VarCoord{{0, 0}, {0x4000, 0x4000}, nil, {-0x4000, -0x4000}} {
+		face.SetCoords(coords)
+		ref := NewFace(font)
+		ref.SetCoords(coords)
+		for gid := GID(0); gid < GID(font.nGlyphs); gid++ {
+			wantH, wantV := ref.HorizontalAdvance(gid), ref.VerticalAdvance(gid)
+			for repeat := 0; repeat < 2; repeat++ {
+				if gotH, gotV := face.HorizontalAdvance(gid), face.VerticalAdvance(gid); gotH != wantH || gotV != wantV {
+					t.Fatalf("coords %v, glyph %d: advances (%g, %g), want (%g, %g)", coords, gid, gotH, gotV, wantH, wantV)
+				}
+			}
+		}
+	}
+}
