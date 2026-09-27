@@ -2,7 +2,6 @@ package shaping
 
 import (
 	"math"
-	"sort"
 
 	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
@@ -21,141 +20,6 @@ type glyphIndex = int
 // mapping, subtract run.Runes.Offset first. If the provided buf is large enough to
 // hold the return value, it will be used instead of allocating a new slice.
 func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
-	if runes.Count <= 0 {
-		return nil
-	}
-	var mapping []glyphIndex
-	if cap(buf) >= runes.Count {
-		mapping = buf[:runes.Count]
-	} else {
-		mapping = make([]glyphIndex, runes.Count)
-	}
-	glyphCursor := 0
-	rtl := dir.Progression() == di.TowardTopLeft
-	if rtl {
-		glyphCursor = len(glyphs) - 1
-	}
-	// off tracks the offset position of the glyphs from the first rune of the
-	// shaped text. This must be subtracted from all cluster indicies in order to
-	// normalize them into the range [0,runes.Count).
-	off := runes.Offset
-	for i := 0; i < runes.Count; i++ {
-		for glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			((rtl && glyphs[glyphCursor].ClusterIndex-off <= i) ||
-				(!rtl && glyphs[glyphCursor].ClusterIndex-off < i)) {
-			if rtl {
-				glyphCursor--
-			} else {
-				glyphCursor++
-			}
-		}
-		if rtl {
-			glyphCursor++
-		} else if (glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			glyphs[glyphCursor].ClusterIndex-off > i) ||
-			(glyphCursor == len(glyphs) && len(glyphs) > 1) {
-			glyphCursor--
-			targetClusterIndex := glyphs[glyphCursor].ClusterIndex - off
-			for glyphCursor-1 >= 0 && glyphs[glyphCursor-1].ClusterIndex-off == targetClusterIndex {
-				glyphCursor--
-			}
-		}
-		if glyphCursor < 0 {
-			glyphCursor = 0
-		} else if glyphCursor >= len(glyphs) {
-			glyphCursor = len(glyphs) - 1
-		}
-		mapping[i] = glyphCursor
-	}
-	return mapping
-}
-
-// mapRuneToClusterIndex finds the lowest-index glyph for the glyph cluster contiaining the rune
-// at runeIdx in the source text. It uses a binary search of the glyphs in order to achieve this.
-// It is equivalent to using mapRunesToClusterIndices on only a single rune index, and is thus
-// more efficient for single lookups while being less efficient for runs which require many
-// lookups anyway.
-func mapRuneToClusterIndex(dir di.Direction, runes Range, glyphs []Glyph, runeIdx int) glyphIndex {
-	var index int
-	rtl := dir.Progression() == di.TowardTopLeft
-	if !rtl {
-		index = sort.Search(len(glyphs), func(index int) bool {
-			return glyphs[index].ClusterIndex-runes.Offset > runeIdx
-		})
-	} else {
-		index = sort.Search(len(glyphs), func(index int) bool {
-			return glyphs[index].ClusterIndex-runes.Offset < runeIdx
-		})
-	}
-	if index < 1 {
-		return 0
-	}
-	cluster := glyphs[index-1].ClusterIndex
-	if rtl && cluster-runes.Offset > runeIdx {
-		return index
-	}
-	for index-1 >= 0 && glyphs[index-1].ClusterIndex == cluster {
-		index--
-	}
-	return index
-}
-
-func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
-	if runes.Count <= 0 {
-		return nil
-	}
-	var mapping []glyphIndex
-	if cap(buf) >= runes.Count {
-		mapping = buf[:runes.Count]
-	} else {
-		mapping = make([]glyphIndex, runes.Count)
-	}
-
-	rtl := dir.Progression() == di.TowardTopLeft
-	if rtl {
-		for gIdx := len(glyphs) - 1; gIdx >= 0; gIdx-- {
-			cluster := glyphs[gIdx].ClusterIndex
-			clusterEnd := gIdx
-			for gIdx-1 >= 0 && glyphs[gIdx-1].ClusterIndex == cluster {
-				gIdx--
-				clusterEnd = gIdx
-			}
-			var nextCluster int
-			if gIdx-1 >= 0 {
-				nextCluster = glyphs[gIdx-1].ClusterIndex
-			} else {
-				nextCluster = runes.Count + runes.Offset
-			}
-			runesInCluster := nextCluster - cluster
-			clusterOffset := cluster - runes.Offset
-			for i := clusterOffset; i <= runesInCluster+clusterOffset && i < len(mapping); i++ {
-				mapping[i] = clusterEnd
-			}
-		}
-	} else {
-		for gIdx := 0; gIdx < len(glyphs); gIdx++ {
-			cluster := glyphs[gIdx].ClusterIndex
-			clusterStart := gIdx
-			for gIdx+1 < len(glyphs) && glyphs[gIdx+1].ClusterIndex == cluster {
-				gIdx++
-			}
-			var nextCluster int
-			if gIdx+1 < len(glyphs) {
-				nextCluster = glyphs[gIdx+1].ClusterIndex
-			} else {
-				nextCluster = runes.Count + runes.Offset
-			}
-			runesInCluster := nextCluster - cluster
-			clusterOffset := cluster - runes.Offset
-			for i := clusterOffset; i <= runesInCluster+clusterOffset && i < len(mapping); i++ {
-				mapping[i] = clusterStart
-			}
-		}
-	}
-	return mapping
-}
-
-func mapRunesToClusterIndices3(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
 	if runes.Count <= 0 {
 		return nil
 	}
@@ -512,7 +376,7 @@ type runMapper struct {
 // current mapping value is already correct.
 func (r *runMapper) mapRun(runIdx int, run Output) {
 	if r.runIdx != runIdx || !r.valid {
-		r.mapping = mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, r.mapping)
+		r.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, r.mapping)
 		r.runIdx = runIdx
 		r.valid = true
 	}
