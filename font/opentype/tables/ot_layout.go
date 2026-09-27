@@ -755,6 +755,24 @@ func (am AnchorMatrix) sanitizeOffsets() error {
 	return nil
 }
 
+// AnchorBytes returns the raw Anchor table at [index, class], or nil if
+// there is none. Callers parse it with [ParseAnchor] or one of the
+// ParseAnchorFormatN functions without allocating.
+func (am AnchorMatrix) AnchorBytes(index, class int) []byte {
+	if index < 0 || index >= len(am.records) {
+		return nil
+	}
+	offsets := am.records[index].offsets
+	if class < 0 || class >= len(offsets) {
+		return nil
+	}
+	offset := offsets[class]
+	if offset == 0 || int(offset) >= len(am.data) {
+		return nil
+	}
+	return am.data[offset:]
+}
+
 func (am AnchorMatrix) Anchor(index, class int) Anchor {
 	if index < 0 || len(am.records) <= index {
 		return nil

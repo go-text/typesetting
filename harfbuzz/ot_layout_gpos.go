@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/go-text/typesetting/font"
@@ -507,41 +508,86 @@ func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) 
 
 // panic if anchor is nil
 func (c *otApplyContext) getAnchor(anchor tables.Anchor, glyph GID) (x, y float32) {
-	font := c.font
 	switch anchor := anchor.(type) {
 	case tables.AnchorFormat1:
-		return font.emFscaleX(anchor.XCoordinate), font.emFscaleY(anchor.YCoordinate)
+		return c.getAnchor1(anchor)
 	case tables.AnchorFormat2:
-		xPpem, yPpem := font.face.Ppem()
-		var cx, cy Position
-		ret := xPpem != 0 || yPpem != 0
-		if ret {
-			cx, cy, ret = font.getGlyphContourPointForOrigin(glyph, anchor.AnchorPoint, LeftToRight)
-		}
-		if ret && xPpem != 0 {
-			x = float32(cx)
-		} else {
-			x = font.emFscaleX(anchor.XCoordinate)
-		}
-		if ret && yPpem != 0 {
-			y = float32(cy)
-		} else {
-			y = font.emFscaleY(anchor.YCoordinate)
-		}
-		return x, y
+		return c.getAnchor2(anchor, glyph)
 	case tables.AnchorFormat3:
-		xPpem, yPpem := font.face.Ppem()
-		x, y = font.emFscaleX(anchor.XCoordinate), font.emFscaleY(anchor.YCoordinate)
-		if xPpem != 0 || len(font.varCoords()) != 0 {
-			x += float32(font.getXDelta(c.varStore, anchor.XDevice))
-		}
-		if yPpem != 0 || len(font.varCoords()) != 0 {
-			y += float32(font.getYDelta(c.varStore, anchor.YDevice))
-		}
-		return x, y
+		return c.getAnchor3(anchor)
 	default:
 		panic("exhaustive switch")
 	}
+}
+
+// getAnchorBytes does the work of getAnchor from the raw anchor bytes,
+// so it never boxes a [tables.Anchor]. It returns false for an invalid
+// anchor so another positioning subtable can apply.
+func (c *otApplyContext) getAnchorBytes(src []byte, glyph GID) (x, y float32, ok bool) {
+	if len(src) < 2 {
+		return 0, 0, false
+	}
+	switch binary.BigEndian.Uint16(src) {
+	case 1:
+		anchor, _, err := tables.ParseAnchorFormat1(src)
+		if err != nil {
+			return 0, 0, false
+		}
+		x, y = c.getAnchor1(anchor)
+	case 2:
+		anchor, _, err := tables.ParseAnchorFormat2(src)
+		if err != nil {
+			return 0, 0, false
+		}
+		x, y = c.getAnchor2(anchor, glyph)
+	case 3:
+		anchor, _, err := tables.ParseAnchorFormat3(src)
+		if err != nil {
+			return 0, 0, false
+		}
+		x, y = c.getAnchor3(anchor)
+	default:
+		return 0, 0, false
+	}
+	return x, y, true
+}
+
+func (c *otApplyContext) getAnchor1(anchor tables.AnchorFormat1) (x, y float32) {
+	return c.font.emFscaleX(anchor.XCoordinate), c.font.emFscaleY(anchor.YCoordinate)
+}
+
+func (c *otApplyContext) getAnchor2(anchor tables.AnchorFormat2, glyph GID) (x, y float32) {
+	font := c.font
+	xPpem, yPpem := font.face.Ppem()
+	var cx, cy Position
+	ret := xPpem != 0 || yPpem != 0
+	if ret {
+		cx, cy, ret = font.getGlyphContourPointForOrigin(glyph, anchor.AnchorPoint, LeftToRight)
+	}
+	if ret && xPpem != 0 {
+		x = float32(cx)
+	} else {
+		x = font.emFscaleX(anchor.XCoordinate)
+	}
+	if ret && yPpem != 0 {
+		y = float32(cy)
+	} else {
+		y = font.emFscaleY(anchor.YCoordinate)
+	}
+	return x, y
+}
+
+func (c *otApplyContext) getAnchor3(anchor tables.AnchorFormat3) (x, y float32) {
+	font := c.font
+	xPpem, yPpem := font.face.Ppem()
+	x, y = font.emFscaleX(anchor.XCoordinate), font.emFscaleY(anchor.YCoordinate)
+	if xPpem != 0 || len(font.varCoords()) != 0 {
+		x += float32(font.getXDelta(c.varStore, anchor.XDevice))
+	}
+	if yPpem != 0 || len(font.varCoords()) != 0 {
+		y += float32(font.getYDelta(c.varStore, anchor.YDevice))
+	}
+	return x, y
 }
 
 func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyphIndex int, anchors tables.AnchorMatrix, glyphPos int) bool {
@@ -549,16 +595,16 @@ func (c *otApplyContext) applyGPOSMarks(marks tables.MarkArray, markIndex, glyph
 	markClass := marks.MarkRecords[markIndex].MarkClass
 	markAnchor := marks.MarkAnchors[markIndex]
 
-	glyphAnchor := anchors.Anchor(glyphIndex, int(markClass))
+	glyphAnchor := anchors.AnchorBytes(glyphIndex, int(markClass))
 	// If this subtable doesn't have an anchor for this base and this class,
 	// return false such that the subsequent subtables have a chance at it.
-	if glyphAnchor == nil {
+	baseX, baseY, ok := c.getAnchorBytes(glyphAnchor, buffer.Info[glyphPos].Glyph)
+	if !ok {
 		return false
 	}
 
 	buffer.unsafeToBreak(glyphPos, buffer.idx+1)
 	markX, markY := c.getAnchor(markAnchor, buffer.cur(0).Glyph)
-	baseX, baseY := c.getAnchor(glyphAnchor, buffer.Info[glyphPos].Glyph)
 
 	o := buffer.curPos(0)
 	o.XOffset = roundf(baseX - markX)
