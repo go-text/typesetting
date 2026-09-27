@@ -90,10 +90,10 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 	t.buf.Props.Script = input.Script
 
 	// reuse font when possible
-	font, ok := t.fonts.Get(input.Face.Font)
+	font, ok := t.fonts.Get(input.Face)
 	if !ok { // create a new font and cache it
 		font = harfbuzz.NewFont(input.Face)
-		t.fonts.Put(input.Face.Font, font)
+		t.fonts.Put(input.Face, font)
 	}
 	// adjust the user provided fields
 	font.XScale = int32(input.Size.Ceil()) << scaleShift
