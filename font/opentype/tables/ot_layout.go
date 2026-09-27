@@ -386,6 +386,16 @@ func (mp *MarkLigPos) Sanitize() error {
 	return nil
 }
 
+func (mp *MarkMarkPos) Sanitize() error {
+	if exp, got := mp.Mark1Coverage.Len(), len(mp.Mark1Array.MarkRecords); exp != got {
+		return fmt.Errorf("GPOS: invalid MarkMarkPos marks count (%d != %d)", exp, got)
+	}
+	if exp, got := mp.Mark2Coverage.Len(), len(mp.Mark2Array.mark2Records); exp != got {
+		return fmt.Errorf("GPOS: invalid MarkMarkPos base marks count (%d != %d)", exp, got)
+	}
+	return mp.Mark1Array.sanitizeClasses(mp.MarkClassCount)
+}
+
 func (cs *ContextualPos) Sanitize(lookupCount uint16) error {
 	if f1, isFormat1 := cs.Data.(ContextualPos1); isFormat1 {
 		return (*SequenceContextFormat1)(&f1).sanitize(lookupCount)
@@ -742,10 +752,10 @@ func (am AnchorMatrix) Anchor(index, class int) Anchor {
 		return nil
 	}
 	offset := offsets[class]
-	if offset == 0 {
+	if offset == 0 || int(offset) > len(am.data) {
 		return nil
 	}
-	anchor, _, _ := ParseAnchor(am.data[offset:]) // offset is sanitized
+	anchor, _, _ := ParseAnchor(am.data[offset:])
 	return anchor
 }
 

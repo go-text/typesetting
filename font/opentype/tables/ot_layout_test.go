@@ -408,3 +408,29 @@ func TestAnchorMatrixOutOfRange(t *testing.T) {
 	tu.Assert(t, ma.sanitizeClasses(1) != nil)
 	tu.Assert(t, ma.sanitizeClasses(2) == nil)
 }
+
+func TestAnchorMatrixRejectsUnsanitizedOffset(t *testing.T) {
+	am := AnchorMatrix{records: []anchorOffsets{{offsets: []Offset16{1}}}}
+	if am.Anchor(0, 0) != nil {
+		t.Fatal("accepted anchor offset beyond data")
+	}
+}
+
+func TestMarkMarkPosRejectsInvalidMarks(t *testing.T) {
+	mp := MarkMarkPos{
+		Mark1Coverage:  Coverage1{Glyphs: []GlyphID{1}},
+		Mark2Coverage:  Coverage1{},
+		MarkClassCount: 1,
+	}
+	if mp.Sanitize() == nil {
+		t.Fatal("accepted missing mark records")
+	}
+	mp.Mark1Array.MarkRecords = []MarkRecord{{MarkClass: 1}}
+	if mp.Sanitize() == nil {
+		t.Fatal("accepted out-of-range mark class")
+	}
+	mp.Mark1Array.MarkRecords[0].MarkClass = 0
+	if err := mp.Sanitize(); err != nil {
+		t.Fatal(err)
+	}
+}
