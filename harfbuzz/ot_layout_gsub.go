@@ -86,14 +86,14 @@ func matchesLigature(l tables.Ligature, glyphsFromSecond []GID) bool {
 // which are assumed to be non empty
 func (c *wouldApplyContext) wouldApplyGSUB(table tables.GSUBLookup) bool {
 	index, ok := table.Cov().Index(gID(c.glyphs[0]))
+	if !ok {
+		return false
+	}
 	switch data := table.(type) {
 	case tables.SingleSubs, tables.MultipleSubs, tables.AlternateSubs, tables.ReverseChainSingleSubs:
-		return len(c.glyphs) == 1 && ok
+		return len(c.glyphs) == 1
 
 	case tables.LigatureSubs:
-		if !ok {
-			return false
-		}
 		ligatureSet := data.LigatureSets[index].Ligatures
 		glyphsFromSecond := c.glyphs[1:]
 		for _, ligature := range ligatureSet {

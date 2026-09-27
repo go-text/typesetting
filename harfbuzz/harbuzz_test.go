@@ -278,3 +278,24 @@ func TestInvisibleGlyph(t *testing.T) {
 	assertEqualInt(t, 3, len(buffer.Info))
 	assertEqualInt(t, 7, int(buffer.Info[1].Glyph))
 }
+
+func TestWouldApplyContextRequiresFirstGlyphCoverage(t *testing.T) {
+	coverages := []tables.Coverage{tables.Coverage1{Glyphs: []tables.GlyphID{1}}, tables.Coverage1{Glyphs: []tables.GlyphID{2}}}
+	for _, subtable := range []tables.GSUBLookup{
+		tables.ContextualSubs{Data: tables.ContextualSubs3{Coverages: coverages}},
+		tables.ChainedContextualSubs{Data: tables.ChainedContextualSubs3{InputCoverages: coverages}},
+	} {
+		t.Run(fmt.Sprintf("%T", subtable), func(t *testing.T) {
+			ft := &font.Font{}
+			ft.GSUB.Lookups = []font.GSUBLookup{{Subtables: []tables.GSUBLookup{subtable}}}
+			fnt := NewFont(font.NewFace(ft))
+			if !otLayoutLookupWouldSubstitute(fnt, 0, []GID{1, 2}, true) {
+				t.Fatal("covered sequence should match")
+			}
+			// 4097 collides with 1 in the lookup digest, but is not covered.
+			if otLayoutLookupWouldSubstitute(fnt, 0, []GID{4097, 2}, true) {
+				t.Fatal("sequence with an uncovered first glyph should not match")
+			}
+		})
+	}
+}
