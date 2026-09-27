@@ -314,3 +314,9 @@ func TestParseIndexContentBounds(t *testing.T) {
 	_, _, err = parseIndexContent(valid, indexStart{count: 1, offSize: 5})
 	tu.Assert(t, err != nil)
 }
+
+func TestParseEmptyIndexes(t *testing.T) {
+	// header, then empty Name, Top DICT, String and Global Subrs INDEXes
+	_, err := Parse([]byte{1, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0})
+	tu.Assert(t, err != nil)
+}

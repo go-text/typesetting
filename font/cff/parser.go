@@ -55,8 +55,8 @@ func Parse(file []byte) (*CFF, error) {
 		return nil, err
 	}
 
-	if len(out) > 1 {
-		return nil, errors.New("only one font is allowed CFF table")
+	if len(out) != 1 {
+		return nil, fmt.Errorf("exactly one font is allowed in CFF table, got %d", len(out))
 	}
 
 	return &out[0], nil
