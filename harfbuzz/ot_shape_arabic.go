@@ -668,7 +668,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 		newStart := start + j - i
 		newCc := mcc26
 		if cc == 220 {
-			newCc = mcc26
+			newCc = mcc22
 		}
 		for start < newStart {
 			info[start].setModifiedCombiningClass(newCc)
