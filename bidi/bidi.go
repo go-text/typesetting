@@ -54,7 +54,7 @@ type Run struct {
 	Level      Level
 }
 
-// IsLeftToRight returns `true` for a RTL run.
+// IsLeftToRight returns `true` for a LTR run.
 func (r Run) IsLeftToRight() bool { return r.Level%2 == 0 }
 
 // Runs holds the output of the Bidi algorithm.
@@ -120,7 +120,7 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 	// this mask is very conservative, perhaps there is a better condition here ?
 	const allowed = ucd.BD_CS | ucd.BD_EN | ucd.BD_ES | ucd.BD_L | ucd.BD_WS
 	if defaultDirection != RightToLeft && allClasses & ^allowed == 0 {
-		// full RTL, level 0
+		// full LTR, level 0
 		setLevels(p.resultLevels, 0)
 		return p.buildRuns()
 	}
