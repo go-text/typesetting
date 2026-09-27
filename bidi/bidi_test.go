@@ -559,6 +559,7 @@ func BenchmarkPathological(b *testing.B) {
 		{"brackets", "()"},
 		{"digits", "1"},
 		{"unmatchedIsolates", "\u2066"},
+		{"unmatchedFSI", "\u2068"},
 	} {
 		for _, n := range []int{20000, 40000} {
 			text := []rune(strings.Repeat(tc.unit, n))
