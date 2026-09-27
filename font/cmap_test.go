@@ -217,3 +217,24 @@ func TestMacromanCmap(t *testing.T) {
 	_, ok := ft.Cmap.(remaperMacroman)
 	tu.Assert(t, ok)
 }
+
+func TestCmap4InvalidRangeOffset(t *testing.T) {
+	// an idRangeOffset that points before the glyph array is an error, not a panic
+	_, err := newCmap4(tables.CmapSubtable4{
+		EndCode: []uint16{10, 0xFFFF}, StartCode: []uint16{10, 0xFFFF},
+		IdDelta: []uint16{0, 1}, IdRangeOffsets: []uint16{2, 0},
+	})
+	tu.Assert(t, err != nil)
+
+	// newCmap4 ignores a 0xFFFF offset but uses a real one on a segment starting at 0xFFFF
+	cm, err := newCmap4(tables.CmapSubtable4{
+		EndCode: []uint16{10, 0xFFFF}, StartCode: []uint16{10, 0xFFFF},
+		IdDelta: []uint16{1, 0}, IdRangeOffsets: []uint16{0xFFFF, 2},
+		GlyphIDArray: []byte{0, 5},
+	})
+	tu.AssertNoErr(t, err)
+	g, _ := cm.Lookup(10)
+	tu.Assert(t, g == 11)
+	g, _ = cm.Lookup(0xFFFF)
+	tu.Assert(t, g == 5)
+}

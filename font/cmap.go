@@ -266,12 +266,12 @@ func newCmap4(cm tables.CmapSubtable4) (cmap4, error) {
 		}
 		idRangeOffset := int(cm.IdRangeOffsets[i])
 
-		// some fonts use 0xFFFF for idRangeOff for the last segment
-		if entry.start != 0xFFFF && idRangeOffset != 0 {
+		// some fonts use 0xFFFF for idRangeOffset for the last segment
+		if idRangeOffset != 0 && idRangeOffset != 0xFFFF {
 			// we resolve the indexes
 			entry.indexes = make([]tables.GlyphID, entry.end-entry.start+1)
 			indexStart := idRangeOffset/2 + i - segCount
-			if len(cm.GlyphIDArray) < 2*(indexStart+len(entry.indexes)) {
+			if indexStart < 0 || len(cm.GlyphIDArray) < 2*(indexStart+len(entry.indexes)) {
 				return nil, errors.New("invalid cmap subtable format 4 glyphs array length")
 			}
 			for j := range entry.indexes {
