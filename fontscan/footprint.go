@@ -60,16 +60,22 @@ func newFootprintFromFont(f *font.Font, location Location, md font.Description) 
 	return out
 }
 
+// fontPageFromOs2 returns the legacy font page of a raw OS/2 table,
+// or FPNone if the table is missing or invalid.
+func fontPageFromOs2(raw []byte) tables.FontPage {
+	if os2, _, err := tables.ParseOs2(raw); err == nil {
+		return os2.FontPage()
+	}
+	return tables.FPNone
+}
+
 func newFootprintFromLoader(ld *ot.Loader, isUserProvided bool, buffer scanBuffer) (out Footprint, _ scanBuffer, err error) {
 	raw := buffer.tableBuffer
 
 	// since raw is shared, special car must be taken in the parsing order
 
 	raw, _ = ld.RawTableTo(ot.MustNewTag("OS/2"), raw)
-	fp := tables.FPNone
-	if os2, _, err := tables.ParseOs2(raw); err != nil {
-		fp = os2.FontPage()
-	}
+	fp := fontPageFromOs2(raw)
 
 	// we can use the buffer since ProcessCmap do not keep any reference on
 	// the input slice

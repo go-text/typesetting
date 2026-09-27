@@ -1,6 +1,7 @@
 package fontscan
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -9,8 +10,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-text/typesetting/font/opentype/tables"
 	tu "github.com/go-text/typesetting/testutils"
 )
+
+func TestFontPageFromOs2(t *testing.T) {
+	// minimal OS/2 table, version 0, with the simplified Arabic font page in fsSelection
+	raw := make([]byte, 78)
+	binary.BigEndian.PutUint16(raw[62:], uint16(tables.FPSimpArabic))
+	tu.Assert(t, fontPageFromOs2(raw) == tables.FPSimpArabic)
+	tu.Assert(t, fontPageFromOs2(nil) == tables.FPNone)
+}
 
 func TestDefaultDirs(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)
