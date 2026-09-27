@@ -202,3 +202,9 @@ func TestExample(t *testing.T) {
 		fmt.Println(pos.XAdvance, pos.XOffset, ext.Width, ext.XBearing)
 	}
 }
+
+func TestPropagateAttachmentOffsetsNegativeChain(t *testing.T) {
+	// cross-stream kerx attaches every glyph to the previous one, including the first
+	pos := []GlyphPosition{{attachChain: -1, attachType: attachTypeCursive}}
+	propagateAttachmentOffsets(pos, 0, LeftToRight) // must not panic
+}

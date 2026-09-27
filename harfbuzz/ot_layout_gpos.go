@@ -64,7 +64,7 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 
 	j := i + int(chain)
 
-	if j >= len(pos) {
+	if j < 0 || j >= len(pos) {
 		return
 	}
 
