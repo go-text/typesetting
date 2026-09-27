@@ -320,3 +320,57 @@ func TestParseEmptyIndexes(t *testing.T) {
 	_, err := Parse([]byte{1, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0})
 	tu.Assert(t, err != nil)
 }
+
+// cff2Table assembles a CFF2 table with one glyph, the given extra Top DICT
+// operators and the given Font DICTs.
+func cff2Table(top []byte, fds ...[]byte) []byte {
+	index := func(items ...[]byte) []byte {
+		out := []byte{0, 0, 0, byte(len(items))}
+		if len(items) == 0 {
+			return out
+		}
+		out = append(out, 1)
+		off := byte(1)
+		offs := []byte{off}
+		for _, it := range items {
+			off += byte(len(it))
+			offs = append(offs, off)
+		}
+		out = append(out, offs...)
+		for _, it := range items {
+			out = append(out, it...)
+		}
+		return out
+	}
+	hdr := []byte{2, 0, 5, 0, 0}
+	// CharStrings and FDArray offsets are 2-byte operands, patched below
+	top = append([]byte{28, 0, 0, 17, 28, 0, 0, 12, 36}, top...)
+	binary.BigEndian.PutUint16(hdr[3:], uint16(len(top)))
+	gsubrs := index()
+	charstrings := index([]byte{14}) // endchar
+	csOff := len(hdr) + len(top) + len(gsubrs)
+	binary.BigEndian.PutUint16(top[1:], uint16(csOff))
+	binary.BigEndian.PutUint16(top[5:], uint16(csOff+len(charstrings)))
+	out := append(hdr, top...)
+	out = append(out, gsubrs...)
+	out = append(out, charstrings...)
+	return append(out, index(fds...)...)
+}
+
+func TestCFF2InvalidOffsets(t *testing.T) {
+	neg1 := []byte{28, 0xff, 0xff} // -1
+	privOK := []byte{139, 139, 18} // 0 0 Private
+	for _, table := range [][]byte{
+		cff2Table(nil, []byte{139 - 5, 139 + 1, 18}),                // -5 1 Private
+		cff2Table(nil, []byte{29, 0x7f, 0xff, 0xff, 0xff, 140, 18}), // MaxInt32 1 Private: int32 wrap
+		cff2Table(nil, []byte{139, 138, 18}),                        // 0 -1 Private
+		cff2Table([]byte{29, 0x7f, 0xff, 0xff, 0xff, 24}, privOK),   // vstore MaxInt32
+		cff2Table(append(neg1, 24), privOK),                         // vstore -1
+		cff2Table(append(neg1, 12, 37), privOK, privOK),             // FDSelect -1
+	} {
+		_, err := ParseCFF2(table)
+		tu.Assert(t, err != nil)
+	}
+	_, err := ParseCFF2(cff2Table(nil, privOK))
+	tu.AssertNoErr(t, err)
+}

@@ -84,8 +84,11 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading font dict: %s", err)
 		}
-		end := int(fd.privateDictOffset + fd.privateDictSize)
-		if L := len(src); L < end {
+		if fd.privateDictOffset < 0 || fd.privateDictSize < 0 {
+			return nil, fmt.Errorf("reading private dict: invalid offset %d or size %d", fd.privateDictOffset, fd.privateDictSize)
+		}
+		end := int64(fd.privateDictOffset) + int64(fd.privateDictSize)
+		if L := len(src); int64(L) < end {
 			return nil, fmt.Errorf("reading private dict: EOF: expected length: %d, got %d", end, L)
 		}
 		// parse private dict
@@ -113,7 +116,7 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 
 	if len(fdIndex) > 1 {
 		// parse the fdSelect
-		if L := len(src); L < int(tp.fdSelect) {
+		if L := len(src); tp.fdSelect < 0 || L < int(tp.fdSelect) {
 			return nil, fmt.Errorf("reading fdSelect: EOF: expected length: %d, got %d", tp.fdSelect, L)
 		}
 		out.fdSelect, _, err = parseFdSelect(src[tp.fdSelect:], len(out.Charstrings))
@@ -131,15 +134,16 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 	// parse variation store
 	if tp.vstore != 0 {
 		// See https://learn.microsoft.com/en-us/typography/opentype/spec/cff2#variationstore-data-contents
-		if E, L := int(tp.vstore)+2, len(src); L < E {
+		if E, L := int64(tp.vstore)+2, len(src); tp.vstore < 0 || int64(L) < E {
 			return nil, fmt.Errorf("reading variation store: EOF: expected length: %d, got %d", E, L)
 		}
 		size := int(binary.BigEndian.Uint16(src[tp.vstore:]))
-		end := int(tp.vstore) + 2 + size
-		if L := len(src); L < end {
+		start := int64(tp.vstore) + 2
+		end := start + int64(size)
+		if L := len(src); int64(L) < end {
 			return nil, fmt.Errorf("reading variation store: EOF: expected length: %d, got %d", end, L)
 		}
-		vstore := src[tp.vstore+2 : end]
+		vstore := src[start:end]
 		out.VarStore, _, err = tables.ParseItemVarStore(vstore)
 		if err != nil {
 			return nil, err
