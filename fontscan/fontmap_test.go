@@ -462,3 +462,12 @@ func TestResolve_SciptKhmer(t *testing.T) {
 	family, _ := fm.FontMetadata(runs[0].Face.Font)
 	tu.Assert(t, family == "khmeros")
 }
+
+func TestUseSystemFontsTwice(t *testing.T) {
+	fm := NewFontMap(nil)
+	fonts := []Footprint{{Family: "stub", Scripts: ScriptSet{language.Latin}}}
+	fm.addSystemFonts(fonts)
+	fm.addSystemFonts(fonts)
+	tu.Assert(t, len(fm.database) == 1)
+	tu.Assert(t, len(fm.scriptMap[language.Latin]) == 1)
+}

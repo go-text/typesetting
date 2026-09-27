@@ -69,6 +69,9 @@ type FontMap struct {
 
 	// built holds whether the candidates are populated.
 	built bool
+	// systemFontsAdded holds whether [UseSystemFonts] has already appended
+	// the system fonts to the database.
+	systemFontsAdded bool
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
 
@@ -128,12 +131,22 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	}
 
 	// systemFonts is read-only, so may be used concurrently
-	fm.appendFootprints(systemFonts.flatten()...)
+	fm.addSystemFonts(systemFonts.flatten())
+	return nil
+}
+
+// addSystemFonts appends the system fonts to the database, only once per font map.
+func (fm *FontMap) addSystemFonts(footprints []Footprint) {
+	if fm.systemFontsAdded {
+		return
+	}
+	fm.systemFontsAdded = true
+
+	fm.appendFootprints(footprints...)
 
 	fm.built = false
 
 	fm.lru.Clear()
-	return nil
 }
 
 // appendFootprints adds the provided footprints to the database and maps their script
