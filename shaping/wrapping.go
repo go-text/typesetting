@@ -686,7 +686,11 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 			_, _, hasSecond := runs.Peek()
 			if hasFirst && !hasSecond {
 				if firstRun.Advance <= maxWidth {
-					return l.scratch.singleRunParagraph(firstRun), 0
+					lines := l.scratch.singleRunParagraph(firstRun)
+					l.config = config
+					l.truncating = false
+					l.postProcessLine(lines[0], true)
+					return lines, 0
 				}
 			}
 		}

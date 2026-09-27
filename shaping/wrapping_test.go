@@ -3686,6 +3686,20 @@ func TestWrappingDoesNotMutateRuns(t *testing.T) {
 	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == runs[0].Advance)
 }
 
+// the single run fast path must post-process the line like the general path
+func TestWrapParagraphSingleRunTrimsTrailingSpace(t *testing.T) {
+	text := []rune("The quick ")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+
+	var w LineWrapper
+	lines, _ := w.WrapParagraph(WrapConfig{}, 10000, text, NewSliceIterator([]Output{run}))
+	w.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
+	line, _ := w.WrapNextLine(10000)
+	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == line.Line[0].Advance)
+	tu.Assert(t, lines[0][0].Advance == run.Advance-line.TrimmedTrailingWhitespace)
+	tu.Assert(t, line.TrimmedTrailingWhitespace > 0)
+}
+
 func TestCutRunWithoutLetterSpacingDoesNotAllocate(t *testing.T) {
 	text := []rune("abcd")
 	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
