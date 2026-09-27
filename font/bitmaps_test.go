@@ -71,3 +71,11 @@ func TestBitmapInvalidGlyphRange(t *testing.T) {
 	}, nil)
 	tu.Assert(t, err != nil)
 }
+
+func TestIndexSubTable5Offsets(t *testing.T) {
+	idx, err := parseIndexSubTable5(tables.BitmapSubtable{IndexSubHeader: tables.IndexSubHeader{ImageFormat: 5}},
+		tables.IndexData5{ImageSize: 2, GlyphIdArray: []tables.GlyphID{1, 2}}, []byte{1, 2, 3, 4})
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, bytes.Equal(idx.glyphs[0], []byte{1, 2}))
+	tu.Assert(t, bytes.Equal(idx.glyphs[1], []byte{3, 4}))
+}
