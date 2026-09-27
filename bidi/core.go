@@ -389,19 +389,21 @@ func (p *Paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 // Note that some weak types (EN, AN) remain after this processing is
 // complete.
 func (s *isolatingRunSequence) resolveWeakTypes() {
-	// on entry, only these types remain
-	// s.assertOnly(L, R, AL, EN, ES, ET, AN, CS, B, S, WS, ON, NSM, LRI, RLI, FSI, PDI)
+	// on entry, only these types remain:
+	// L, R, AL, EN, ES, ET, AN, CS, B, S, WS, ON, NSM, LRI, RLI, FSI, PDI
 
 	// Rule W1.
 	// Changes all NSMs.
+	//
+	// The rule maps an NSM following an isolate initiator or PDI to ON. Copying
+	// the initiator or PDI type instead gives the same result. Every later
+	// rule, W2 through W7, N0 and N1 through N2, treats LRI, RLI, FSI and PDI
+	// like ON, and the NSM check in N0 reads the initial types, not these.
 	precedingCharacterType := s.sos
 	for i, t := range s.types {
 		if t == ucd.BD_NSM {
 			s.types[i] = precedingCharacterType
 		} else {
-			// if t.in(LRI, RLI, FSI, PDI) {
-			// 	precedingCharacterType = ON
-			// }
 			precedingCharacterType = t
 		}
 	}
@@ -499,8 +501,8 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 
 // 6) resolving neutral types Rules N1-N2.
 func (s *isolatingRunSequence) resolveNeutralTypes() {
-	// on entry, only these types can be in resultTypes
-	// s.assertOnly(L, R, EN, AN, B, S, WS, ON, RLI, LRI, FSI, PDI)
+	// on entry, only these types can be in resultTypes:
+	// L, R, EN, AN, B, S, WS, ON, RLI, LRI, FSI, PDI
 
 	for i, t := range s.types {
 		switch t {
@@ -564,8 +566,7 @@ func setTypes(types []ucd.BidiClass, newType ucd.BidiClass) {
 
 // 7) resolving implicit embedding levels Rules I1, I2.
 func (s *isolatingRunSequence) resolveImplicitLevels() {
-	// on entry, only these types can be in resultTypes
-	// s.assertOnly(L, R, EN, AN)
+	// on entry, only these types can be in resultTypes: L, R, EN, AN
 
 	s.resolvedLevels = make([]Level, len(s.types))
 	setLevels(s.resolvedLevels, s.level)
@@ -615,20 +616,6 @@ func (s *isolatingRunSequence) findRunLimit(index int, validSet ucd.BidiClass) i
 	}
 	return len(s.types)
 }
-
-// // Algorithm validation. Assert that all values in types are in the
-// // provided set.
-// func (s *isolatingRunSequence) assertOnly(codes ...ucd.BidiClass) {
-// loop:
-// 	for i, t := range s.types {
-// 		for _, c := range codes {
-// 			if t == c {
-// 				continue loop
-// 			}
-// 		}
-// 		log.Panicf("invalid bidi code %v present in assertOnly at position %d", t, s.indexes[i])
-// 	}
-// }
 
 // determineLevelRuns returns an array of level runs. Each level run is
 // described as an array of indexes into the input string.
