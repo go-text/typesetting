@@ -236,6 +236,8 @@ func newGPOS(table tables.Layout) (GPOS, error) {
 				err = subtable.Sanitize()
 			case tables.MarkLigPos:
 				err = subtable.Sanitize()
+			case tables.MarkMarkPos:
+				err = subtable.Sanitize()
 			case tables.ContextualPos:
 				err = subtable.Sanitize(uint16(len(out.Lookups)))
 			}
