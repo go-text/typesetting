@@ -224,6 +224,9 @@ func newBitmapSubtable(header tables.BitmapSubtable, dataTable []byte) (bitmapSu
 	if L, E := len(dataTable), int(header.ImageDataOffset); L < E {
 		return bitmapSubtable{}, errors.New("invalid bitmap table (EOF)")
 	}
+	if header.LastGlyph < header.FirstGlyph {
+		return bitmapSubtable{}, errors.New("invalid bitmap subtable glyph range")
+	}
 	imageData := dataTable[header.ImageDataOffset:]
 
 	var err error
@@ -362,6 +365,9 @@ func (idx indexSubTable4) imageFor(gid gID, first, last gID) *bitmapImage {
 
 // imageData starts at the image (table[imageDataOffset:])
 func parseIndexSubTable4(header tables.BitmapSubtable, index tables.IndexData4, imageData []byte) (indexSubTable4, error) {
+	if len(index.GlyphArray) == 0 {
+		return indexSubTable4{}, errors.New("invalid bitmap index format 4: empty glyph array")
+	}
 	out := indexSubTable4{
 		format: header.ImageFormat,
 		glyphs: make([]indexedBitmapGlyph, len(index.GlyphArray)-1),
