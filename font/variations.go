@@ -342,12 +342,20 @@ func (gvar gvar) applyDeltasToPoints(glyph gID, coords []VarCoord, points []cont
 		return
 	}
 
-	// save original points for inferred delta calculation
-	origPoints := append([]contourPoint(nil), points...)
+	varData := gvar.variations[glyph]
+
+	// keep a copy of the original points for the inferred deltas.
+	// Only tuples that reference a subset of the points need it.
+	var origPoints []contourPoint
+	for _, tuple := range varData {
+		if tuple.pointNumbers != nil {
+			origPoints = append([]contourPoint(nil), points...)
+			break
+		}
+	}
 	// flag is used to indicate referenced point
 	deltas := make([]contourPoint, len(points))
 
-	varData := gvar.variations[glyph]
 	for _, tuple := range varData {
 		scalar := tuple.calculateScalar(coords, gvar.sharedTuples, gvar.sharedTupleActiveIdx)
 		if scalar == 0 {
