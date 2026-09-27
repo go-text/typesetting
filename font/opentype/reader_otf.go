@@ -24,7 +24,7 @@ const (
 
 func readOTFHeader(r io.Reader) (flavor Tag, numTables uint16, err error) {
 	var buf [otfHeaderSize]byte
-	if _, err := r.Read(buf[:]); err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return 0, 0, fmt.Errorf("invalid OpenType header: %s", err)
 	}
 
