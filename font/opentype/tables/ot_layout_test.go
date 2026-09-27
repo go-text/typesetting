@@ -434,3 +434,10 @@ func TestMarkMarkPosRejectsInvalidMarks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestAnchorBytesRejectsOutOfRangeOffset(t *testing.T) {
+	am := AnchorMatrix{records: []anchorOffsets{{offsets: []Offset16{2}}}, data: []byte{0}}
+	if got := am.AnchorBytes(0, 0); got != nil {
+		t.Fatalf("out-of-range anchor offset returned %v", got)
+	}
+}
