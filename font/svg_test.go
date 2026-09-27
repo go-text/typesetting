@@ -3,6 +3,9 @@
 package font
 
 import (
+	"bytes"
+	"compress/gzip"
+	"sync"
 	"testing"
 
 	"github.com/go-text/typesetting/font/opentype/tables"
@@ -76,4 +79,59 @@ func TestSVGOffsetOverflow(t *testing.T) {
 		SVGRawData:      make([]byte, 16),
 	}})
 	tu.Assert(t, err != nil)
+}
+
+func BenchmarkGlyphDataSVG(b *testing.B) {
+	font := loadFont(b, "toys/chromacheck-svg.ttf")
+	face := NewFace(font)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = face.GlyphDataSVG(1)
+	}
+}
+
+func TestSVGResolveConcurrent(t *testing.T) {
+	const source = `<svg viewBox="1 2 30 40"/>`
+	var compressed bytes.Buffer
+	w := gzip.NewWriter(&compressed)
+	if _, err := w.Write([]byte(source)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	badChecksum := append([]byte(nil), compressed.Bytes()...)
+	badChecksum[len(badChecksum)-8] ^= 1
+	for _, test := range []struct {
+		name  string
+		data  []byte
+		valid bool
+	}{
+		{"plain", []byte(source), true},
+		{"gzip", compressed.Bytes(), true},
+		{"truncated header", []byte{0x1f, 0x8b}, false},
+		{"truncated body", compressed.Bytes()[:10], false},
+		{"invalid checksum", badChecksum, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := svg{{first: 0, last: 7, svg: test.data}}
+			var wg sync.WaitGroup
+			for gid := gID(0); gid <= 7; gid++ {
+				wg.Add(1)
+				go func(gid gID) {
+					defer wg.Done()
+					for repeat := 0; repeat < 2; repeat++ {
+						glyph, ok := s.glyphData(gid, 1000)
+						if ok != test.valid {
+							t.Errorf("glyph %d: success %v, want %v", gid, ok, test.valid)
+						} else if ok && (string(glyph.Source) != source || glyph.ViewBox != (SVGViewBox{1, 2, 30, 40})) {
+							t.Errorf("glyph %d: unexpected source or viewBox: %+v", gid, glyph)
+						}
+					}
+				}(gid)
+			}
+			wg.Wait()
+		})
+	}
 }

@@ -4,11 +4,14 @@ package font
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
@@ -39,20 +42,47 @@ type svgDocument struct {
 	svg   []byte
 	first gID // The first glyph ID in the range described by this index entry.
 	last  gID // The last glyph ID in the range described by this index entry. Must be >= startGlyphID.
+
+	// resolved on first use and shared by every glyph of the document
+	once     sync.Once
+	resolved []byte // un-compressed
+	viewBox  SVGViewBox
+	valid    bool
+}
+
+// resolve un-compresses the document if needed and parses its viewBox
+func (doc *svgDocument) resolve(upem uint16) ([]byte, SVGViewBox, bool) {
+	doc.once.Do(func() {
+		data := doc.svg
+		if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
+			r, err := gzip.NewReader(bytes.NewReader(data))
+			if err != nil {
+				return
+			}
+			defer r.Close()
+			data, err = io.ReadAll(r)
+			if err != nil {
+				return
+			}
+		}
+		doc.resolved, doc.viewBox = data, svgViewBox(data, upem)
+		doc.valid = true
+	})
+	return doc.resolved, doc.viewBox, doc.valid
 }
 
 // rawGlyphData returns the SVG document for [gid], or false.
-func (s svg) rawGlyphData(gid gID) ([]byte, bool) {
+func (s svg) rawGlyphData(gid gID) (*svgDocument, bool) {
 	// binary search
 	for i, j := 0, len(s); i < j; {
 		h := i + (j-i)/2
-		entry := s[h]
+		entry := &s[h]
 		if gid < entry.first {
 			j = h
 		} else if entry.last < gid {
 			i = h + 1
 		} else {
-			return entry.svg, true
+			return entry, true
 		}
 	}
 	return nil, false

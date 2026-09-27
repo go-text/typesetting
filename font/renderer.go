@@ -3,11 +3,8 @@
 package font
 
 import (
-	"bytes"
-	"compress/gzip"
 	"errors"
 	"fmt"
-	"io"
 
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
@@ -62,7 +59,8 @@ type GlyphSVG struct {
 	// The SVG image content, decompressed if needed.
 	// The actual glyph description is an SVG element
 	// with id="glyph<GID>" (as in id="glyph12"),
-	// and several glyphs may share the same Source
+	// and several glyphs may share the same Source.
+	// Source is read-only; copy it before modifying it.
 	Source []byte
 
 	// ViewBox is the initial viewport of the SVG document:
@@ -187,26 +185,15 @@ func (bt bitmap) glyphData(gid gID, xPpem, yPpem uint16) (GlyphBitmap, error) {
 }
 
 func (s svg) glyphData(gid gID, upem uint16) (GlyphSVG, bool) {
-	data, ok := s.rawGlyphData(gid)
+	doc, ok := s.rawGlyphData(gid)
 	if !ok {
 		return GlyphSVG{}, false
 	}
-
-	// un-compress if needed
-	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
-		r, err := gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			return GlyphSVG{}, false
-		}
-		defer r.Close()
-		var buf bytes.Buffer
-		if _, err := io.Copy(&buf, r); err != nil {
-			return GlyphSVG{}, false
-		}
-		data = buf.Bytes()
+	data, viewBox, ok := doc.resolve(upem)
+	if !ok {
+		return GlyphSVG{}, false
 	}
-
-	return GlyphSVG{Source: data, ViewBox: svgViewBox(data, upem)}, true
+	return GlyphSVG{Source: data, ViewBox: viewBox}, true
 }
 
 // this file converts from font format for glyph outlines to
