@@ -173,7 +173,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		err                error
 	)
 	if hasSharedPoints {
-		sharedPointNumbers, data, err = parsePointNumbers(data)
+		sharedPointNumbers, data, err = parsePointNumbers(data, pointNumbersCountAll)
 		if err != nil {
 			return err
 		}
@@ -189,7 +189,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		// default to shared points
 		privatePointNumbers := sharedPointNumbers
 		if h.HasPrivatePointNumbers() {
-			privatePointNumbers, data, err = parsePointNumbers(data)
+			privatePointNumbers, data, err = parsePointNumbers(data, pointNumbersCountAll)
 			if err != nil {
 				return err
 			}
@@ -216,8 +216,9 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 	return nil
 }
 
-// the returned slice is nil if all glyph points are used
-func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
+// the returned slice is nil if all glyph points are used.
+// Otherwise parsePointNumbers rejects any point number >= pointCount.
+func parsePointNumbers(data []byte, pointCount int) ([]uint16, []byte, error) {
 	count, data, err := getPackedPointCount(data)
 	if err != nil {
 		return nil, nil, err
@@ -256,6 +257,12 @@ func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
 				lastPoint = actualValue
 			}
 			data = data[1+runLength:]
+		}
+	}
+
+	for _, pt := range points {
+		if int(pt) >= pointCount {
+			return nil, nil, fmt.Errorf("invalid glyph variation point number %d (expected < %d)", pt, pointCount)
 		}
 	}
 
