@@ -5,6 +5,7 @@ package font
 import (
 	"testing"
 
+	"github.com/go-text/typesetting/font/opentype/tables"
 	tu "github.com/go-text/typesetting/testutils"
 )
 
@@ -67,4 +68,12 @@ func TestGlyphDataSVGViewBox(t *testing.T) {
 	glyph, ok := face.GlyphDataSVG(1)
 	tu.Assert(t, ok)
 	tu.Assert(t, glyph.ViewBox == SVGViewBox{0, 0, 1024, 1024})
+}
+
+func TestSVGOffsetOverflow(t *testing.T) {
+	_, err := newSvg(tables.SVG{SVGDocumentList: tables.SVGDocumentList{
+		DocumentRecords: []tables.SVGDocumentRecord{{SvgDocOffset: 0xFFFFFFF0, SvgDocLength: 0x20}},
+		SVGRawData:      make([]byte, 16),
+	}})
+	tu.Assert(t, err != nil)
 }
