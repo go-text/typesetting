@@ -193,11 +193,17 @@ func (s svg) glyphData(gid gID, upem uint16) (GlyphSVG, bool) {
 	}
 
 	// un-compress if needed
-	if r, err := gzip.NewReader(bytes.NewReader(data)); err == nil {
-		var buf bytes.Buffer
-		if _, err := io.Copy(&buf, r); err == nil {
-			data = buf.Bytes()
+	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
+		r, err := gzip.NewReader(bytes.NewReader(data))
+		if err != nil {
+			return GlyphSVG{}, false
 		}
+		defer r.Close()
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, r); err != nil {
+			return GlyphSVG{}, false
+		}
+		data = buf.Bytes()
 	}
 
 	return GlyphSVG{Source: data, ViewBox: svgViewBox(data, upem)}, true
