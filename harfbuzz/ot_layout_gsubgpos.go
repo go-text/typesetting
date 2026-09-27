@@ -355,6 +355,8 @@ type otApplyContext struct {
 	lastBaseUntil int // GPOS uses
 
 	matchPositions []int
+	// scratch storage for matchPositions of nested lookups, indexed by nesting depth
+	nestedMatchPositions [maxNestingLevel][8]int
 }
 
 func (c *otApplyContext) reset(tableIndex uint8, font *Font, buffer *Buffer) {
@@ -414,8 +416,8 @@ func (c *otApplyContext) applyRecurseLookup(lookupIndex uint16, l layoutLookup) 
 	c.setLookupProps(l.Props())
 
 	savedMatchPositions := c.matchPositions
-	var stackMatchPositions [8]int
-	c.matchPositions = stackMatchPositions[:]
+	depth := maxNestingLevel - c.nestingLevelLeft - 1 // recurse() has already decremented nestingLevelLeft
+	c.matchPositions = c.nestedMatchPositions[depth][:]
 
 	ret := l.dispatchApply(c)
 
@@ -903,11 +905,8 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 
 func (c *otApplyContext) recurse(subLookupIndex uint16) bool {
 	if c.nestingLevelLeft == 0 || c.recurseFunc == nil || c.buffer.maxOps <= 0 {
-		if c.buffer.maxOps <= 0 {
-			c.buffer.maxOps--
-			return false
-		}
 		c.buffer.maxOps--
+		return false
 	}
 
 	c.nestingLevelLeft--
