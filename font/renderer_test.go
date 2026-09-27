@@ -669,3 +669,27 @@ func TestGlyphDataMalformedComposite(t *testing.T) {
 		tu.Assert(t, len(gd.Segments) == 0)
 	}
 }
+
+func BenchmarkGlyphData(b *testing.B) {
+	for _, filename := range []string{
+		"toys/CFFTest.otf",
+		"common/Roboto-BoldItalic.ttf",
+		"common/NotoSansCJKjp-VF.otf",
+	} {
+		font := loadFont(b, filename)
+		face := NewFace(font)
+		var gids []GID
+		iter := font.Cmap.Iter()
+		for iter.Next() && len(gids) < 200 {
+			_, g := iter.Char()
+			gids = append(gids, g)
+		}
+		b.Run(filename, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				for _, g := range gids {
+					_ = face.GlyphData(g)
+				}
+			}
+		})
+	}
+}

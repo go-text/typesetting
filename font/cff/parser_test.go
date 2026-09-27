@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"reflect"
+	"sync"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
@@ -506,5 +507,49 @@ func TestCFF1SubroutineRequiresReturn(t *testing.T) {
 		if len(got) != want {
 			t.Fatalf("explicit return %v: got %d segments, want %d", returns, len(got), want)
 		}
+	}
+}
+
+func TestLoadGlyphConcurrent(t *testing.T) {
+	charstrings := [][]byte{
+		{139, 139, 21, 140, 141, 5}, // move to (0, 0), line to (1, 2)
+		{21},                        // missing rmoveto arguments
+		{149, 149, 21, 143, 144, 5}, // a different outline
+	}
+	cff := &CFF{Charstrings: charstrings, localSubrs: [][][]byte{nil}}
+	cff2 := &CFF2{Charstrings: charstrings, fonts: []privateFonts{{}}}
+	for _, load := range []func(tables.GlyphID) ([]ot.Segment, psinterpreter.PathBounds, error){
+		cff.LoadGlyph,
+		func(gid tables.GlyphID) ([]ot.Segment, psinterpreter.PathBounds, error) {
+			return cff2.LoadGlyph(gid, nil)
+		},
+	} {
+		want, wantBounds, err := load(0)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, len(want) != 0)
+		want = append([]ot.Segment(nil), want...)
+		var wg sync.WaitGroup
+		for i := 0; i < 8; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for repeat := 0; repeat < 20; repeat++ {
+					got, bounds, err := load(0)
+					if err != nil || bounds != wantBounds || !reflect.DeepEqual(got, want) {
+						t.Errorf("reused interpreter changed glyph: %v, %v, %v", got, bounds, err)
+					}
+					if _, _, err := load(1); err == nil {
+						t.Error("invalid glyph accepted")
+					}
+					if _, _, err := load(2); err != nil {
+						t.Error(err)
+					}
+					if !reflect.DeepEqual(got, want) {
+						t.Error("later glyph load overwrote returned outline")
+					}
+				}
+			}()
+		}
+		wg.Wait()
 	}
 }

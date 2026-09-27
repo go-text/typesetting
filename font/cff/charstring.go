@@ -5,11 +5,15 @@ package cff
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	ps "github.com/go-text/typesetting/font/cff/interpreter"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
+
+// a Machine is about 4KB, so LoadGlyph reuses one instead of allocating it per glyph
+var machinePool = sync.Pool{New: func() any { return new(ps.Machine) }}
 
 // LoadGlyph parses the glyph charstring to compute segments and path bounds.
 // It returns an error if the glyph is invalid or if decoding the charstring fails.
@@ -18,8 +22,14 @@ func (f *CFF) LoadGlyph(glyph tables.GlyphID) ([]ot.Segment, ps.PathBounds, erro
 		return nil, ps.PathBounds{}, errGlyph
 	}
 
+	psi := machinePool.Get().(*ps.Machine)
+	defer func() {
+		// Do not keep font data alive through the subroutine and call stacks.
+		*psi = ps.Machine{}
+		machinePool.Put(psi)
+	}()
+
 	var (
-		psi    ps.Machine
 		loader type2CharstringHandler
 		index  uint16
 		err    error
@@ -128,8 +138,14 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []tables.Coord) ([]ot.Segm
 		return nil, ps.PathBounds{}, errGlyph
 	}
 
+	psi := machinePool.Get().(*ps.Machine)
+	defer func() {
+		// Do not keep font data alive through the subroutine and call stacks.
+		*psi = ps.Machine{}
+		machinePool.Put(psi)
+	}()
+
 	var (
-		psi    ps.Machine
 		loader cff2CharstringHandler
 		index  uint16
 		err    error
