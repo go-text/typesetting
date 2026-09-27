@@ -374,3 +374,11 @@ func TestCFF2InvalidOffsets(t *testing.T) {
 	_, err := ParseCFF2(cff2Table(nil, privOK))
 	tu.AssertNoErr(t, err)
 }
+
+func TestCFF2EmptyFDArray(t *testing.T) {
+	// Include a trailing byte so the INDEX header parser reaches the count.
+	_, err := ParseCFF2(append(cff2Table(nil), 0))
+	if err == nil || err.Error() != "reading font dicts: empty FDArray" {
+		t.Fatalf("expected empty FDArray error, got %v", err)
+	}
+}

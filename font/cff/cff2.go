@@ -76,6 +76,9 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		return nil, err
 	}
 
+	if len(fdIndex) == 0 {
+		return nil, errors.New("reading font dicts: empty FDArray")
+	}
 	out.fonts = make([]privateFonts, len(fdIndex))
 	// private dict reference
 	for i, font := range fdIndex {
