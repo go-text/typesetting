@@ -43,6 +43,9 @@ func ParseGlyf(src []byte, locaOffsets []uint32) (Glyf, error) {
 	var err error
 	for i := range out {
 		start, end := locaOffsets[i], locaOffsets[i+1]
+		if start > end || uint64(end) > uint64(len(src)) {
+			return nil, fmt.Errorf("invalid loca offsets for glyph %d: [%d, %d] (glyf length %d)", i, start, end, len(src))
+		}
 		// If a glyph has no outline, then loca[n] = loca [n+1].
 		if start == end {
 			continue

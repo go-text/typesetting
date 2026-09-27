@@ -256,7 +256,10 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	raw, _ = ld.RawTable(ot.MustNewTag("glyf"))
 	locaRaw, _ := ld.RawTable(ot.MustNewTag("loca"))
 	loca, err := tables.ParseLoca(locaRaw, out.nGlyphs, out.head.IndexToLocFormat == 1)
-	if err == nil { // ParseGlyf panics if len(loca) == 0
+	// ParseGlyf requires the final loca offset, even for zero glyphs.
+	// NewFont drops an invalid glyf instead of failing. Only cmap, head and maxp
+	// are required, and the font stays usable for cmap and metrics queries.
+	if err == nil {
 		out.glyf, _ = tables.ParseGlyf(raw, loca)
 	}
 
