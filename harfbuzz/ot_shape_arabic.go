@@ -368,7 +368,7 @@ func (cs *complexShaperArabic) setupMasks(plan *otShapePlan, buffer *Buffer, _ *
 }
 
 func arabicFallbackShape(plan *otShapePlan, font *Font, buffer *Buffer) bool {
-	arabicPlan := plan.shaper.(*complexShaperArabic).plan
+	arabicPlan := &plan.shaper.(*complexShaperArabic).plan
 
 	if !arabicPlan.doFallback {
 		return false
@@ -378,6 +378,7 @@ func arabicFallbackShape(plan *otShapePlan, font *Font, buffer *Buffer) bool {
 	if fallbackPlan == nil {
 		// this sucks. We need a font to build the fallback plan...
 		fallbackPlan = newArabicFallbackPlan(plan, font)
+		arabicPlan.fallbackPlan = fallbackPlan
 	}
 
 	fallbackPlan.shape(font, buffer)
