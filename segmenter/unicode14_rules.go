@@ -119,10 +119,14 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 		return breakAllowed
 	}
 
+	// LB19 and LB19a. br0 follows LB9, so both rules read the rune it was
+	// computed for, not the raw prev and prevPrev.
+	//
 	// LB19
 	// × [ QU - \p{Pi} ]
 	// [ QU - \p{Pf} ] ×
-	if (br1 == ucd.LB_QU && cr.generalCategory != ucd.Pi) || (br0 == ucd.LB_QU && cr.prevGeneralCategory != ucd.Pf) {
+	if (br1 == ucd.LB_QU && cr.generalCategory != ucd.Pi) ||
+		(br0 == ucd.LB_QU && ucd.LookupGeneralCategory(cr.prevLineRune) != ucd.Pf) {
 		return breakProhibited
 	}
 	// LB 19a
@@ -130,10 +134,10 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	// × QU ( [^$EastAsian] | eot )
 	// QU × [^$EastAsian]
 	// ( sot | [^$EastAsian] ) QU ×
-	if (br1 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.prev)) ||
+	if (br1 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.prevLineRune)) ||
 		(br1 == ucd.LB_QU && (cr.index == cr.len-1 || !ucd.IsLargeEastAsian(cr.next))) ||
 		(br0 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.r)) ||
-		((cr.isPreviousSot || !ucd.IsLargeEastAsian(cr.prevPrev)) && br0 == ucd.LB_QU) {
+		((cr.isPreviousSot || !ucd.IsLargeEastAsian(cr.prevPrevLineRune)) && br0 == ucd.LB_QU) {
 		return breakProhibited
 	}
 
@@ -289,7 +293,7 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 		return breakProhibited
 	}
 	// [CP-[\p{ea=F}\p{ea=W}\p{ea=H}]] × (AL | HL | NU)
-	if cr.prevLine == ucd.LB_CP && !ucd.IsLargeEastAsian(cr.prev) &&
+	if cr.prevLine == ucd.LB_CP && !ucd.IsLargeEastAsian(cr.prevLineRune) &&
 		cr.line&(ucd.LB_AL|ucd.LB_HL|ucd.LB_NU) != 0 {
 		return breakProhibited
 	}
@@ -403,7 +407,6 @@ func (cr *cursor) startIteration(text []rune, i int) {
 	}
 
 	// query general unicode properties for the current rune
-	cr.prevGeneralCategory = cr.generalCategory
 	cr.generalCategory = ucd.LookupGeneralCategory(cr.r)
 
 	cr.isExtentedPic = ucd.IsExtendedPictographic(cr.r)
@@ -432,6 +435,7 @@ func (cr *cursor) endIteration() {
 		isLB10 := cr.prevLine&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW) != 0
 		if cr.index == 0 || isLB10 { // Rule LB10
 			cr.prevLine = ucd.LB_AL
+			cr.prevLineRune = 'A' // LB10 also replaces the general category and East Asian width.
 		} // else rule LB9 : ignore the rune for prevLine and prevPrevLine
 
 	} else { // regular update
@@ -449,6 +453,8 @@ func (cr *cursor) endIteration() {
 
 		cr.prevPrevLine = cr.prevLine
 		cr.prevLine = cr.line
+		cr.prevPrevLineRune = cr.prevLineRune
+		cr.prevLineRune = cr.r
 
 		cr.isPrevPrevDottedCircle = cr.isPrevDottedCircle
 		cr.isPrevDottedCircle = cr.r == 0x25CC

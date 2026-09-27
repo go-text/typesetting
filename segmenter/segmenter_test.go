@@ -245,6 +245,32 @@ func TestWordSegmenter(t *testing.T) {
 	}
 }
 
+// LB19a reads the runes before the quotation mark after LB9 attached the
+// combining marks, not the raw previous runes. LineBreakTest.txt has no
+// EastAsian/CM/QU triples, so the conformance data misses this.
+func TestLineBreakLB19aCombiningMarks(t *testing.T) {
+	for _, test := range []struct {
+		input string
+		want  []string
+	}{
+		// LB10 gives unattached marks the properties of 'A', including narrow width.
+		{"\u302a\u0308“漢", []string{"\u302a\u0308“漢"}},
+		{" \u302a\u0308“漢", []string{" ", "\u302a\u0308“漢"}},
+		{"漢”̈漢", []string{"漢”̈", "漢"}},
+		{"漢̈“漢", []string{"漢̈", "“漢"}},
+	} {
+		var seg Segmenter
+		seg.Init([]rune(test.input))
+		var got []string
+		for iter := seg.LineIterator(); iter.Next(); {
+			got = append(got, string(iter.Line().Text))
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("input %q: got lines %q, want %q", test.input, got, test.want)
+		}
+	}
+}
+
 func TestBytePositions(t *testing.T) {
 	tests := []string{
 		"",

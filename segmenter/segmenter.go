@@ -62,8 +62,7 @@ type cursor struct {
 
 	// the following fields persists across iterations
 
-	prevGeneralCategory ucd.GeneralCategory // for prev
-	generalCategory     ucd.GeneralCategory // for r
+	generalCategory ucd.GeneralCategory // for r
 
 	prevGrapheme ucd.GraphemeBreak // the Grapheme Break property at index i-1
 	grapheme     ucd.GraphemeBreak // the Grapheme Break property at index i
@@ -85,6 +84,8 @@ type cursor struct {
 
 	prevPrevLine           ucd.LineBreak // the Line Break Class at index i-2 (see rules LB9 and LB10 for edge cases)
 	prevLine               ucd.LineBreak // the Line Break Class at index i-1 (see rules LB9 and LB10 for edge cases)
+	prevPrevLineRune       rune          // the rune prevPrevLine was computed for, following LB9 and LB10
+	prevLineRune           rune          // the rune prevLine was computed for, following LB9 and LB10
 	prevLineRaw            ucd.LineBreak // always for prev (index i-1), despite LB9 and LB10
 	line                   ucd.LineBreak // the Line Break Class at index i
 	nextLine               ucd.LineBreak // the Line Break Class at index i+1
