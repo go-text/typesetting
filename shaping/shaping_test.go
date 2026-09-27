@@ -747,6 +747,13 @@ func TestSpaceReplacement(t *testing.T) {
 	tu.Assert(t, out.Glyphs[2].GlyphID == font.EmptyGlyph)
 }
 
+func TestShapeClampsRunRange(t *testing.T) {
+	text := []rune("Hello")
+	out := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunStart: 1, RunEnd: len(text) + 3, Face: benchEnFace, Size: fixed.I(16)})
+	tu.Assert(t, out.Runes == Range{Offset: 1, Count: len(text) - 1})
+	tu.Assert(t, len(out.Glyphs) == len(text)-1 && out.Glyphs[0].RuneCount == 1)
+}
+
 func TestShapeFontCacheKeyedOnFace(t *testing.T) {
 	face1 := loadOpentypeFont(t, "../font/testdata/Selawik-VF-Subset.ttf")
 	face2 := font.NewFace(face1.Font)

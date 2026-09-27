@@ -152,7 +152,7 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 		glyphs[i].XBearing = fixed.I(int(extents.XBearing)) >> scaleShift
 		glyphs[i].YBearing = fixed.I(int(extents.YBearing)) >> scaleShift
 	}
-	countClusters(glyphs, input.RunEnd, input.Direction.Progression())
+	countClusters(glyphs, end, input.Direction.Progression())
 	out := Output{
 		Glyphs:    glyphs,
 		Direction: input.Direction,
@@ -160,8 +160,8 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 		Size:      input.Size,
 		Level:     input.Level,
 	}
-	out.Runes.Offset = input.RunStart
-	out.Runes.Count = input.RunEnd - input.RunStart
+	out.Runes.Offset = start
+	out.Runes.Count = end - start
 
 	if isSideways {
 		// set the Direction to the correct value.
