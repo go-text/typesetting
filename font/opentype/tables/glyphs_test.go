@@ -343,10 +343,39 @@ func TestParseGlyfMalformed(t *testing.T) {
 	tu.Assert(t, bytes.Equal(cg.Instructions, []byte{0xAB, 0xCD}))
 }
 
+func TestParseCBLCMalformed(t *testing.T) {
+	bitmapSize := make([]byte, 48)
+	bitmapSize[3] = 56 // indexSubTableArrayOffset = 8 + 48
+	bitmapSize[11] = 1 // numberOfIndexSubTables
+	src := append([]byte{0, 3, 0, 0, 0, 0, 0, 1}, bitmapSize...)
+	// index subtable array: firstGlyph 10, lastGlyph 5, offset 8
+	badRange := append(src, 0, 10, 0, 5, 0, 0, 0, 8, 0, 1, 0, 1, 0, 0, 0, 0)
+	_, _, err := ParseCBLC(badRange)
+	tu.Assert(t, err != nil)
+	// firstGlyph 5, lastGlyph 10, offset way beyond the table
+	badOffset := append(src, 0, 5, 0, 10, 0, 0, 0xFF, 0)
+	_, _, err = ParseCBLC(badOffset)
+	tu.Assert(t, err != nil)
+}
+
 func TestParseGlyfRejectsOutOfRangeEmptyGlyph(t *testing.T) {
 	for _, offsets := range [][]uint32{{5, 5}, {0, 0xFFFFFFFF}} {
 		if _, err := ParseGlyf(make([]byte, 4), offsets); err == nil {
 			t.Fatalf("accepted invalid offsets %v", offsets)
+		}
+	}
+}
+
+func TestCBLCRejectsOverflowingOffsets(t *testing.T) {
+	for _, size := range []BitmapSize{
+		{indexSubTableArrayOffset: 0xFFFFFFFF},
+		{numberOfIndexSubTables: 0x20000000},
+		{numberOfIndexSubTables: 1},
+	} {
+		cb := CBLC{BitmapSizes: []BitmapSize{size}}
+		// One subtable with additionalOffsetToIndexSubtable = 0xFFFFFFFF.
+		if err := cb.parseIndexSubTables([]byte{0, 0, 0, 0, 255, 255, 255, 255}); err == nil {
+			t.Fatalf("accepted invalid bitmap size %+v", size)
 		}
 	}
 }
