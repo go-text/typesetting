@@ -398,3 +398,13 @@ func TestGPOS2_1(t *testing.T) {
 	tu.Assert(t, reflect.DeepEqual(v1, v1g))
 	tu.Assert(t, reflect.DeepEqual(v2, v2g))
 }
+
+func TestAnchorMatrixOutOfRange(t *testing.T) {
+	am := AnchorMatrix{records: []anchorOffsets{{offsets: []Offset16{0}}}}
+	tu.Assert(t, am.Anchor(1, 0) == nil)
+	tu.Assert(t, am.Anchor(0, 1) == nil)
+
+	ma := MarkArray{MarkRecords: []MarkRecord{{MarkClass: 1}}}
+	tu.Assert(t, ma.sanitizeClasses(1) != nil)
+	tu.Assert(t, ma.sanitizeClasses(2) == nil)
+}
