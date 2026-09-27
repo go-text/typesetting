@@ -406,6 +406,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 					} else {
 						pos[i].YAdvance = font.getGlyphVAdvance(glyph)
 					}
+					break
 				}
 			}
 		case spacePunctuation:
