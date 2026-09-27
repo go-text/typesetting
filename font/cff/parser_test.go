@@ -390,6 +390,21 @@ func TestCFF2InvalidBlend(t *testing.T) {
 	tu.Assert(t, met.blend(&m) != nil)
 }
 
+func TestCFF2InvalidVSIndex(t *testing.T) {
+	for _, count := range []int{0, 1} {
+		for _, index := range []int32{-1, 1} {
+			font := CFF2{
+				Charstrings: [][]byte{nil},
+				fonts:       []privateFonts{{defaultVSIndex: index}},
+				VarStore:    tables.ItemVarStore{ItemVariationDatas: make([]tables.ItemVariationData, count)},
+			}
+			if _, _, err := font.LoadGlyph(0, nil); err == nil {
+				t.Fatalf("LoadGlyph accepted vsindex %d with %d variation data entries", index, count)
+			}
+		}
+	}
+}
+
 func TestParseIndex2EmptyAtEnd(t *testing.T) {
 	out, err := parseIndex2([]byte{0, 0, 0, 0}, 0)
 	if err != nil || len(out) != 0 {

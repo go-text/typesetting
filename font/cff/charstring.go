@@ -166,7 +166,9 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []tables.Coord) ([]ot.Segm
 
 	loader.coords = coords
 	loader.vars = f.VarStore
-	loader.setVSIndex(int(font.defaultVSIndex))
+	if err = loader.setVSIndex(int(font.defaultVSIndex)); err != nil {
+		return nil, ps.PathBounds{}, err
+	}
 
 	err = psi.Run(f.Charstrings[glyph], font.localSubrs, f.globalSubrs, &loader)
 
@@ -190,11 +192,11 @@ func (met *cff2CharstringHandler) setVSIndex(index int) error {
 	// if the font has variations, always build the scalar
 	// slice, even if no variations are activated by the user:
 	// the blend operator needs to know how many args to skip.
-	if len(met.vars.ItemVariationDatas) == 0 {
+	if index == 0 && len(met.vars.ItemVariationDatas) == 0 {
 		return nil
 	}
 
-	if index >= len(met.vars.ItemVariationDatas) {
+	if index < 0 || index >= len(met.vars.ItemVariationDatas) {
 		return fmt.Errorf("invalid 'vsindex' %d", index)
 	}
 
