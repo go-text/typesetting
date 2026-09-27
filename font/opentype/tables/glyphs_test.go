@@ -331,6 +331,16 @@ func TestParseGlyfMalformed(t *testing.T) {
 	// the first contour ends at point 2 and the second at point 1
 	sg := SimpleGlyph{EndPtsOfContours: []uint16{2, 1}}
 	tu.Assert(t, sg.parsePoints([]byte{1, 1, 1, 1, 1, 1}, 2) != nil)
+
+	// one unscaled part, then 2 bytes of instructions
+	src := []byte{
+		0x01, 0x01, // flags: ARG_1_AND_2_ARE_WORDS | WE_HAVE_INSTRUCTIONS
+		0, 1, 0, 0, 0, 0, // glyph index, dx, dy
+		0, 2, 0xAB, 0xCD, // instructions
+	}
+	cg, _, err := ParseCompositeGlyph(src)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, bytes.Equal(cg.Instructions, []byte{0xAB, 0xCD}))
 }
 
 func TestParseGlyfRejectsOutOfRangeEmptyGlyph(t *testing.T) {
