@@ -195,20 +195,6 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			if !reflect.DeepEqual(tc.expected, mapping) {
 				t.Errorf("expected %v, got %v", tc.expected, mapping)
 			}
-			mapping = mapRunesToClusterIndices2(tc.dir, tc.runes, tc.glyphs, nil)
-			if !reflect.DeepEqual(tc.expected, mapping) {
-				t.Errorf("expected %v, got %v", tc.expected, mapping)
-			}
-			mapping = mapRunesToClusterIndices3(tc.dir, tc.runes, tc.glyphs, nil)
-			if !reflect.DeepEqual(tc.expected, mapping) {
-				t.Errorf("expected %v, got %v", tc.expected, mapping)
-			}
-			for runeIdx, glyphIdx := range tc.expected {
-				g := mapRuneToClusterIndex(tc.dir, tc.runes, tc.glyphs, runeIdx)
-				if g != glyphIdx {
-					t.Errorf("map single, expected rune %d to yield %d, got %d", runeIdx, glyphIdx, g)
-				}
-			}
 		})
 	}
 }
@@ -2299,9 +2285,7 @@ func BenchmarkMapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range []int{10, 100, 1000} {
 			for impl, f := range map[string]wrapfunc{
-				//"v1": mapRunesToClusterIndices,
-				//"v2": mapRunesToClusterIndices2,
-				"v3": mapRunesToClusterIndices3,
+				"v3": mapRunesToClusterIndices,
 			} {
 				b.Run(fmt.Sprintf("%drunes-%s-%s", size, langInfo.name, impl), func(b *testing.B) {
 					var shaper HarfbuzzShaper
@@ -2394,7 +2378,7 @@ var benchSizes = []benchSizeConfig{
 // cutRunInto divides the run into [parts] of same size (with the last part absorbing any remainder).
 func cutRunInto(run Output, parts int) []Output {
 	var outs []Output
-	mapping := mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, nil)
+	mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
 	runesPerPart := run.Runes.Count / parts
 	partStart := 0
 	for i := 0; i < parts-1; i++ {
