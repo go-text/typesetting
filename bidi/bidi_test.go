@@ -551,3 +551,23 @@ func BenchmarkComplex(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkPathological(b *testing.B) {
+	for _, tc := range []struct {
+		name, unit string
+	}{
+		{"brackets", "()"},
+		{"digits", "1"},
+		{"unmatchedIsolates", "\u2066"},
+	} {
+		for _, n := range []int{20000, 40000} {
+			text := []rune(strings.Repeat(tc.unit, n))
+			b.Run(fmt.Sprintf("%s/%d", tc.name, n), func(b *testing.B) {
+				var p Paragraph
+				for i := 0; i < b.N; i++ {
+					p.Segment(text, RightToLeft)
+				}
+			})
+		}
+	}
+}
