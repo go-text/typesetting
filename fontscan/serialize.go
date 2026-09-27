@@ -185,7 +185,7 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 	return nil
 }
 
-const cacheFormatVersion = 6
+const cacheFormatVersion = 7
 
 func max(i, j int) int {
 	if i > j {
