@@ -415,16 +415,12 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 
 	// Rule W2.
 	// EN does not change at the start of the run, because sos != AL.
+	lastStrong := s.sos
 	for i, t := range s.types {
-		if t == ucd.BD_EN {
-			for j := i - 1; j >= 0; j-- {
-				if t := s.types[j]; t&(ucd.BD_L|ucd.BD_R|ucd.BD_AL) != 0 {
-					if t == ucd.BD_AL {
-						s.types[i] = ucd.BD_AN
-					}
-					break
-				}
-			}
+		if t&(ucd.BD_L|ucd.BD_R|ucd.BD_AL) != 0 {
+			lastStrong = t
+		} else if t == ucd.BD_EN && lastStrong == ucd.BD_AL {
+			s.types[i] = ucd.BD_AN
 		}
 	}
 
@@ -494,20 +490,16 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 	}
 
 	// Rule W7.
+	// W3 changed every AL to R, and sos is the default at the start of the run.
+	// An EN turns into L only when lastStrong is already L, so carrying
+	// lastStrong forward gives the same answer as a backward scan over the
+	// updated types.
+	lastStrong = s.sos
 	for i, t := range s.types {
-		if t == ucd.BD_EN {
-			// set default if we reach start of run
-			prevStrongType := s.sos
-			for j := i - 1; j >= 0; j-- {
-				t = s.types[j]
-				if t == ucd.BD_L || t == ucd.BD_R { // AL's have been changed to R
-					prevStrongType = t
-					break
-				}
-			}
-			if prevStrongType == ucd.BD_L {
-				s.types[i] = ucd.BD_L
-			}
+		if t == ucd.BD_L || t == ucd.BD_R {
+			lastStrong = t
+		} else if t == ucd.BD_EN && lastStrong == ucd.BD_L {
+			s.types[i] = ucd.BD_L
 		}
 	}
 }
