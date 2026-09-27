@@ -172,7 +172,7 @@ func newGSUB(table tables.Layout) (GSUB, error) {
 			}
 
 			// sanitize each lookup
-			switch subtable := subtable.(type) {
+			switch subtable := subtables[j].(type) {
 			case tables.MultipleSubs:
 				err = subtable.Sanitize()
 			case tables.LigatureSubs:
@@ -227,7 +227,7 @@ func newGPOS(table tables.Layout) (GPOS, error) {
 			}
 
 			// sanitize each lookup
-			switch subtable := subtable.(type) {
+			switch subtable := subtables[j].(type) {
 			case tables.SinglePos:
 				err = subtable.Sanitize()
 			case tables.PairPos:
