@@ -768,6 +768,16 @@ func TestShapeFontCacheKeyedOnFace(t *testing.T) {
 	tu.Assert(t, regular.Advance != bold.Advance)
 }
 
+func TestShapeFractionalSize(t *testing.T) {
+	text := []rune("Hello")
+	var shaper HarfbuzzShaper
+	input := Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(13), Script: language.Latin}
+	at13 := shaper.Shape(input)
+	input.Size = fixed.I(25) / 2
+	at12dot5 := shaper.Shape(input)
+	tu.Assert(t, at12dot5.Advance < at13.Advance)
+}
+
 func TestShrinkingFontCache(t *testing.T) {
 	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
 	for _, size := range []int{1, 0, -1} {
