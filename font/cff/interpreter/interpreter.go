@@ -107,7 +107,7 @@ type Machine struct {
 // SkipBytes skips the next `count` bytes from the instructions, and clears the argument stack.
 // It does nothing if `count` exceed the length of the instructions.
 func (p *Machine) SkipBytes(count int32) {
-	if int(count) >= len(p.instructions) {
+	if int(count) > len(p.instructions) {
 		return
 	}
 	p.instructions = p.instructions[count:]

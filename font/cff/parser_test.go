@@ -405,6 +405,13 @@ func TestCFF2InvalidVSIndex(t *testing.T) {
 	}
 }
 
+func TestHintmaskAtEnd(t *testing.T) {
+	var psi psinterpreter.Machine
+	// 10 20 hstem hintmask <1 mask byte>
+	err := psi.Run([]byte{149, 159, 1, 19, 0xff}, nil, nil, &type2CharstringHandler{})
+	tu.AssertNoErr(t, err)
+}
+
 func TestParseIndex2EmptyAtEnd(t *testing.T) {
 	out, err := parseIndex2([]byte{0, 0, 0, 0}, 0)
 	if err != nil || len(out) != 0 {
