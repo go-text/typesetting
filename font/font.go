@@ -617,13 +617,15 @@ func loadGDEF(ld *ot.Loader, axisCount int, gsub, gpos []byte) (tables.GDEF, err
 
 // Face is a font with user-provided settings.
 // Contrary to the [*Font] objects, Faces are NOT safe for concurrent use.
-// A Face caches glyph extents and rune to glyph mapping, and should be reused when possible.
+// A Face caches glyph extents, advances and rune to glyph mapping, and should be reused when possible.
 //
 // Also note that an empty [Face] is invalid : the [NewFace] constructor is required to properly init caches.
 type Face struct {
 	*Font
 
 	extentsCache          extentsCache
+	hAdvanceCache         advanceCache // advances of variable fonts without HVAR, allocated on first use
+	vAdvanceCache         advanceCache // advances of variable fonts without VVAR, allocated on first use
 	cmapCache             cache21_19_8 // supported runes, mapping to GID
 	cmapNotSupportedCache cache21_0_13 // not supported runes
 
@@ -677,6 +679,8 @@ func (f *Face) Coords() []tables.Coord { return f.coords }
 // Use [NormalizeVariations] to convert from design (user) space units.
 func (f *Face) SetCoords(coords []tables.Coord) {
 	f.coords = coords
-	// invalid the cache
+	// invalid the caches
 	f.extentsCache.reset()
+	f.hAdvanceCache.reset()
+	f.vAdvanceCache.reset()
 }
