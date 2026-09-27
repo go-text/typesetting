@@ -19,8 +19,8 @@ func newSvg(table tables.SVG) (svg, error) {
 	rawData := table.SVGDocumentList.SVGRawData
 	out := make(svg, len(table.SVGDocumentList.DocumentRecords))
 	for i, rec := range table.SVGDocumentList.DocumentRecords {
-		start, end := rec.SvgDocOffset, rec.SvgDocOffset+tables.Offset32(rec.SvgDocLength)
-		if len(rawData) < int(end) {
+		start, end := uint64(rec.SvgDocOffset), uint64(rec.SvgDocOffset)+uint64(rec.SvgDocLength)
+		if uint64(len(rawData)) < end {
 			return nil, fmt.Errorf("invalid svg table (EOF: expected %d, got %d)", end, len(rawData))
 		}
 		out[i] = svgDocument{
