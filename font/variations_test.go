@@ -192,7 +192,7 @@ func TestInvalidGVAR(t *testing.T) {
 	gvar, _, err := tables.ParseGvar(raw)
 	tu.AssertNoErr(t, err)
 	// check that newGvar does not crash..
-	_, err = newGvar(gvar, glyf)
+	_, err = newGvar(gvar, glyf, 1)
 	// ... and reports an error
 	tu.Assert(t, err != nil)
 }
@@ -790,4 +790,32 @@ func TestPointNumbersBounds(t *testing.T) {
 	pts, _, err := parsePointNumbers([]byte{1, 0, 5}, 6)
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(pts) == 1 && pts[0] == 5)
+}
+
+func TestGvarAxisCountMismatch(t *testing.T) {
+	table := tables.Gvar{SharedTuples: tables.SharedTuples{SharedTuples: []tables.Tuple{{Values: []tables.Coord{0, 0}}}}}
+	_, err := newGvar(table, nil, 1)
+	tu.Assert(t, err != nil)
+	_, err = newGvar(table, nil, 2)
+	tu.AssertNoErr(t, err)
+}
+
+func TestGvarInvalidSerializedData(t *testing.T) {
+	table := tables.Gvar{
+		SharedTuples: tables.SharedTuples{SharedTuples: []tables.Tuple{{Values: []tables.Coord{0, 16384}}}},
+		GlyphVariationDatas: []tables.GlyphVariationData{
+			{
+				TupleVariationHeaders: []tables.TupleVariationHeader{{VariationDataSize: 9}},
+				SerializedData:        []byte{7, 1, 0, 0, 0, 0, 0, 0, 0},
+			},
+			{TupleVariationHeaders: []tables.TupleVariationHeader{{VariationDataSize: 1}}},
+		},
+	}
+	gv, err := newGvar(table, make(tables.Glyf, 2), 2)
+	tu.Assert(t, err != nil)
+	// NewFont ignores optional-table errors, so an error in a later glyph
+	// must leave no partially initialized variations behind.
+	points := make([]contourPoint, phantomCount)
+	gv.applyDeltasToPoints(0, []VarCoord{0, 8192}, points)
+	tu.Assert(t, points[0].X == 0)
 }

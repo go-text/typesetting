@@ -308,7 +308,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 
 		raw, _ = ld.RawTable(ot.MustNewTag("gvar"))
 		gvar, _, _ := tables.ParseGvar(raw)
-		out.gvar, _ = newGvar(gvar, out.glyf)
+		out.gvar, _ = newGvar(gvar, out.glyf, axisCount)
 
 		raw, _ = ld.RawTable(ot.MustNewTag("HVAR"))
 		hvar, _, err := tables.ParseHVAR(raw)
