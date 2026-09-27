@@ -74,3 +74,39 @@ func TestOTFeatureVariation(t *testing.T) {
 	tu.Assert(t, gsub.FindVariationIndex([]VarCoord{tables.NewCoord(0.8)}) == 0)
 	tu.Assert(t, gsub.FindVariationIndex([]VarCoord{tables.NewCoord(0.4)}) == -1)
 }
+
+func TestExtensionsSanitizeResolvedSubtable(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		lookupType byte
+		targetType byte
+		subtable   []byte
+		load       func(tables.Layout) error
+	}{
+		{
+			name: "GSUB", lookupType: 7, targetType: 2,
+			// MultipleSubst: one covered glyph, no replacement sequences.
+			subtable: []byte{0, 1, 0, 6, 0, 0, 0, 1, 0, 1, 0, 5},
+			load:     func(l tables.Layout) error { _, err := newGSUB(l); return err },
+		},
+		{
+			name: "GPOS", lookupType: 9, targetType: 1,
+			// SinglePos format 2: one covered glyph, no value records.
+			subtable: []byte{0, 2, 0, 8, 0, 0, 0, 0, 0, 1, 0, 1, 0, 5},
+			load:     func(l tables.Layout) error { _, err := newGPOS(l); return err },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := append([]byte{0, tc.lookupType, 0, 0, 0, 1, 0, 8, 0, 1, 0, tc.targetType, 0, 0, 0, 8}, tc.subtable...)
+			lookup, _, err := tables.ParseLookup(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var layout tables.Layout
+			layout.LookupList.Lookups = []tables.Lookup{lookup}
+			if tc.load(layout) == nil {
+				t.Fatal("accepted invalid resolved extension subtable")
+			}
+		})
+	}
+}
