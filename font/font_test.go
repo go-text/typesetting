@@ -4,6 +4,7 @@ package font
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	hb "github.com/go-text/typesetting-utils/harfbuzz"
@@ -212,4 +213,35 @@ func BenchmarkCmap(b *testing.B) {
 			}
 		}
 	})
+}
+
+func TestNewFontIgnoresInvalidOptionalGlyf(t *testing.T) {
+	data, err := td.Files.ReadFile("common/mplus-1p-regular.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep loca intact but make glyf empty in the sfnt directory.
+	found := false
+	for i := 0; i < int(binary.BigEndian.Uint16(data[4:])); i++ {
+		entry := data[12+16*i:]
+		if string(entry[:4]) == "glyf" {
+			binary.BigEndian.PutUint32(entry[12:], 0)
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("fixture has no glyf table")
+	}
+	loader, err := ot.NewLoader(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	font, err := NewFont(loader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if font.glyf != nil {
+		t.Fatal("invalid optional glyf table was retained")
+	}
 }

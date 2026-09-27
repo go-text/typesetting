@@ -321,3 +321,18 @@ func TestParseVORG(t *testing.T) {
 		tu.Assert(t, vorg.YOrigin(gid) == exp)
 	}
 }
+
+func TestParseGlyfMalformed(t *testing.T) {
+	_, err := ParseGlyf([]byte{0, 0, 0, 0}, []uint32{100, 50})
+	tu.Assert(t, err != nil)
+	_, err = ParseGlyf([]byte{0, 0, 0, 0}, []uint32{0, 500})
+	tu.Assert(t, err != nil)
+}
+
+func TestParseGlyfRejectsOutOfRangeEmptyGlyph(t *testing.T) {
+	for _, offsets := range [][]uint32{{5, 5}, {0, 0xFFFFFFFF}} {
+		if _, err := ParseGlyf(make([]byte, 4), offsets); err == nil {
+			t.Fatalf("accepted invalid offsets %v", offsets)
+		}
+	}
+}
