@@ -1,7 +1,6 @@
 package bidi
 
 import (
-	"container/list"
 	"sort"
 
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
@@ -24,10 +23,9 @@ import (
 //    equivalents of each other be able to be substituted for each other.
 //    It is the responsibility of the caller to do this canonicalization.
 //
-// In implementing BD16, this implementation departs slightly from the "logical"
-// algorithm defined in UAX#9. In particular, the stack referenced there
-// supports operations that go beyond a "basic" stack. An equivalent
-// implementation based on a linked list is used here.
+// The BD16 stack of openers is a plain slice. To match a closer, scan it from
+// the top and truncate it at the matched opener. That is the "pop everything
+// above and including" operation the spec describes.
 
 // Bidi_Paired_Bracket_Type
 // BD14. An opening paired bracket is a character whose
@@ -68,7 +66,8 @@ func (b bracketPairs) Less(i, j int) bool { return b[i].opener < b[j].opener }
 func resolvePairedBrackets(s *isolatingRunSequence) {
 	p := bracketPairer{
 		sos:              s.sos,
-		openers:          list.New(),
+		openers:          s.p.bracketOpeners[:0],
+		pairPositions:    s.p.bracketPairs[:0],
 		codesIsolatedRun: s.types,
 		indexes:          s.indexes,
 	}
@@ -78,6 +77,9 @@ func resolvePairedBrackets(s *isolatingRunSequence) {
 	}
 	p.locateBrackets(s.p.pairTypes, s.p.pairValues)
 	p.resolveBrackets(dirEmbed, s.p.initialTypes)
+	// keep the buffers, which may have grown, for the next sequence
+	s.p.bracketOpeners = p.openers[:0]
+	s.p.bracketPairs = p.pairPositions[:0]
 }
 
 type bracketPairer struct {
@@ -102,9 +104,10 @@ type bracketPairer struct {
 	// slices contain the rune of the opening bracket after normalization for
 	// any opening or closing bracket.
 
-	openers *list.List // list of positions for opening brackets
+	openers []int // stack of positions for opening brackets, most recent last
 
-	// bracket pair positions sorted by location of opening bracket
+	// bracket pair positions, sorted by location of opening bracket
+	// once locateBrackets returns
 	pairPositions bracketPairs
 
 	codesIsolatedRun []ucd.BidiClass // directional bidi codes for an isolated run
@@ -129,13 +132,10 @@ func (p *bracketPairer) matchOpener(pairValues []rune, opener, closer int) bool 
 const maxPairingDepth = 63
 
 // locateBrackets locates matching bracket pairs according to BD16.
-//
-// This implementation uses a linked list instead of a stack, because, while
-// elements are added at the front (like a push) they are not generally removed
-// in atomic 'pop' operations, reducing the benefit of the stack archetype.
 func (p *bracketPairer) locateBrackets(pairTypes []bracketType, pairValues []rune) {
 	// traverse the run
 	// do that explicitly (not in a for-each) so we can record position
+scan:
 	for i, index := range p.indexes {
 
 		// look at the bracket type for each character
@@ -146,34 +146,29 @@ func (p *bracketPairer) locateBrackets(pairTypes []bracketType, pairValues []run
 		switch pairTypes[index] {
 		case bpOpen:
 			// check if maximum pairing depth reached
-			if p.openers.Len() == maxPairingDepth {
-				p.openers.Init()
-				return
+			if len(p.openers) == maxPairingDepth {
+				p.openers = p.openers[:0]
+				break scan
 			}
-			// remember opener location, most recent first
-			p.openers.PushFront(i)
+			// remember opener location
+			p.openers = append(p.openers, i)
 
 		case bpClose:
-			// see if there is a match
-			count := 0
-			for elem := p.openers.Front(); elem != nil; elem = elem.Next() {
-				count++
-				opener := elem.Value.(int)
-				if p.matchOpener(pairValues, opener, i) {
-					// if the opener matches, add nested pair to the ordered list
-					p.pairPositions = append(p.pairPositions, bracketPair{opener, i})
+			// see if there is a match, most recent opener first
+			for j := len(p.openers) - 1; j >= 0; j-- {
+				if p.matchOpener(pairValues, p.openers[j], i) {
+					p.pairPositions = append(p.pairPositions, bracketPair{p.openers[j], i})
 					// remove up to and including matched opener
-					for ; count > 0; count-- {
-						p.openers.Remove(p.openers.Front())
-					}
+					p.openers = p.openers[:j]
 					break
 				}
 			}
-			sort.Sort(p.pairPositions)
 			// if we get here, the closing bracket matched no openers
 			// and gets ignored
 		}
 	}
+	// pairs were recorded in closer order. N0 wants opener order.
+	sort.Sort(p.pairPositions)
 }
 
 // Bracket pairs within an isolating run sequence are processed as units so
