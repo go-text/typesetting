@@ -295,10 +295,10 @@ func (cg *CompositeGlyph) parseGlyphs(src []byte) error {
 			return fmt.Errorf("EOF: expected length: 2, got %d", L)
 		}
 		E := int(binary.BigEndian.Uint16(src))
-		if L := len(src); L < E {
-			return fmt.Errorf("EOF: expected length: %d, got %d", E, len(src))
+		if L := len(src); L < 2+E {
+			return fmt.Errorf("EOF: expected length: %d, got %d", 2+E, L)
 		}
-		cg.Instructions = src[0:E]
+		cg.Instructions = src[2 : 2+E]
 	}
 
 	return nil
