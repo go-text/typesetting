@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sort"
+	"unicode"
 
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
@@ -364,6 +365,9 @@ func newCmap6(cm tables.CmapSubtable6) cmap6or10 {
 }
 
 func newCmap10(cm tables.CmapSubtable10) cmap6or10 {
+	if cm.StartCharCode > unicode.MaxRune { // no rune reaches this subtable, and rune(firstCode) would overflow
+		return cmap6or10{}
+	}
 	return cmap6or10{entries: cm.GlyphIdArray, firstCode: rune(cm.StartCharCode)}
 }
 
@@ -914,6 +918,9 @@ func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
 }
 
 func (cm *cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
+	if len(cm.entries) == 0 {
+		return dst[:0]
+	}
 	if cap(dst) < 1 {
 		dst = [][2]rune{{}}
 	}
