@@ -267,3 +267,14 @@ func TestShapePlanCacheVariations(t *testing.T) {
 	assertEqualInt(t, 954, int(shape(400)))
 	assertEqualInt(t, 1117, int(shape(900)))
 }
+
+func TestInvisibleGlyph(t *testing.T) {
+	fnt := NewFont(font.NewFace(openFontFile(t, "perf_reference/fonts/Roboto-Regular.ttf")))
+	buffer := NewBuffer()
+	buffer.Invisible = 7
+	buffer.AddRunes([]rune{'a', 0x200B /* ZWSP, default ignorable */, 'b'}, 0, -1)
+	buffer.Props = SegmentProperties{Direction: LeftToRight, Script: language.Latin, Language: "en"}
+	buffer.Shape(fnt, nil)
+	assertEqualInt(t, 3, len(buffer.Info))
+	assertEqualInt(t, 7, int(buffer.Info[1].Glyph))
+}

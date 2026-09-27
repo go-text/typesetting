@@ -528,11 +528,8 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 
 	info := buffer.Info
 
-	var (
-		invisible = buffer.Invisible
-		ok        bool
-	)
-	if invisible == 0 {
+	invisible, ok := buffer.Invisible, buffer.Invisible != 0
+	if !ok {
 		invisible, ok = font.face.NominalGlyph(' ')
 	}
 	if buffer.Flags&RemoveDefaultIgnorables == 0 && ok {
