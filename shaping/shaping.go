@@ -98,8 +98,9 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 		font = harfbuzz.NewFont(input.Face)
 		t.fonts.Put(input.Face, font)
 	}
-	// adjust the user provided fields
-	font.XScale = int32(input.Size.Ceil()) << scaleShift
+	// adjust the user provided fields. Size is in 26.6 units, the same
+	// scaleShift the shaping results below are divided by.
+	font.XScale = int32(input.Size)
 	font.YScale = font.XScale
 
 	if L := len(input.FontFeatures); cap(t.features) < L {
