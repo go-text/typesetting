@@ -382,3 +382,15 @@ func TestCFF2EmptyFDArray(t *testing.T) {
 		t.Fatalf("expected empty FDArray error, got %v", err)
 	}
 }
+
+func TestParseIndex2EmptyAtEnd(t *testing.T) {
+	out, err := parseIndex2([]byte{0, 0, 0, 0}, 0)
+	if err != nil || len(out) != 0 {
+		t.Fatalf("empty INDEX: got %v, %v", out, err)
+	}
+	for _, offset := range []int{-1, 1, int(^uint(0) >> 1)} {
+		if _, err := parseIndex2([]byte{0, 0, 0, 0}, offset); err == nil {
+			t.Fatalf("accepted invalid INDEX offset %d", offset)
+		}
+	}
+}

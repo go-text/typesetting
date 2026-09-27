@@ -156,15 +156,23 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 }
 
 func parseIndex2(src []byte, offset int) ([][]byte, error) {
-	if offset < 0 {
+	if offset < 0 || offset > len(src) {
 		return nil, fmt.Errorf("reading INDEX: invalid offset %d", offset)
 	}
-	if L := len(src); L < offset+5 {
-		return nil, fmt.Errorf("reading INDEX: EOF: expected length: %d, got %d", offset+5, L)
+	src = src[offset:]
+	if len(src) < 4 {
+		return nil, errors.New("reading INDEX: missing count")
+	}
+	// An empty INDEX has only the four-byte count and no offSize.
+	if binary.BigEndian.Uint32(src) == 0 {
+		return nil, nil
+	}
+	if len(src) < 5 {
+		return nil, errors.New("reading INDEX: missing offSize")
 	}
 	var is indexStart
-	is.mustParse(src[offset:])
-	out, _, err := parseIndexContent(src[offset+5:], is)
+	is.mustParse(src)
+	out, _, err := parseIndexContent(src[5:], is)
 	return out, err
 }
 
