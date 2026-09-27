@@ -222,3 +222,32 @@ func TestMarkFilteringSetOutOfRange(t *testing.T) {
 	props := uint32(font.UseMarkFilteringSet) | 3<<16
 	tu.Assert(t, !c.matchPropertiesMark(&GlyphInfo{}, tables.GPMark, props))
 }
+
+func TestApplyForwardBufferGrowth(t *testing.T) {
+	cov := func(gs ...tables.GlyphID) tables.Coverage1 { return tables.Coverage1{Glyphs: gs} }
+	ft := &font.Font{}
+	ft.GSUB.Lookups = []font.GSUBLookup{
+		// the lookup records run out of order. The multiple substitution goes
+		// first, then applyLookup rewinds the buffer and grows buffer.Info
+		{Subtables: []tables.GSUBLookup{tables.ContextualSubs{Data: tables.ContextualSubs3{
+			Coverages:        []tables.Coverage{cov(1), cov(2)},
+			SeqLookupRecords: []tables.SequenceLookupRecord{{SequenceIndex: 1, LookupListIndex: 2}, {SequenceIndex: 0, LookupListIndex: 1}},
+		}}}},
+		{Subtables: []tables.GSUBLookup{tables.SingleSubs{Data: tables.SingleSubstData2{Coverage: cov(1), SubstituteGlyphIDs: []tables.GlyphID{10}}}}},
+		{Subtables: []tables.GSUBLookup{tables.MultipleSubs{Coverage: cov(2), Sequences: []tables.Sequence{{SubstituteGlyphIDs: []tables.GlyphID{20, 21}}}}}},
+	}
+	fnt := NewFont(font.NewFace(ft))
+
+	b := NewBuffer()
+	b.Info = []GlyphInfo{{Glyph: 1, Mask: 1}, {Glyph: 2, Mask: 1}, {Glyph: 1, Mask: 1}, {Glyph: 2, Mask: 1}}
+	var c otApplyContext
+	c.reset(0, fnt, b)
+	c.recurseFunc = applyRecurseGSUB
+	c.substituteLookup(&fnt.gsubAccels[0])
+
+	var got []GID
+	for _, info := range b.Info {
+		got = append(got, info.Glyph)
+	}
+	tu.AssertC(t, fmt.Sprint(got) == "[10 20 21 10 20 21]", fmt.Sprint(got))
+}
