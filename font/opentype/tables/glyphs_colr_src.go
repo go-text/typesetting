@@ -10,6 +10,11 @@ func ParseCOLR(src []byte) (COLR1, error) {
 	if err != nil {
 		return COLR1{}, err
 	}
+	for _, rec := range header.baseGlyphRecords {
+		if end := int(rec.FirstLayerIndex) + int(rec.NumLayers); end > len(header.layerRecords) {
+			return COLR1{}, fmt.Errorf("invalid COLR base glyph record: layers [%d, %d] out of range (%d)", rec.FirstLayerIndex, end, len(header.layerRecords))
+		}
+	}
 	switch header.Version {
 	case 0:
 		return COLR1{colr0: header}, nil
@@ -40,7 +45,7 @@ func (cl colr0) paintForGlyph(gi GlyphID) (PaintColrLayersResolved, bool) {
 	if gi != entry.GlyphID {
 		return nil, false
 	}
-	return cl.layerRecords[entry.FirstLayerIndex : entry.FirstLayerIndex+entry.NumLayers], true
+	return cl.layerRecords[int(entry.FirstLayerIndex) : int(entry.FirstLayerIndex)+int(entry.NumLayers)], true
 }
 
 type COLR1 struct {

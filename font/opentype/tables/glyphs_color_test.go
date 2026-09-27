@@ -84,3 +84,14 @@ func TestCPAL(t *testing.T) {
 	tu.Assert(t, cpal.NumPaletteEntries == 32)
 	tu.Assert(t, cpal.numPalettes == 2 && len(cpal.ColorRecordIndices) == 2)
 }
+
+func TestCOLR0LayerOverflow(t *testing.T) {
+	// version 0, 1 base glyph record {gid 5, first 0, numLayers 9}, 1 layer record
+	src := []byte{
+		0, 0, 0, 1, 0, 0, 0, 14, 0, 0, 0, 20, 0, 1,
+		0, 5, 0, 0, 0, 9,
+		0, 7, 0, 0,
+	}
+	_, err := ParseCOLR(src)
+	tu.Assert(t, err != nil)
+}
