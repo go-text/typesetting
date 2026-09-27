@@ -352,7 +352,7 @@ func (p postNames20) sanitize() error {
 		}
 	}
 
-	if int(maxIndex) >= numBuiltInPostNames && len(p.Strings) < (int(maxIndex)-numBuiltInPostNames) {
+	if int(maxIndex) >= numBuiltInPostNames && len(p.Strings) <= (int(maxIndex)-numBuiltInPostNames) {
 		return errors.New("invalid index in Postscript names table format 20")
 	}
 	return nil

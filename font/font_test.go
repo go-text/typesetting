@@ -266,3 +266,11 @@ func TestUnsignedAdvanceMetrics(t *testing.T) {
 		}
 	}
 }
+
+func TestPostNames20Sanitize(t *testing.T) {
+	p := postNames20{GlyphNameIndexes: []uint16{uint16(numBuiltInPostNames)}}
+	tu.Assert(t, p.sanitize() != nil)
+	p.Strings = []string{"a"}
+	tu.AssertNoErr(t, p.sanitize())
+	tu.Assert(t, p.glyphName(0) == "a")
+}
