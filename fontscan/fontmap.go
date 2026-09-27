@@ -388,6 +388,9 @@ func (fm *FontMap) SetQuery(query Query) {
 // SetScript set the script to which the (next) runes passed to [ResolveFace]
 // belongs, influencing the choice of fallback fonts.
 func (fm *FontMap) SetScript(s language.Script) {
+	if s == fm.script {
+		return
+	}
 	fm.script = s
 	fm.built = false
 }
