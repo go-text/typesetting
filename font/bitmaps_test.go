@@ -63,3 +63,11 @@ func TestEBDTFormat1(t *testing.T) {
 	tu.Assert(t, len(sizes) == 6)
 	tu.Assert(t, sizes[0].XPpem == 12 && sizes[5].XPpem == 17)
 }
+
+func TestBitmapInvalidGlyphRange(t *testing.T) {
+	_, err := newBitmapSubtable(tables.BitmapSubtable{
+		FirstGlyph: 5, LastGlyph: 2,
+		IndexSubHeader: tables.IndexSubHeader{IndexData: tables.IndexData2{}},
+	}, nil)
+	tu.Assert(t, err != nil)
+}
