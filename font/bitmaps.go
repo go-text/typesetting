@@ -303,7 +303,7 @@ func parseIndexSubTable3(header tables.BitmapSubtable, index tables.IndexData3, 
 		var err error
 		out.glyphs[i], err = parseBitmapDataMetrics(imageData, tables.Offset32(index.SbitOffsets[i]), tables.Offset32(index.SbitOffsets[i+1]), header.ImageFormat)
 		if err != nil {
-			return out, fmt.Errorf("invalid bitmap index format 1: %s", err)
+			return out, fmt.Errorf("invalid bitmap index format 3: %s", err)
 		}
 	}
 	return out, nil
@@ -421,7 +421,7 @@ func parseIndexSubTable5(header tables.BitmapSubtable, index tables.IndexData5, 
 
 	for i := range out.glyphs {
 		var err error
-		out.glyphs[i], err = parseBitmapDataStandalone(imageData, index.ImageSize*uint32(i), (index.ImageSize+1)*uint32(i), header.ImageFormat)
+		out.glyphs[i], err = parseBitmapDataStandalone(imageData, index.ImageSize*uint32(i), index.ImageSize*uint32(i+1), header.ImageFormat)
 		if err != nil {
 			return out, fmt.Errorf("invalid bitmap index format 5: %s", err)
 		}
