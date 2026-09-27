@@ -219,16 +219,16 @@ func (ps PairSet) FindGlyph(secondGlyph GlyphID) (PairValueRecord, bool) {
 	low, high := 0, int(ps.pairValueCount)
 	for low < high {
 		mid := low + (high-low)/2 // avoid overflow when computing mid
-		rec, err := ps.data.get(mid)
-		if err != nil { // argh...
-			return PairValueRecord{}, false
-		}
-		p := rec.SecondGlyph
+		p := ps.data.secondGlyph(mid)
 		if secondGlyph < p {
 			high = mid
 		} else if secondGlyph > p {
 			low = mid + 1
 		} else {
+			rec, err := ps.data.get(mid)
+			if err != nil { // argh...
+				return PairValueRecord{}, false
+			}
 			return rec, true
 		}
 	}
