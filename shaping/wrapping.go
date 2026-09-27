@@ -684,7 +684,7 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 		if !hasMandatoryBreak {
 			_, firstRun, hasFirst := runs.Next()
 			_, _, hasSecond := runs.Peek()
-			if hasFirst && !hasSecond {
+			if hasFirst && !hasSecond && firstRun.Runes == (Range{Count: len(paragraph)}) {
 				if firstRun.Advance <= maxWidth {
 					lines := l.scratch.singleRunParagraph(firstRun)
 					l.config = config
@@ -1021,6 +1021,8 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				return false
 			}
 			// Fall through to try grapheme breaking.
+		case runsExhausted:
+			return true
 		}
 		// Ensure that the grapheme breaking has access to
 		// all runs we already tried in the iterator.
@@ -1068,6 +1070,8 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				l.scratch.markCandidateBest(candidateRun)
 				l.breaker.markWordOptionUnused()
 				return false
+			case runsExhausted:
+				return true
 			}
 		}
 		return false
@@ -1097,6 +1101,8 @@ const (
 	// the run that cannot fit, but it will not be committed as the best option. The choice of how to handle
 	// this is left to higher-level logic.
 	cannotFit
+	// runsExhausted indicates that no shaped text remains for this line.
+	runsExhausted
 )
 
 // processBreakOption evaluates whether the provided breakOption can fit onto the current line wrapping line.
@@ -1109,14 +1115,30 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	// Fill candidate line with runs until the run containing the break option.
 	l.fillUntil(l.glyphRuns, option)
 
-	currRunIndex, run, _ := l.glyphRuns.Peek()
-	l.mapper.mapRun(currRunIndex, run)
-	if !option.isValid(l.mapper.mapping, run) {
-		// Reject invalid line break candidate and acquire a new one.
-		return breakInvalid, Output{}
+	currRunIndex, run, ok := l.glyphRuns.Peek()
+	var candidateRun Output
+	if !ok {
+		if l.scratch.candidateLen() == 0 {
+			return runsExhausted, Output{}
+		}
+		// Evaluate the final available run with the usual width and truncation
+		// rules, even when the paragraph continues beyond the shaped text.
+		last := len(l.scratch.alt) - 1
+		candidateRun = l.scratch.alt[last]
+		l.scratch.alt = l.scratch.alt[:last]
+		l.scratch.altAdvance -= candidateRun.Advance
+	} else {
+		if option.breakAtRune < run.Runes.Offset {
+			return breakInvalid, Output{}
+		}
+		l.mapper.mapRun(currRunIndex, run)
+		if !option.isValid(l.mapper.mapping, run) {
+			// Reject invalid line break candidate and acquire a new one.
+			return breakInvalid, Output{}
+		}
+		isFirstInLine := l.scratch.candidateLen() == 0
+		candidateRun = cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	}
-	isFirstInLine := l.scratch.candidateLen() == 0
-	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
@@ -1135,6 +1157,8 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		}
 		// We must truncate the line in order to show it.
 		return truncated, candidateRun
+	} else if !ok {
+		return endLine, candidateRun
 	} else {
 		// The run does fit on the line. Commit this line as the best known
 		// line, but keep lineCandidate unmodified so that later break

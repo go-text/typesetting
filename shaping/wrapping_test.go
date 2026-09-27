@@ -3700,6 +3700,53 @@ func TestWrapParagraphSingleRunTrimsTrailingSpace(t *testing.T) {
 	tu.Assert(t, line.TrimmedTrailingWhitespace > 0)
 }
 
+// runs not covering the paragraph must not panic
+func TestWrapRunsShorterThanParagraph(t *testing.T) {
+	text := []rune("ab cd")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: 2, Face: benchEnFace, Size: fixed.I(16)})
+	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{}, 5, text, NewSliceIterator([]Output{run}))
+	tu.Assert(t, len(lines) == 2 && lines[0][0].Runes == Range{Count: 1})
+	tu.Assert(t, lines[1][0].Runes == Range{Offset: 1, Count: 1})
+}
+
+func TestWrapShortRunsRespectWidth(t *testing.T) {
+	text := []rune("abcd ef")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: 4, Face: benchEnFace, Size: fixed.I(16)})
+	lines, _ := (&LineWrapper{}).WrapParagraphF(WrapConfig{}, run.Advance/2, text, NewSliceIterator([]Output{run}))
+	if len(lines) < 2 {
+		t.Fatalf("short runs ignored width: %v", lines)
+	}
+}
+func TestWrapRunsWithGap(t *testing.T) {
+	text := []rune("a b c")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunStart: 4, RunEnd: 5, Face: benchEnFace, Size: fixed.I(16)})
+	var w LineWrapper
+	w.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
+	line, done := w.WrapNextLine(100)
+	if !done || len(line.Line) != 1 || line.Line[0].Runes != run.Runes {
+		t.Fatalf("unexpected gap result: %+v, done %v", line, done)
+	}
+}
+
+func TestWrapShortRunsReserveTruncator(t *testing.T) {
+	text := []rune("abcd ef")
+	shaper := &HarfbuzzShaper{}
+	run := shaper.Shape(Input{Text: text, RunEnd: 4, Face: benchEnFace, Size: fixed.I(16)})
+	truncator := shaper.Shape(Input{Text: []rune("…"), RunEnd: 1, Face: benchEnFace, Size: fixed.I(16)})
+	config := WrapConfig{TruncateAfterLines: 1, Truncator: truncator}
+	lines, truncated := (&LineWrapper{}).WrapParagraphF(config, run.Advance, text, NewSliceIterator([]Output{run}))
+	if len(lines) != 1 || len(lines[0]) != 2 || truncated == 0 {
+		t.Fatalf("missing truncator: %+v, truncated %d", lines, truncated)
+	}
+	var advance fixed.Int26_6
+	for _, run := range lines[0] {
+		advance += run.Advance
+	}
+	if advance > run.Advance {
+		t.Fatalf("line with truncator exceeds width: %v > %v", advance, run.Advance)
+	}
+}
+
 func TestCutRunWithoutLetterSpacingDoesNotAllocate(t *testing.T) {
 	text := []rune("abcd")
 	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
