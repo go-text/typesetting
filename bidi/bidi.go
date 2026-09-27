@@ -39,8 +39,9 @@ type Paragraph struct {
 	runForCharacter []int
 
 	// scratch buffers reused across calls
-	bracketOpeners []int        // open brackets in locateBrackets, at most maxPairingDepth
-	bracketPairs   bracketPairs // pairs found by locateBrackets
+	isolateInitiators []int        // open isolate initiators in determineMatchingIsolates
+	bracketOpeners    []int        // open brackets in locateBrackets, at most maxPairingDepth
+	bracketPairs      bracketPairs // pairs found by locateBrackets
 
 	// exclusive indice of output runs: the run is at text[previousEnd:end]
 	runsEnd []int

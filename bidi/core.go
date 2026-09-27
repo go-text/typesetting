@@ -127,31 +127,24 @@ func (p *Paragraph) run() {
 //     If there is no matching isolate initiator, or the character is not a PDI,
 //     it is set to -1.
 func (p *Paragraph) determineMatchingIsolates() {
-	for i := range p.matchingIsolateInitiator {
+	// One pass with a stack of open initiators. A PDI matches the most recent
+	// initiator still open. Initiators left on the stack at the end have no
+	// matching PDI.
+	open := p.isolateInitiators[:0]
+	for i, t := range p.resultTypes {
 		p.matchingIsolateInitiator[i] = -1
-	}
-
-	for i := range p.matchingPDI {
 		p.matchingPDI[i] = -1
-
-		if t := p.resultTypes[i]; t&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 {
-			depthCounter := 1
-			for j := i + 1; j < p.len(); j++ {
-				if u := p.resultTypes[j]; u&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 {
-					depthCounter++
-				} else if u == ucd.BD_PDI {
-					if depthCounter--; depthCounter == 0 {
-						p.matchingPDI[i] = j
-						p.matchingIsolateInitiator[j] = i
-						break
-					}
-				}
-			}
-			if p.matchingPDI[i] == -1 {
-				p.matchingPDI[i] = p.len()
-			}
+		if t&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 {
+			p.matchingPDI[i] = p.len()
+			open = append(open, i)
+		} else if t == ucd.BD_PDI && len(open) > 0 {
+			j := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.matchingPDI[j] = i
+			p.matchingIsolateInitiator[i] = j
 		}
 	}
+	p.isolateInitiators = open[:0]
 }
 
 // determineParagraphEmbeddingLevel reports the resolved paragraph direction of
