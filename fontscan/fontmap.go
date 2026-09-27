@@ -1,7 +1,9 @@
 package fontscan
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"path/filepath"
 	"sync"
@@ -211,8 +213,12 @@ func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex,
 	}
 	logger.Printf("using system font dirs %q", fontDirectories)
 
-	currentIndex, _ := deserializeIndexFile(cachePath)
-	// if an error occured (the cache file does not exists or is invalid), we start from scratch
+	currentIndex, err := deserializeIndexFile(cachePath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		// The cache file is missing on first run. Any other error means the
+		// cache is corrupt, and the scan starts from scratch.
+		logger.Printf("ignoring invalid font index cache %q: %v", cachePath, err)
+	}
 
 	updatedIndex, err := scanFontFootprints(logger, currentIndex, fontDirectories...)
 	if err != nil {
