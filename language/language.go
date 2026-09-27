@@ -170,6 +170,9 @@ type LangID uint16
 // Derived languages not exactly supported are mapped to their primary part : for instance,
 // 'fr-be' is mapped to 'fr'
 func NewLangID(l Language) (LangID, bool) {
+	if l.Primary() == "" { // languagesInfos[0] is an empty sentinel, not a language
+		return 0, false
+	}
 	if i, ok := binarySearchLang(l, languagesInfos[:knownLangsCount]); ok {
 		return LangID(i), true
 	}
