@@ -454,22 +454,19 @@ type WordIterator struct {
 // Next returns true if there is still a word to process,
 // and advances the iterator; or return false.
 func (gr *WordIterator) Next() bool {
-	hasBoundary := gr.next()
-	if !hasBoundary {
-		return false
-	}
+	for gr.next() {
+		if gr.inWord { // we have reached the end of a word
+			gr.inWord = false
+			return true
+		}
 
-	if gr.inWord { // we are have reached the END of a word
-		gr.inWord = false
-		return true
+		// do we start a word ? if so, mark it
+		if gr.pos < len(gr.src.text) {
+			gr.inWord = ucd.IsWord(gr.src.text[gr.pos])
+		}
+		// in any case, advance again
 	}
-
-	// do we start a word ? if so, mark it
-	if gr.pos < len(gr.src.text) {
-		gr.inWord = ucd.IsWord(gr.src.text[gr.pos])
-	}
-	// in any case, advance again
-	return gr.Next()
+	return false
 }
 
 // Word returns the current `Word`
