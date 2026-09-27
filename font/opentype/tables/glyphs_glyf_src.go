@@ -106,6 +106,11 @@ func (sg *SimpleGlyph) parsePoints(src []byte, _ int) error {
 		return nil
 	}
 
+	for i := 1; i < len(sg.EndPtsOfContours); i++ {
+		if sg.EndPtsOfContours[i] <= sg.EndPtsOfContours[i-1] {
+			return errors.New("invalid simple glyph: endPtsOfContours is not increasing")
+		}
+	}
 	numPoints := int(sg.EndPtsOfContours[len(sg.EndPtsOfContours)-1]) + 1
 
 	const repeatFlag = 0x08

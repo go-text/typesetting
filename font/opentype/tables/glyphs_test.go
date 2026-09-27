@@ -327,6 +327,10 @@ func TestParseGlyfMalformed(t *testing.T) {
 	tu.Assert(t, err != nil)
 	_, err = ParseGlyf([]byte{0, 0, 0, 0}, []uint32{0, 500})
 	tu.Assert(t, err != nil)
+
+	// the first contour ends at point 2 and the second at point 1
+	sg := SimpleGlyph{EndPtsOfContours: []uint16{2, 1}}
+	tu.Assert(t, sg.parsePoints([]byte{1, 1, 1, 1, 1, 1}, 2) != nil)
 }
 
 func TestParseGlyfRejectsOutOfRangeEmptyGlyph(t *testing.T) {
