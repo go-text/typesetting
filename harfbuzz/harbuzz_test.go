@@ -9,6 +9,7 @@ import (
 	otTD "github.com/go-text/typesetting-utils/opentype"
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/go-text/typesetting/font/opentype/tables"
 	"github.com/go-text/typesetting/language"
 	tu "github.com/go-text/typesetting/testutils"
 )
@@ -207,4 +208,11 @@ func TestPropagateAttachmentOffsetsNegativeChain(t *testing.T) {
 	// cross-stream kerx attaches every glyph to the previous one, including the first
 	pos := []GlyphPosition{{attachChain: -1, attachType: attachTypeCursive}}
 	propagateAttachmentOffsets(pos, 0, LeftToRight) // must not panic
+}
+
+func TestWouldApplyContext2OutOfRangeClass(t *testing.T) {
+	c := wouldApplyContext{glyphs: []GID{0}}
+	classDef := tables.ClassDef1{ClassValueArray: []uint16{5}}
+	tu.Assert(t, !c.wouldApplyLookupContext2(tables.SequenceContextFormat2{ClassDef: classDef}, 0, 0))
+	tu.Assert(t, !c.wouldApplyLookupChainedContext2(tables.ChainedSequenceContextFormat2{InputClassDef: classDef}, 0, 0))
 }

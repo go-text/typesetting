@@ -589,8 +589,10 @@ func (c *wouldApplyContext) wouldApplyLookupContext1(data tables.SequenceContext
 
 func (c *wouldApplyContext) wouldApplyLookupContext2(data tables.SequenceContextFormat2, _ int, glyphID GID) bool {
 	class, _ := data.ClassDef.Class(gID(glyphID))
-	ruleSet := data.ClassSeqRuleSet[class]
-	return c.wouldApplyRuleSet(ruleSet, matchClass(data.ClassDef))
+	if int(class) >= len(data.ClassSeqRuleSet) {
+		return false
+	}
+	return c.wouldApplyRuleSet(data.ClassSeqRuleSet[class], matchClass(data.ClassDef))
 }
 
 func (c *wouldApplyContext) wouldApplyLookupContext3(data tables.SequenceContextFormat3, _ int) bool {
@@ -626,8 +628,10 @@ func (c *wouldApplyContext) wouldApplyLookupChainedContext1(data tables.ChainedS
 
 func (c *wouldApplyContext) wouldApplyLookupChainedContext2(data tables.ChainedSequenceContextFormat2, _ int, glyphID GID) bool {
 	class, _ := data.InputClassDef.Class(gID(glyphID))
-	ruleSet := data.ChainedClassSeqRuleSet[class]
-	return c.wouldApplyChainRuleSet(ruleSet, matchClass(data.InputClassDef))
+	if int(class) >= len(data.ChainedClassSeqRuleSet) {
+		return false
+	}
+	return c.wouldApplyChainRuleSet(data.ChainedClassSeqRuleSet[class], matchClass(data.InputClassDef))
 }
 
 func (c *wouldApplyContext) wouldApplyLookupChainedContext3(data tables.ChainedSequenceContextFormat3, _ int) bool {
