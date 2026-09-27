@@ -16,9 +16,12 @@ type CBLC struct {
 func (cb *CBLC) parseIndexSubTables(src []byte) error {
 	cb.IndexSubTables = make([][]BitmapSubtable, len(cb.BitmapSizes))
 	for i, size := range cb.BitmapSizes {
-		start := int(size.indexSubTableArrayOffset)
-		if L := len(src); L < start {
+		start := uint64(size.indexSubTableArrayOffset)
+		if L := uint64(len(src)); L < start {
 			return fmt.Errorf("EOF: expected length: %d, got %d", start, L)
+		}
+		if required := uint64(size.numberOfIndexSubTables) * 8; required > uint64(len(src))-start {
+			return fmt.Errorf("EOF: expected length: %d, got %d", start+required, len(src))
 		}
 		subtables, _, err := ParseIndexSubTableArray(src[start:], int(size.numberOfIndexSubTables))
 		if err != nil {
@@ -26,8 +29,14 @@ func (cb *CBLC) parseIndexSubTables(src []byte) error {
 		}
 		sizeSubtables := make([]BitmapSubtable, len(subtables.Subtables))
 		for j, subtable := range subtables.Subtables {
+			if subtable.LastGlyph < subtable.FirstGlyph {
+				return fmt.Errorf("invalid glyph range [%d, %d]", subtable.FirstGlyph, subtable.LastGlyph)
+			}
 			numGlyphs := int(subtable.LastGlyph) - int(subtable.FirstGlyph) + 1
-			subtableStart := start + int(subtable.additionalOffsetToIndexSubtable)
+			subtableStart := start + uint64(subtable.additionalOffsetToIndexSubtable)
+			if L := uint64(len(src)); L < subtableStart {
+				return fmt.Errorf("EOF: expected length: %d, got %d", subtableStart, L)
+			}
 
 			sizeSubtables[j].FirstGlyph = subtable.FirstGlyph
 			sizeSubtables[j].LastGlyph = subtable.LastGlyph
