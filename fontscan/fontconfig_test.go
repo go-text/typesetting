@@ -73,3 +73,9 @@ func TestParseFontconfigErrors(t *testing.T) {
 	_, _, err := fc.parseFcFile(logger, "fontconfig_test/invalid.conf", "")
 	tu.Assert(t, err != nil)
 }
+
+func TestFcVarsFromEnv_Path(t *testing.T) {
+	a, b := filepath.Join("a", "fonts"), filepath.Join("b", "fonts")
+	t.Setenv("FONTCONFIG_PATH", a+string(filepath.ListSeparator)+b)
+	tu.Assert(t, reflect.DeepEqual(fcVarsFromEnv().paths, []string{a, b}))
+}
