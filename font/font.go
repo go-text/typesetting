@@ -286,12 +286,13 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	raw, _ = ld.RawTable(ot.MustNewTag("COLR"))
 	if colr, err := tables.ParseCOLR(raw); err == nil {
 		out.COLR = &colr
-		// color table without CPAL is broken
+		// COLR without a valid CPAL is unusable, so drop both and keep loading.
+		// Only cmap, head and maxp are required, and the font keeps its regular
+		// outlines.
 		raw, _ = ld.RawTable(ot.MustNewTag("CPAL"))
 		cpal, _, _ := tables.ParseCPAL(raw)
-		out.CPAL, err = newCPAL(cpal)
-		if err != nil {
-			return nil, err
+		if out.CPAL, err = newCPAL(cpal); err != nil {
+			out.COLR, out.CPAL = nil, nil
 		}
 	}
 
