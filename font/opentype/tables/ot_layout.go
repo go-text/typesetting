@@ -508,9 +508,12 @@ func parseValueRecord(format ValueFormat, data []byte, offset int) (out ValueRec
 		return out, offset, nil
 	}
 	// start by parsing the list of values
-	values, err := ParseUint16s(data[offset:], size)
-	if err != nil {
-		return out, 0, fmt.Errorf("invalid value record: %s", err)
+	if L := len(data); L < offset+2*size {
+		return out, 0, fmt.Errorf("invalid value record: EOF: expected length: %d, got %d", offset+2*size, L)
+	}
+	var values [16]uint16 // at most one field per format bit
+	for i := 0; i < size; i++ {
+		values[i] = binary.BigEndian.Uint16(data[offset+2*i:])
 	}
 	// follow the order
 	cursor := 0
@@ -573,10 +576,19 @@ type pairValueRecords struct {
 	fmt1, fmt2 ValueFormat
 }
 
+func (ps pairValueRecords) offset(index int) int {
+	recLen := 1 + ps.fmt1.size() + ps.fmt2.size()
+	return 2 + 2*index*recLen
+}
+
+// panic if index is out of range
+func (ps pairValueRecords) secondGlyph(index int) GlyphID {
+	return GlyphID(binary.BigEndian.Uint16(ps.data[ps.offset(index):]))
+}
+
 // panic if index is out of range
 func (ps pairValueRecords) get(index int) (out PairValueRecord, err error) {
-	recLen := 1 + ps.fmt1.size() + ps.fmt2.size()
-	offset := 2 + 2*index*recLen
+	offset := ps.offset(index)
 
 	out.SecondGlyph = GlyphID(binary.BigEndian.Uint16(ps.data[offset:]))
 	v1, newOffset, err := parseValueRecord(ps.fmt1, ps.data, offset+2)
