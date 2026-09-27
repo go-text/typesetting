@@ -251,3 +251,19 @@ func TestApplyForwardBufferGrowth(t *testing.T) {
 	}
 	tu.AssertC(t, fmt.Sprint(got) == "[10 20 21 10 20 21]", fmt.Sprint(got))
 }
+
+func TestShapePlanCacheVariations(t *testing.T) {
+	// Commissioner substitutes '$' through an 'rvrn' feature variation at heavy weights
+	fnt := NewFont(font.NewFace(openFontFileTT(t, "common/Commissioner-VF.ttf")))
+	buffer := NewBuffer()
+	shape := func(weight float32) GID {
+		fnt.SetVarCoordsDesign([]float32{weight, 0, 0, 0})
+		buffer.Clear()
+		buffer.AddRunes([]rune("$"), 0, -1)
+		buffer.Props = SegmentProperties{Direction: LeftToRight, Script: language.Latin, Language: "en"}
+		buffer.Shape(fnt, nil)
+		return buffer.Info[0].Glyph
+	}
+	assertEqualInt(t, 954, int(shape(400)))
+	assertEqualInt(t, 1117, int(shape(900)))
+}

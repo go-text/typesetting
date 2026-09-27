@@ -86,7 +86,7 @@ func (plan shapePlan) userFeaturesMatch(other shapePlan) bool {
 }
 
 func (plan shapePlan) equal(other shapePlan) bool {
-	return plan.props == other.props && plan.userFeaturesMatch(other)
+	return plan.props == other.props && plan.shaper.key == other.shaper.key && plan.userFeaturesMatch(other)
 }
 
 // Constructs a shaping plan for a combination of @face, @userFeatures, @props,
