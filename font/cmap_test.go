@@ -30,6 +30,36 @@ func loopThroughCmap(cmap Cmap) int {
 	return nbGlyphs
 }
 
+func TestLegacyArabicIterationIncludesAliases(t *testing.T) {
+	base := cmap12{
+		{StartCharCode: 0x0627, EndCharCode: 0x0627, StartGlyphID: 9},
+		{StartCharCode: 0xF000, EndCharCode: 0xF2FF, StartGlyphID: 1},
+		{StartCharCode: 0x10000, EndCharCode: 0x10000, StartGlyphID: 7},
+	}
+	for name, cmap := range map[string]Cmap{"simplified": remaperPUASimp{base}, "traditional": remaperPUATrad{base}} {
+		t.Run(name, func(t *testing.T) {
+			seen := make(map[rune]GID)
+			iter := cmap.Iter()
+			for iter.Next() {
+				r, gid := iter.Char()
+				if _, ok := seen[r]; ok {
+					t.Fatalf("duplicate rune %U", r)
+				}
+				seen[r] = gid
+				if want, ok := cmap.Lookup(r); !ok || gid != want {
+					t.Fatalf("%U: iteration returned %d, lookup returned %d, %v", r, gid, want, ok)
+				}
+			}
+			if seen[0x0627] != 9 || seen[0x0628] == 0 || seen[0x10000] != 7 {
+				t.Fatal("missing Arabic alias or original glyph")
+			}
+			if _, ok := seen[0x0629]; !ok {
+				t.Fatal("missing additional Arabic alias")
+			}
+		})
+	}
+}
+
 func TestCmap(t *testing.T) {
 	for _, filename := range append(tu.Filenames(t, "common"), tu.Filenames(t, "cmap")...) {
 		fp := readFontFile(t, filename)

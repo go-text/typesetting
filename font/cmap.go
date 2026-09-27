@@ -599,7 +599,7 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 }
 
 // Handle legacy font with remap
-// TODO: the Iter() and RuneRanges() method does not include the additional mapping
+// TODO: symbol, ASCII and MacRoman iterators do not reflect their remapping.
 
 type remaperSymbol struct {
 	Cmap
@@ -628,6 +628,10 @@ type remaperPUASimp struct {
 	Cmap
 }
 
+func (rs remaperPUASimp) Iter() CmapIter {
+	return &puaIter{base: rs.Cmap, iter: rs.Cmap.Iter(), remap: puaSimpLookup}
+}
+
 func (rs remaperPUASimp) Lookup(r rune) (GID, bool) {
 	// try without map first
 	if g, ok := rs.Cmap.Lookup(r); ok {
@@ -645,6 +649,10 @@ type remaperPUATrad struct {
 	Cmap
 }
 
+func (rs remaperPUATrad) Iter() CmapIter {
+	return &puaIter{base: rs.Cmap, iter: rs.Cmap.Iter(), remap: puaTradLookup}
+}
+
 func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
 	// try without map first
 	if g, ok := rs.Cmap.Lookup(r); ok {
@@ -656,6 +664,49 @@ func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
 	}
 
 	return 0, false
+}
+
+// puaIter preserves the original entries, then adds supported Unicode aliases.
+type puaIter struct {
+	base  Cmap
+	iter  CmapIter
+	remap func(rune) uint16
+	next  rune
+	glyph GID
+}
+
+func (it *puaIter) Next() bool {
+	if it.iter != nil {
+		if it.iter.Next() {
+			return true
+		}
+		it.iter = nil
+	}
+	// Scan the BMP per legacy cmap. Precompute alias lists if this becomes hot.
+	// Both legacy Arabic mapping tables contain only BMP code points.
+	for ; it.next <= 0xFFFF; it.next++ {
+		mapped := it.remap(it.next)
+		if mapped == 0 {
+			continue
+		}
+		if _, ok := it.base.Lookup(it.next); ok { // direct entries take precedence
+			continue
+		}
+		if glyph, ok := it.base.Lookup(rune(mapped)); ok {
+			it.glyph = glyph
+			return true
+		}
+	}
+	return false
+}
+
+func (it *puaIter) Char() (rune, GID) {
+	if it.iter != nil {
+		return it.iter.Char()
+	}
+	r := it.next
+	it.next++
+	return r, it.glyph
 }
 
 type remaperAscii struct {

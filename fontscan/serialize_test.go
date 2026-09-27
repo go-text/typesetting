@@ -2,6 +2,7 @@ package fontscan
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -149,5 +150,20 @@ func TestSerializeSystemFonts(t *testing.T) {
 	}
 	if err = assertFontsetEquals(fontset.flatten(), fontset2.flatten()); err != nil {
 		t.Fatalf("inconsistent serialization %s", err)
+	}
+}
+
+func TestRejectCacheWithoutLegacyArabicCoverage(t *testing.T) {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	// Version 6 allowed footprints without the legacy Arabic Unicode aliases.
+	if _, err := w.Write([]byte{0, 6, 0, 0, 0, 0}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := deserializeIndex(&b); err == nil {
+		t.Fatal("accepted stale legacy Arabic coverage")
 	}
 }
