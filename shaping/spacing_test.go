@@ -156,3 +156,24 @@ func TestTrailingSpaces(t *testing.T) {
 		}
 	}
 }
+
+// letter spacing boundaries follow the logical order, not the visual one
+func TestLetterSpacingRTL(t *testing.T) {
+	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")
+	spacing := fixed.I(4)
+
+	out := simpleShape([]rune("ابج"), arabicFont, di.DirectionRTL)
+	L := len(out.Glyphs)
+	out.AddLetterSpacing(spacing, true, false)
+	first, last := out.Glyphs[L-1], out.Glyphs[0] // logical start is the last visual glyph
+	tu.Assert(t, first.startLetterSpacing == 0 && first.endLetterSpacing == spacing/2)
+	tu.Assert(t, last.startLetterSpacing == spacing/2 && last.endLetterSpacing == spacing/2)
+	tu.Assert(t, last.XOffset == spacing/2) // shifted from the visually leading end side
+
+	// trimming the start only touches the logical first glyph
+	adv := out.Glyphs[L-1].Advance
+	out.AddLetterSpacing(spacing, false, false)
+	out.trimStartLetterSpacing()
+	tu.Assert(t, out.Glyphs[L-1].startLetterSpacing == 0 && out.Glyphs[L-1].Advance == adv+spacing/2)
+	tu.Assert(t, out.Glyphs[0].endLetterSpacing == spacing)
+}
