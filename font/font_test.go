@@ -276,6 +276,24 @@ func TestPostNames20Sanitize(t *testing.T) {
 	tu.Assert(t, p.glyphName(0) == "a")
 }
 
+func TestInvalidCPAL(t *testing.T) {
+	ld := readFontFile(t, "color/CoralPixels-Regular.ttf")
+	var tbs []ot.Table
+	for _, tag := range ld.Tables() {
+		content, _ := ld.RawTable(tag)
+		if tag == ot.MustNewTag("CPAL") {
+			content = nil
+		}
+		tbs = append(tbs, ot.Table{Tag: tag, Content: content})
+	}
+	sort.Slice(tbs, func(i, j int) bool { return tbs[i].Tag < tbs[j].Tag })
+	ld, err := ot.NewLoader(bytes.NewReader(ot.WriteOpentype(tbs, ot.TrueType)))
+	tu.AssertNoErr(t, err)
+	ft, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.COLR == nil && ft.CPAL == nil)
+}
+
 func TestAvarAxisCount(t *testing.T) {
 	ld := readFontFile(t, "toys/CFF2-VF.otf")
 	var ts []ot.Table
