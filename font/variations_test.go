@@ -745,6 +745,19 @@ func BenchmarkAdvanceNoHVar(b *testing.B) {
 	}
 }
 
+func BenchmarkGlyphDataVar(b *testing.B) {
+	font := loadFont(b, "toys/GVAR-no-HVAR.ttf")
+	face := NewFace(font)
+	face.SetVariations([]Variation{{Tag: ot.MustNewTag("wght"), Value: 600}})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for gid := GID(0); gid < 15; gid++ {
+			_ = face.GlyphData(gid)
+		}
+	}
+}
+
 func TestAdvanceCacheLazyAndInvalidated(t *testing.T) {
 	font := loadFont(t, "toys/GVAR-no-HVAR.ttf")
 	face := NewFace(font)
