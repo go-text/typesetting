@@ -782,3 +782,12 @@ func TestAdvanceCacheLazyAndInvalidated(t *testing.T) {
 		}
 	}
 }
+
+func TestPointNumbersBounds(t *testing.T) {
+	// one point, number 5
+	_, _, err := parsePointNumbers([]byte{1, 0, 5}, 3)
+	tu.Assert(t, err != nil)
+	pts, _, err := parsePointNumbers([]byte{1, 0, 5}, 6)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, len(pts) == 1 && pts[0] == 5)
+}
