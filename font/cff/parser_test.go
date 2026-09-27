@@ -383,6 +383,13 @@ func TestCFF2EmptyFDArray(t *testing.T) {
 	}
 }
 
+func TestCFF2InvalidBlend(t *testing.T) {
+	met := cff2CharstringHandler{scalars: make([]float32, 2)}
+	var m psinterpreter.Machine
+	m.ArgStack.Vals[0], m.ArgStack.Top = -1, 1
+	tu.Assert(t, met.blend(&m) != nil)
+}
+
 func TestParseIndex2EmptyAtEnd(t *testing.T) {
 	out, err := parseIndex2([]byte{0, 0, 0, 0}, 0)
 	if err != nil || len(out) != 0 {

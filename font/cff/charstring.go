@@ -215,8 +215,9 @@ func (met *cff2CharstringHandler) blend(state *ps.Machine) error {
 	}
 	n := int32(state.ArgStack.Pop())
 	k := int32(len(met.scalars))
-	if state.ArgStack.Top < n*(k+1) {
-		return errors.New("missing arguments for blend operator")
+	// The stack size bounds n, so n*(k+1) cannot overflow.
+	if n < 0 || n > state.ArgStack.Top || state.ArgStack.Top < n*(k+1) {
+		return errors.New("invalid arguments for blend operator")
 	}
 
 	// actually apply the deltas only if the user has activated variations
