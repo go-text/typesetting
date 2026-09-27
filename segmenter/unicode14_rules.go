@@ -8,7 +8,7 @@ import (
 
 // Apply the Line Breaking Rules and returns the computed break opportunity
 // See https://unicode.org/reports/tr14/#BreakingRules
-func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
+func (cr *cursor) applyLineBoundaryRules(text []rune) breakOpportunity {
 	// start by attributing the break class for the current rune
 	cr.ruleLB1()
 
@@ -51,6 +51,27 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	// see also [endIteration]
 	if br1&(ucd.LB_CM|ucd.LB_ZWJ) != 0 && br0&(ucd.LB_BK|ucd.LB_CR|ucd.LB_LF|ucd.LB_NL|ucd.LB_SP|ucd.LB_ZW) == 0 {
 		return breakProhibited
+	}
+
+	// LB9 also ignores marks in lookahead for the following rules. Scan only
+	// after the early LB9 return, so the rules scan each attached run of marks
+	// once.
+	next := cr.next
+	for j := cr.index + 1; j < cr.len; j++ {
+		if br2 == ucd.LB_SA { // resolve combining marks according to LB1
+			gc := ucd.LookupGeneralCategory(next)
+			if gc == ucd.Mn || gc == ucd.Mc {
+				br2 = ucd.LB_CM
+			}
+		}
+		if br2&(ucd.LB_CM|ucd.LB_ZWJ) == 0 {
+			break
+		}
+		next = paragraphSeparator
+		if j+1 < cr.len {
+			next = text[j+1]
+		}
+		br2 = ucd.LookupLineBreak(next)
 	}
 
 	// LB11
@@ -135,7 +156,7 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	// QU × [^$EastAsian]
 	// ( sot | [^$EastAsian] ) QU ×
 	if (br1 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.prevLineRune)) ||
-		(br1 == ucd.LB_QU && (cr.index == cr.len-1 || !ucd.IsLargeEastAsian(cr.next))) ||
+		(br1 == ucd.LB_QU && (cr.index == cr.len-1 || !ucd.IsLargeEastAsian(next))) ||
 		(br0 == ucd.LB_QU && !ucd.IsLargeEastAsian(cr.r)) ||
 		((cr.isPreviousSot || !ucd.IsLargeEastAsian(cr.prevPrevLineRune)) && br0 == ucd.LB_QU) {
 		return breakProhibited
@@ -209,7 +230,7 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	// LB25
 	// (PR | PO) × ( OP | HY )? NU
 	if br0&(ucd.LB_PR|ucd.LB_PO) != 0 && (br1 == ucd.LB_NU ||
-		br1&(ucd.LB_OP|ucd.LB_HY) != 0 && cr.nextLine == ucd.LB_NU) {
+		br1&(ucd.LB_OP|ucd.LB_HY) != 0 && br2 == ucd.LB_NU) {
 		return breakProhibited
 	}
 	// ( OP | HY | IS ) × NU

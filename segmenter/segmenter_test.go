@@ -245,10 +245,9 @@ func TestWordSegmenter(t *testing.T) {
 	}
 }
 
-// LB19a reads the runes before the quotation mark after LB9 attached the
-// combining marks, not the raw previous runes. LineBreakTest.txt has no
-// EastAsian/CM/QU triples, so the conformance data misses this.
-func TestLineBreakLB19aCombiningMarks(t *testing.T) {
+// LB9 ignores combining marks in both the preceding context and lookahead.
+// These longer sequences supplement the pairs in LineBreakTest.txt.
+func TestLineBreakCombiningMarks(t *testing.T) {
 	for _, test := range []struct {
 		input string
 		want  []string
@@ -258,6 +257,14 @@ func TestLineBreakLB19aCombiningMarks(t *testing.T) {
 		{" \u302a\u0308“漢", []string{" ", "\u302a\u0308“漢"}},
 		{"漢”̈漢", []string{"漢”̈", "漢"}},
 		{"漢̈“漢", []string{"漢̈", "“漢"}},
+		{"漢“̈漢", []string{"漢", "“̈漢"}},
+		{"漢“̈̈漢", []string{"漢", "“̈̈漢"}},
+		{"漢“\u200d漢", []string{"漢", "“\u200d漢"}},
+		{"漢“\u0e31漢", []string{"漢", "“\u0e31漢"}},
+		{"漢“̈", []string{"漢“̈"}},
+		{"漢“̈A", []string{"漢“̈A"}},
+		{"$(̈1", []string{"$(̈1"}},
+		{" .̈5", []string{" ", ".̈5"}},
 	} {
 		var seg Segmenter
 		seg.Init([]rune(test.input))

@@ -178,7 +178,7 @@ func computeBreakAttributes(text []rune, attributes []breakAttr) {
 
 		// UAX#14 Line Breaking
 
-		bo := cr.applyLineBoundaryRules()
+		bo := cr.applyLineBoundaryRules(text)
 		switch bo {
 		case breakEmpty:
 			// rule LB31 : default to allow line break
