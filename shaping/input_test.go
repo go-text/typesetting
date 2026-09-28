@@ -792,3 +792,15 @@ func Test_enforceLang(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitByFaceIgnoresInputFace(t *testing.T) {
+	oldFace := loadOpentypeFont(t, "../font/testdata/Roboto-Regular.ttf")
+	selected := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, text := range []string{" x", "  ", "\u200b"} {
+		input := Input{Text: []rune(text), RunEnd: len([]rune(text)), Face: oldFace}
+		runs := SplitByFace(input, fixedFontmap{selected})
+		if len(runs) != 1 || runs[0].Face != selected {
+			t.Fatalf("%q: inherited face was not ignored", text)
+		}
+	}
+}
