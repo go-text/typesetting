@@ -341,13 +341,15 @@ func (s cmap4) Lookup(r rune) (GID, bool) {
 		} else if entry.end < c {
 			i = h + 1
 		} else if entry.indexes == nil {
-			return GID(c + entry.delta), true
+			glyph := GID(c + entry.delta)
+			return glyph, glyph != 0
 		} else {
 			glyph := entry.indexes[c-entry.start]
 			if glyph == 0 {
 				return 0, false
 			}
-			return GID(uint16(glyph) + entry.delta), true
+			gid := GID(uint16(glyph) + entry.delta)
+			return gid, gid != 0
 		}
 	}
 	return 0, false
@@ -400,7 +402,8 @@ func (s cmap6or10) Lookup(r rune) (GID, bool) {
 	if c >= len(s.entries) {
 		return 0, false
 	}
-	return GID(s.entries[c]), true
+	gid := GID(s.entries[c])
+	return gid, gid != 0
 }
 
 // ---------------------------------- Format 12 ----------------------------------
@@ -445,7 +448,8 @@ func (s cmap12) Lookup(r rune) (GID, bool) {
 		} else if entry.EndCharCode < c {
 			i = h + 1
 		} else {
-			return GID(c - entry.StartCharCode + entry.StartGlyphID), true
+			gid := GID(c - entry.StartCharCode + entry.StartGlyphID)
+			return gid, gid != 0
 		}
 	}
 	return 0, false
@@ -495,7 +499,8 @@ func (s cmap13) Lookup(r rune) (GID, bool) {
 		} else if entry.EndCharCode < c {
 			i = h + 1
 		} else {
-			return GID(entry.StartGlyphID), true
+			gid := GID(entry.StartGlyphID)
+			return gid, gid != 0
 		}
 	}
 	return 0, false
@@ -888,7 +893,8 @@ func unicodeToMacroman(u rune) rune {
 // CmapRuneRanger is implemented by cmaps whose coverage is defined in terms
 // of rune ranges
 type CmapRuneRanger interface {
-	// RuneRanges returns a list of (start, end) rune pairs, both included.
+	// RuneRanges returns sorted (start, end) rune pairs, both included,
+	// excluding code points mapped to missing glyph 0.
 	// `dst` is an optional buffer used to reduce allocations
 	RuneRanges(dst [][2]rune) [][2]rune
 }
@@ -900,50 +906,77 @@ var (
 	_ CmapRuneRanger = cmap13(nil)
 )
 
-func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
-	if cap(dst) < len(cm) {
-		dst = make([][2]rune, 0, len(cm))
+// appendRuneRange appends a nonempty range, joining adjacent ranges.
+func appendRuneRange(dst [][2]rune, start, end rune) [][2]rune {
+	if start > end {
+		return dst
 	}
+	if n := len(dst); n != 0 && dst[n-1][1]+1 >= start {
+		if end > dst[n-1][1] {
+			dst[n-1][1] = end
+		}
+		return dst
+	}
+	return append(dst, [2]rune{start, end})
+}
+
+// Explicit glyph arrays may contain holes, both before and after applying delta.
+func appendGlyphRanges(dst [][2]rune, first rune, glyphs []tables.GlyphID, delta uint16) [][2]rune {
+	start := first
+	for i, glyph := range glyphs {
+		if glyph == 0 || uint16(glyph)+delta == 0 {
+			r := first + rune(i)
+			dst = appendRuneRange(dst, start, r-1)
+			start = r + 1
+		}
+	}
+	return appendRuneRange(dst, start, first+rune(len(glyphs))-1)
+}
+
+func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
 	dst = dst[:0]
 	for _, e := range cm {
 		start, end := rune(e.start), rune(e.end)
-		if L := len(dst); L != 0 && dst[L-1][1] == start {
-			// grow the previous range
-			dst[L-1][1] = end
-		} else {
-			dst = append(dst, [2]rune{start, end})
+		if e.indexes != nil {
+			dst = appendGlyphRanges(dst, start, e.indexes, e.delta)
+			continue
 		}
+		// The arithmetic mapping has at most one missing glyph, including wraparound.
+		zero := rune(-e.delta)
+		if start <= zero && zero <= end {
+			dst = appendRuneRange(dst, start, zero-1)
+			start = zero + 1
+		}
+		dst = appendRuneRange(dst, start, end)
 	}
 	return dst
 }
 
-func (cm *cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
-	if len(cm.entries) == 0 {
-		return dst[:0]
-	}
-	if cap(dst) < 1 {
-		dst = [][2]rune{{}}
-	}
-	dst = dst[:1]
-	dst[0] = [2]rune{cm.firstCode, cm.firstCode + rune(len(cm.entries)) - 1}
-	return dst
+func (cm cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
+	return appendGlyphRanges(dst[:0], cm.firstCode, cm.entries, 0)
 }
 
 func (cm cmap12) RuneRanges(dst [][2]rune) [][2]rune {
-	if cap(dst) < len(cm) {
-		dst = make([][2]rune, 0, len(cm))
-	}
 	dst = dst[:0]
 	for _, e := range cm {
 		start, end := rune(e.StartCharCode), rune(e.EndCharCode)
-		if L := len(dst); L != 0 && dst[L-1][1] == start {
-			// grow the previous range
-			dst[L-1][1] = end
-		} else {
-			dst = append(dst, [2]rune{start, end})
+		// Skip the one code point that maps to glyph zero, if it falls in this group.
+		if offset := -e.StartGlyphID; offset <= e.EndCharCode-e.StartCharCode {
+			zero := start + rune(offset)
+			dst = appendRuneRange(dst, start, zero-1)
+			start = zero + 1
 		}
+		dst = appendRuneRange(dst, start, end)
 	}
 	return dst
 }
 
-func (cm cmap13) RuneRanges(dst [][2]rune) [][2]rune { return cmap12(cm).RuneRanges(dst) }
+func (cm cmap13) RuneRanges(dst [][2]rune) [][2]rune {
+	dst = dst[:0]
+	for _, e := range cm {
+		if e.StartGlyphID != 0 {
+			dst = appendRuneRange(dst, rune(e.StartCharCode), rune(e.EndCharCode))
+		}
+	}
+	return dst
+}

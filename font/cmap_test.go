@@ -195,8 +195,10 @@ func assertRuneRangesEqual(t *testing.T, cm Cmap) {
 
 	iter := cm.Iter()
 	for iter.Next() {
-		r, _ := iter.Char()
-		byIter[r] = true
+		r, gid := iter.Char()
+		if gid != 0 {
+			byIter[r] = true
+		}
 	}
 
 	for _, ran := range cm.(CmapRuneRanger).RuneRanges(nil) {
@@ -295,5 +297,45 @@ func TestCmap4IteratorDelta(t *testing.T) {
 	_, iterGID := iter.Char()
 	if gid != iterGID {
 		t.Fatalf("Lookup = %d, Iter = %d", gid, iterGID)
+	}
+}
+
+func TestRuneRangesMissingGlyphs(t *testing.T) {
+	tests := []struct {
+		name string
+		cmap Cmap
+		want [][2]rune
+	}{
+		{"format4 indexed", cmap4{{start: 'A', end: 'D', indexes: []tables.GlyphID{1, 0, 2, 3}, delta: 0xFFFF}}, [][2]rune{{'C', 'D'}}},
+		{"format4 arithmetic", cmap4{{start: 'A', end: 'C', delta: 65536 - 'B'}}, [][2]rune{{'A', 'A'}, {'C', 'C'}}},
+		{"format4 sentinel", cmap4{{start: 0xFFFF, end: 0xFFFF, delta: 1}}, nil},
+		{"format6", newCmap6(tables.CmapSubtable6{FirstCode: 'A', GlyphIdArray: []tables.GlyphID{0, 1, 2, 0, 3, 0}}), [][2]rune{{'B', 'C'}, {'E', 'E'}}},
+		{"format10", newCmap10(tables.CmapSubtable10{StartCharCode: 0x10000, GlyphIdArray: []tables.GlyphID{0, 1, 0}}), [][2]rune{{0x10001, 0x10001}}},
+		{"format12", cmap12{{StartCharCode: 'A', EndCharCode: 'C', StartGlyphID: 0}, {StartCharCode: 'D', EndCharCode: 'E', StartGlyphID: 4}}, [][2]rune{{'B', 'E'}}},
+		{"format12 wrap", cmap12{{StartCharCode: 'A', EndCharCode: 'C', StartGlyphID: 0xFFFFFFFF}}, [][2]rune{{'A', 'A'}, {'C', 'C'}}},
+		{"format13", cmap13{{StartCharCode: 'A', EndCharCode: 'C', StartGlyphID: 0}, {StartCharCode: 'D', EndCharCode: 'E', StartGlyphID: 4}}, [][2]rune{{'D', 'E'}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ranger := tt.cmap.(CmapRuneRanger)
+			got := ranger.RuneRanges(nil)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("ranges: got %v, want %v", got, tt.want)
+			}
+			// Reuse a nonempty destination and check that RuneRanges drops its stale contents.
+			reused := ranger.RuneRanges([][2]rune{{0, 0}, {1, 1}})
+			if len(reused) != len(got) {
+				t.Fatalf("reused ranges: %v", reused)
+			}
+			iter := tt.cmap.Iter()
+			for iter.Next() {
+				r, gid := iter.Char()
+				lookup, ok := tt.cmap.Lookup(r)
+				if lookup != gid || ok != (gid != 0) {
+					t.Fatalf("%U: iterator %d, lookup (%d, %v)", r, gid, lookup, ok)
+				}
+			}
+			assertRuneRangesEqual(t, tt.cmap)
+		})
 	}
 }
