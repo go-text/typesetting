@@ -580,3 +580,17 @@ func BenchmarkPathological(b *testing.B) {
 		}
 	}
 }
+
+func TestRunsPreserveEmbeddingLevels(t *testing.T) {
+	var p Paragraph
+	runs := p.SegmentString("a\u202abא\u202cב", LeftToRight)
+	want := []Run{{0, 2, 0}, {2, 3, 2}, {3, 5, 3}, {5, 6, 1}}
+	if runs.NumRuns() != len(want) {
+		t.Fatalf("got %d runs, want %d", runs.NumRuns(), len(want))
+	}
+	for i, expected := range want {
+		if got := runs.Run(i); got != expected {
+			t.Errorf("run %d: got %+v, want %+v", i, got, expected)
+		}
+	}
+}
