@@ -1,6 +1,7 @@
 package fontscan
 
 import (
+	"encoding/binary"
 	"hash/maphash"
 
 	"github.com/go-text/typesetting/font"
@@ -52,7 +53,10 @@ func (l *runeLRU) KeyFor(q Query, s language.Script, r rune) runeLRUKey {
 	l.init()
 	var h maphash.Hash
 	h.SetSeed(l.seed)
+	var length [8]byte
 	for _, s := range q.Families {
+		binary.LittleEndian.PutUint64(length[:], uint64(len(s)))
+		h.Write(length[:])
 		h.WriteString(s)
 	}
 	return runeLRUKey{
@@ -91,6 +95,9 @@ func copyStrSlice(s []string) []string {
 // cache entries if necessary.
 func (l *runeLRU) Put(k runeLRUKey, q Query, v *font.Face) {
 	l.init()
+	if previous := l.m[k]; previous != nil {
+		l.remove(previous)
+	}
 	val := &runeLRUEntry{key: k, v: v, families: copyStrSlice(q.Families)}
 	l.m[k] = val
 	l.insert(val)
