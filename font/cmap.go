@@ -205,7 +205,7 @@ type cmap0 map[rune]uint8
 func newCmap0(cm tables.CmapSubtable0) cmap0 {
 	out := make(cmap0)
 	for b, gid := range cm.GlyphIdArray {
-		if b == 0 {
+		if gid == 0 {
 			continue
 		}
 		out[tables.DecodeMacintoshByte(byte(b))] = gid
