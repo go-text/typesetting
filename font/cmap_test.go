@@ -266,3 +266,27 @@ func TestCmap4IteratorDelta(t *testing.T) {
 		t.Fatalf("Lookup = %d, Iter = %d", gid, iterGID)
 	}
 }
+
+func TestCmap0MissingGlyph(t *testing.T) {
+	raw := make([]byte, 274)
+	binary.BigEndian.PutUint16(raw[2:], 1)
+	binary.BigEndian.PutUint16(raw[4:], 1) // Mac platform, Roman encoding
+	binary.BigEndian.PutUint32(raw[8:], 12)
+	binary.BigEndian.PutUint16(raw[14:], 262)
+	raw[18+'A'] = 1
+	raw[18] = 2 // byte zero may have a real mapping
+	tb, _, err := tables.ParseCmap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm, _, err := ProcessCmap(tb, tables.FPNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gid, ok := cm.Lookup(0); !ok || gid != 2 {
+		t.Fatalf("byte zero mapping: got (%d, %v)", gid, ok)
+	}
+	if gid, ok := cm.Lookup('B'); ok {
+		t.Fatalf("unsupported B reported present with GID %d", gid)
+	}
+}
