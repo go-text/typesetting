@@ -448,6 +448,7 @@ func (seg *Segmenter) splitByFace(faces Fontmap) {
 }
 
 func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast bool) []Input {
+	input.Face = nil
 	currentInput := input
 	for i := input.RunStart; i < input.RunEnd; i++ {
 		r := input.Text[i]
