@@ -167,3 +167,18 @@ func TestRejectCacheWithoutLegacyArabicCoverage(t *testing.T) {
 		t.Fatal("accepted stale legacy Arabic coverage")
 	}
 }
+
+func TestRejectCacheWithMissingGlyphCoverage(t *testing.T) {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	// Version 7 footprints may count code points mapped to glyph 0 as covered.
+	if _, err := w.Write([]byte{0, 7, 0, 0, 0, 0}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := deserializeIndex(&b); err == nil {
+		t.Fatal("accepted stale glyph 0 coverage")
+	}
+}
