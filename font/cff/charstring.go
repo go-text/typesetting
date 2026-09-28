@@ -186,7 +186,7 @@ type cff2CharstringHandler struct {
 	scalars []float32 // computed from the currently active ItemVariationData subtable
 }
 
-func (cff2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
+func (cff2CharstringHandler) Context() ps.Context { return ps.CFF2Charstring }
 
 func (met *cff2CharstringHandler) setVSIndex(index int) error {
 	// if the font has variations, always build the scalar

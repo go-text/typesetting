@@ -49,6 +49,7 @@ const (
 	PrivateDict                    // Private dict in CFF files
 	Type2Charstring                // Charstring in CFF files
 	Type1Charstring                // Charstring in Type1 font files
+	CFF2Charstring                 // Type2 charstring with implicit subroutine returns
 )
 
 type ArgStack struct {
@@ -122,13 +123,24 @@ const escapeByte = 12
 // `localSubrs` and `globalSubrs` contains the subroutines that may be called in the instructions.
 func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handler OperatorHandler) error {
 	p.ctx = handler.Context()
+	implicitReturn := p.ctx == CFF2Charstring
+	if implicitReturn {
+		// CFF2 uses Type2 number encoding and subroutine bias.
+		p.ctx = Type2Charstring
+	}
 	p.instructions = instructions
 	p.localSubrs = localSubrs
 	p.globalSubrs = globalSubrs
 	p.ArgStack.Top = 0
 	p.callStack.top = 0
 
-	for len(p.instructions) > 0 {
+	for len(p.instructions) > 0 || implicitReturn && p.callStack.top > 0 {
+		if len(p.instructions) == 0 {
+			if err := p.Return(); err != nil {
+				return err
+			}
+			continue
+		}
 		// Push a numeric operand on the stack, if applicable.
 		if hasResult, err := p.parseNumber(); hasResult {
 			if err != nil {

@@ -430,3 +430,81 @@ func TestParseIndex2EmptyAtEnd(t *testing.T) {
 		}
 	}
 }
+
+func TestCFF2ImplicitSubroutineReturn(t *testing.T) {
+	index := func(data []byte) []byte { return append([]byte{0, 0, 0, 1, 1, 1, byte(len(data) + 1)}, data...) }
+	// The subroutine adds (0,10). The caller then adds (10,0).
+	subrs := index([]byte{139, 149, 5})
+	charstrings := index([]byte{139, 139, 21, 32, 29, 149, 139, 5})
+	top := []byte{28, 0, 0, 17, 28, 0, 0, 12, 36}
+	binary.BigEndian.PutUint16(top[1:], uint16(5+len(top)+len(subrs)))
+	binary.BigEndian.PutUint16(top[5:], uint16(5+len(top)+len(subrs)+len(charstrings)))
+	src := append([]byte{2, 0, 5, 0, byte(len(top))}, top...)
+	src = append(src, subrs...)
+	src = append(src, charstrings...)
+	src = append(src, index([]byte{139, 139, 18})...)
+	font, err := ParseCFF2(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	segments, _, err := font.LoadGlyph(0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range segments {
+		if s.Op == ot.SegmentOpLineTo && s.Args[0] == (ot.SegmentPoint{X: 10, Y: 10}) {
+			return
+		}
+	}
+	t.Fatalf("caller instructions after subroutine were lost: got %v, missing line to (10,10)", segments)
+}
+
+func TestCFF2NestedImplicitReturns(t *testing.T) {
+	for _, callAtEnd := range []bool{false, true} {
+		// Subroutine 0 calls subroutine 1. Both end implicitly.
+		glyph := []byte{139, 139, 21, 32, 29}
+		if !callAtEnd {
+			glyph = append(glyph, 149, 139, 5)
+		}
+		font := CFF2{Charstrings: [][]byte{glyph}, fonts: []privateFonts{{}}, globalSubrs: [][]byte{{33, 29}, {139, 149, 5}}}
+		got, _, err := font.LoadGlyph(0, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 2
+		if !callAtEnd {
+			want = 3
+		}
+		if len(got) != want {
+			t.Fatalf("call at end %v: got %v, want %d segments", callAtEnd, got, want)
+		}
+		endpoint := ot.SegmentPoint{Y: 10}
+		if !callAtEnd {
+			endpoint.X = 10
+		}
+		if got[len(got)-1].Args[0] != endpoint {
+			t.Fatalf("call at end %v: wrong endpoint %v", callAtEnd, got)
+		}
+	}
+}
+
+func TestCFF1SubroutineRequiresReturn(t *testing.T) {
+	for _, returns := range []bool{false, true} {
+		subr := []byte{139, 149, 5}
+		if returns {
+			subr = append(subr, 11)
+		}
+		font := CFF{Charstrings: [][]byte{{139, 139, 21, 32, 29, 149, 139, 5}}, localSubrs: [][][]byte{nil}, globalSubrs: [][]byte{subr}}
+		got, _, err := font.LoadGlyph(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 2
+		if returns {
+			want = 3
+		}
+		if len(got) != want {
+			t.Fatalf("explicit return %v: got %d segments, want %d", returns, len(got), want)
+		}
+	}
+}
