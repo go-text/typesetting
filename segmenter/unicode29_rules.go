@@ -85,8 +85,8 @@ func (cr *cursor) updatePictoSequence() bool {
 		} else if cr.grapheme == ucd.GB_ZWJ {
 			// close the variable part of the sequence with (ZWJ)
 			cr.pictoSequence = seenPictoZWJ
-		} else {
-			// stop the sequence
+		} else if !cr.isExtentedPic {
+			// Stop the sequence unless this rune starts another pictographic sequence.
 			cr.pictoSequence = noPictoSequence
 		}
 		return false
