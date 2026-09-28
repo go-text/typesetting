@@ -249,7 +249,10 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	out.fvar = newFvar(fvar)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("avar"))
-	out.avar, _, _ = tables.ParseAvar(raw)
+	avar, _, err := tables.ParseAvar(raw)
+	if err == nil && len(avar.AxisSegmentMaps) == len(out.fvar) {
+		out.avar = avar
+	}
 
 	out.upem = out.head.Upem()
 
