@@ -367,7 +367,11 @@ func (cr *cursor) updateNumSequence() bool {
 			return false
 		}
 	case seenCloseNum:
-		cr.numSequence = noNumSequence // close the sequence anyway
+		cr.numSequence = noNumSequence
+		if cr.line == ucd.LB_NU {
+			// This digit starts a new sequence after the closing punctuation.
+			cr.numSequence = inNumSequence
+		}
 		if cr.line&(ucd.LB_PO|ucd.LB_PR) != 0 {
 			// NU (NU | SY | IS)* (CL | CP) × (PO | PR)
 			return true
