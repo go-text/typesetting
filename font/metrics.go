@@ -204,15 +204,15 @@ func (f *Font) VariationGlyph(ch, varSelector rune) (GID, bool) {
 }
 
 // do not take into account variations
-func (f *Font) getBaseAdvance(gid gID, table tables.Hmtx, isVertical bool) int16 {
+func (f *Font) getBaseAdvance(gid gID, table tables.Hmtx, isVertical bool) uint16 {
 	/* If `table` is empty, it means we don't have the metrics table
 	 * for this direction: return default advance.  Otherwise, it means that the
 	 * glyph index is out of bound: return zero. */
 	if table.IsEmpty() {
 		if isVertical {
-			return int16(f.upem)
+			return f.upem
 		}
-		return int16(f.upem / 2)
+		return f.upem / 2
 	}
 
 	return table.Advance(gid)

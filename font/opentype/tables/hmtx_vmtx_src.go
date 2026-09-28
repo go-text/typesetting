@@ -15,7 +15,7 @@ func (table Hmtx) IsEmpty() bool {
 }
 
 // Advance returns the base side bearing, defaulting to 0 for invalid glyph index
-func (table Hmtx) Advance(gid GlyphID) int16 {
+func (table Hmtx) Advance(gid GlyphID) uint16 {
 	LM, LS := len(table.Metrics), len(table.LeftSideBearings)
 	index := int(gid)
 	if index < LM {
@@ -40,7 +40,8 @@ func (table Hmtx) SideBearing(gid GlyphID) int16 {
 }
 
 type LongHorMetric struct {
-	AdvanceWidth, LeftSideBearing int16
+	AdvanceWidth    uint16
+	LeftSideBearing int16
 }
 
 // https://learn.microsoft.com/en-us/typography/opentype/spec/vmtx

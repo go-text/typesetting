@@ -13,7 +13,7 @@ import (
 
 func (item *LongHorMetric) mustParse(src []byte) {
 	_ = src[3] // early bound checking
-	item.AdvanceWidth = int16(binary.BigEndian.Uint16(src[0:]))
+	item.AdvanceWidth = binary.BigEndian.Uint16(src[0:])
 	item.LeftSideBearing = int16(binary.BigEndian.Uint16(src[2:]))
 }
 

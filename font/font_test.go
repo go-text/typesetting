@@ -245,3 +245,24 @@ func TestNewFontIgnoresInvalidOptionalGlyf(t *testing.T) {
 		t.Fatal("invalid optional glyf table was retained")
 	}
 }
+
+func TestUnsignedAdvanceMetrics(t *testing.T) {
+	// One long metric followed by an extra signed side bearing. Both glyphs
+	// share the unsigned advance width and vertical advance height.
+	metrics, _, err := tables.ParseHmtx([]byte{0x9c, 0x40, 0xff, 0xfe, 0xff, 0xfd}, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	face := NewFace(&Font{nGlyphs: 2, hmtx: metrics, vmtx: metrics})
+	for gid := GID(0); gid < 2; gid++ {
+		if got := face.HorizontalAdvance(gid); got != 40000 {
+			t.Errorf("glyph %d: horizontal advance %g, want 40000", gid, got)
+		}
+		if got := face.VerticalAdvance(gid); got != -40000 {
+			t.Errorf("glyph %d: vertical advance %g, want -40000", gid, got)
+		}
+		if got := metrics.SideBearing(gID(gid)); got != -2-int16(gid) {
+			t.Errorf("glyph %d: wrong signed side bearing %d", gid, got)
+		}
+	}
+}
