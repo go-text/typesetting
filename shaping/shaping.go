@@ -155,6 +155,7 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 	}
 	countClusters(glyphs, end, input.Direction.Progression())
 	out := Output{
+		noExtents: skipExtents,
 		Glyphs:    glyphs,
 		Direction: input.Direction,
 		Face:      input.Face,
