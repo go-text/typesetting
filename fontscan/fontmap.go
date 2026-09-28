@@ -170,6 +170,7 @@ func (fm *FontMap) appendFootprints(footprints ...Footprint) {
 // and `systemFonts` use is then read-only
 var (
 	systemFonts         systemFontsIndex
+	systemFontsErr      error
 	initSystemFontsOnce sync.Once
 )
 
@@ -186,24 +187,22 @@ func cacheDir(userProvided string) (string, error) {
 // at least one valid font.Face.
 // It is protected by sync.Once, and is then safe to use by multiple goroutines.
 func initSystemFonts(logger Logger, userCacheDir string) error {
-	var err error
-
 	initSystemFontsOnce.Do(func() {
 		const cacheFilePattern = "font_index_v%d.cache"
 
 		// load an existing index
 		var dir string
-		dir, err = cacheDir(userCacheDir)
-		if err != nil {
+		dir, systemFontsErr = cacheDir(userCacheDir)
+		if systemFontsErr != nil {
 			return
 		}
 
 		cachePath := filepath.Join(dir, fmt.Sprintf(cacheFilePattern, cacheFormatVersion))
 
-		systemFonts, err = refreshSystemFontsIndex(logger, cachePath)
+		systemFonts, systemFontsErr = refreshSystemFontsIndex(logger, cachePath)
 	})
 
-	return err
+	return systemFontsErr
 }
 
 func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex, error) {
