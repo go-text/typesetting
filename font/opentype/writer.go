@@ -11,13 +11,15 @@ type Table struct {
 	Tag     Tag
 }
 
-// WriteTTF creates a single Truetype font file (.ttf) from the given [tables] slice,
-// which must be sorted by Tag
-func WriteTTF(tables []Table) []byte {
+// WriteOpentype creates a single Opentype font file (.ttf or .otf) from the given [tables] slice,
+// which must be sorted by [Table.Tag].
+// [flavor] is written under the 'sfntVersion' field. The typical usage is to
+// provide [TrueType] for .ttf files or [OpenType] for .otf files.
+func WriteOpentype(tables []Table, flavor Tag) []byte {
 	introLength := uint32(otfHeaderSize + len(tables)*otfEntrySize)
 	buffer := make([]byte, introLength)
 
-	writeTTFHeader(len(tables), buffer)
+	writeOpentypeHeader(len(tables), flavor, buffer)
 
 	tableOffset := introLength // the actual content will start after the header + table directory
 	for i, table := range tables {
@@ -46,8 +48,14 @@ func WriteTTF(tables []Table) []byte {
 	return buffer
 }
 
+// WriteTTF creates a single Truetype font file (.ttf) from the given [tables] slice,
+// which must be sorted by Tag.
+//
+// Deprecated: Use WriteOpentype(tables, TrueType) instead.
+func WriteTTF(tables []Table) []byte { return WriteOpentype(tables, TrueType) }
+
 // out is assumed to have a length >= ttfHeaderSize
-func writeTTFHeader(nTables int, out []byte) {
+func writeOpentypeHeader(nTables int, flavor Tag, out []byte) {
 	log2 := math.Floor(math.Log2(float64(nTables)))
 	// Maximum power of 2 less than or equal to numTables, times 16 ((2**floor(log2(numTables))) * 16, where “**” is an exponentiation operator).
 	searchRange := math.Pow(2, log2) * 16
@@ -56,7 +64,7 @@ func writeTTFHeader(nTables int, out []byte) {
 	// numTables times 16, minus searchRange ((numTables * 16) - searchRange).
 	rangeShift := nTables*16 - int(searchRange)
 
-	binary.BigEndian.PutUint32(out[:], uint32(TrueType))
+	binary.BigEndian.PutUint32(out[:], uint32(flavor))
 	binary.BigEndian.PutUint16(out[4:], uint16(nTables))
 	binary.BigEndian.PutUint16(out[6:], uint16(searchRange))
 	binary.BigEndian.PutUint16(out[8:], uint16(entrySelector))
