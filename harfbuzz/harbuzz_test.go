@@ -112,6 +112,8 @@ func TestParseVariations(t *testing.T) {
 	}{
 		{" frea=45.78", font.Variation{Tag: ot.MustNewTag("frea"), Value: 45.78}},
 		{"G45E=45", font.Variation{Tag: ot.MustNewTag("G45E"), Value: 45}},
+		{"wght = 400 ", font.Variation{Tag: ot.MustNewTag("wght"), Value: 400}},
+		{"wght\t=\t-12.5\n", font.Variation{Tag: ot.MustNewTag("wght"), Value: -12.5}},
 		{"fAAD 45.78", font.Variation{Tag: ot.MustNewTag("fAAD"), Value: 45.78}},
 		{"fr 45.78", font.Variation{Tag: ot.MustNewTag("fr  "), Value: 45.78}},
 		{"fr=45.78", font.Variation{Tag: ot.MustNewTag("fr  "), Value: 45.78}},
@@ -141,6 +143,13 @@ func TestParseFeature(t *testing.T) {
 		{"+kern", Feature{kern, 1, 0, FeatureGlobalEnd}},
 		{"-kern", Feature{kern, 0, 0, FeatureGlobalEnd}},
 		{"kern=0", Feature{kern, 0, 0, FeatureGlobalEnd}},
+		{"kern = 0 ", Feature{kern, 0, 0, FeatureGlobalEnd}},
+		{"kern\t=\t0\n", Feature{kern, 0, 0, FeatureGlobalEnd}},
+		{"kern = off", Feature{kern, 0, 0, FeatureGlobalEnd}},
+		{"kern on", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"kern \t", Feature{kern, 1, 0, FeatureGlobalEnd}},
+		{"kern = 4294967295", Feature{kern, 4294967295, 0, FeatureGlobalEnd}},
+		{"kern [ 3 : 5 ] = 2", Feature{kern, 2, 3, 5}},
 		{"kern=1", Feature{kern, 1, 0, FeatureGlobalEnd}},
 		{"aalt=2", Feature{ot.MustNewTag("aalt"), 2, 0, FeatureGlobalEnd}},
 		{"kern[]", Feature{kern, 1, 0, FeatureGlobalEnd}},
@@ -297,5 +306,39 @@ func TestWouldApplyContextRequiresFirstGlyphCoverage(t *testing.T) {
 				t.Fatal("sequence with an uncovered first glyph should not match")
 			}
 		})
+	}
+}
+
+func TestParseFeatureRejectsInvalidSettings(t *testing.T) {
+	for _, input := range []string{
+		"kern=", "kern= ", "kern=notanumber", "kern=no", "kern=1x", "aalt=4294967296",
+		"kern=0 trailing", "kern off junk", "kern=0!", "kern[bad]", "kern[1a:3]",
+		"kern[:bad]", "kern[4294967296]", "kern[:4294967296]", "kern[1:2:3]",
+	} {
+		t.Run(input, func(t *testing.T) {
+			if feature, err := ParseFeature(input); err == nil {
+				t.Fatalf("accepted invalid setting as %+v", feature)
+			}
+		})
+	}
+}
+
+func TestParseVariationRejectsInvalidSettings(t *testing.T) {
+	for _, input := range []string{"wght", "wght=", "wght= ", "wght=bad", "wght=400 trailing", "wght=400!"} {
+		t.Run(input, func(t *testing.T) {
+			if variation, err := ParseVariation(input); err == nil {
+				t.Fatalf("accepted invalid setting as %+v", variation)
+			}
+		})
+	}
+}
+
+func TestParseFeatureIndicesFitInt(t *testing.T) {
+	for _, input := range []string{"kern[2147483648:]", "kern[:2147483648]", "kern[2147483647]", "kern[4294967295]"} {
+		_, err := ParseFeature(input)
+		wantError := uint64(maxInt) < uint64(4294967295)
+		if (err != nil) != wantError {
+			t.Errorf("%s: error %v, want error %v", input, err, wantError)
+		}
 	}
 }
