@@ -53,7 +53,7 @@ func (l *fontLRU) Put(k *font.Face, v *harfbuzz.Font) {
 	val := &fontEntry{key: k, v: v}
 	l.m[k] = val
 	l.insert(val)
-	if len(l.m) > (defaultFontCacheSize + l.maxSizeOffset) {
+	for len(l.m) > (defaultFontCacheSize + l.maxSizeOffset) {
 		oldest := l.tail.next
 		l.remove(oldest)
 		delete(l.m, oldest.key)

@@ -760,3 +760,25 @@ func TestShapeFontCacheKeyedOnFace(t *testing.T) {
 	bold := shaper.Shape(input)
 	tu.Assert(t, regular.Advance != bold.Advance)
 }
+
+func TestShrinkingFontCache(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, size := range []int{1, 0, -1} {
+		var shaper HarfbuzzShaper
+		input := Input{Text: []rune("a"), RunEnd: 1, Size: fixed.I(16), Script: language.Latin}
+		for i := 0; i < 4; i++ {
+			input.Face = font.NewFace(face.Font)
+			shaper.Shape(input)
+		}
+		shaper.SetFontCacheSize(size)
+		input.Face = font.NewFace(face.Font)
+		shaper.Shape(input)
+		want := size
+		if want < 0 {
+			want = 0
+		}
+		if got := len(shaper.fonts.m); got != want {
+			t.Fatalf("size %d: retained %d fonts, want %d", size, got, want)
+		}
+	}
+}
