@@ -3,6 +3,7 @@
 package shaping
 
 import (
+	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
@@ -178,6 +179,10 @@ type Output struct {
 	// 0 indicates the leftmost run and increasing values move to the right. This is
 	// useful for sorting the runs for drawing purposes.
 	VisualIndex int32
+
+	// Level is the BIDI embedding level, used to properly compute [VisualIndex].
+	// It is generally copied from [Input.Level]
+	Level bidi.Level
 }
 
 // ToFontUnit converts a metrics (typically found in [Glyph] fields)
