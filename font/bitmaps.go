@@ -269,7 +269,11 @@ func (idx indexSubTable1And3) imageFor(gid gID, first, last gID) *bitmapImage {
 	if gid < first || gid > last {
 		return nil
 	}
-	return &idx.glyphs[gid-first]
+	glyph := &idx.glyphs[gid-first]
+	if glyph.image == nil { // equal offsets mean the glyph has no bitmap
+		return nil
+	}
+	return glyph
 }
 
 // imageData starts at the image (table[imageDataOffset:])
