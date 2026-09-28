@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -480,4 +482,31 @@ func TestSetScriptUnchanged(t *testing.T) {
 	tu.Assert(t, fm.built)
 	fm.SetScript(language.Arabic)
 	tu.Assert(t, !fm.built)
+}
+
+func resetSystemFonts() {
+	systemFonts, systemFontsErr, initSystemFontsOnce = nil, nil, sync.Once{}
+}
+
+func TestSystemFontsInitializationError(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("cache path inference requires HOME on these platforms")
+	}
+	// Other tests have already initialized the global index; start over
+	// with no cache directory available.
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	resetSystemFonts()
+	t.Cleanup(resetSystemFonts)
+
+	_, first := SystemFonts(nil, "")
+	if first == nil {
+		t.Fatal("expected cache path error")
+	}
+	if _, err := SystemFonts(nil, ""); err != first {
+		t.Fatalf("second initialization: got %v, want %v", err, first)
+	}
+	if err := NewFontMap(nil).UseSystemFonts(""); err != first {
+		t.Fatalf("font map initialization: got %v, want %v", err, first)
+	}
 }
