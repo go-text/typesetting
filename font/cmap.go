@@ -310,7 +310,7 @@ func (it *cmap4Iter) Char() (r rune, gy GID) {
 		r = rune(it.pos2) + rune(entry.start)
 		gy = GID(entry.indexes[it.pos2])
 		if gy != 0 {
-			gy += GID(entry.delta)
+			gy = GID(uint16(gy) + entry.delta)
 		}
 		if it.pos2 == len(entry.indexes)-1 {
 			// we have read the last glyph in this part

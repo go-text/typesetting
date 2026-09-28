@@ -238,3 +238,31 @@ func TestCmap4InvalidRangeOffset(t *testing.T) {
 	g, _ = cm.Lookup(0xFFFF)
 	tu.Assert(t, g == 5)
 }
+
+func TestCmap4IteratorDelta(t *testing.T) {
+	raw := make([]byte, 48)
+	binary.BigEndian.PutUint16(raw[2:], 1)
+	binary.BigEndian.PutUint16(raw[4:], 3)
+	binary.BigEndian.PutUint16(raw[6:], 1)
+	binary.BigEndian.PutUint32(raw[8:], 12)
+	for i, v := range []uint16{4, 36, 0, 4, 4, 1, 0, 'A', 0xFFFF, 0, 'A', 0xFFFF, 0xFFFF, 1, 4, 0, 2} {
+		binary.BigEndian.PutUint16(raw[12+2*i:], v)
+	}
+	tb, _, err := tables.ParseCmap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm, _, err := ProcessCmap(tb, tables.FPNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gid, _ := cm.Lookup('A')
+	iter := cm.Iter()
+	if !iter.Next() {
+		t.Fatal("empty")
+	}
+	_, iterGID := iter.Char()
+	if gid != iterGID {
+		t.Fatalf("Lookup = %d, Iter = %d", gid, iterGID)
+	}
+}
