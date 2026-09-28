@@ -2,6 +2,7 @@ package opentype
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
@@ -34,5 +35,32 @@ func TestWrite(t *testing.T) {
 
 			tu.Assert(t, bytes.Equal(table.Content, t2))
 		}
+	}
+}
+
+func TestWriteTTFPartialWordChecksum(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		src  []byte
+		want uint32
+	}{
+		{"one", []byte{1}, 0x01000000},
+		{"two", []byte{1, 2}, 0x01020000},
+		{"three", []byte{1, 2, 3}, 0x01020300},
+		{"four", []byte{1, 2, 3, 4}, 0x01020304},
+		{"five", []byte{1, 2, 3, 4, 5}, 0x06020304},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A table can share backing storage with the next table.
+			backing := append(append([]byte(nil), tc.src...), 0xaa, 0xbb, 0xcc)
+			before := append([]byte(nil), backing...)
+			out := WriteTTF([]Table{{Tag: MustNewTag("test"), Content: backing[:len(tc.src)]}})
+			if got := binary.BigEndian.Uint32(out[16:]); got != tc.want {
+				t.Errorf("checksum=%08x, want %08x", got, tc.want)
+			}
+			if !bytes.Equal(backing, before) {
+				t.Fatalf("checksum modified input backing storage: %x", backing)
+			}
+		})
 	}
 }

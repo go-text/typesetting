@@ -67,13 +67,15 @@ func checksum(table []byte) uint32 {
 	// "To accommodate data with a length that is not a multiple of four,
 	// the above algorithm must be modified to treat the data as though
 	// it contains zero padding to a length that is a multiple of four."
-	if r := len(table) % 4; r != 0 {
-		table = append(table, make([]byte, r)...)
-	}
-
 	var sum uint32
-	for i := 0; i < len(table)/4; i++ {
-		sum += binary.BigEndian.Uint32(table[i*4:])
+	for len(table) >= 4 {
+		sum += binary.BigEndian.Uint32(table)
+		table = table[4:]
+	}
+	if len(table) != 0 {
+		var tail [4]byte
+		copy(tail[:], table)
+		sum += binary.BigEndian.Uint32(tail[:])
 	}
 
 	return sum
