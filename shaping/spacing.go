@@ -15,6 +15,9 @@ import (
 // See also https://www.w3.org/TR/css-text-3/#word-separator
 func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) {
 	isVertical := run.Direction.IsVertical()
+	if isVertical {
+		additionalSpacing = -additionalSpacing
+	}
 	for i, g := range run.Glyphs {
 		// find the corresponding runes :
 		// to simplify, we assume a simple one to one rune/glyph mapping
@@ -58,6 +61,9 @@ func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 // See also https://www.w3.org/TR/css-text-3/#letter-spacing-property
 func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun, isEndRun bool) {
 	isVertical := run.Direction.IsVertical()
+	if isVertical {
+		additionalSpacing = -additionalSpacing
+	}
 	// glyphs are in visual order, so with a TowardTopLeft progression the
 	// visually leading glyph is the logical end of the run.
 	reversed := run.Direction.Progression() == di.TowardTopLeft
