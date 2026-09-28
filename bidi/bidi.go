@@ -47,7 +47,7 @@ type Paragraph struct {
 	runsEnd []int
 }
 
-// Run is a slice of text with a constant direction.
+// Run is a slice of text with a constant embedding level and direction.
 type Run struct {
 	// Start and End indicate the subslice of the input text : text[Start:End]
 	Start, End int
@@ -142,18 +142,11 @@ func (p *Paragraph) segment(defaultDirection Direction) Runs {
 
 // depends only on [resultLevels]
 func (p *Paragraph) buildRuns() Runs {
-	var isRTL bool
-
-	// lvl = 0,2,4,...: left to right
-	// lvl = 1,3,5,...: right to left
+	// Even levels are left to right and odd levels are right to left.
+	// Keep the exact levels. Reordering also depends on embedding depth.
 	for i, lvl := range p.resultLevels {
-		curIsRTL := lvl%2 != 0
-		if i == 0 {
-			isRTL = curIsRTL
-		} else if curIsRTL != isRTL {
-			// close the current run
+		if i != 0 && lvl != p.resultLevels[i-1] {
 			p.runsEnd = append(p.runsEnd, i)
-			isRTL = curIsRTL
 		}
 	}
 	// close the last run
