@@ -5,6 +5,7 @@ package font
 import (
 	"bytes"
 	"encoding/binary"
+	"sort"
 	"testing"
 
 	hb "github.com/go-text/typesetting-utils/harfbuzz"
@@ -273,4 +274,23 @@ func TestPostNames20Sanitize(t *testing.T) {
 	p.Strings = []string{"a"}
 	tu.AssertNoErr(t, p.sanitize())
 	tu.Assert(t, p.glyphName(0) == "a")
+}
+
+func TestAvarAxisCount(t *testing.T) {
+	ld := readFontFile(t, "toys/CFF2-VF.otf")
+	var ts []ot.Table
+	for _, name := range []string{"cmap", "head", "maxp", "fvar"} {
+		ts = append(ts, ot.Table{Tag: ot.MustNewTag(name), Content: readTable(t, ld, name)})
+	}
+	// Two empty axis maps parse fine, but fvar has only one axis.
+	ts = append(ts, ot.Table{Tag: ot.MustNewTag("avar"), Content: []byte{0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0}})
+	sort.Slice(ts, func(i, j int) bool { return ts[i].Tag < ts[j].Tag })
+	face, err := ParseTTF(bytes.NewReader(ot.WriteOpentype(ts, ot.TrueType)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(face.avar.AxisSegmentMaps) != 0 {
+		t.Fatal("mismatched avar was retained")
+	}
+	face.SetVariations([]Variation{{Tag: 0x77676874, Value: 500}})
 }
