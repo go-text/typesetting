@@ -368,3 +368,12 @@ func TestAdjacentPictographicSequences(t *testing.T) {
 		tu.Assert(t, reflect.DeepEqual(got, test.graphemes))
 	}
 }
+
+func TestNumericSequenceAfterClosingPunctuation(t *testing.T) {
+	for _, text := range []string{"1)2%", "1]2$", "1)2\u0301%", "1)2,3%"} {
+		var seg Segmenter
+		seg.Init([]rune(text))
+		got := collectLineBreaks(&seg)
+		tu.Assert(t, reflect.DeepEqual(got, []int{len([]rune(text))})) // no breaks
+	}
+}
