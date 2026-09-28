@@ -185,7 +185,8 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 	return nil
 }
 
-const cacheFormatVersion = 7
+// Version 8 excludes code points mapped to glyph 0 from rune coverage.
+const cacheFormatVersion = 8
 
 func max(i, j int) int {
 	if i > j {
