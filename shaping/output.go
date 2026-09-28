@@ -219,7 +219,7 @@ func (o *Output) RecomputeAdvance() {
 // TODO: should we take into account multiple spaces ?
 func (o *Output) advanceSpaceAware(paragraphDir di.Direction, text []rune) fixed.Int26_6 {
 	L := len(o.Glyphs)
-	if L == 0 || paragraphDir != o.Direction {
+	if L == 0 || paragraphDir.Axis() != o.Direction.Axis() || paragraphDir.Progression() != o.Direction.Progression() {
 		return o.Advance
 	}
 

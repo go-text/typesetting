@@ -3780,3 +3780,40 @@ func TestWrappingWithoutExtents(t *testing.T) {
 		}
 	}
 }
+
+func TestVerticalWrappingAndTruncation(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	text := []rune("abcdef")
+	for _, direction := range []di.Direction{di.DirectionTTB, di.DirectionBTT} {
+		for _, sideways := range []bool{false, true} {
+			direction.SetSideways(sideways)
+			input := Input{Text: text, RunEnd: len(text), Face: face, Size: fixed.I(16), Script: language.Latin, Direction: direction}
+			var shaper HarfbuzzShaper
+			out := shaper.Shape(input)
+			width := advanceWidth(out.Advance) / 3
+			for _, runs := range [][]Output{{out}, cutRunInto(out.copy(), 2)} {
+				config := WrapConfig{Direction: direction, BreakPolicy: Always}
+				lines, _ := (&LineWrapper{}).WrapParagraphF(config, width, text, NewSliceIterator(runs))
+				if len(lines) != 3 {
+					t.Fatalf("direction %d: got %d lines, want 3", direction, len(lines))
+				}
+				for _, line := range lines {
+					var advance fixed.Int26_6
+					for _, run := range line {
+						advance += advanceWidth(run.Advance)
+					}
+					if advance > width {
+						t.Fatalf("vertical line %v exceeds %v", advance, width)
+					}
+				}
+				input.Text, input.RunEnd = []rune("x"), 1
+				config.Truncator = shaper.Shape(input)
+				config.TruncateAfterLines = 1
+				lines, truncated := (&LineWrapper{}).WrapParagraphF(config, width, text, NewSliceIterator(runs))
+				if truncated != 5 || len(lines) != 1 {
+					t.Fatalf("vertical truncation: got %d truncated and %d lines", truncated, len(lines))
+				}
+			}
+		}
+	}
+}

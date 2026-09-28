@@ -12,6 +12,14 @@ import (
 // glyphIndex is the index in a Glyph slice
 type glyphIndex = int
 
+// advanceWidth converts a signed advance into the space it occupies on a line.
+func advanceWidth(advance fixed.Int26_6) fixed.Int26_6 {
+	if advance < 0 {
+		return -advance
+	}
+	return advance
+}
+
 // mapRunesToClusterIndices
 // returns a slice that maps rune indicies in the text to the index of the
 // first glyph in the glyph cluster containing that rune in the shaped text.
@@ -544,7 +552,7 @@ func (w *wrapBuffer) candidateLen() int { return len(w.alt) }
 // candidateAppend adds the given run to the current line wrapping candidate.
 func (w *wrapBuffer) candidateAppend(run Output) {
 	w.alt = append(w.alt, run)
-	w.altAdvance = w.altAdvance + run.Advance
+	w.altAdvance += advanceWidth(run.Advance)
 }
 
 // candidateSave captures the current state of the line candidate, enabling it to
@@ -688,7 +696,7 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 			_, firstRun, hasFirst := runs.Next()
 			_, _, hasSecond := runs.Peek()
 			if hasFirst && !hasSecond && firstRun.Runes == (Range{Count: len(paragraph)}) {
-				if firstRun.Advance <= maxWidth {
+				if advanceWidth(firstRun.Advance) <= maxWidth {
 					lines := l.scratch.singleRunParagraph(firstRun)
 					l.config = config
 					l.truncating = false
@@ -947,7 +955,7 @@ func (l *LineWrapper) WrapNextLineF(maxWidth fixed.Int26_6) (out WrappedLine, do
 	config := lineConfig{
 		truncating:        l.config.TruncateAfterLines == 1,
 		maxWidth:          maxWidth,
-		truncatedMaxWidth: maxWidth - l.config.Truncator.Advance,
+		truncatedMaxWidth: maxWidth - advanceWidth(l.config.Truncator.Advance),
 	}
 	done = l.wrapNextLine(config)
 	finalLine := l.scratch.finalizeBest()
@@ -1124,7 +1132,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		last := len(l.scratch.alt) - 1
 		candidateRun = l.scratch.alt[last]
 		l.scratch.alt = l.scratch.alt[:last]
-		l.scratch.altAdvance -= candidateRun.Advance
+		l.scratch.altAdvance -= advanceWidth(candidateRun.Advance)
 	} else {
 		if option.breakAtRune < run.Runes.Offset {
 			return breakInvalid, Output{}
@@ -1137,7 +1145,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		isFirstInLine := l.scratch.candidateLen() == 0
 		candidateRun = cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	}
-	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction, l.text) + l.scratch.candidateAdvance()
+	candidateLineWidth := advanceWidth(candidateRun.advanceSpaceAware(l.config.Direction, l.text)) + l.scratch.candidateAdvance()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
