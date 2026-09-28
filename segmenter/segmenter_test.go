@@ -352,3 +352,19 @@ func BenchmarkSegmentUnicodeReference(b *testing.B) {
 		}
 	}
 }
+
+func TestAdjacentPictographicSequences(t *testing.T) {
+	for _, test := range []struct {
+		text      string
+		graphemes []int
+	}{
+		{"😀👩\u200d💻", []int{1, 4}},        // only one break after the first emoji
+		{"😀👩\u0301\u200d💻", []int{1, 5}},  // only one break after the first emoji
+		{"😀👩\u200d💻\u200d👩", []int{1, 6}}, // only one break after the first emoji
+	} {
+		var seg Segmenter
+		seg.Init([]rune(test.text))
+		got := collectGraphemes(&seg)
+		tu.Assert(t, reflect.DeepEqual(got, test.graphemes))
+	}
+}
