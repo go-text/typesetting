@@ -337,6 +337,7 @@ func TestLine_AdjustBaseline(t *testing.T) {
 func TestAdvanceSpaceAware(t *testing.T) {
 	type testcase struct {
 		name         string
+		text         string
 		paragraphDir di.Direction
 		run          Output
 		expected     fixed.Int26_6
@@ -344,6 +345,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name:         "matching ltr no whitespace",
+			text:         "x",
 			paragraphDir: di.DirectionLTR,
 			expected:     10,
 			run: Output{
@@ -362,6 +364,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "matching ltr with whitespace",
+			text:         " ",
 			expected:     0,
 			paragraphDir: di.DirectionLTR,
 			run: Output{
@@ -380,6 +383,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "matching rtl no whitespace",
+			text:         "x",
 			expected:     10,
 			paragraphDir: di.DirectionRTL,
 			run: Output{
@@ -398,6 +402,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "matching rtl with whitespace",
+			text:         " ",
 			expected:     0,
 			paragraphDir: di.DirectionRTL,
 			run: Output{
@@ -416,6 +421,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "mismatched ltr no whitespace",
+			text:         "x",
 			expected:     10,
 			paragraphDir: di.DirectionLTR,
 			run: Output{
@@ -434,6 +440,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "mismatched ltr with whitespace",
+			text:         " ",
 			expected:     10,
 			paragraphDir: di.DirectionLTR,
 			run: Output{
@@ -452,6 +459,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "mismatched rtl no whitespace",
+			text:         "x",
 			expected:     10,
 			paragraphDir: di.DirectionRTL,
 			run: Output{
@@ -470,6 +478,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 		{
 			name:         "mismatched rtl with whitespace",
+			text:         " ",
 			expected:     10,
 			paragraphDir: di.DirectionRTL,
 			run: Output{
@@ -488,7 +497,7 @@ func TestAdvanceSpaceAware(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := tc.run.advanceSpaceAware(tc.paragraphDir)
+			actual := tc.run.advanceSpaceAware(tc.paragraphDir, []rune(tc.text))
 			if actual != tc.expected {
 				t.Errorf("expected advance %d, got %d", tc.expected, actual)
 			}

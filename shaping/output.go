@@ -7,6 +7,7 @@ import (
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
+	"unicode"
 )
 
 // Glyph describes the attributes of a single glyph from a single
@@ -146,6 +147,7 @@ func (b Bounds) LineThickness() fixed.Int26_6 {
 
 // Output describes the dimensions and content of shaped text.
 type Output struct {
+	noExtents bool // the caller did not request glyph dimensions from the shaper
 	// Advance is the distance the Dot has advanced.
 	// It is typically positive for horizontal text, negative for vertical.
 	Advance fixed.Int26_6
@@ -215,7 +217,7 @@ func (o *Output) RecomputeAdvance() {
 // because the trailing space in this run will always be internal to the paragraph.
 //
 // TODO: should we take into account multiple spaces ?
-func (o *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
+func (o *Output) advanceSpaceAware(paragraphDir di.Direction, text []rune) fixed.Int26_6 {
 	L := len(o.Glyphs)
 	if L == 0 || paragraphDir != o.Direction {
 		return o.Advance
@@ -228,16 +230,33 @@ func (o *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
 	} else {
 		lastG = o.Glyphs[0]
 	}
-	if o.Direction.IsVertical() {
-		if lastG.Height == 0 {
-			return o.Advance - lastG.Advance
-		}
-	} else { // horizontal
-		if lastG.Width == 0 {
-			return o.Advance - lastG.Advance
-		}
+	if o.isWhitespace(lastG, text) {
+		return o.Advance - lastG.Advance
 	}
 	return o.Advance - lastG.endLetterSpacing
+}
+
+// isWhitespace reports whether g is a space. With extents, a non zero width or
+// height rules a glyph out. Without them, the source text decides, so a glyph
+// with omitted extents is not mistaken for a space.
+func (o *Output) isWhitespace(g Glyph, text []rune) bool {
+	if !o.noExtents && ((!o.Direction.IsVertical() && g.Width != 0) || (o.Direction.IsVertical() && g.Height != 0)) {
+		return false
+	}
+	// A missing glyph renders .notdef, not an empty space.
+	if o.noExtents && g.GlyphID == 0 {
+		return false
+	}
+	start, count := g.TextIndex(), g.RunesCount()
+	if start < 0 || count <= 0 || start > len(text)-count {
+		return false
+	}
+	for _, r := range text[start : start+count] {
+		if !unicode.IsSpace(r) || r == '\u1680' { // Ogham space mark is visible
+			return false
+		}
+	}
+	return true
 }
 
 // RecalculateAll updates the all other fields of the Output
