@@ -66,9 +66,10 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 
 func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 	buffer := c.buffer
-	info := buffer.Info
 	ret := false
 	for {
+		// nested lookups may reallocate buffer.Info, so read it again on every pass
+		info := buffer.Info
 		j := buffer.idx
 		for j < len(info) &&
 			!(accel.digest.mayHave(gID(info[j].Glyph)) &&

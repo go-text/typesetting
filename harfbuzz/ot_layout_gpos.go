@@ -64,7 +64,7 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 
 	j := i + int(chain)
 
-	if j >= len(pos) {
+	if j < 0 || j >= len(pos) {
 		return
 	}
 
@@ -384,6 +384,9 @@ func (c *otApplyContext) applyGPOSPair2(inner tables.PairPosData2) bool {
 func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) bool {
 	buffer := c.buffer
 
+	if covIndex >= len(data.EntryExits) { // tables.Parse does not check this index
+		return false
+	}
 	thisRecord := data.EntryExits[covIndex]
 	if thisRecord.EntryAnchor == nil {
 		return false
@@ -397,7 +400,7 @@ func (c *otApplyContext) applyGPOSCursive(data tables.CursivePos, covIndex int) 
 	}
 
 	prevIndex, ok := data.Cov().Index(gID(buffer.Info[skippyIter.idx].Glyph))
-	if !ok {
+	if !ok || prevIndex >= len(data.EntryExits) {
 		buffer.unsafeToConcatFromOutbuffer(skippyIter.idx, buffer.idx+1)
 		return false
 	}

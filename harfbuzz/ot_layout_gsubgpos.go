@@ -441,8 +441,12 @@ func (c *otApplyContext) matchPropertiesMark(info *GlyphInfo, glyphProps uint16,
 	/* If using mark filtering sets, the high uint16 of
 	 * matchProps has the set index. */
 	if uint16(matchProps)&font.UseMarkFilteringSet != 0 {
-		_, has := c.gdef.MarkGlyphSetsDef.Coverages[matchProps>>16].Index(gID(info.Glyph))
-		return has
+		sets := c.gdef.MarkGlyphSetsDef.Coverages
+		if set := matchProps >> 16; set < uint32(len(sets)) {
+			_, has := sets[set].Index(gID(info.Glyph))
+			return has
+		}
+		return false
 	}
 
 	/* The second byte of matchProps has the meaning
@@ -589,8 +593,10 @@ func (c *wouldApplyContext) wouldApplyLookupContext1(data tables.SequenceContext
 
 func (c *wouldApplyContext) wouldApplyLookupContext2(data tables.SequenceContextFormat2, _ int, glyphID GID) bool {
 	class, _ := data.ClassDef.Class(gID(glyphID))
-	ruleSet := data.ClassSeqRuleSet[class]
-	return c.wouldApplyRuleSet(ruleSet, matchClass(data.ClassDef))
+	if int(class) >= len(data.ClassSeqRuleSet) {
+		return false
+	}
+	return c.wouldApplyRuleSet(data.ClassSeqRuleSet[class], matchClass(data.ClassDef))
 }
 
 func (c *wouldApplyContext) wouldApplyLookupContext3(data tables.SequenceContextFormat3, _ int) bool {
@@ -626,8 +632,10 @@ func (c *wouldApplyContext) wouldApplyLookupChainedContext1(data tables.ChainedS
 
 func (c *wouldApplyContext) wouldApplyLookupChainedContext2(data tables.ChainedSequenceContextFormat2, _ int, glyphID GID) bool {
 	class, _ := data.InputClassDef.Class(gID(glyphID))
-	ruleSet := data.ChainedClassSeqRuleSet[class]
-	return c.wouldApplyChainRuleSet(ruleSet, matchClass(data.InputClassDef))
+	if int(class) >= len(data.ChainedClassSeqRuleSet) {
+		return false
+	}
+	return c.wouldApplyChainRuleSet(data.ChainedClassSeqRuleSet[class], matchClass(data.InputClassDef))
 }
 
 func (c *wouldApplyContext) wouldApplyLookupChainedContext3(data tables.ChainedSequenceContextFormat3, _ int) bool {
