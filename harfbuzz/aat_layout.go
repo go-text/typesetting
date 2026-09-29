@@ -557,8 +557,12 @@ func (c *aatApplyContext) deleteGlyph() {
 	c.buffer.replaceGlyphIndex(deletedGlyph)
 }
 
-func (c *aatApplyContext) replace_glyph_inplace(i int, glyph gID) {
+func (c *aatApplyContext) replaceGlyphInplace(i int, glyph gID) {
 	c.buffer.Info[i].Glyph = GID(glyph)
+	if glyph == deletedGlyph {
+		c.buffer.scratchFlags |= bsfAatHasDeleted
+		c.buffer.Info[i].setAatDeleted()
+	}
 	if c.usingBufferGlyphSet {
 		c.bufferGlyphSet.addGlyph(GID(glyph))
 	}
