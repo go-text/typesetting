@@ -28,8 +28,9 @@ func deserializeFloat(src []byte) float32 {
 }
 
 func serializeString(s string) []byte {
-	L := min(len(s), math.MaxUint16) // the cap never happens in practice
-	buffer := make([]byte, 2+L)      // len as uint16 + data
+	// truncate to the uint16 length prefix; paths and family names never get this long
+	L := min(len(s), math.MaxUint16)
+	buffer := make([]byte, 2+L) // len as uint16 + data
 	binary.BigEndian.PutUint16(buffer, uint16(L))
 	copy(buffer[2:], s)
 	return buffer
