@@ -424,13 +424,6 @@ func (b *Buffer) setMasks(value, mask GlyphMask, clusterStart, clusterEnd int) {
 
 	b.maxOps -= len(b.Info)
 
-	if clusterStart == 0 && clusterEnd == -1 {
-		for i, info := range b.Info {
-			b.Info[i].Mask = (info.Mask & notMask) | value
-		}
-		return
-	}
-
 	for i, info := range b.Info {
 		if clusterStart <= info.Cluster && info.Cluster < clusterEnd {
 			b.Info[i].Mask = (info.Mask & notMask) | value

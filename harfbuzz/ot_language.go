@@ -33,7 +33,7 @@ func (l *langTag) compare(a string) int {
 }
 
 func bfindLanguage(lang string) int {
-	low, high := 0, len(otLanguages)
+	low, high := 0, len(otLanguages)-1
 	for low <= high {
 		mid := (low + high) / 2
 		p := &otLanguages[mid]

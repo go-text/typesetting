@@ -307,9 +307,6 @@ func (f *Face) GlyphVOrigin(glyph GID) (x, y float32) {
 }
 
 func (f *Face) getVOriginWithVar(gid gID) float32 {
-	if int(gid) >= f.nGlyphs {
-		return 0
-	}
 	_, phantoms := f.getGlyfPoints(gid, false)
 	return phantoms[phantomTop].Y
 }
