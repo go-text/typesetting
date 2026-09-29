@@ -3,11 +3,12 @@
 package shaping
 
 import (
+	"unicode"
+
 	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"golang.org/x/image/math/fixed"
-	"unicode"
 )
 
 // Glyph describes the attributes of a single glyph from a single
@@ -213,13 +214,14 @@ func (o *Output) RecomputeAdvance() {
 // if a white space character ends the run.
 // Any end letter spacing (on the last glyph) is also removed
 // The paragraphDir is the text direction of the overall paragraph containing o.
-// If the paragraphDir is different then o's Direction, this method has no effect
-// because the trailing space in this run will always be internal to the paragraph.
+// For runs opposing the paragraph direction, it removes only the resolved
+// bidi whitespace that UAX #9 L1 moves to the line end.
 //
 // TODO: should we take into account multiple spaces ?
 func (o *Output) advanceSpaceAware(paragraphDir di.Direction, text []rune) fixed.Int26_6 {
 	L := len(o.Glyphs)
-	if L == 0 || paragraphDir.Axis() != o.Direction.Axis() || paragraphDir.Progression() != o.Direction.Progression() {
+	sameProgression := paragraphDir.Progression() == o.Direction.Progression()
+	if L == 0 || paragraphDir.Axis() != o.Direction.Axis() || (!sameProgression && o.Level == 0) {
 		return o.Advance
 	}
 
@@ -231,7 +233,19 @@ func (o *Output) advanceSpaceAware(paragraphDir di.Direction, text []rune) fixed
 		lastG = o.Glyphs[0]
 	}
 	if o.isWhitespace(lastG, text) {
+		if !sameProgression {
+			// L1 cannot split a cluster or reset non-L1 spaces such as NBSP.
+			start := lastG.TextIndex()
+			for _, r := range text[start : start+lastG.RunesCount()] {
+				if !isBidiWhitespace(r) {
+					return o.Advance
+				}
+			}
+		}
 		return o.Advance - lastG.Advance
+	}
+	if !sameProgression {
+		return o.Advance
 	}
 	return o.Advance - lastG.endLetterSpacing
 }

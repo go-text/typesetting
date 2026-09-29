@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/math/fixed"
 )
@@ -700,7 +701,8 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 					lines := l.scratch.singleRunParagraph(firstRun)
 					l.config = config
 					l.truncating = false
-					l.postProcessLine(lines[0], true)
+					processed, _ := l.postProcessLine(lines[0], true)
+					lines[0] = processed.Line
 					return lines, 0
 				}
 			}
@@ -832,9 +834,83 @@ func computeBidiOrdering(finalLine Line) {
 	}
 }
 
+// isBidiWhitespace includes the formatting controls covered by UAX #9 L1.
+func isBidiWhitespace(r rune) bool {
+	class, _ := ucd.LookupBidiClass(r)
+	return class&(ucd.BD_LRE|ucd.BD_RLE|ucd.BD_LRO|ucd.BD_RLO|ucd.BD_PDF|ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI|ucd.BD_PDI|ucd.BD_BN|ucd.BD_WS|ucd.BD_B|ucd.BD_S) != 0
+}
+
+// resetTrailingBidiWhitespace applies UAX #9 L1 at a wrapped line boundary.
+// Paragraph segmentation already handles separators and paragraph boundaries.
+func (l *LineWrapper) resetTrailingBidiWhitespace(line Line) Line {
+	if len(line) == 0 {
+		return line
+	}
+	last := line[len(line)-1].Runes
+	end := last.Offset + last.Count
+	start := line[0].Runes.Offset
+	if start < 0 || end > len(l.text) || end <= start {
+		return line
+	}
+	trailing := end
+	for trailing > start {
+		if !isBidiWhitespace(l.text[trailing-1]) {
+			break
+		}
+		trailing--
+	}
+	var base bidi.Level
+	if l.config.Direction.Progression() == di.TowardTopLeft {
+		base = 1
+	}
+	for i := len(line) - 1; i >= 0; i-- {
+		run := line[i]
+		runEnd := run.Runes.Offset + run.Runes.Count
+		if runEnd <= trailing {
+			break
+		}
+		// A zero level also marks runs built by hand. Their Direction still
+		// decides their order.
+		if run.Level == 0 || run.Level == base {
+			continue
+		}
+		if run.Runes.Offset < trailing {
+			mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
+			// Keep a cluster containing non-whitespace intact.
+			boundary := trailing
+			for boundary < runEnd && !(breakOption{breakAtRune: boundary - 1}).isValid(mapping, run) {
+				boundary++
+			}
+			if boundary == runEnd {
+				continue
+			}
+			prefix := cutRun(run, mapping, run.Runes.Offset, boundary-1, false)
+			run = cutRun(run, mapping, boundary, runEnd-1, false)
+			// Splitting must not overwrite adjacent lines in the wrapper's buffer.
+			split := make(Line, len(line)+1)
+			copy(split, line[:i])
+			split[i] = prefix
+			copy(split[i+2:], line[i+1:])
+			line = split
+			i++
+		}
+		if run.Direction.Progression() != l.config.Direction.Progression() {
+			run.Glyphs = append([]Glyph(nil), run.Glyphs...)
+			for a, b := 0, len(run.Glyphs)-1; a < b; a, b = a+1, b-1 {
+				run.Glyphs[a], run.Glyphs[b] = run.Glyphs[b], run.Glyphs[a]
+			}
+			run.Direction.SetProgression(l.config.Direction.Progression())
+		}
+		run.Level = base
+		line[i] = run
+	}
+	return line
+}
+
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	var trimmed fixed.Int26_6
 	if len(finalLine) > 0 {
+		finalLine = l.resetTrailingBidiWhitespace(finalLine)
 		computeBidiOrdering(finalLine)
 		if !l.config.DisableTrailingWhitespaceTrim {
 			// Here we find the last visual run in the line.
