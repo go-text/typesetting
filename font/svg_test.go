@@ -62,7 +62,7 @@ func TestGlyphDataSVGViewBox(t *testing.T) {
 	// this font has no viewBox attribute in its SVG document:
 	// the viewport defaults to the em square
 	font := loadFont(t, "toys/chromacheck-svg.ttf")
-	face := Face{Font: font}
+	face := NewFace(font)
 
 	glyph, ok := face.GlyphDataSVG(1)
 	tu.Assert(t, ok)
