@@ -187,13 +187,6 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 
 const cacheFormatVersion = 6
 
-func max(i, j int) int {
-	if i > j {
-		return i
-	}
-	return j
-}
-
 // serialize into binary format, compressed with gzip
 func (index systemFontsIndex) serializeTo(w io.Writer) error {
 	// version as uint16 + len as uint32 + somewhat the minimum size for a footprint
