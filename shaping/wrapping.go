@@ -901,13 +901,15 @@ type WrappedLine struct {
 	TrimmedTrailingWhitespace fixed.Int26_6
 }
 
-// swapVisualOrder inverts the visual index of runs in [subline],
-// by swapping pairs of visual indices across the midpoint of the slice.
-func swapVisualOrder(subline Line) {
-	L := len(subline)
-	for i := range subline[0 : L/2] {
-		j := (L - i) - 1
-		subline[i].VisualIndex, subline[j].VisualIndex = subline[j].VisualIndex, subline[i].VisualIndex
+// reverseVisualOrder reflects the visual indices of line[start:end].
+// Reversals at higher levels only permute within a sequence, so the runs
+// in the range hold the visual positions start..end-1 in some order and a
+// reflection reverses them whatever that order is. Swapping the indices
+// of line[i] and line[end-1-i] instead is wrong once an inner level has
+// moved them.
+func reverseVisualOrder(line Line, start, end int) {
+	for i := start; i < end; i++ {
+		line[i].VisualIndex = int32(start+end-1) - line[i].VisualIndex
 	}
 }
 
@@ -942,13 +944,13 @@ func computeBidiOrdering(finalLine Line) {
 					contiguousStart = i
 				} // else : add to contiguous
 			} else if contiguousStart != -1 { // we are just past the sequence
-				swapVisualOrder(finalLine[contiguousStart:i]) // swap ...
-				contiguousStart = -1                          // ... and reset
+				reverseVisualOrder(finalLine, contiguousStart, i)
+				contiguousStart = -1
 			}
 		}
 		// handle the sequence if required
 		if contiguousStart != -1 {
-			swapVisualOrder(finalLine[contiguousStart:])
+			reverseVisualOrder(finalLine, contiguousStart, len(finalLine))
 		}
 	}
 }
