@@ -548,7 +548,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 	/* Reorder characters */
 
 	for i := start; i < base; i++ {
-		info[i].complexAux = min8(posPreC, info[i].complexAux)
+		info[i].complexAux = min(posPreC, info[i].complexAux)
 	}
 
 	if base < end {

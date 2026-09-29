@@ -179,7 +179,7 @@ func (t tupleVariation) calculateScalar(coords []VarCoord, sharedTuples [][]VarC
 					scalar *= float32(end-v) / float32(end-peak)
 				}
 			}
-		} else if v == 0 || v < minC(0, peak) || v > maxC(0, peak) {
+		} else if v == 0 || v < min(0, peak) || v > max(0, peak) {
 			return 0.
 		} else {
 			scalar *= float32(v) / float32(peak)
@@ -496,12 +496,12 @@ func inferDelta(targetVal, prevVal, nextVal, prevDelta, nextDelta float32) float
 			return prevDelta
 		}
 		return 0
-	} else if targetVal <= minF(prevVal, nextVal) {
+	} else if targetVal <= min(prevVal, nextVal) {
 		if prevVal < nextVal {
 			return prevDelta
 		}
 		return nextDelta
-	} else if targetVal >= maxF(prevVal, nextVal) {
+	} else if targetVal >= max(prevVal, nextVal) {
 		if prevVal > nextVal {
 			return prevDelta
 		}

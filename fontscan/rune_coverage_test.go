@@ -574,13 +574,6 @@ func BenchmarkScriptSet_contains(b *testing.B) {
 	})
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 var testScripts = [...]language.Script{
 	language.Adlam,
 	language.Afaka,
