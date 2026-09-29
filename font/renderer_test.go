@@ -213,7 +213,7 @@ func TestGlyfSegments1(t *testing.T) {
 
 	tu.Assert(t, len(f.glyf) == len(expecteds))
 
-	face := Face{Font: f}
+	face := NewFace(f)
 	for i, expected := range expecteds {
 		points := face.getPointsForGlyph(gID(i))
 
@@ -228,7 +228,7 @@ func TestGlyfSegments1(t *testing.T) {
 
 func BenchmarkBuildSegments(b *testing.B) {
 	font := loadFont(b, "common/Roboto-BoldItalic.ttf")
-	face := Face{Font: font}
+	face := NewFace(font)
 	gid, ok := face.NominalGlyph('&')
 	if !ok {
 		b.Fatal("did not find & in the font")
@@ -380,7 +380,7 @@ func TestGlyfSegments2(t *testing.T) {
 		},
 	}
 
-	face := Face{Font: font}
+	face := NewFace(font)
 	for i, expected := range expecteds {
 		points := face.getPointsForGlyph(gID(i))
 		got := buildSegments(points[:len(points)-phantomCount])
@@ -478,7 +478,7 @@ func TestGlyphDataCrash(t *testing.T) {
 		"common/Roboto-BoldItalic.ttf",
 	} {
 		font := loadFont(t, filename)
-		face := Face{Font: font}
+		face := NewFace(font)
 		iter := font.Cmap.Iter()
 		for iter.Next() {
 			_, g := iter.Char()
@@ -491,7 +491,7 @@ func TestGlyphDataCrash(t *testing.T) {
 		"toys/chromacheck-svg.ttf",
 	} {
 		font := loadFont(t, filename)
-		face := Face{Font: font}
+		face := NewFace(font)
 		iter := font.Cmap.Iter()
 		for iter.Next() {
 			_, g := iter.Char()
@@ -502,14 +502,16 @@ func TestGlyphDataCrash(t *testing.T) {
 
 func TestSbixGlyph(t *testing.T) {
 	ft := loadFont(t, "toys/Feat.ttf")
-	face := Face{Font: ft, xPpem: 100, yPpem: 100}
+	face := NewFace(ft)
+	face.SetPpem(100, 100)
 	data := face.GlyphData(1)
 	asBitmap, ok := data.(GlyphBitmap)
 	tu.Assert(t, ok)
 	tu.Assert(t, asBitmap.Format == PNG)
 
 	ft = loadFont(t, "toys/Sbix3.ttf")
-	face = Face{Font: ft, xPpem: 100, yPpem: 100}
+	face = NewFace(ft)
+	face.SetPpem(100, 100)
 	data = face.GlyphData(4)
 	asBitmap, ok = data.(GlyphBitmap)
 	tu.Assert(t, ok)
@@ -519,7 +521,8 @@ func TestSbixGlyph(t *testing.T) {
 func TestCblcGlyph(t *testing.T) {
 	for _, filename := range td.WithCBLC {
 		font := loadFont(t, filename.Path)
-		face := Face{Font: font, xPpem: 94, yPpem: 94}
+		face := NewFace(font)
+		face.SetPpem(94, 94)
 
 		for gid := filename.GlyphRange[0]; gid <= filename.GlyphRange[1]; gid++ {
 			data := face.GlyphData(GID(gid))
@@ -617,7 +620,8 @@ func TestMixedGlyphs(t *testing.T) {
 		font := loadFont(t, filename)
 		space, ok := font.NominalGlyph(' ')
 		tu.Assert(t, ok)
-		face := Face{Font: font, xPpem: 94, yPpem: 94}
+		face := NewFace(font)
+		face.SetPpem(94, 94)
 
 		gd := face.GlyphData(space)
 		tu.Assert(t, gd != nil)
@@ -655,7 +659,7 @@ func TestGlyphDataMalformedComposite(t *testing.T) {
 			{Data: tables.CompositeGlyph{Glyphs: []tables.CompositeGlyphPart{{GlyphIndex: 5}}}},
 		},
 	}
-	face := Face{Font: f}
+	face := NewFace(f)
 
 	// must not panic, and yields an empty outline
 	out, _ := face.GlyphDataOutline(0)

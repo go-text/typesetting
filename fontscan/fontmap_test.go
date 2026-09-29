@@ -361,7 +361,7 @@ func newSampleFontmap() *FontMap {
 	fm := NewFontMap(log.New(io.Discard, "", 0))
 	fm.appendFootprints(linuxSampleFontSet...)
 	for _, fp := range linuxSampleFontSet {
-		fm.cache(fp, &font.Face{Font: new(font.Font)}) // we need a new pointer for each file
+		fm.cache(fp, font.NewFace(new(font.Font))) // we need a new pointer for each file
 	}
 	return fm
 }

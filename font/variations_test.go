@@ -40,7 +40,7 @@ func TestVar(t *testing.T) {
 		font.NormalizeVariations([]float32{weight})
 	}
 
-	face := Face{Font: font}
+	face := NewFace(font)
 	face.SetVariations([]Variation{{ot.MustNewTag("wght"), 206.}})
 	tu.Assert(t, len(face.coords) == 1)
 	tu.Assert(t, face.coords[0] == -16117)
@@ -157,7 +157,7 @@ func TestAdvanceNoHVar(t *testing.T) {
 		{Tag: ot.MustNewTag("wght"), Value: 600},
 		{Tag: ot.MustNewTag("wght"), Value: 80},
 	}
-	face := Face{Font: font}
+	face := NewFace(font)
 	face.SetVariations(vars)
 
 	// 0 - 14 GIDs
