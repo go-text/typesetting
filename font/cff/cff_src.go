@@ -32,7 +32,7 @@ type dummy struct {
 type fdSelect interface {
 	isFdSelect()
 
-	fontDictIndex(glyph tables.GlyphID) (byte, error)
+	fontDictIndex(glyph tables.GlyphID) (uint16, error)
 	// return the maximum index + 1 (it's the length of an array
 	// which can be safely indexed by the indexes)
 	extent() int
@@ -49,11 +49,11 @@ type fdSelect0 struct {
 
 var errGlyph = errors.New("invalid glyph index")
 
-func (fds fdSelect0) fontDictIndex(glyph tables.GlyphID) (byte, error) {
+func (fds fdSelect0) fontDictIndex(glyph tables.GlyphID) (uint16, error) {
 	if int(glyph) >= len(fds.fds) {
 		return 0, errGlyph
 	}
-	return fds.fds[glyph], nil
+	return uint16(fds.fds[glyph]), nil
 }
 
 func (fds fdSelect0) extent() int {
@@ -78,7 +78,7 @@ type range3 struct {
 	fd    uint8          //	FD index for all glyphs in range
 }
 
-func (fds fdSelect3) fontDictIndex(x tables.GlyphID) (byte, error) {
+func (fds fdSelect3) fontDictIndex(x tables.GlyphID) (uint16, error) {
 	lo, hi := 0, len(fds.ranges)
 	for lo < hi {
 		i := (lo + hi) / 2
@@ -96,7 +96,7 @@ func (fds fdSelect3) fontDictIndex(x tables.GlyphID) (byte, error) {
 			lo = i + 1
 			continue
 		}
-		return r.fd, nil
+		return uint16(r.fd), nil
 	}
 	return 0, errGlyph
 }
@@ -123,12 +123,8 @@ type range4 struct {
 	fd    uint16 //	FD index for all glyphs in range
 }
 
-func (fds fdSelect4) fontDictIndex(x tables.GlyphID) (byte, error) {
-	fd, err := fds.fontDictIndex32(uint32(x))
-	return byte(fd), err
-}
-
-func (fds fdSelect4) fontDictIndex32(x uint32) (uint16, error) {
+func (fds fdSelect4) fontDictIndex(glyph tables.GlyphID) (uint16, error) {
+	x := uint32(glyph)
 	lo, hi := 0, len(fds.ranges)
 	for lo < hi {
 		i := (lo + hi) / 2

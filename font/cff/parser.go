@@ -55,8 +55,8 @@ func Parse(file []byte) (*CFF, error) {
 		return nil, err
 	}
 
-	if len(out) > 1 {
-		return nil, errors.New("only one font is allowed CFF table")
+	if len(out) != 1 {
+		return nil, fmt.Errorf("exactly one font is allowed in CFF table, got %d", len(out))
 	}
 
 	return &out[0], nil
@@ -676,8 +676,7 @@ var topDictOperators = [2][]topDictOperator{
 
 // privateDict contains fields specific to the Private DICT context.
 type privateDict struct {
-	subrsOffset                  int32
-	defaultWidthX, nominalWidthX float64
+	subrsOffset int32
 }
 
 func (privateDict) Context() ps.Context { return ps.PrivateDict }
@@ -689,19 +688,7 @@ func (priv *privateDict) Apply(state *ps.Machine, op ps.Operator) error {
 		switch op.Operator {
 		case 6, 7, 8, 9: // "BlueValues" "OtherBlues" "FamilyBlues" "FamilyOtherBlues"
 			return state.ArgStack.PopN(-2)
-		case 10, 11: // "StdHW" "StdVW"
-			return state.ArgStack.PopN(1)
-		case 20: // "defaultWidthX"
-			if state.ArgStack.Top < 1 {
-				return errors.New("invalid stack size for 'defaultWidthX' in private Dict charstring")
-			}
-			priv.defaultWidthX = state.ArgStack.Vals[state.ArgStack.Top-1]
-			return state.ArgStack.PopN(1)
-		case 21: // "nominalWidthX"
-			if state.ArgStack.Top < 1 {
-				return errors.New("invalid stack size for 'nominalWidthX' in private Dict charstring")
-			}
-			priv.nominalWidthX = state.ArgStack.Vals[state.ArgStack.Top-1]
+		case 10, 11, 20, 21: // "StdHW" "StdVW" "defaultWidthX" "nominalWidthX"
 			return state.ArgStack.PopN(1)
 		case 19: // "Subrs" pop 1
 			if state.ArgStack.Top < 1 {

@@ -21,7 +21,7 @@ func (f *CFF) LoadGlyph(glyph tables.GlyphID) ([]ot.Segment, ps.PathBounds, erro
 	var (
 		psi    ps.Machine
 		loader type2CharstringHandler
-		index  byte = 0
+		index  uint16
 		err    error
 	)
 	if f.fdSelect != nil {
@@ -39,12 +39,6 @@ func (f *CFF) LoadGlyph(glyph tables.GlyphID) ([]ot.Segment, ps.PathBounds, erro
 // type2CharstringHandler implements operators needed to fetch Type2 charstring metrics
 type type2CharstringHandler struct {
 	cs ps.CharstringReader
-
-	// found in private DICT, needed since we can't differenciate
-	// no width set from 0 width
-	// `width` must be initialized to default width
-	nominalWidthX float64
-	width         float64
 }
 
 func (type2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
@@ -56,9 +50,6 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 		case 11: // return
 			return state.Return() // do not clear the arg stack
 		case 14: // endchar
-			if state.ArgStack.Top > 0 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			met.cs.ClosePath()
 			return ps.ErrInterrupt
 		case 10: // callsubr
@@ -66,19 +57,10 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 		case 29: // callgsubr
 			return ps.GlobalSubr(state) // do not clear the arg stack
 		case 21: // rmoveto
-			if state.ArgStack.Top > 2 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			err = met.cs.Rmoveto(state)
 		case 22: // hmoveto
-			if state.ArgStack.Top > 1 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			err = met.cs.Hmoveto(state)
 		case 4: // vmoveto
-			if state.ArgStack.Top > 1 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			err = met.cs.Vmoveto(state)
 		case 1, 18: // hstem, hstemhm
 			met.cs.Hstem(state)
@@ -87,9 +69,6 @@ func (met *type2CharstringHandler) Apply(state *ps.Machine, op ps.Operator) erro
 		case 19, 20: // hintmask, cntrmask
 			// variable number of arguments, but always even
 			// for xxxmask, if there are arguments on the stack, then this is an impliied stem
-			if state.ArgStack.Top&1 != 0 {
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
 			met.cs.Hintmask(state)
 			// the stack is managed by the previous call
 			return nil
@@ -152,7 +131,7 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []tables.Coord) ([]ot.Segm
 	var (
 		psi    ps.Machine
 		loader cff2CharstringHandler
-		index  byte = 0
+		index  uint16
 		err    error
 	)
 	if f.fdSelect != nil {
@@ -166,7 +145,9 @@ func (f *CFF2) LoadGlyph(glyph tables.GlyphID, coords []tables.Coord) ([]ot.Segm
 
 	loader.coords = coords
 	loader.vars = f.VarStore
-	loader.setVSIndex(int(font.defaultVSIndex))
+	if err = loader.setVSIndex(int(font.defaultVSIndex)); err != nil {
+		return nil, ps.PathBounds{}, err
+	}
 
 	err = psi.Run(f.Charstrings[glyph], font.localSubrs, f.globalSubrs, &loader)
 
@@ -184,17 +165,17 @@ type cff2CharstringHandler struct {
 	scalars []float32 // computed from the currently active ItemVariationData subtable
 }
 
-func (cff2CharstringHandler) Context() ps.Context { return ps.Type2Charstring }
+func (cff2CharstringHandler) Context() ps.Context { return ps.CFF2Charstring }
 
 func (met *cff2CharstringHandler) setVSIndex(index int) error {
 	// if the font has variations, always build the scalar
 	// slice, even if no variations are activated by the user:
 	// the blend operator needs to know how many args to skip.
-	if len(met.vars.ItemVariationDatas) == 0 {
+	if index == 0 && len(met.vars.ItemVariationDatas) == 0 {
 		return nil
 	}
 
-	if index >= len(met.vars.ItemVariationDatas) {
+	if index < 0 || index >= len(met.vars.ItemVariationDatas) {
 		return fmt.Errorf("invalid 'vsindex' %d", index)
 	}
 
@@ -215,8 +196,9 @@ func (met *cff2CharstringHandler) blend(state *ps.Machine) error {
 	}
 	n := int32(state.ArgStack.Pop())
 	k := int32(len(met.scalars))
-	if state.ArgStack.Top < n*(k+1) {
-		return errors.New("missing arguments for blend operator")
+	// The stack size bounds n, so n*(k+1) cannot overflow.
+	if n < 0 || n > state.ArgStack.Top || state.ArgStack.Top < n*(k+1) {
+		return errors.New("invalid arguments for blend operator")
 	}
 
 	// actually apply the deltas only if the user has activated variations
