@@ -527,17 +527,17 @@ func (fm *FontMap) ResolveFace(r rune) (face *font.Face) {
 		return face
 	}
 
-	// if no family has matched so far, try again with system fallback,
-	// including fonts with matching script and user provided ones
-	if face := fm.resolveForRune(fm.candidates.withFallback, r); face != nil {
+	// if no family has matched, try the manually loaded faces even if
+	// the typeface doesn't match, looking for matching aspects and rune
+	// coverage. They come before the system fallback, so a system font
+	// whose cmap claims every rune, such as LastResort on macOS, does not
+	// win over a font the user added.
+	if face := fm.resolveForRune(fm.candidates.manual, r); face != nil {
 		return face
 	}
 
-	// try manually loaded faces even if the typeface doesn't match, looking for matching aspects
-	// and rune coverage.
-	// Note that, when [SetScript] has been called, this step is actually not needed,
-	// since the fonts supporting the given script are already added in [withFallback] fonts
-	if face := fm.resolveForRune(fm.candidates.manual, r); face != nil {
+	// try again with system fallback, including fonts with matching script
+	if face := fm.resolveForRune(fm.candidates.withFallback, r); face != nil {
 		return face
 	}
 
