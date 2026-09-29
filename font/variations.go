@@ -53,25 +53,28 @@ type gvar struct {
 	sharedTupleActiveIdx []int              // with length tupleCount
 }
 
+// checkTupleAxisCount returns an error if the tuple is present and its
+// number of values differs from the number of axes in fvar.
+func checkTupleAxisCount(t tables.Tuple, axisCount int) error {
+	if t.Values != nil && len(t.Values) != axisCount {
+		return fmt.Errorf("gvar: invalid number of axis (%d != %d)", len(t.Values), axisCount)
+	}
+	return nil
+}
+
 func newGvar(table tables.Gvar, glyf tables.Glyf, axisCount int) (gvar, error) {
 	if len(table.GlyphVariationDatas) != len(glyf) {
 		return gvar{}, fmt.Errorf("invalid 'gvar' table: mismatch in glyphs count")
 	}
-	checkAxis := func(t tables.Tuple) error {
-		if t.Values != nil && len(t.Values) != axisCount {
-			return fmt.Errorf("gvar: invalid number of axis (%d != %d)", len(t.Values), axisCount)
-		}
-		return nil
-	}
 	for _, ts := range table.SharedTuples.SharedTuples {
-		if err := checkAxis(ts); err != nil {
+		if err := checkTupleAxisCount(ts, axisCount); err != nil {
 			return gvar{}, err
 		}
 	}
 	for _, vs := range table.GlyphVariationDatas {
 		for _, h := range vs.TupleVariationHeaders {
 			for _, t := range [3]tables.Tuple{h.PeakTuple, h.IntermediateTuples[0], h.IntermediateTuples[1]} {
-				if err := checkAxis(t); err != nil {
+				if err := checkTupleAxisCount(t, axisCount); err != nil {
 					return gvar{}, err
 				}
 			}
