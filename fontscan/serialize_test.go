@@ -99,15 +99,11 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 }
 
-func randomBytes() []byte {
-	out := make([]byte, 1000)
-	rand.Read(out)
-	return out
-}
-
 func TestDeserializeInvalid(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	for range [50]int{} {
-		src := randomBytes()
+		src := make([]byte, 1000)
+		rng.Read(src)
 		if rand.Intn(2) == 0 { // indicate a small string
 			binary.BigEndian.PutUint16(src, 10)
 		}
