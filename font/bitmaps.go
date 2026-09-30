@@ -24,7 +24,7 @@ func (sb sbix) chooseStrike(xPpem, yPpem uint16) *tables.Strike {
 		return nil
 	}
 
-	request := maxu16(xPpem, yPpem)
+	request := max(xPpem, yPpem)
 	if request == 0 {
 		request = math.MaxUint16 // choose largest strike
 	}
@@ -133,16 +133,16 @@ func (bt bitmap) chooseStrike(xPpem, yPpem uint16) *bitmapStrike {
 	if len(bt) == 0 {
 		return nil
 	}
-	request := maxu16(xPpem, yPpem)
+	request := max(xPpem, yPpem)
 	if request == 0 {
 		request = math.MaxUint16 // choose largest strike
 	}
 	var (
 		bestIndex = 0
-		bestPpem  = maxu16(bt[0].ppemX, bt[0].ppemY)
+		bestPpem  = max(bt[0].ppemX, bt[0].ppemY)
 	)
 	for i, s := range bt {
-		ppem := maxu16(s.ppemX, s.ppemY)
+		ppem := max(s.ppemX, s.ppemY)
 		if request <= ppem && ppem < bestPpem || request > bestPpem && ppem > bestPpem {
 			bestIndex = i
 			bestPpem = ppem
@@ -462,13 +462,6 @@ func parseBitmapDataStandalone(imageData []byte, start, end uint32, format uint1
 	default:
 		return nil, fmt.Errorf("unsupported bitmap image format: %d", format)
 	}
-}
-
-func maxu16(a, b uint16) uint16 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func mulDiv(a, b, c uint16) uint16 {

@@ -477,48 +477,6 @@ func ParseFeature(feature string) (Feature, error) {
 	return pr.parseOneFeature()
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func min8(a, b uint8) uint8 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func max32(a, b uint32) uint32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func minF(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxF(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func isAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
 func isAlnum(c byte) bool { return isAlpha(c) || (c >= '0' && c <= '9') }
 func toUpper(c byte) byte {

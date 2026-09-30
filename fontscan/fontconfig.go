@@ -55,8 +55,8 @@ func (f fcVars) resolvePath(logger Logger, path string) string {
 		}
 		return path
 	}
-	if strings.HasPrefix(path, "~") {
-		path = filepath.Join(f.userHome, strings.TrimPrefix(path, "~"))
+	if after, ok := strings.CutPrefix(path, "~"); ok {
+		path = filepath.Join(f.userHome, after)
 		if hasSysroot {
 			path = filepath.Join(f.sysroot, path)
 		}

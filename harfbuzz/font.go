@@ -401,8 +401,8 @@ func syntheticGlyphExtents(extents *font.GlyphExtents, slant, xEmbolden float32)
 		x2 := extents.XBearing + extents.Width
 		y2 := extents.YBearing + extents.Height
 
-		x1 += minF(y1*slant, y2*slant)
-		x2 += maxF(y1*slant, y2*slant)
+		x1 += min(y1*slant, y2*slant)
+		x2 += max(y1*slant, y2*slant)
 
 		extents.XBearing = x1
 		extents.Width = x2 - extents.XBearing

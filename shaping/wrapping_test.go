@@ -19,20 +19,6 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // glyphs returns a slice of glyphs with clusters from start to
 // end. If start is greater than end, the glyphs will be returned
 // with descending cluster values.

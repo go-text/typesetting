@@ -19,7 +19,7 @@ func TestParseCrashers(t *testing.T) {
 	for range [50]int{} {
 		L := rand.Intn(100)
 		input := make([]byte, L)
-		rand.Read(input)
+		rand.New(rand.NewSource(int64(L))).Read(input)
 
 		_, err = NewLoader(bytes.NewReader(input))
 		tu.Assert(t, err != nil)

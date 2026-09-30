@@ -28,10 +28,8 @@ func deserializeFloat(src []byte) float32 {
 }
 
 func serializeString(s string) []byte {
-	L := len(s)
-	if L > math.MaxUint16 { // never happen in practice
-		L = math.MaxUint16
-	}
+	// truncate to the uint16 length prefix; paths and family names never get this long
+	L := min(len(s), math.MaxUint16)
 	buffer := make([]byte, 2+L) // len as uint16 + data
 	binary.BigEndian.PutUint16(buffer, uint16(L))
 	copy(buffer[2:], s)
@@ -186,13 +184,6 @@ func (ff *fileFootprints) deserializeFrom(src []byte) error {
 }
 
 const cacheFormatVersion = 6
-
-func max(i, j int) int {
-	if i > j {
-		return i
-	}
-	return j
-}
 
 // serialize into binary format, compressed with gzip
 func (index systemFontsIndex) serializeTo(w io.Writer) error {

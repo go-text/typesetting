@@ -173,10 +173,7 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	}
 
 	// add post-context
-	s := itemOffset + itemLength + contextLength
-	if s > len(text) {
-		s = len(text)
-	}
+	s := min(itemOffset+itemLength+contextLength, len(text))
 	b.context[1] = text[itemOffset+itemLength : s]
 }
 
