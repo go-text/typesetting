@@ -10,6 +10,7 @@ import (
 	"testing"
 	"testing/quick"
 
+	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
@@ -194,20 +195,6 @@ func TestMapRunesToClusterIndices(t *testing.T) {
 			mapping := mapRunesToClusterIndices(tc.dir, tc.runes, tc.glyphs, nil)
 			if !reflect.DeepEqual(tc.expected, mapping) {
 				t.Errorf("expected %v, got %v", tc.expected, mapping)
-			}
-			mapping = mapRunesToClusterIndices2(tc.dir, tc.runes, tc.glyphs, nil)
-			if !reflect.DeepEqual(tc.expected, mapping) {
-				t.Errorf("expected %v, got %v", tc.expected, mapping)
-			}
-			mapping = mapRunesToClusterIndices3(tc.dir, tc.runes, tc.glyphs, nil)
-			if !reflect.DeepEqual(tc.expected, mapping) {
-				t.Errorf("expected %v, got %v", tc.expected, mapping)
-			}
-			for runeIdx, glyphIdx := range tc.expected {
-				g := mapRuneToClusterIndex(tc.dir, tc.runes, tc.glyphs, runeIdx)
-				if g != glyphIdx {
-					t.Errorf("map single, expected rune %d to yield %d, got %d", runeIdx, glyphIdx, g)
-				}
 			}
 		})
 	}
@@ -2299,9 +2286,7 @@ func BenchmarkMapping(b *testing.B) {
 	for _, langInfo := range benchLangs {
 		for _, size := range []int{10, 100, 1000} {
 			for impl, f := range map[string]wrapfunc{
-				//"v1": mapRunesToClusterIndices,
-				//"v2": mapRunesToClusterIndices2,
-				"v3": mapRunesToClusterIndices3,
+				"v3": mapRunesToClusterIndices,
 			} {
 				b.Run(fmt.Sprintf("%drunes-%s-%s", size, langInfo.name, impl), func(b *testing.B) {
 					var shaper HarfbuzzShaper
@@ -2394,7 +2379,7 @@ var benchSizes = []benchSizeConfig{
 // cutRunInto divides the run into [parts] of same size (with the last part absorbing any remainder).
 func cutRunInto(run Output, parts int) []Output {
 	var outs []Output
-	mapping := mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, nil)
+	mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
 	runesPerPart := run.Runes.Count / parts
 	partStart := 0
 	for i := 0; i < parts-1; i++ {
@@ -3275,7 +3260,7 @@ func TestTrailingSpace(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   72,
+		Size:   fixed.I(2), // 1 px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
@@ -3575,7 +3560,7 @@ func TestRequiredBreaks(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   72,
+		Size:   fixed.I(2), // 1 px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1))
@@ -3606,7 +3591,7 @@ func TestTrimmedTrailingWhitespace(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   72,
+		Size:   fixed.I(2), // 1 px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1) && run.Glyphs[3].XAdvance == fixed.I(1))
@@ -3633,7 +3618,7 @@ func TestMaxWidthRouding(t *testing.T) {
 	run := (&HarfbuzzShaper{}).Shape(Input{
 		Text:   text,
 		Face:   face,
-		Size:   36,
+		Size:   fixed.I(1), // half px advance
 		RunEnd: len(text),
 	})
 	tu.Assert(t, run.Glyphs[0].XAdvance == fixed.I(1)/2)
@@ -3683,4 +3668,300 @@ func TestWrapping_oneLine_overflow_bug(t *testing.T) {
 	l.Prepare(WrapConfig{BreakPolicy: Never}, textInput, NewSliceIterator(out))
 	_, done := l.WrapNextLine(maxWidth)
 	tu.Assert(t, done)
+}
+
+// wrapping must not mutate the caller's glyphs, so that the same runs can be wrapped again
+func TestWrappingDoesNotMutateRuns(t *testing.T) {
+	text := []rune("aa bb cc")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	runs := []Output{run}
+	AddSpacing(runs, text, 0, fixed.I(4))
+	before := append([]Glyph(nil), runs[0].Glyphs...)
+
+	var w LineWrapper
+	lines, _ := w.WrapParagraphF(WrapConfig{}, runs[0].Advance*3/4, text, NewSliceIterator(runs))
+	tu.Assert(t, len(lines) == 2)
+	tu.Assert(t, reflect.DeepEqual(before, runs[0].Glyphs))
+
+	lines, _ = w.WrapParagraphF(WrapConfig{}, runs[0].Advance, text, NewSliceIterator(runs))
+	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == runs[0].Advance)
+}
+
+// the single run fast path must post-process the line like the general path
+func TestWrapParagraphSingleRunTrimsTrailingSpace(t *testing.T) {
+	text := []rune("The quick ")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+
+	var w LineWrapper
+	lines, _ := w.WrapParagraph(WrapConfig{}, 10000, text, NewSliceIterator([]Output{run}))
+	w.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
+	line, _ := w.WrapNextLine(10000)
+	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == line.Line[0].Advance)
+	tu.Assert(t, lines[0][0].Advance == run.Advance-line.TrimmedTrailingWhitespace)
+	tu.Assert(t, line.TrimmedTrailingWhitespace > 0)
+}
+
+// runs not covering the paragraph must not panic
+func TestWrapRunsShorterThanParagraph(t *testing.T) {
+	text := []rune("ab cd")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: 2, Face: benchEnFace, Size: fixed.I(16)})
+	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{}, 5, text, NewSliceIterator([]Output{run}))
+	tu.Assert(t, len(lines) == 2 && lines[0][0].Runes == Range{Count: 1})
+	tu.Assert(t, lines[1][0].Runes == Range{Offset: 1, Count: 1})
+}
+
+func TestWrapShortRunsRespectWidth(t *testing.T) {
+	text := []rune("abcd ef")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: 4, Face: benchEnFace, Size: fixed.I(16)})
+	lines, _ := (&LineWrapper{}).WrapParagraphF(WrapConfig{}, run.Advance/2, text, NewSliceIterator([]Output{run}))
+	if len(lines) < 2 {
+		t.Fatalf("short runs ignored width: %v", lines)
+	}
+}
+func TestWrapRunsWithGap(t *testing.T) {
+	text := []rune("a b c")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunStart: 4, RunEnd: 5, Face: benchEnFace, Size: fixed.I(16)})
+	var w LineWrapper
+	w.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
+	line, done := w.WrapNextLine(100)
+	if !done || len(line.Line) != 1 || line.Line[0].Runes != run.Runes {
+		t.Fatalf("unexpected gap result: %+v, done %v", line, done)
+	}
+}
+
+func TestWrapShortRunsReserveTruncator(t *testing.T) {
+	text := []rune("abcd ef")
+	shaper := &HarfbuzzShaper{}
+	run := shaper.Shape(Input{Text: text, RunEnd: 4, Face: benchEnFace, Size: fixed.I(16)})
+	truncator := shaper.Shape(Input{Text: []rune("…"), RunEnd: 1, Face: benchEnFace, Size: fixed.I(16)})
+	config := WrapConfig{TruncateAfterLines: 1, Truncator: truncator}
+	lines, truncated := (&LineWrapper{}).WrapParagraphF(config, run.Advance, text, NewSliceIterator([]Output{run}))
+	if len(lines) != 1 || len(lines[0]) != 2 || truncated == 0 {
+		t.Fatalf("missing truncator: %+v, truncated %d", lines, truncated)
+	}
+	var advance fixed.Int26_6
+	for _, run := range lines[0] {
+		advance += run.Advance
+	}
+	if advance > run.Advance {
+		t.Fatalf("line with truncator exceeds width: %v > %v", advance, run.Advance)
+	}
+}
+
+func TestCutRunWithoutLetterSpacingDoesNotAllocate(t *testing.T) {
+	text := []rune("abcd")
+	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
+	allocs := testing.AllocsPerRun(10, func() { cutRun(run, mapping, 0, 1, true) })
+	if allocs != 0 {
+		t.Fatalf("cutting an unspaced run allocated %v times", allocs)
+	}
+}
+
+func TestWrappingWithoutExtents(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, text := range []string{"abcdef", "ab cd ", "ab\ncd", "ab\u00a0cd"} {
+		input := Input{Text: []rune(text), RunEnd: len([]rune(text)), Face: face, Size: fixed.I(16), Script: language.Latin}
+		var shaper HarfbuzzShaper
+		full, lean := shaper.Shape(input), shaper.ShapeNoExtents(input)
+		for _, trim := range []bool{true, false} {
+			config := WrapConfig{BreakPolicy: Always, DisableTrailingWhitespaceTrim: !trim}
+			want, _ := (&LineWrapper{}).WrapParagraph(config, 16, input.Text, NewSliceIterator([]Output{full}))
+			got, _ := (&LineWrapper{}).WrapParagraph(config, 16, input.Text, NewSliceIterator([]Output{lean}))
+			if len(got) != len(want) {
+				t.Fatalf("%q: got %d lines, want %d", text, len(got), len(want))
+			}
+			for i := range want {
+				for j := range want[i] {
+					if got[i][j].Runes != want[i][j].Runes || got[i][j].Advance != want[i][j].Advance {
+						t.Fatalf("%q: inconsistent line %d advances or coverage", text, i)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestVerticalWrappingAndTruncation(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	text := []rune("abcdef")
+	for _, direction := range []di.Direction{di.DirectionTTB, di.DirectionBTT} {
+		for _, sideways := range []bool{false, true} {
+			direction.SetSideways(sideways)
+			input := Input{Text: text, RunEnd: len(text), Face: face, Size: fixed.I(16), Script: language.Latin, Direction: direction}
+			var shaper HarfbuzzShaper
+			out := shaper.Shape(input)
+			width := advanceWidth(out.Advance) / 3
+			for _, runs := range [][]Output{{out}, cutRunInto(out.copy(), 2)} {
+				config := WrapConfig{Direction: direction, BreakPolicy: Always}
+				lines, _ := (&LineWrapper{}).WrapParagraphF(config, width, text, NewSliceIterator(runs))
+				if len(lines) != 3 {
+					t.Fatalf("direction %d: got %d lines, want 3", direction, len(lines))
+				}
+				for _, line := range lines {
+					var advance fixed.Int26_6
+					for _, run := range line {
+						advance += advanceWidth(run.Advance)
+					}
+					if advance > width {
+						t.Fatalf("vertical line %v exceeds %v", advance, width)
+					}
+				}
+				input.Text, input.RunEnd = []rune("x"), 1
+				config.Truncator = shaper.Shape(input)
+				config.TruncateAfterLines = 1
+				lines, truncated := (&LineWrapper{}).WrapParagraphF(config, width, text, NewSliceIterator(runs))
+				if truncated != 5 || len(lines) != 1 {
+					t.Fatalf("vertical truncation: got %d truncated and %d lines", truncated, len(lines))
+				}
+			}
+		}
+	}
+}
+
+func TestSegmentShapeWrapNestedBidi(t *testing.T) {
+	text := []rune("abc אבג 123 דהו xyz")
+	var seg Segmenter
+	var shaper HarfbuzzShaper
+	inputs := seg.Split(Input{Text: text, RunEnd: len(text), Size: fixed.I(16)}, fixedFontmap{benchEnFace})
+	var runs []Output
+	for _, input := range inputs {
+		out := shaper.Shape(input)
+		if out.Level != input.Level {
+			t.Fatal("lost embedding level during shaping")
+		}
+		runs = append(runs, out)
+	}
+	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{}, 1000, text, NewSliceIterator(runs))
+	var before, digits, after int32 = -1, -1, -1
+	for _, run := range lines[0] {
+		switch {
+		case run.Runes.Offset <= 4 && run.Runes.Offset+run.Runes.Count > 4:
+			before = run.VisualIndex
+		case run.Runes.Offset <= 8 && run.Runes.Offset+run.Runes.Count > 8:
+			digits = run.VisualIndex
+		case run.Runes.Offset <= 12 && run.Runes.Offset+run.Runes.Count > 12:
+			after = run.VisualIndex
+		}
+	}
+	if before < 0 || digits < 0 || after < 0 || !(after < digits && digits < before) {
+		t.Fatalf("nested RTL text should order second Hebrew run, digits, first Hebrew run; got %d, %d, %d", after, digits, before)
+	}
+}
+
+func TestWrappedBidiWhitespaceLevel(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, paragraphDir := range []di.Direction{di.DirectionLTR, di.DirectionRTL} {
+		text := []rune("ab  cd")
+		direction, level, base := di.DirectionRTL, bidi.Level(1), bidi.Level(0)
+		if paragraphDir == di.DirectionRTL {
+			direction, level, base = di.DirectionLTR, 2, 1
+		}
+		var shaper HarfbuzzShaper
+		run := shaper.Shape(Input{Text: text, RunEnd: len(text), Size: fixed.I(16), Face: face, Direction: direction, Level: level, Script: language.Latin})
+		original := append([]Glyph(nil), run.Glyphs...)
+		width := advanceWidth(run.Advance) * 4 / 6
+		config := WrapConfig{Direction: paragraphDir, DisableTrailingWhitespaceTrim: true}
+		lines, _ := (&LineWrapper{}).WrapParagraphF(config, width, text, NewSliceIterator([]Output{run}))
+		if len(lines) != 2 || len(lines[0]) != 2 {
+			t.Fatalf("expected split content and trailing spaces: %v", lines)
+		}
+		content, spaces := lines[0][0], lines[0][1]
+		if content.Runes != (Range{Offset: 0, Count: 2}) || content.Level != level || spaces.Runes != (Range{Offset: 2, Count: 2}) || spaces.Level != base || spaces.Direction != paragraphDir {
+			t.Fatalf("bad L1 reset: content %+v, spaces %+v", content, spaces)
+		}
+		if paragraphDir == di.DirectionLTR && spaces.Glyphs[0].ClusterIndex != 2 || paragraphDir == di.DirectionRTL && spaces.Glyphs[0].ClusterIndex != 3 {
+			t.Fatal("trailing spaces retain old glyph ordering")
+		}
+		if !reflect.DeepEqual(run.Glyphs, original) {
+			t.Fatal("wrapping changed source glyphs")
+		}
+		if lines[1][0].Level != level {
+			t.Fatal("line cut discarded embedding level")
+		}
+	}
+}
+
+func TestBidiWhitespaceFastPathAndClusters(t *testing.T) {
+	var shaper HarfbuzzShaper
+	for _, text := range []string{"ab  ", "  "} {
+		input := Input{Text: []rune(text), RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16), Direction: di.DirectionRTL, Level: 1}
+		run := shaper.Shape(input)
+		lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{DisableTrailingWhitespaceTrim: true}, 1000, input.Text, NewSliceIterator([]Output{run}))
+		last := lines[0][len(lines[0])-1]
+		if last.Level != 0 || last.Direction != di.DirectionLTR || last.Runes.Count != 2 {
+			t.Fatalf("%q: fast path did not reset trailing whitespace: %+v", text, last)
+		}
+	}
+	// A formatting character can share a cluster with a visible character.
+	// L1 must neither split that cluster nor duplicate its glyphs.
+	wrapper := LineWrapper{text: []rune{'a', '\u200d', ' '}}
+	line := Line{{Level: 1, Direction: di.DirectionRTL, Runes: Range{Count: 3}, Glyphs: []Glyph{
+		{ClusterIndex: 2, RuneCount: 1, GlyphCount: 1},
+		{ClusterIndex: 0, RuneCount: 2, GlyphCount: 1},
+	}}}
+	line = wrapper.resetTrailingBidiWhitespace(line)
+	if len(line) != 2 || line[0].Runes != (Range{Count: 2}) || len(line[0].Glyphs) != 1 || line[1].Runes != (Range{Offset: 2, Count: 1}) || len(line[1].Glyphs) != 1 {
+		t.Fatalf("split a cluster during L1: %+v", line)
+	}
+}
+
+func TestBidiTruncatorLevel(t *testing.T) {
+	var shaper HarfbuzzShaper
+	text := []rune("abcdef")
+	run := shaper.Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16), Level: 2})
+	truncator := shaper.Shape(Input{Text: []rune("x"), RunEnd: 1, Face: benchEnFace, Size: fixed.I(16), Direction: di.DirectionRTL, Level: 1})
+	config := WrapConfig{Direction: di.DirectionRTL, BreakPolicy: Always, TruncateAfterLines: 1, Truncator: truncator}
+	lines, truncated := (&LineWrapper{}).WrapParagraphF(config, run.Advance/2, text, NewSliceIterator([]Output{run}))
+	line := lines[0]
+	if truncated == 0 || len(line) != 2 || line[0].Level != 2 || line[1].Level != 1 || line[1].VisualIndex != 0 {
+		t.Fatalf("lost cut or truncator levels: %+v", line)
+	}
+}
+
+func TestBidiTrailingSpaceFitsLine(t *testing.T) {
+	for _, tc := range []struct {
+		text      string
+		direction di.Direction
+	}{{"אבג דהו", di.DirectionLTR}, {"abc def", di.DirectionRTL}} {
+		text := []rune(tc.text)
+		var seg Segmenter
+		var shaper HarfbuzzShaper
+		inputs := seg.Split(Input{Text: text, RunEnd: len(text), Size: fixed.I(16), Direction: tc.direction}, fixedFontmap{benchEnFace})
+		var runs []Output
+		var wordWidth fixed.Int26_6
+		for _, input := range inputs {
+			run := shaper.Shape(input)
+			for _, glyph := range run.Glyphs {
+				if glyph.ClusterIndex < 3 {
+					wordWidth += glyph.Advance
+				}
+			}
+			runs = append(runs, run)
+		}
+		lines, _ := (&LineWrapper{}).WrapParagraphF(WrapConfig{Direction: tc.direction}, wordWidth, text, NewSliceIterator(runs))
+		var firstCount int
+		for _, run := range lines[0] {
+			firstCount += run.Runes.Count
+		}
+		if len(lines) != 2 || firstCount != 4 {
+			t.Fatalf("%q: trailing reset space should fit after first word: got %d lines, first covers %d runes", tc.text, len(lines), firstCount)
+		}
+	}
+}
+
+func TestBidiWhitespaceMeasurement(t *testing.T) {
+	for _, tc := range []struct {
+		space rune
+		level bidi.Level
+		want  fixed.Int26_6
+	}{{' ', 1, 10}, {' ', 0, 11}, {'\u00a0', 1, 11}} {
+		run := Output{Level: tc.level, Direction: di.DirectionRTL, Advance: 11, Glyphs: []Glyph{
+			{ClusterIndex: 1, GlyphCount: 1, RuneCount: 1, Advance: 1},
+			{ClusterIndex: 0, GlyphCount: 1, RuneCount: 1, Advance: 10, Width: 10},
+		}}
+		if got := run.advanceSpaceAware(di.DirectionLTR, []rune{'a', tc.space}); got != tc.want {
+			t.Errorf("space %U level %d: got %v, want %v", tc.space, tc.level, got, tc.want)
+		}
+	}
 }

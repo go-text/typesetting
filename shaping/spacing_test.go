@@ -44,7 +44,7 @@ func TestOutput_addWordSpacing(t *testing.T) {
 	out = simpleShape(english, latinFont, di.DirectionTTB)
 	withoutSpacing = out.Advance
 	out.AddWordSpacing(english, addSpacing)
-	tu.Assert(t, out.Advance == withoutSpacing+6*addSpacing)
+	tu.Assert(t, out.Advance == withoutSpacing-6*addSpacing)
 }
 
 func TestOutput_addLetterSpacing(t *testing.T) {
@@ -75,10 +75,10 @@ func TestOutput_addLetterSpacing(t *testing.T) {
 		{arabic, arabicFont, di.DirectionRTL, true, false, 15*addSpacing + halfSpacing},
 		{arabic, arabicFont, di.DirectionRTL, false, true, 15*addSpacing + halfSpacing},
 		// vertical
-		{english, latinFont, di.DirectionTTB, false, false, 23 * addSpacing},
-		{english, latinFont, di.DirectionTTB, true, true, 22 * addSpacing},
-		{english, latinFont, di.DirectionTTB, true, false, 22*addSpacing + halfSpacing},
-		{english, latinFont, di.DirectionTTB, false, true, 22*addSpacing + halfSpacing},
+		{english, latinFont, di.DirectionTTB, false, false, -23 * addSpacing},
+		{english, latinFont, di.DirectionTTB, true, true, -22 * addSpacing},
+		{english, latinFont, di.DirectionTTB, true, false, -22*addSpacing - halfSpacing},
+		{english, latinFont, di.DirectionTTB, false, true, -22*addSpacing - halfSpacing},
 	} {
 		out := simpleShape(test.text, test.face, test.dir)
 		withoutSpacing := out.Advance
@@ -152,6 +152,58 @@ func TestTrailingSpaces(t *testing.T) {
 				gotRun := gotLine[j]
 				tu.Assert(t, gotRun.Glyphs[0].XAdvance == run[0])
 				tu.Assert(t, gotRun.Glyphs[len(gotRun.Glyphs)-1].XAdvance == run[1])
+			}
+		}
+	}
+}
+
+// letter spacing boundaries follow the logical order, not the visual one
+func TestLetterSpacingRTL(t *testing.T) {
+	arabicFont := loadOpentypeFont(t, "../font/testdata/Amiri-Regular.ttf")
+	spacing := fixed.I(4)
+
+	out := simpleShape([]rune("ابج"), arabicFont, di.DirectionRTL)
+	L := len(out.Glyphs)
+	out.AddLetterSpacing(spacing, true, false)
+	first, last := out.Glyphs[L-1], out.Glyphs[0] // logical start is the last visual glyph
+	tu.Assert(t, first.startLetterSpacing == 0 && first.endLetterSpacing == spacing/2)
+	tu.Assert(t, last.startLetterSpacing == spacing/2 && last.endLetterSpacing == spacing/2)
+	tu.Assert(t, last.XOffset == spacing/2) // shifted from the visually leading end side
+
+	// trimming the start only touches the logical first glyph
+	adv := out.Glyphs[L-1].Advance
+	out.AddLetterSpacing(spacing, false, false)
+	out.trimStartLetterSpacing()
+	tu.Assert(t, out.Glyphs[L-1].startLetterSpacing == 0 && out.Glyphs[L-1].Advance == adv+spacing/2)
+	tu.Assert(t, out.Glyphs[0].endLetterSpacing == spacing)
+}
+
+func TestVerticalSpacingOffsetsAndTrimming(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, direction := range []di.Direction{di.DirectionTTB, di.DirectionBTT} {
+		for _, sideways := range []bool{false, true} {
+			direction.SetSideways(sideways)
+			out := simpleShape([]rune("a b"), face, direction)
+			before := out.copy()
+			out.AddWordSpacing([]rune("a b"), fixed.I(4))
+			if out.Advance != before.Advance-fixed.I(4) || out.Glyphs[1].YOffset != before.Glyphs[1].YOffset-fixed.I(2) {
+				t.Fatal("vertical word spacing shrank or shifted upward")
+			}
+			out = before.copy()
+			out.AddLetterSpacing(fixed.I(4), false, false)
+			if out.Advance != before.Advance-fixed.I(12) {
+				t.Fatal("vertical letter spacing did not expand advance")
+			}
+			out.trimStartLetterSpacing()
+			out.RecomputeAdvance()
+			if out.Advance != before.Advance-fixed.I(10) {
+				t.Fatal("vertical boundary spacing was not removed")
+			}
+			// A repeated trim is a no-op, and never changes the source glyphs.
+			out.trimStartLetterSpacing()
+			out.RecomputeAdvance()
+			if out.Advance != before.Advance-fixed.I(10) {
+				t.Fatal("repeated trim changed advance")
 			}
 		}
 	}

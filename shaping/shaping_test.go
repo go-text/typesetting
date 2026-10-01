@@ -746,3 +746,56 @@ func TestSpaceReplacement(t *testing.T) {
 	tu.Assert(t, out.Glyphs[2].Width.Round() == 0)
 	tu.Assert(t, out.Glyphs[2].GlyphID == font.EmptyGlyph)
 }
+
+func TestShapeClampsRunRange(t *testing.T) {
+	text := []rune("Hello")
+	out := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunStart: 1, RunEnd: len(text) + 3, Face: benchEnFace, Size: fixed.I(16)})
+	tu.Assert(t, out.Runes == Range{Offset: 1, Count: len(text) - 1})
+	tu.Assert(t, len(out.Glyphs) == len(text)-1 && out.Glyphs[0].RuneCount == 1)
+}
+
+func TestShapeFontCacheKeyedOnFace(t *testing.T) {
+	face1 := loadOpentypeFont(t, "../font/testdata/Selawik-VF-Subset.ttf")
+	face2 := font.NewFace(face1.Font)
+	face2.SetVariations([]font.Variation{{Tag: ot.MustNewTag("wght"), Value: 700}})
+
+	var shaper HarfbuzzShaper
+	text := []rune("Hello")
+	input := Input{Text: text, RunEnd: len(text), Face: face1, Size: fixed.I(20), Script: language.Latin}
+	regular := shaper.Shape(input)
+	input.Face = face2
+	bold := shaper.Shape(input)
+	tu.Assert(t, regular.Advance != bold.Advance)
+}
+
+func TestShapeFractionalSize(t *testing.T) {
+	text := []rune("Hello")
+	var shaper HarfbuzzShaper
+	input := Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(13), Script: language.Latin}
+	at13 := shaper.Shape(input)
+	input.Size = fixed.I(25) / 2
+	at12dot5 := shaper.Shape(input)
+	tu.Assert(t, at12dot5.Advance < at13.Advance)
+}
+
+func TestShrinkingFontCache(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, size := range []int{1, 0, -1} {
+		var shaper HarfbuzzShaper
+		input := Input{Text: []rune("a"), RunEnd: 1, Size: fixed.I(16), Script: language.Latin}
+		for i := 0; i < 4; i++ {
+			input.Face = font.NewFace(face.Font)
+			shaper.Shape(input)
+		}
+		shaper.SetFontCacheSize(size)
+		input.Face = font.NewFace(face.Font)
+		shaper.Shape(input)
+		want := size
+		if want < 0 {
+			want = 0
+		}
+		if got := len(shaper.fonts.m); got != want {
+			t.Fatalf("size %d: retained %d fonts, want %d", size, got, want)
+		}
+	}
+}

@@ -2,16 +2,24 @@ package shaping
 
 import (
 	"math"
-	"sort"
 
 	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/math/fixed"
 )
 
 // glyphIndex is the index in a Glyph slice
 type glyphIndex = int
+
+// advanceWidth converts a signed advance into the space it occupies on a line.
+func advanceWidth(advance fixed.Int26_6) fixed.Int26_6 {
+	if advance < 0 {
+		return -advance
+	}
+	return advance
+}
 
 // mapRunesToClusterIndices
 // returns a slice that maps rune indicies in the text to the index of the
@@ -21,141 +29,6 @@ type glyphIndex = int
 // mapping, subtract run.Runes.Offset first. If the provided buf is large enough to
 // hold the return value, it will be used instead of allocating a new slice.
 func mapRunesToClusterIndices(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
-	if runes.Count <= 0 {
-		return nil
-	}
-	var mapping []glyphIndex
-	if cap(buf) >= runes.Count {
-		mapping = buf[:runes.Count]
-	} else {
-		mapping = make([]glyphIndex, runes.Count)
-	}
-	glyphCursor := 0
-	rtl := dir.Progression() == di.TowardTopLeft
-	if rtl {
-		glyphCursor = len(glyphs) - 1
-	}
-	// off tracks the offset position of the glyphs from the first rune of the
-	// shaped text. This must be subtracted from all cluster indicies in order to
-	// normalize them into the range [0,runes.Count).
-	off := runes.Offset
-	for i := 0; i < runes.Count; i++ {
-		for glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			((rtl && glyphs[glyphCursor].ClusterIndex-off <= i) ||
-				(!rtl && glyphs[glyphCursor].ClusterIndex-off < i)) {
-			if rtl {
-				glyphCursor--
-			} else {
-				glyphCursor++
-			}
-		}
-		if rtl {
-			glyphCursor++
-		} else if (glyphCursor >= 0 && glyphCursor < len(glyphs) &&
-			glyphs[glyphCursor].ClusterIndex-off > i) ||
-			(glyphCursor == len(glyphs) && len(glyphs) > 1) {
-			glyphCursor--
-			targetClusterIndex := glyphs[glyphCursor].ClusterIndex - off
-			for glyphCursor-1 >= 0 && glyphs[glyphCursor-1].ClusterIndex-off == targetClusterIndex {
-				glyphCursor--
-			}
-		}
-		if glyphCursor < 0 {
-			glyphCursor = 0
-		} else if glyphCursor >= len(glyphs) {
-			glyphCursor = len(glyphs) - 1
-		}
-		mapping[i] = glyphCursor
-	}
-	return mapping
-}
-
-// mapRuneToClusterIndex finds the lowest-index glyph for the glyph cluster contiaining the rune
-// at runeIdx in the source text. It uses a binary search of the glyphs in order to achieve this.
-// It is equivalent to using mapRunesToClusterIndices on only a single rune index, and is thus
-// more efficient for single lookups while being less efficient for runs which require many
-// lookups anyway.
-func mapRuneToClusterIndex(dir di.Direction, runes Range, glyphs []Glyph, runeIdx int) glyphIndex {
-	var index int
-	rtl := dir.Progression() == di.TowardTopLeft
-	if !rtl {
-		index = sort.Search(len(glyphs), func(index int) bool {
-			return glyphs[index].ClusterIndex-runes.Offset > runeIdx
-		})
-	} else {
-		index = sort.Search(len(glyphs), func(index int) bool {
-			return glyphs[index].ClusterIndex-runes.Offset < runeIdx
-		})
-	}
-	if index < 1 {
-		return 0
-	}
-	cluster := glyphs[index-1].ClusterIndex
-	if rtl && cluster-runes.Offset > runeIdx {
-		return index
-	}
-	for index-1 >= 0 && glyphs[index-1].ClusterIndex == cluster {
-		index--
-	}
-	return index
-}
-
-func mapRunesToClusterIndices2(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
-	if runes.Count <= 0 {
-		return nil
-	}
-	var mapping []glyphIndex
-	if cap(buf) >= runes.Count {
-		mapping = buf[:runes.Count]
-	} else {
-		mapping = make([]glyphIndex, runes.Count)
-	}
-
-	rtl := dir.Progression() == di.TowardTopLeft
-	if rtl {
-		for gIdx := len(glyphs) - 1; gIdx >= 0; gIdx-- {
-			cluster := glyphs[gIdx].ClusterIndex
-			clusterEnd := gIdx
-			for gIdx-1 >= 0 && glyphs[gIdx-1].ClusterIndex == cluster {
-				gIdx--
-				clusterEnd = gIdx
-			}
-			var nextCluster int
-			if gIdx-1 >= 0 {
-				nextCluster = glyphs[gIdx-1].ClusterIndex
-			} else {
-				nextCluster = runes.Count + runes.Offset
-			}
-			runesInCluster := nextCluster - cluster
-			clusterOffset := cluster - runes.Offset
-			for i := clusterOffset; i <= runesInCluster+clusterOffset && i < len(mapping); i++ {
-				mapping[i] = clusterEnd
-			}
-		}
-	} else {
-		for gIdx := 0; gIdx < len(glyphs); gIdx++ {
-			cluster := glyphs[gIdx].ClusterIndex
-			clusterStart := gIdx
-			for gIdx+1 < len(glyphs) && glyphs[gIdx+1].ClusterIndex == cluster {
-				gIdx++
-			}
-			var nextCluster int
-			if gIdx+1 < len(glyphs) {
-				nextCluster = glyphs[gIdx+1].ClusterIndex
-			} else {
-				nextCluster = runes.Count + runes.Offset
-			}
-			runesInCluster := nextCluster - cluster
-			clusterOffset := cluster - runes.Offset
-			for i := clusterOffset; i <= runesInCluster+clusterOffset && i < len(mapping); i++ {
-				mapping[i] = clusterStart
-			}
-		}
-	}
-	return mapping
-}
-
-func mapRunesToClusterIndices3(dir di.Direction, runes Range, glyphs []Glyph, buf []glyphIndex) []glyphIndex {
 	if runes.Count <= 0 {
 		return nil
 	}
@@ -512,7 +385,7 @@ type runMapper struct {
 // current mapping value is already correct.
 func (r *runMapper) mapRun(runIdx int, run Output) {
 	if r.runIdx != runIdx || !r.valid {
-		r.mapping = mapRunesToClusterIndices3(run.Direction, run.Runes, run.Glyphs, r.mapping)
+		r.mapping = mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, r.mapping)
 		r.runIdx = runIdx
 		r.valid = true
 	}
@@ -680,7 +553,7 @@ func (w *wrapBuffer) candidateLen() int { return len(w.alt) }
 // candidateAppend adds the given run to the current line wrapping candidate.
 func (w *wrapBuffer) candidateAppend(run Output) {
 	w.alt = append(w.alt, run)
-	w.altAdvance = w.altAdvance + run.Advance
+	w.altAdvance += advanceWidth(run.Advance)
 }
 
 // candidateSave captures the current state of the line candidate, enabling it to
@@ -738,6 +611,7 @@ func (w *wrapBuffer) finalizeBest() []Output {
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
 // LineWrappers for multiple paragraphs should improve performance.
 type LineWrapper struct {
+	text []rune // source text for whitespace classification
 	// config holds the current line wrapping settings.
 	config WrapConfig
 	// truncating tracks whether the wrapper should be performing truncation.
@@ -766,6 +640,7 @@ type LineWrapper struct {
 // It must be called prior to invoking WrapNextLine. Prepare invalidates any
 // lines previously returned by this wrapper.
 func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunIterator) {
+	l.text = paragraph
 	l.config = config
 	l.truncating = l.config.TruncateAfterLines > 0
 	l.breaker = newBreaker(&l.seg, paragraph)
@@ -798,6 +673,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 
 // WrapParagraphF is the same as [WrapParagraph], but accepts a non integer [maxWidth].
 func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
+	l.text = paragraph
 	l.scratch.reset()
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
 	if !(config.TextContinues && config.TruncateAfterLines == 1) {
@@ -820,9 +696,14 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 		if !hasMandatoryBreak {
 			_, firstRun, hasFirst := runs.Next()
 			_, _, hasSecond := runs.Peek()
-			if hasFirst && !hasSecond {
-				if firstRun.Advance <= maxWidth {
-					return l.scratch.singleRunParagraph(firstRun), 0
+			if hasFirst && !hasSecond && firstRun.Runes == (Range{Count: len(paragraph)}) {
+				if advanceWidth(firstRun.Advance) <= maxWidth {
+					lines := l.scratch.singleRunParagraph(firstRun)
+					l.config = config
+					l.truncating = false
+					processed, _ := l.postProcessLine(lines[0], true)
+					lines[0] = processed.Line
+					return lines, 0
 				}
 			}
 		}
@@ -953,9 +834,83 @@ func computeBidiOrdering(finalLine Line) {
 	}
 }
 
+// isBidiWhitespace includes the formatting controls covered by UAX #9 L1.
+func isBidiWhitespace(r rune) bool {
+	class, _ := ucd.LookupBidiClass(r)
+	return class&(ucd.BD_LRE|ucd.BD_RLE|ucd.BD_LRO|ucd.BD_RLO|ucd.BD_PDF|ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI|ucd.BD_PDI|ucd.BD_BN|ucd.BD_WS|ucd.BD_B|ucd.BD_S) != 0
+}
+
+// resetTrailingBidiWhitespace applies UAX #9 L1 at a wrapped line boundary.
+// Paragraph segmentation already handles separators and paragraph boundaries.
+func (l *LineWrapper) resetTrailingBidiWhitespace(line Line) Line {
+	if len(line) == 0 {
+		return line
+	}
+	last := line[len(line)-1].Runes
+	end := last.Offset + last.Count
+	start := line[0].Runes.Offset
+	if start < 0 || end > len(l.text) || end <= start {
+		return line
+	}
+	trailing := end
+	for trailing > start {
+		if !isBidiWhitespace(l.text[trailing-1]) {
+			break
+		}
+		trailing--
+	}
+	var base bidi.Level
+	if l.config.Direction.Progression() == di.TowardTopLeft {
+		base = 1
+	}
+	for i := len(line) - 1; i >= 0; i-- {
+		run := line[i]
+		runEnd := run.Runes.Offset + run.Runes.Count
+		if runEnd <= trailing {
+			break
+		}
+		// A zero level also marks runs built by hand. Their Direction still
+		// decides their order.
+		if run.Level == 0 || run.Level == base {
+			continue
+		}
+		if run.Runes.Offset < trailing {
+			mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
+			// Keep a cluster containing non-whitespace intact.
+			boundary := trailing
+			for boundary < runEnd && !(breakOption{breakAtRune: boundary - 1}).isValid(mapping, run) {
+				boundary++
+			}
+			if boundary == runEnd {
+				continue
+			}
+			prefix := cutRun(run, mapping, run.Runes.Offset, boundary-1, false)
+			run = cutRun(run, mapping, boundary, runEnd-1, false)
+			// Splitting must not overwrite adjacent lines in the wrapper's buffer.
+			split := make(Line, len(line)+1)
+			copy(split, line[:i])
+			split[i] = prefix
+			copy(split[i+2:], line[i+1:])
+			line = split
+			i++
+		}
+		if run.Direction.Progression() != l.config.Direction.Progression() {
+			run.Glyphs = append([]Glyph(nil), run.Glyphs...)
+			for a, b := 0, len(run.Glyphs)-1; a < b; a, b = a+1, b-1 {
+				run.Glyphs[a], run.Glyphs[b] = run.Glyphs[b], run.Glyphs[a]
+			}
+			run.Direction.SetProgression(l.config.Direction.Progression())
+		}
+		run.Level = base
+		line[i] = run
+	}
+	return line
+}
+
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	var trimmed fixed.Int26_6
 	if len(finalLine) > 0 {
+		finalLine = l.resetTrailingBidiWhitespace(finalLine)
 		computeBidiOrdering(finalLine)
 		if !l.config.DisableTrailingWhitespaceTrim {
 			// Here we find the last visual run in the line.
@@ -974,27 +929,22 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			// This next block locates the first/last visual glyph on the line and
 			// zeroes its advance if it is whitespace.
 			if L := len(finalVisualRun.Glyphs); L > 0 {
-				var finalVisualGlyph *Glyph
-				if l.config.Direction.Progression() == di.FromTopLeft {
-					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
-				} else {
-					finalVisualGlyph = &finalVisualRun.Glyphs[0]
+				gIdx := L - 1
+				if l.config.Direction.Progression() == di.TowardTopLeft {
+					gIdx = 0
 				}
-
-				if finalVisualRun.Direction.IsVertical() {
-					if finalVisualGlyph.Height == 0 {
-						finalVisualGlyph.YAdvance = 0
-						finalVisualGlyph.Advance = 0
-					}
-				} else { // horizontal
-					if finalVisualGlyph.Width == 0 {
-						finalVisualGlyph.XAdvance = 0
-						finalVisualGlyph.Advance = 0
-					}
+				finalVisualGlyph := &finalVisualRun.Glyphs[gIdx]
+				isSpace := finalVisualRun.isWhitespace(*finalVisualGlyph, l.text)
+				if isSpace && finalVisualGlyph.Advance != 0 {
+					// do not mutate the caller's glyphs, so that the runs may be wrapped again
+					finalVisualRun.Glyphs = append([]Glyph(nil), finalVisualRun.Glyphs...)
+					finalVisualGlyph = &finalVisualRun.Glyphs[gIdx]
+					trimmed = finalVisualGlyph.Advance
+					finalVisualGlyph.XAdvance = 0
+					finalVisualGlyph.YAdvance = 0
+					finalVisualGlyph.Advance = 0
+					finalVisualRun.Advance -= trimmed
 				}
-				beforeTrim := finalVisualRun.Advance
-				finalVisualRun.RecomputeAdvance()
-				trimmed = beforeTrim - finalVisualRun.Advance
 			}
 		}
 
@@ -1081,7 +1031,7 @@ func (l *LineWrapper) WrapNextLineF(maxWidth fixed.Int26_6) (out WrappedLine, do
 	config := lineConfig{
 		truncating:        l.config.TruncateAfterLines == 1,
 		maxWidth:          maxWidth,
-		truncatedMaxWidth: maxWidth - l.config.Truncator.Advance,
+		truncatedMaxWidth: maxWidth - advanceWidth(l.config.Truncator.Advance),
 	}
 	done = l.wrapNextLine(config)
 	finalLine := l.scratch.finalizeBest()
@@ -1153,6 +1103,8 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				return false
 			}
 			// Fall through to try grapheme breaking.
+		case runsExhausted:
+			return true
 		}
 		// Ensure that the grapheme breaking has access to
 		// all runs we already tried in the iterator.
@@ -1200,6 +1152,8 @@ func (l *LineWrapper) wrapNextLine(config lineConfig) (done bool) {
 				l.scratch.markCandidateBest(candidateRun)
 				l.breaker.markWordOptionUnused()
 				return false
+			case runsExhausted:
+				return true
 			}
 		}
 		return false
@@ -1229,6 +1183,8 @@ const (
 	// the run that cannot fit, but it will not be committed as the best option. The choice of how to handle
 	// this is left to higher-level logic.
 	cannotFit
+	// runsExhausted indicates that no shaped text remains for this line.
+	runsExhausted
 )
 
 // processBreakOption evaluates whether the provided breakOption can fit onto the current line wrapping line.
@@ -1241,15 +1197,31 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	// Fill candidate line with runs until the run containing the break option.
 	l.fillUntil(l.glyphRuns, option)
 
-	currRunIndex, run, _ := l.glyphRuns.Peek()
-	l.mapper.mapRun(currRunIndex, run)
-	if !option.isValid(l.mapper.mapping, run) {
-		// Reject invalid line break candidate and acquire a new one.
-		return breakInvalid, Output{}
+	currRunIndex, run, ok := l.glyphRuns.Peek()
+	var candidateRun Output
+	if !ok {
+		if l.scratch.candidateLen() == 0 {
+			return runsExhausted, Output{}
+		}
+		// Evaluate the final available run with the usual width and truncation
+		// rules, even when the paragraph continues beyond the shaped text.
+		last := len(l.scratch.alt) - 1
+		candidateRun = l.scratch.alt[last]
+		l.scratch.alt = l.scratch.alt[:last]
+		l.scratch.altAdvance -= advanceWidth(candidateRun.Advance)
+	} else {
+		if option.breakAtRune < run.Runes.Offset {
+			return breakInvalid, Output{}
+		}
+		l.mapper.mapRun(currRunIndex, run)
+		if !option.isValid(l.mapper.mapping, run) {
+			// Reject invalid line break candidate and acquire a new one.
+			return breakInvalid, Output{}
+		}
+		isFirstInLine := l.scratch.candidateLen() == 0
+		candidateRun = cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	}
-	isFirstInLine := l.scratch.candidateLen() == 0
-	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
-	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()
+	candidateLineWidth := advanceWidth(candidateRun.advanceSpaceAware(l.config.Direction, l.text)) + l.scratch.candidateAdvance()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
@@ -1267,6 +1239,8 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		}
 		// We must truncate the line in order to show it.
 		return truncated, candidateRun
+	} else if !ok {
+		return endLine, candidateRun
 	} else {
 		// The run does fit on the line. Commit this line as the best known
 		// line, but keep lineCandidate unmodified so that later break
