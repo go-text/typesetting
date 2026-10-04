@@ -8,11 +8,85 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	tu "github.com/go-text/typesetting/testutils"
 )
+
+func TestAnalysisBaseDirection(t *testing.T) {
+	tests := []struct {
+		text            string
+		direction, want Direction
+	}{
+		{"", Neutral, LeftToRight},
+		{"", RightToLeft, RightToLeft},
+		{"abc", Neutral, LeftToRight},
+		{"אב", Neutral, RightToLeft},
+		{"abc", RightToLeft, RightToLeft},
+		{"אב", LeftToRight, LeftToRight},
+		{"123", Neutral, LeftToRight},
+		{"\u2067אב\u2069abc", Neutral, LeftToRight},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%q/%d", tt.text, tt.direction), func(t *testing.T) {
+			analysis, err := Analyze([]rune(tt.text), tt.direction)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := analysis.BaseDirection(); got != tt.want {
+				t.Fatalf("base direction = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAnalysisInvalidInput(t *testing.T) {
+	if _, err := Analyze(nil, Direction(255)); err == nil {
+		t.Error("Analyze accepted an invalid direction")
+	}
+}
+
+func TestAnalysisFirstParagraph(t *testing.T) {
+	for _, tt := range []struct {
+		text       string
+		lengths    []int
+		directions []Direction
+	}{
+		{"a\nb", []int{2, 1}, []Direction{LeftToRight, LeftToRight}},
+		{"א\u2029a", []int{2, 1}, []Direction{RightToLeft, LeftToRight}},
+		{"\n\n", []int{1, 1}, []Direction{LeftToRight, LeftToRight}},
+		{"a\r\nb", []int{2, 1, 1}, []Direction{LeftToRight, LeftToRight, LeftToRight}},
+		{"a\u2028b", []int{3}, []Direction{LeftToRight}},
+		{"a\n", []int{2}, []Direction{LeftToRight}},
+		{"abc", []int{3}, []Direction{LeftToRight}},
+	} {
+		runes := []rune(tt.text)
+		at := 0
+		for i, length := range tt.lengths {
+			analysis, err := Analyze(runes[at:], Neutral)
+			if err != nil {
+				t.Fatalf("Analyze(%q): %v", tt.text, err)
+			}
+			if analysis.Len() != length || analysis.BaseDirection() != tt.directions[i] {
+				t.Fatalf("Analyze(%q), paragraph %d: length %d, direction %d; want %d, %d", tt.text, i, analysis.Len(), analysis.BaseDirection(), length, tt.directions[i])
+			}
+			if _, err := analysis.Line(0, analysis.Len()); err != nil {
+				t.Fatal(err)
+			}
+			if analysis.Len() < len(runes)-at {
+				if _, err := analysis.Line(0, len(runes)-at); err == nil {
+					t.Fatal("Line accepted a range across paragraphs")
+				}
+			}
+			at += analysis.Len()
+		}
+		if at != len(runes) {
+			t.Fatalf("consumed %d runes, want %d", at, len(runes))
+		}
+	}
+}
 
 // Test created from https://github.com/golang/go/issues/69819
 func TestNestedIsolates(t *testing.T) {
@@ -361,6 +435,46 @@ func TestBidiCharacters(t *testing.T) {
 	}
 }
 
+func TestAnalysisBidiCharacters(t *testing.T) {
+	t.Parallel()
+	datas, err := parseBidiCharacterTests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, data := range datas {
+		analysis, err := Analyze(data.codePoints, data.parDir)
+		if err != nil {
+			t.Fatalf("line %d: %v", data.line, err)
+		}
+		base := 0
+		if analysis.BaseDirection() == RightToLeft {
+			base = 1
+		}
+		if base != data.resolvedParLevel {
+			t.Fatalf("line %d: paragraph level = %d, want %d", data.line, base, data.resolvedParLevel)
+		}
+		runs, err := analysis.Line(0, len(data.codePoints))
+		if err != nil {
+			t.Fatalf("line %d: %v", data.line, err)
+		}
+		levels := make([]Level, len(data.codePoints))
+		for _, run := range runs {
+			for i := run.Start; i < run.End; i++ {
+				levels[i] = run.Level
+			}
+		}
+		for i, expected := range data.expectedLevels {
+			if expected != -1 && levels[i] != expected {
+				t.Fatalf("line %d: level[%d] = %d, want %d", data.line, i, levels[i], expected)
+			}
+		}
+		indices := lineIndices(t, runs, 0, len(data.codePoints), data.expectedLevels)
+		if !reflect.DeepEqual(indices, data.visualOrdering) {
+			t.Fatalf("line %d: visual indices = %v, want %v", data.line, indices, data.visualOrdering)
+		}
+	}
+}
+
 func parseLevelsLine(line string) ([]Level, error) {
 	line = strings.TrimPrefix(line, "@Levels:")
 	return parseLevels(line)
@@ -592,5 +706,228 @@ func TestRunsPreserveEmbeddingLevels(t *testing.T) {
 		if got := runs.Run(i); got != expected {
 			t.Errorf("run %d: got %+v, want %+v", i, got, expected)
 		}
+	}
+}
+
+func TestAnalysisLogicalLevels(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		text      string
+		direction Direction
+		want      []Level
+	}{
+		{"abאב12cd", Neutral, []Level{0, 0, 1, 1, 2, 2, 0, 0}},
+		{"a\u2067אב 12\u2069z", Neutral, []Level{0, 0, 1, 1, 1, 2, 2, 0, 0}},
+		{"abc", RightToLeft, []Level{2, 2, 2}},
+		{"אב", Neutral, []Level{1, 1}},
+		{"abc\n", Neutral, []Level{0, 0, 0, 0}},
+		{"a\u202bאב  ", Neutral, []Level{0, 0, 1, 1, 1, 1}},
+		{"", Neutral, nil},
+	} {
+		t.Run(tt.text, func(t *testing.T) {
+			analysis, err := Analyze([]rune(tt.text), tt.direction)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []Level
+			end := 0
+			for _, run := range analysis.LogicalRuns() {
+				if run.Start != end || run.End <= run.Start {
+					t.Fatalf("invalid logical range: %+v after %d", run, end)
+				}
+				for i := run.Start; i < run.End; i++ {
+					got = append(got, run.Level)
+				}
+				end = run.End
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("logical levels = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAnalysisLine(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		text       string
+		start, end int
+		want       []int
+	}{
+		{"abאב12cd", 0, 8, []int{0, 1, 4, 5, 3, 2, 6, 7}},
+		{"a\u2067אב 12\u2069z", 0, 9, []int{0, 1, 5, 6, 4, 3, 2, 7, 8}},
+		{"a\u202bאב  \u202cz", 0, 6, []int{0, 1, 3, 2, 4, 5}},
+		{"a\u202bאב  \u202cz", 2, 6, []int{3, 2, 4, 5}},
+		{"אב  ", 0, 4, []int{3, 2, 1, 0}},
+		{"", 0, 0, nil},
+		{"abאב12cd", 4, 4, nil},
+	} {
+		t.Run(fmt.Sprintf("%q/%d:%d", tt.text, tt.start, tt.end), func(t *testing.T) {
+			analysis, err := Analyze([]rune(tt.text), Neutral)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runs, err := analysis.Line(tt.start, tt.end)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := lineIndices(t, runs, tt.start, tt.end, nil)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("visual indices = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAnalysisLineInvalidRange(t *testing.T) {
+	analysis, err := Analyze([]rune("abc"), Neutral)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, span := range [][2]int{{-1, 1}, {0, 4}, {2, 1}, {4, 4}} {
+		if _, err := analysis.Line(span[0], span[1]); err == nil {
+			t.Errorf("Line(%d, %d) accepted invalid range", span[0], span[1])
+		}
+	}
+}
+
+func lineIndices(t *testing.T, runs []Run, start, end int, ignored []Level) []int {
+	t.Helper()
+	seen := make([]bool, end-start)
+	var indices []int
+	for _, run := range runs {
+		if run.Start < start || run.End > end || run.Start >= run.End {
+			t.Fatalf("run %+v outside [%d,%d)", run, start, end)
+		}
+		for n := 0; n < run.End-run.Start; n++ {
+			i := run.Start + n
+			if !run.IsLeftToRight() {
+				i = run.End - 1 - n
+			}
+			if seen[i-start] {
+				t.Fatalf("duplicate rune %d", i)
+			}
+			seen[i-start] = true
+			if ignored == nil || ignored[i] != -1 {
+				indices = append(indices, i)
+			}
+		}
+	}
+	for i, present := range seen {
+		if !present {
+			t.Fatalf("missing rune %d", start+i)
+		}
+	}
+	return indices
+}
+
+func TestAnalysisDetached(t *testing.T) {
+	t.Parallel()
+	text := []rune("abאב12cd")
+	analysis, err := Analyze(text, Neutral)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := analysis.LogicalRuns()
+	line, err := analysis.Line(0, len(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantLine := append([]Run(nil), line...)
+	line[0].Start = 99
+	for i := range text {
+		text[i] = 'z'
+	}
+	runs := analysis.LogicalRuns()
+	runs[0].Level = 9
+	if got := analysis.LogicalRuns(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("input/output mutation changed analysis: %v, want %v", got, want)
+	}
+	var wg sync.WaitGroup
+	for n := 0; n < 8; n++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 20; i++ {
+				if _, err := Analyze([]rune("אב"), Neutral); err != nil {
+					t.Error(err)
+				}
+				if got := analysis.LogicalRuns(); !reflect.DeepEqual(got, want) {
+					t.Errorf("concurrent analysis changed result: %v", got)
+				}
+				if _, err := analysis.Line(2, 6); err != nil {
+					t.Error(err)
+				}
+				got, err := analysis.Line(0, 8)
+				if err != nil {
+					t.Error(err)
+				}
+				if !reflect.DeepEqual(got, wantLine) {
+					t.Errorf("line mutation or concurrent reads changed result: %v, want %v", got, wantLine)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestAnalysisLineLeavesParagraphLevels(t *testing.T) {
+	analysis, err := Analyze([]rune("a\u202bאב  "), Neutral)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logical := analysis.LogicalRuns()
+	line, err := analysis.Line(0, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, run := range line {
+		if run.Start <= 4 && run.End > 4 && run.Level != 0 {
+			t.Fatalf("line trailing space level = %d, want 0", run.Level)
+		}
+	}
+	if got := analysis.LogicalRuns(); !reflect.DeepEqual(got, logical) {
+		t.Fatalf("Line changed paragraph levels: %v, want %v", got, logical)
+	}
+}
+
+func ExampleAnalyze() {
+	analysis, err := Analyze([]rune("abאב12cd"), Neutral)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	// Reuse the paragraph analysis after the caller selects a line boundary.
+	runs, err := analysis.Line(0, 8)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, run := range runs {
+		fmt.Printf("[%d,%d) level %d\n", run.Start, run.End, run.Level)
+	}
+	// Output:
+	// [0,2) level 0
+	// [4,6) level 2
+	// [2,4) level 1
+	// [6,8) level 0
+}
+
+func BenchmarkAnalysisParagraphs(b *testing.B) {
+	for _, n := range []int{128, 256} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			text := []rune(strings.Repeat("a\n", n))
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				for at := 0; at < len(text); {
+					analysis, err := Analyze(text[at:], Neutral)
+					if err != nil {
+						b.Fatal(err)
+					}
+					at += analysis.Len()
+				}
+			}
+		})
 	}
 }
