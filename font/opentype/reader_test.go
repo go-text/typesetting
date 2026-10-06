@@ -100,3 +100,114 @@ func TestShortReads(t *testing.T) {
 		tu.Assert(t, len(short.tables) == len(full.tables))
 	}
 }
+
+// fontFiles returns the single fonts and collections used by the
+// NewLoadersFromBytes tests. "common" includes a compressed WOFF file.
+func fontFiles(t *testing.T) []string {
+	return append(tu.Filenames(t, "common"), tu.Filenames(t, "collections")...)
+}
+
+func TestNewLoadersFromBytes(t *testing.T) {
+	for _, filename := range fontFiles(t) {
+		content, err := td.Files.ReadFile(filename)
+		tu.AssertNoErr(t, err)
+
+		want, err := NewLoaders(bytes.NewReader(content))
+		tu.AssertC(t, err == nil, filename)
+		got, err := NewLoadersFromBytes(content)
+		tu.AssertC(t, err == nil, filename)
+		tu.AssertC(t, len(got) == len(want), filename)
+
+		// every table must read back exactly as the copying loader reads it
+		for i := range want {
+			tu.AssertC(t, got[i].Type == want[i].Type, filename)
+			tags := want[i].Tables()
+			tu.AssertC(t, len(got[i].Tables()) == len(tags), filename)
+			for _, tag := range tags {
+				w, err := want[i].RawTable(tag)
+				tu.AssertC(t, err == nil, filename)
+				g, err := got[i].RawTable(tag)
+				tu.AssertC(t, err == nil, filename)
+				tu.AssertC(t, bytes.Equal(g, w), filename+" "+tag.String())
+			}
+		}
+	}
+}
+
+func TestNewLoadersFromBytesAliasesInput(t *testing.T) {
+	for _, filename := range fontFiles(t) {
+		content, err := td.Files.ReadFile(filename)
+		tu.AssertNoErr(t, err)
+		lds, err := NewLoadersFromBytes(content)
+		tu.AssertNoErr(t, err)
+
+		for _, ld := range lds {
+			for tag, s := range ld.tables {
+				if s.length == 0 || s.length < s.zLength {
+					continue // empty or compressed: there is nothing to alias
+				}
+				raw, err := ld.RawTable(tag)
+				tu.AssertNoErr(t, err)
+				// the table is a view of content, not a copy
+				tu.AssertC(t, &raw[0] == &content[s.offset], filename+" "+tag.String())
+				// and its capacity stops at the table end, so an append by the
+				// caller can not overwrite the next table
+				tu.AssertC(t, cap(raw) == len(raw), filename+" "+tag.String())
+			}
+		}
+	}
+}
+
+// RawTableTo reuses dst on the copying loader. A table returned by a loader
+// built from bytes is a view of the input, so passing it back as dst must not
+// write into the input (callers such as NewFont do pass the previous table).
+func TestNewLoadersFromBytesNeverWritesInput(t *testing.T) {
+	for _, filename := range fontFiles(t) {
+		content, err := td.Files.ReadFile(filename)
+		tu.AssertNoErr(t, err)
+		input := append([]byte(nil), content...)
+		lds, err := NewLoadersFromBytes(input)
+		tu.AssertNoErr(t, err)
+
+		for _, ld := range lds {
+			var buf []byte
+			for _, tag := range ld.Tables() {
+				buf, err = ld.RawTableTo(tag, buf)
+				tu.AssertNoErr(t, err)
+			}
+		}
+		tu.AssertC(t, bytes.Equal(input, content), filename)
+	}
+}
+
+func TestNewLoadersFromBytesTruncated(t *testing.T) {
+	for _, filename := range fontFiles(t) {
+		content, err := td.Files.ReadFile(filename)
+		tu.AssertNoErr(t, err)
+		// keep the table directory, cut the table data: reading a table
+		// past the end must fail, not panic
+		for _, size := range []int{len(content) / 2, len(content) - 1} {
+			lds, err := NewLoadersFromBytes(content[:size])
+			if err != nil {
+				continue
+			}
+			for _, ld := range lds {
+				for _, tag := range ld.Tables() {
+					_, _ = ld.RawTable(tag)
+				}
+			}
+		}
+	}
+}
+
+func TestNewLoadersFromBytesCrashers(t *testing.T) {
+	_, err := NewLoadersFromBytes(nil)
+	tu.Assert(t, err != nil)
+
+	for range [50]int{} {
+		input := make([]byte, rand.Intn(100))
+		rand.Read(input)
+		_, err = NewLoadersFromBytes(input)
+		tu.Assert(t, err != nil)
+	}
+}
