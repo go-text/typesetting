@@ -544,6 +544,9 @@ func TestSbixGlyphFromBytes(t *testing.T) {
 			bitmaps++
 			tu.AssertC(t, bytes.Equal(got.Data, want.Data), filename)
 			tu.AssertC(t, got.Width == want.Width && got.Height == want.Height && got.Format == want.Format, filename)
+			if len(got.Data) == 0 {
+				continue // nothing to point into the input
+			}
 			p := uintptr(unsafe.Pointer(&got.Data[0]))
 			tu.AssertC(t, start <= p && p < end, filename)
 		}
