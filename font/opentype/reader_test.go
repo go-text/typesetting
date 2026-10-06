@@ -200,14 +200,9 @@ func TestNewLoadersFromBytesTruncated(t *testing.T) {
 	}
 }
 
-func TestNewLoadersFromBytesCrashers(t *testing.T) {
+// Random input is covered by TestParseCrashers: NewLoadersFromBytes parses
+// the header with NewLoaders.
+func TestNewLoadersFromBytesEmpty(t *testing.T) {
 	_, err := NewLoadersFromBytes(nil)
 	tu.Assert(t, err != nil)
-
-	for range [50]int{} {
-		input := make([]byte, rand.Intn(100))
-		rand.Read(input)
-		_, err = NewLoadersFromBytes(input)
-		tu.Assert(t, err != nil)
-	}
 }
