@@ -143,8 +143,14 @@ func NewLoaders(file Resource) ([]*Loader, error) {
 // mapping of the file, so that the operating system pages the tables in
 // when they are used.
 //
-// The caller must not modify [data] while the loaders, or fonts built from
-// them, are in use. The returned tables must be treated as read-only.
+// The returned loaders, the fonts built from them, and the data these return
+// (tables, glyph bitmaps) refer to [data] directly. As a consequence:
+//   - the whole of [data] stays reachable while any of them is in use, even
+//     when only one face of a collection is used;
+//   - [data] must not be modified, or unmapped, while any of them is in use;
+//   - the returned tables are read-only: never pass one as dst to
+//     [Loader.RawTableTo] on a loader built by [NewLoaders], which would
+//     write into [data].
 func NewLoadersFromBytes(data []byte) ([]*Loader, error) {
 	lds, err := NewLoaders(bytes.NewReader(data))
 	if err != nil {
@@ -164,7 +170,9 @@ func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
 		dst = nil
 		if s.length == 0 || s.length >= s.zLength { // not compressed
 			end := uint64(s.offset) + uint64(s.length)
-			if end > uint64(len(pr.data)) {
+			// offset == len(data) is rejected even for an empty table, as
+			// ReadAt does on the copying path
+			if end > uint64(len(pr.data)) || uint64(s.offset) >= uint64(len(pr.data)) {
 				return nil, fmt.Errorf("invalid table: offset %d and length %d exceed file size %d",
 					s.offset, s.length, len(pr.data))
 			}
