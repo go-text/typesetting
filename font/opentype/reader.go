@@ -3,6 +3,7 @@
 package opentype
 
 import (
+	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"errors"
@@ -59,6 +60,10 @@ type tableSection struct {
 type Loader struct {
 	file   Resource             // source, needed to parse each table
 	tables map[Tag]tableSection // header only, contents is processed on demand
+
+	// data is the whole file when the loader was built by [NewLoadersFromBytes].
+	// Uncompressed tables are then returned as sub-slices of data, without a copy.
+	data []byte
 
 	// Type represents the kind of this font being loaded.
 	// It is one of TrueType, TrueTypeApple, PostScript1, OpenType
@@ -127,8 +132,56 @@ func NewLoaders(file Resource) ([]*Loader, error) {
 	return out, nil
 }
 
+// NewLoadersFromBytes is the same as [NewLoaders], but reads the font from
+// memory and does not copy the tables: [Loader.RawTable] and [Loader.RawTableTo]
+// return a view of [data] for each uncompressed table (compressed WOFF tables
+// are still decoded into a new buffer).
+//
+// This saves the copy of each table that [NewLoaders] makes, which matters
+// for large tables kept alive by a font.Font: the 'sbix' table of a color
+// emoji font can be more than 100MB. [data] can also be a read-only memory
+// mapping of the file, so that the operating system pages the tables in
+// when they are used.
+//
+// The returned loaders, the fonts built from them, and the data these return
+// (tables, glyph bitmaps) refer to [data] directly. As a consequence:
+//   - the whole of [data] stays reachable while any of them is in use, even
+//     when only one face of a collection is used;
+//   - [data] must not be modified, or unmapped, while any of them is in use;
+//   - the returned tables are read-only: never pass one as dst to
+//     [Loader.RawTableTo] on a loader built by [NewLoaders], which would
+//     write into [data].
+func NewLoadersFromBytes(data []byte) ([]*Loader, error) {
+	lds, err := NewLoaders(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	for _, ld := range lds {
+		ld.data = data
+	}
+	return lds, nil
+}
+
 // dst is an optional storage which may be provided to reduce allocations.
 func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
+	if pr.data != nil {
+		// [dst] may be a table returned by a previous call, which is then a
+		// view of [pr.data]: never write into it.
+		dst = nil
+		if s.length == 0 || s.length >= s.zLength { // not compressed
+			end := uint64(s.offset) + uint64(s.length)
+			// offset == len(data) is rejected even for an empty table, as
+			// ReadAt does on the copying path
+			if end > uint64(len(pr.data)) || uint64(s.offset) >= uint64(len(pr.data)) {
+				return nil, fmt.Errorf("invalid table: offset %d and length %d exceed file size %d",
+					s.offset, s.length, len(pr.data))
+			}
+			// limit the capacity so that appending to the table can not
+			// overwrite the next one
+			return pr.data[s.offset:end:end], nil
+		}
+	}
+
 	if s.length != 0 && s.length < s.zLength {
 		zbuf := io.NewSectionReader(pr.file, int64(s.offset), int64(s.length))
 		r, err := zlib.NewReader(zbuf)
@@ -179,8 +232,10 @@ func (pr *Loader) RawTable(tag Tag) ([]byte, error) {
 	return pr.RawTableTo(tag, nil)
 }
 
-// RawTable writes the binary content of the given table to [dst], returning it,
+// RawTableTo writes the binary content of the given table to [dst], returning it,
 // or an error if not found.
+// For a loader built by [NewLoadersFromBytes], [dst] is not used and an
+// uncompressed table is returned as a view of the input, without a copy.
 func (pr *Loader) RawTableTo(tag Tag, dst []byte) ([]byte, error) {
 	s, found := pr.tables[tag]
 	if !found {

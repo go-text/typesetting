@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unsafe"
 
 	td "github.com/go-text/typesetting-utils/opentype"
 	ot "github.com/go-text/typesetting/font/opentype"
@@ -516,6 +517,41 @@ func TestSbixGlyph(t *testing.T) {
 	asBitmap, ok = data.(GlyphBitmap)
 	tu.Assert(t, ok)
 	tu.Assert(t, asBitmap.Format == PNG)
+}
+
+// A font built from NewLoadersFromBytes returns the same bitmaps, and its
+// 'sbix' glyph data is a view of the input instead of a copy.
+func TestSbixGlyphFromBytes(t *testing.T) {
+	for _, filename := range []string{"toys/Sbix1.ttf", "toys/Sbix2.ttf", "toys/Sbix3.ttf"} {
+		content, err := td.Files.ReadFile(filename)
+		tu.AssertNoErr(t, err)
+		lds, err := ot.NewLoadersFromBytes(content)
+		tu.AssertNoErr(t, err)
+		fromBytes, err := NewFont(lds[0])
+		tu.AssertNoErr(t, err)
+		copied := loadFont(t, filename)
+
+		start := uintptr(unsafe.Pointer(&content[0]))
+		end := start + uintptr(len(content))
+		var bitmaps int
+		for gid := 0; gid < copied.nGlyphs; gid++ {
+			want, err := copied.sbix.glyphData(gID(gid), 100, 100)
+			got, err2 := fromBytes.sbix.glyphData(gID(gid), 100, 100)
+			tu.AssertC(t, (err == nil) == (err2 == nil), filename)
+			if err != nil {
+				continue
+			}
+			bitmaps++
+			tu.AssertC(t, bytes.Equal(got.Data, want.Data), filename)
+			tu.AssertC(t, got.Width == want.Width && got.Height == want.Height && got.Format == want.Format, filename)
+			if len(got.Data) == 0 {
+				continue // nothing to point into the input
+			}
+			p := uintptr(unsafe.Pointer(&got.Data[0]))
+			tu.AssertC(t, start <= p && p < end, filename)
+		}
+		tu.AssertC(t, bitmaps > 0, filename)
+	}
 }
 
 func TestCblcGlyph(t *testing.T) {
