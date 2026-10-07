@@ -763,6 +763,12 @@ func (b *Buffer) moveTo(i int) {
 	outL := len(b.outInfo)
 	if outL < i {
 		count := i - outL
+
+		b.maxOps -= count
+		if b.maxOps < 0 {
+			return
+		}
+
 		b.outInfo = append(b.outInfo, b.Info[b.idx:count+b.idx]...)
 		b.idx += count
 	} else if outL > i {
@@ -777,6 +783,11 @@ func (b *Buffer) moveTo(i int) {
 		}
 
 		// assert(idx >= count)
+
+		b.maxOps -= count
+		if b.maxOps < 0 {
+			return
+		}
 
 		b.idx -= count
 		copy(b.Info[b.idx:], b.outInfo[outL-count:outL])
