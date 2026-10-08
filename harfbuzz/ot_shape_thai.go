@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 )
 
@@ -315,7 +316,7 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
 		end := len(buffer.outInfo)
-		buffer.outInfo[end-2].setGeneralCategory(nonSpacingMark)
+		buffer.outInfo[end-2].setGeneralCategory(ucd.Mn)
 
 		/* Ok, let's see... */
 		start := end - 2

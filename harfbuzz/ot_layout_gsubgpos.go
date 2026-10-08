@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // ported from harfbuzz/src/hb-ot-layout-gsubgpos.hh Copyright © 2007,2008,2009,2010  Red Hat, Inc. 2010,2012  Google, Inc.  Behdad Esfahbod
@@ -103,26 +104,34 @@ type wouldApplyContext struct {
 	zeroContext bool
 }
 
-// `value` interpretation is dictated by the context
-type matcherFunc = func(gid gID, value uint16) bool
-
-// interprets `value` as a Glyph
-func matchGlyph(gid gID, value uint16) bool { return gid == gID(value) }
-
-// interprets `value` as a Class
-func matchClass(class tables.ClassDef) matcherFunc {
-	return func(gid gID, value uint16) bool {
-		c, _ := class.Class(gid)
-		return uint16(c) == value
-	}
+// matcherFunc matches the `value` of a context rule against a glyph.
+// With `class` set, value is a class. With `covs` set, it is an index into covs.
+// Otherwise it is a glyph ID. It is a plain value, so callers build it on the fly
+// without allocating.
+type matcherFunc struct {
+	class tables.ClassDef
+	covs  []tables.Coverage
 }
 
+// interprets `value` as a Glyph
+var matchGlyph = matcherFunc{}
+
+// interprets `value` as a Class
+func matchClass(class tables.ClassDef) matcherFunc { return matcherFunc{class: class} }
+
 // interprets `value` as an index in coverage array
-func matchCoverage(covs []tables.Coverage) matcherFunc {
-	return func(gid gID, value uint16) bool {
-		_, covered := covs[value].Index(gid)
+func matchCoverage(covs []tables.Coverage) matcherFunc { return matcherFunc{covs: covs} }
+
+func (m matcherFunc) match(gid gID, value uint16) bool {
+	if m.class != nil {
+		c, _ := m.class.Class(gid)
+		return uint16(c) == value
+	}
+	if m.covs != nil {
+		_, covered := m.covs[value].Index(gid)
 		return covered
 	}
+	return gid == gID(value)
 }
 
 const (
@@ -133,6 +142,7 @@ const (
 
 type otApplyContextMatcher struct {
 	matchFunc    matcherFunc
+	hasMatchFunc bool
 	lookupProps  uint32
 	mask         GlyphMask
 	ignoreZWNJ   bool
@@ -143,7 +153,7 @@ type otApplyContextMatcher struct {
 }
 
 func (m *otApplyContextMatcher) init(c *otApplyContext, contextMatch bool) {
-	m.matchFunc = nil
+	m.hasMatchFunc = false
 	m.lookupProps = c.lookupProps
 	/* Ignore ZWNJ if we are matching GPOS, or matching GSUB context and asked to. */
 	m.ignoreZWNJ = c.tableIndex == 1 || (contextMatch && c.autoZWNJ)
@@ -161,13 +171,13 @@ func (m *otApplyContextMatcher) init(c *otApplyContext, contextMatch bool) {
 	m.syllable = 0
 }
 
-func (m otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData []uint16) uint8 {
+func (m *otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData []uint16) uint8 {
 	if info.Mask&m.mask == 0 || (m.perSyllable && m.syllable != 0 && m.syllable != info.syllable) {
 		return no
 	}
 
-	if m.matchFunc != nil {
-		if m.matchFunc(gID(info.Glyph), glyphData[0]) {
+	if m.hasMatchFunc {
+		if m.matchFunc.match(gID(info.Glyph), glyphData[0]) {
 			return yes
 		}
 		return no
@@ -212,6 +222,7 @@ func (it *skippingIterator) init(c *otApplyContext, contextMatch bool) {
 
 func (it *skippingIterator) setMatchFunc(matchFunc matcherFunc, glyphData []uint16) {
 	it.matcher.matchFunc = matchFunc
+	it.matcher.hasMatchFunc = true
 	it.matchGlyphDataArray = glyphData
 	it.matchGlyphDataStart = 0
 }
@@ -344,6 +355,8 @@ type otApplyContext struct {
 	lastBaseUntil int // GPOS uses
 
 	matchPositions []int
+	// scratch storage for matchPositions of nested lookups, indexed by nesting depth
+	nestedMatchPositions [maxNestingLevel][8]int
 }
 
 func (c *otApplyContext) reset(tableIndex uint8, font *Font, buffer *Buffer) {
@@ -403,8 +416,8 @@ func (c *otApplyContext) applyRecurseLookup(lookupIndex uint16, l layoutLookup) 
 	c.setLookupProps(l.Props())
 
 	savedMatchPositions := c.matchPositions
-	var stackMatchPositions [8]int
-	c.matchPositions = stackMatchPositions[:]
+	depth := maxNestingLevel - c.nestingLevelLeft - 1 // recurse() has already decremented nestingLevelLeft
+	c.matchPositions = c.nestedMatchPositions[depth][:]
 
 	ret := l.dispatchApply(c)
 
@@ -440,8 +453,12 @@ func (c *otApplyContext) matchPropertiesMark(info *GlyphInfo, glyphProps uint16,
 	/* If using mark filtering sets, the high uint16 of
 	 * matchProps has the set index. */
 	if uint16(matchProps)&font.UseMarkFilteringSet != 0 {
-		_, has := c.gdef.MarkGlyphSetsDef.Coverages[matchProps>>16].Index(gID(info.Glyph))
-		return has
+		sets := c.gdef.MarkGlyphSetsDef.Coverages
+		if set := matchProps >> 16; set < uint32(len(sets)) {
+			_, has := sets[set].Index(gID(info.Glyph))
+			return has
+		}
+		return false
 	}
 
 	/* The second byte of matchProps has the meaning
@@ -588,8 +605,10 @@ func (c *wouldApplyContext) wouldApplyLookupContext1(data tables.SequenceContext
 
 func (c *wouldApplyContext) wouldApplyLookupContext2(data tables.SequenceContextFormat2, _ int, glyphID GID) bool {
 	class, _ := data.ClassDef.Class(gID(glyphID))
-	ruleSet := data.ClassSeqRuleSet[class]
-	return c.wouldApplyRuleSet(ruleSet, matchClass(data.ClassDef))
+	if int(class) >= len(data.ClassSeqRuleSet) {
+		return false
+	}
+	return c.wouldApplyRuleSet(data.ClassSeqRuleSet[class], matchClass(data.ClassDef))
 }
 
 func (c *wouldApplyContext) wouldApplyLookupContext3(data tables.SequenceContextFormat3, _ int) bool {
@@ -625,8 +644,10 @@ func (c *wouldApplyContext) wouldApplyLookupChainedContext1(data tables.ChainedS
 
 func (c *wouldApplyContext) wouldApplyLookupChainedContext2(data tables.ChainedSequenceContextFormat2, _ int, glyphID GID) bool {
 	class, _ := data.InputClassDef.Class(gID(glyphID))
-	ruleSet := data.ChainedClassSeqRuleSet[class]
-	return c.wouldApplyChainRuleSet(ruleSet, matchClass(data.InputClassDef))
+	if int(class) >= len(data.ChainedClassSeqRuleSet) {
+		return false
+	}
+	return c.wouldApplyChainRuleSet(data.ChainedClassSeqRuleSet[class], matchClass(data.InputClassDef))
 }
 
 func (c *wouldApplyContext) wouldApplyLookupChainedContext3(data tables.ChainedSequenceContextFormat3, _ int) bool {
@@ -652,7 +673,7 @@ func (c *wouldApplyContext) wouldMatchInput(input []uint16, matchFunc matcherFun
 	}
 
 	for i, glyph := range input {
-		if !matchFunc(gID(c.glyphs[i+1]), glyph) {
+		if !matchFunc.match(gID(c.glyphs[i+1]), glyph) {
 			return false
 		}
 	}
@@ -832,8 +853,8 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 
 	if isLigature {
 		buffer.cur(0).setLigPropsForLigature(ligID, totalComponentCount)
-		if buffer.cur(0).unicode.generalCategory() == nonSpacingMark {
-			buffer.cur(0).setGeneralCategory(otherLetter)
+		if buffer.cur(0).unicode.generalCategory() == ucd.Mn {
+			buffer.cur(0).setGeneralCategory(ucd.Lo)
 		}
 	}
 
@@ -849,7 +870,7 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 					thisComp = lastNumComponents
 				}
 				newLigComp := componentsSoFar - lastNumComponents +
-					min8(thisComp, lastNumComponents)
+					min(thisComp, lastNumComponents)
 				buffer.cur(0).setLigPropsForMark(ligID, newLigComp)
 			}
 			buffer.nextGlyph()
@@ -876,7 +897,7 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 			}
 
 			newLigComp := componentsSoFar - lastNumComponents +
-				min8(thisComp, lastNumComponents)
+				min(thisComp, lastNumComponents)
 			buffer.Info[i].setLigPropsForMark(ligID, newLigComp)
 		}
 	}
@@ -884,11 +905,8 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 
 func (c *otApplyContext) recurse(subLookupIndex uint16) bool {
 	if c.nestingLevelLeft == 0 || c.recurseFunc == nil || c.buffer.maxOps <= 0 {
-		if c.buffer.maxOps <= 0 {
-			c.buffer.maxOps--
-			return false
-		}
 		c.buffer.maxOps--
+		return false
 	}
 
 	c.nestingLevelLeft--

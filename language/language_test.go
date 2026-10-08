@@ -185,6 +185,8 @@ func TestNewLanguageID(t *testing.T) {
 		want  LangID
 		want1 bool
 	}{
+		{Language(""), 0, false},       // must not match the empty sentinel entry
+		{NewLanguage("-en"), 0, false}, // the primary tag is empty too
 		{NewLanguage("a"), 0, false},
 		{NewLanguage("af"), LangAf, true},
 		{NewLanguage("af-xx"), LangAf, true}, // primary tag match

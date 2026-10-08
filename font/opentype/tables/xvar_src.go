@@ -29,7 +29,7 @@ func (fv *Fvar) parseFvarRecords(src []byte) (err error) {
 	if L := len(src); L < int(fv.axesArrayOffset) {
 		return fmt.Errorf("EOF: expected length: %d, got %d", fv.axesArrayOffset, L)
 	}
-	fv.FvarRecords, _, err = ParseFvarRecords(src[fv.axesArrayOffset:], int(fv.axisCount), int(fv.instanceCount), int(fv.axisCount))
+	fv.FvarRecords, _, err = ParseFvarRecords(src[fv.axesArrayOffset:], int(fv.axisCount), int(fv.instanceCount), int(fv.instanceSize))
 	return
 }
 
@@ -41,13 +41,14 @@ type FvarRecords struct {
 }
 
 func (fvr *FvarRecords) parseInstances(src []byte, axisCount, instanceCount, instanceSize int) error {
-	if L := len(src); L < instanceCount*instanceSize {
-		return fmt.Errorf("EOF: expected length: %d, got %d", instanceCount*instanceSize, L)
+	if instanceCount < 0 || instanceSize < 0 ||
+		instanceCount > 0 && (instanceSize == 0 || instanceCount > len(src)/instanceSize) {
+		return fmt.Errorf("invalid instance count %d or size %d for length %d", instanceCount, instanceSize, len(src))
 	}
 	fvr.Instances = make([]InstanceRecord, instanceCount)
 	for i := range fvr.Instances {
 		var err error
-		fvr.Instances[i], _, err = ParseInstanceRecord(src[instanceSize*i:], axisCount)
+		fvr.Instances[i], _, err = ParseInstanceRecord(src[instanceSize*i:instanceSize*(i+1)], axisCount)
 		if err != nil {
 			return err
 		}
@@ -97,9 +98,12 @@ func (store ItemVarStore) GetDelta(index VariationStoreIndex, coords []Coord) fl
 	}
 	deltaSet := varData.DeltaSets[index.DeltaSetInner]
 	var delta float32
+	regions := store.VariationRegionList.VariationRegions
 	for i, regionIndex := range varData.RegionIndexes {
-		region := store.VariationRegionList.VariationRegions[regionIndex]
-		v := region.Evaluate(coords)
+		if int(regionIndex) >= len(regions) {
+			return 0
+		}
+		v := regions[regionIndex].Evaluate(coords)
 		delta += float32(deltaSet[i]) * v
 	}
 	return delta
@@ -129,6 +133,9 @@ type VariationRegion struct {
 // Evaluate returns the scalar factor of the region
 func (vr VariationRegion) Evaluate(coords []Coord) float32 {
 	v := float32(1)
+	if len(coords) > len(vr.RegionAxes) {
+		coords = coords[:len(vr.RegionAxes)]
+	}
 	for axis, coord := range coords {
 		factor := vr.RegionAxes[axis].evaluate(coord)
 		v *= factor

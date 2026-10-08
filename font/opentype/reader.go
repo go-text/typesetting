@@ -80,13 +80,16 @@ func NewLoaders(file Resource) ([]*Loader, error) {
 	}
 
 	var bytes [4]byte
-	_, err = file.Read(bytes[:])
+	_, err = io.ReadFull(file, bytes[:])
 	if err != nil {
 		return nil, err
 	}
 	magic := NewTag(bytes[0], bytes[1], bytes[2], bytes[3])
 
-	file.Seek(0, io.SeekStart)
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		pr             *Loader
@@ -194,7 +197,7 @@ func parseOneFont(file Resource, offset uint32, relativeOffset bool) (parser *Lo
 	}
 
 	var bytes [4]byte
-	_, err = file.Read(bytes[:])
+	_, err = io.ReadFull(file, bytes[:])
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +230,7 @@ func parseTTCHeader(r io.Reader) ([]uint32, error) {
 	// The https://www.microsoft.com/typography/otspec/otff.htm "Font
 	// Collections" section describes the TTC header.
 	var buf [12]byte
-	if _, err := r.Read(buf[:]); err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return nil, err
 	}
 	// skip versions
@@ -258,7 +261,7 @@ func parseTTCHeader(r io.Reader) ([]uint32, error) {
 // negative values as invalid.
 func parseDfont(r Resource) ([]uint32, error) {
 	var buf [16]byte
-	if _, err := r.Read(buf[:]); err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return nil, err
 	}
 	resourceMapOffset := binary.BigEndian.Uint32(buf[4:])

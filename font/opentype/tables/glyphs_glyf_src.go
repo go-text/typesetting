@@ -43,6 +43,9 @@ func ParseGlyf(src []byte, locaOffsets []uint32) (Glyf, error) {
 	var err error
 	for i := range out {
 		start, end := locaOffsets[i], locaOffsets[i+1]
+		if start > end || uint64(end) > uint64(len(src)) {
+			return nil, fmt.Errorf("invalid loca offsets for glyph %d: [%d, %d] (glyf length %d)", i, start, end, len(src))
+		}
 		// If a glyph has no outline, then loca[n] = loca [n+1].
 		if start == end {
 			continue
@@ -103,6 +106,11 @@ func (sg *SimpleGlyph) parsePoints(src []byte, _ int) error {
 		return nil
 	}
 
+	for i := 1; i < len(sg.EndPtsOfContours); i++ {
+		if sg.EndPtsOfContours[i] <= sg.EndPtsOfContours[i-1] {
+			return errors.New("invalid simple glyph: endPtsOfContours is not increasing")
+		}
+	}
 	numPoints := int(sg.EndPtsOfContours[len(sg.EndPtsOfContours)-1]) + 1
 
 	const repeatFlag = 0x08
@@ -287,10 +295,10 @@ func (cg *CompositeGlyph) parseGlyphs(src []byte) error {
 			return fmt.Errorf("EOF: expected length: 2, got %d", L)
 		}
 		E := int(binary.BigEndian.Uint16(src))
-		if L := len(src); L < E {
-			return fmt.Errorf("EOF: expected length: %d, got %d", E, len(src))
+		if L := len(src); L < 2+E {
+			return fmt.Errorf("EOF: expected length: %d, got %d", 2+E, L)
 		}
-		cg.Instructions = src[0:E]
+		cg.Instructions = src[2 : 2+E]
 	}
 
 	return nil

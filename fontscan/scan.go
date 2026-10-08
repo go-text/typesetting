@@ -287,8 +287,8 @@ func (fa *footprintScanner) consume(path string, info os.FileInfo) error {
 // already present in `currentIndex` and up to date, and directly duplicating
 // the footprint in `currentIndex`
 func scanFontFootprints(logger Logger, currentIndex systemFontsIndex, dirs ...string) (systemFontsIndex, error) {
-	// keep track of visited dirs to avoid double inclusions,
-	// for instance with symbolic links
+	// visited records file paths already scanned, so overlapping directories
+	// do not add a file twice. The walk does not resolve symlinks.
 	visited := make(map[string]bool)
 
 	accu := newFootprintAccumulator(currentIndex)

@@ -1,6 +1,8 @@
 package fontscan
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -9,8 +11,48 @@ import (
 	"testing"
 	"time"
 
+	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/go-text/typesetting/font/opentype/tables"
+	"github.com/go-text/typesetting/language"
 	tu "github.com/go-text/typesetting/testutils"
 )
+
+func TestFontPageFromOs2(t *testing.T) {
+	// minimal OS/2 table, version 0, with the simplified Arabic font page in fsSelection
+	raw := make([]byte, 78)
+	binary.BigEndian.PutUint16(raw[62:], uint16(tables.FPSimpArabic))
+	tu.Assert(t, fontPageFromOs2(raw) == tables.FPSimpArabic)
+	tu.Assert(t, fontPageFromOs2(nil) == tables.FPNone)
+}
+
+func TestLegacyArabicFootprintIncludesUnicodeCoverage(t *testing.T) {
+	for _, page := range []tables.FontPage{tables.FPSimpArabic, tables.FPTradArabic} {
+		t.Run(fmt.Sprintf("%x", page), func(t *testing.T) {
+			os2 := make([]byte, 78)
+			binary.BigEndian.PutUint16(os2[62:], uint16(page))
+			// Microsoft symbol cmap, format 6, covering the legacy Arabic PUA glyphs.
+			var cmap bytes.Buffer
+			tu.AssertNoErr(t, binary.Write(&cmap, binary.BigEndian, []uint16{
+				0, 1, 3, 0, 0, 12, // cmap header and encoding record
+				6, 10 + 2*0x300, 0, 0xF000, 0x300, // subtable header
+			}))
+			for i := 0; i < 0x300; i++ {
+				tu.AssertNoErr(t, binary.Write(&cmap, binary.BigEndian, uint16(i+1)))
+			}
+			data := ot.WriteOpentype([]ot.Table{
+				{Tag: ot.MustNewTag("OS/2"), Content: os2},
+				{Tag: ot.MustNewTag("cmap"), Content: cmap.Bytes()},
+			}, ot.TrueType)
+			ld, err := ot.NewLoader(bytes.NewReader(data))
+			tu.AssertNoErr(t, err)
+			fp, _, err := newFootprintFromLoader(ld, false, scanBuffer{})
+			tu.AssertNoErr(t, err)
+			tu.Assert(t, fp.Runes.Contains(0x0627))
+			tu.Assert(t, fp.Runes.Contains(0xF000))
+			tu.Assert(t, fp.Scripts.contains(language.Arabic))
+		})
+	}
+}
 
 func TestDefaultDirs(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)

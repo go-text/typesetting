@@ -1,7 +1,9 @@
 package fontscan
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"path/filepath"
 	"sync"
@@ -20,7 +22,7 @@ type cacheEntry struct {
 
 // Logger is a type that can log warnings.
 type Logger interface {
-	Printf(format string, args ...interface{})
+	Printf(format string, args ...any)
 }
 
 // The family substitution algorithm is copied from fontconfig
@@ -69,6 +71,9 @@ type FontMap struct {
 
 	// built holds whether the candidates are populated.
 	built bool
+	// systemFontsAdded holds whether [UseSystemFonts] has already appended
+	// the system fonts to the database.
+	systemFontsAdded bool
 	// the candidates for the current query, which influences ResolveFace output
 	candidates candidates
 
@@ -128,12 +133,22 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 	}
 
 	// systemFonts is read-only, so may be used concurrently
-	fm.appendFootprints(systemFonts.flatten()...)
+	fm.addSystemFonts(systemFonts.flatten())
+	return nil
+}
+
+// addSystemFonts appends the system fonts to the database, only once per font map.
+func (fm *FontMap) addSystemFonts(footprints []Footprint) {
+	if fm.systemFontsAdded {
+		return
+	}
+	fm.systemFontsAdded = true
+
+	fm.appendFootprints(footprints...)
 
 	fm.built = false
 
 	fm.lru.Clear()
-	return nil
 }
 
 // appendFootprints adds the provided footprints to the database and maps their script
@@ -155,6 +170,7 @@ func (fm *FontMap) appendFootprints(footprints ...Footprint) {
 // and `systemFonts` use is then read-only
 var (
 	systemFonts         systemFontsIndex
+	systemFontsErr      error
 	initSystemFontsOnce sync.Once
 )
 
@@ -171,24 +187,22 @@ func cacheDir(userProvided string) (string, error) {
 // at least one valid font.Face.
 // It is protected by sync.Once, and is then safe to use by multiple goroutines.
 func initSystemFonts(logger Logger, userCacheDir string) error {
-	var err error
-
 	initSystemFontsOnce.Do(func() {
 		const cacheFilePattern = "font_index_v%d.cache"
 
 		// load an existing index
 		var dir string
-		dir, err = cacheDir(userCacheDir)
-		if err != nil {
+		dir, systemFontsErr = cacheDir(userCacheDir)
+		if systemFontsErr != nil {
 			return
 		}
 
 		cachePath := filepath.Join(dir, fmt.Sprintf(cacheFilePattern, cacheFormatVersion))
 
-		systemFonts, err = refreshSystemFontsIndex(logger, cachePath)
+		systemFonts, systemFontsErr = refreshSystemFontsIndex(logger, cachePath)
 	})
 
-	return err
+	return systemFontsErr
 }
 
 func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex, error) {
@@ -198,8 +212,12 @@ func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex,
 	}
 	logger.Printf("using system font dirs %q", fontDirectories)
 
-	currentIndex, _ := deserializeIndexFile(cachePath)
-	// if an error occured (the cache file does not exists or is invalid), we start from scratch
+	currentIndex, err := deserializeIndexFile(cachePath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		// The cache file is missing on first run. Any other error means the
+		// cache is corrupt, and the scan starts from scratch.
+		logger.Printf("ignoring invalid font index cache %q: %v", cachePath, err)
+	}
 
 	updatedIndex, err := scanFontFootprints(logger, currentIndex, fontDirectories...)
 	if err != nil {
@@ -375,6 +393,9 @@ func (fm *FontMap) SetQuery(query Query) {
 // SetScript set the script to which the (next) runes passed to [ResolveFace]
 // belongs, influencing the choice of fallback fonts.
 func (fm *FontMap) SetScript(s language.Script) {
+	if s == fm.script {
+		return
+	}
 	fm.script = s
 	fm.built = false
 }

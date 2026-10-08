@@ -220,8 +220,8 @@ func TestNewRuneSetFromCmap(t *testing.T) {
 		args font.Cmap
 		want RuneSet
 	}{
-		{CmapSimple{0: 0, 1: 0, 2: 0, 0xfff: 0}, newRuneSet(0, 1, 2, 0xfff)},
-		{CmapSimple{0: 0, 1: 0, 2: 0, 800: 0, 801: 0, 1000: 0}, newRuneSet(0, 1, 2, 800, 801, 1000)},
+		{CmapSimple{0: 1, 1: 1, 2: 1, 0xfff: 1}, newRuneSet(0, 1, 2, 0xfff)},
+		{CmapSimple{0: 1, 1: 1, 2: 1, 800: 1, 801: 1, 1000: 1}, newRuneSet(0, 1, 2, 800, 801, 1000)},
 	}
 	for _, tt := range tests {
 		if got, _, _ := newCoveragesFromCmap(tt.args, nil); !reflect.DeepEqual(got, tt.want) {
@@ -312,8 +312,7 @@ func TestScriptSet(t *testing.T) {
 				for i := 0; i < 10; i++ {
 					scripts = append(scripts, testScripts[:]...)
 				}
-				rand.Seed(0)
-				rand.Shuffle(len(scripts), func(i, j int) {
+				rand.New(rand.NewSource(0)).Shuffle(len(scripts), func(i, j int) {
 					scripts[i], scripts[j] = scripts[j], scripts[i]
 				})
 				return scripts
@@ -574,13 +573,6 @@ func BenchmarkScriptSet_contains(b *testing.B) {
 	})
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 var testScripts = [...]language.Script{
 	language.Adlam,
 	language.Afaka,
@@ -770,4 +762,14 @@ var testScripts = [...]language.Script{
 	language.Yezidi,
 	language.Yi,
 	language.Zanabazar_Square,
+}
+
+func TestCoverageIgnoresMissingGlyphs(t *testing.T) {
+	runes, scripts, _ := newCoveragesFromCmap(CmapSimple{'A': 1, 'B': 0, 'α': 0}, nil)
+	if !reflect.DeepEqual(runes, newRuneSet('A')) {
+		t.Fatalf("coverage includes missing glyphs: %v", runes)
+	}
+	if !reflect.DeepEqual(scripts, ScriptSet{language.Latin}) {
+		t.Fatalf("script coverage includes missing glyphs: %v", scripts)
+	}
 }

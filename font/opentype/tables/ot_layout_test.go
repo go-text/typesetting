@@ -398,3 +398,46 @@ func TestGPOS2_1(t *testing.T) {
 	tu.Assert(t, reflect.DeepEqual(v1, v1g))
 	tu.Assert(t, reflect.DeepEqual(v2, v2g))
 }
+
+func TestAnchorMatrixOutOfRange(t *testing.T) {
+	am := AnchorMatrix{records: []anchorOffsets{{offsets: []Offset16{0}}}}
+	tu.Assert(t, am.Anchor(1, 0) == nil)
+	tu.Assert(t, am.Anchor(0, 1) == nil)
+
+	ma := MarkArray{MarkRecords: []MarkRecord{{MarkClass: 1}}}
+	tu.Assert(t, ma.sanitizeClasses(1) != nil)
+	tu.Assert(t, ma.sanitizeClasses(2) == nil)
+}
+
+func TestAnchorMatrixRejectsUnsanitizedOffset(t *testing.T) {
+	am := AnchorMatrix{records: []anchorOffsets{{offsets: []Offset16{1}}}}
+	if am.Anchor(0, 0) != nil {
+		t.Fatal("accepted anchor offset beyond data")
+	}
+}
+
+func TestMarkMarkPosRejectsInvalidMarks(t *testing.T) {
+	mp := MarkMarkPos{
+		Mark1Coverage:  Coverage1{Glyphs: []GlyphID{1}},
+		Mark2Coverage:  Coverage1{},
+		MarkClassCount: 1,
+	}
+	if mp.Sanitize() == nil {
+		t.Fatal("accepted missing mark records")
+	}
+	mp.Mark1Array.MarkRecords = []MarkRecord{{MarkClass: 1}}
+	if mp.Sanitize() == nil {
+		t.Fatal("accepted out-of-range mark class")
+	}
+	mp.Mark1Array.MarkRecords[0].MarkClass = 0
+	if err := mp.Sanitize(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAnchorBytesRejectsOutOfRangeOffset(t *testing.T) {
+	am := AnchorMatrix{records: []anchorOffsets{{offsets: []Offset16{2}}}, data: []byte{0}}
+	if got := am.AnchorBytes(0, 0); got != nil {
+		t.Fatalf("out-of-range anchor offset returned %v", got)
+	}
+}

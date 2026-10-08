@@ -30,6 +30,36 @@ func loopThroughCmap(cmap Cmap) int {
 	return nbGlyphs
 }
 
+func TestLegacyArabicIterationIncludesAliases(t *testing.T) {
+	base := cmap12{
+		{StartCharCode: 0x0627, EndCharCode: 0x0627, StartGlyphID: 9},
+		{StartCharCode: 0xF000, EndCharCode: 0xF2FF, StartGlyphID: 1},
+		{StartCharCode: 0x10000, EndCharCode: 0x10000, StartGlyphID: 7},
+	}
+	for name, cmap := range map[string]Cmap{"simplified": remaperPUASimp{base}, "traditional": remaperPUATrad{base}} {
+		t.Run(name, func(t *testing.T) {
+			seen := make(map[rune]GID)
+			iter := cmap.Iter()
+			for iter.Next() {
+				r, gid := iter.Char()
+				if _, ok := seen[r]; ok {
+					t.Fatalf("duplicate rune %U", r)
+				}
+				seen[r] = gid
+				if want, ok := cmap.Lookup(r); !ok || gid != want {
+					t.Fatalf("%U: iteration returned %d, lookup returned %d, %v", r, gid, want, ok)
+				}
+			}
+			if seen[0x0627] != 9 || seen[0x0628] == 0 || seen[0x10000] != 7 {
+				t.Fatal("missing Arabic alias or original glyph")
+			}
+			if _, ok := seen[0x0629]; !ok {
+				t.Fatal("missing additional Arabic alias")
+			}
+		})
+	}
+}
+
 func TestCmap(t *testing.T) {
 	for _, filename := range append(tu.Filenames(t, "common"), tu.Filenames(t, "cmap")...) {
 		fp := readFontFile(t, filename)
@@ -165,8 +195,10 @@ func assertRuneRangesEqual(t *testing.T, cm Cmap) {
 
 	iter := cm.Iter()
 	for iter.Next() {
-		r, _ := iter.Char()
-		byIter[r] = true
+		r, gid := iter.Char()
+		if gid != 0 {
+			byIter[r] = true
+		}
 	}
 
 	for _, ran := range cm.(CmapRuneRanger).RuneRanges(nil) {
@@ -186,4 +218,124 @@ func TestMacromanCmap(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	_, ok := ft.Cmap.(remaperMacroman)
 	tu.Assert(t, ok)
+}
+
+func TestCmap4InvalidRangeOffset(t *testing.T) {
+	// an idRangeOffset that points before the glyph array is an error, not a panic
+	_, err := newCmap4(tables.CmapSubtable4{
+		EndCode: []uint16{10, 0xFFFF}, StartCode: []uint16{10, 0xFFFF},
+		IdDelta: []uint16{0, 1}, IdRangeOffsets: []uint16{2, 0},
+	})
+	tu.Assert(t, err != nil)
+
+	// newCmap4 ignores a 0xFFFF offset but uses a real one on a segment starting at 0xFFFF
+	cm, err := newCmap4(tables.CmapSubtable4{
+		EndCode: []uint16{10, 0xFFFF}, StartCode: []uint16{10, 0xFFFF},
+		IdDelta: []uint16{1, 0}, IdRangeOffsets: []uint16{0xFFFF, 2},
+		GlyphIDArray: []byte{0, 5},
+	})
+	tu.AssertNoErr(t, err)
+	g, _ := cm.Lookup(10)
+	tu.Assert(t, g == 11)
+	g, _ = cm.Lookup(0xFFFF)
+	tu.Assert(t, g == 5)
+}
+
+func TestCmap10StartOverflow(t *testing.T) {
+	cm := newCmap10(tables.CmapSubtable10{StartCharCode: 0x80000000, GlyphIdArray: []tables.GlyphID{1}})
+	_, ok := cm.Lookup(0)
+	tu.Assert(t, !ok)
+	tu.Assert(t, len(cm.RuneRanges(nil)) == 0)
+}
+
+func TestCmap0MissingGlyph(t *testing.T) {
+	raw := make([]byte, 274)
+	binary.BigEndian.PutUint16(raw[2:], 1)
+	binary.BigEndian.PutUint16(raw[4:], 1) // Mac platform, Roman encoding
+	binary.BigEndian.PutUint32(raw[8:], 12)
+	binary.BigEndian.PutUint16(raw[14:], 262)
+	raw[18+'A'] = 1
+	raw[18] = 2 // byte zero may have a real mapping
+	tb, _, err := tables.ParseCmap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm, _, err := ProcessCmap(tb, tables.FPNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gid, ok := cm.Lookup(0); !ok || gid != 2 {
+		t.Fatalf("byte zero mapping: got (%d, %v)", gid, ok)
+	}
+	if gid, ok := cm.Lookup('B'); ok {
+		t.Fatalf("unsupported B reported present with GID %d", gid)
+	}
+}
+
+func TestCmap4IteratorDelta(t *testing.T) {
+	raw := make([]byte, 48)
+	binary.BigEndian.PutUint16(raw[2:], 1)
+	binary.BigEndian.PutUint16(raw[4:], 3)
+	binary.BigEndian.PutUint16(raw[6:], 1)
+	binary.BigEndian.PutUint32(raw[8:], 12)
+	for i, v := range []uint16{4, 36, 0, 4, 4, 1, 0, 'A', 0xFFFF, 0, 'A', 0xFFFF, 0xFFFF, 1, 4, 0, 2} {
+		binary.BigEndian.PutUint16(raw[12+2*i:], v)
+	}
+	tb, _, err := tables.ParseCmap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm, _, err := ProcessCmap(tb, tables.FPNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gid, _ := cm.Lookup('A')
+	iter := cm.Iter()
+	if !iter.Next() {
+		t.Fatal("empty")
+	}
+	_, iterGID := iter.Char()
+	if gid != iterGID {
+		t.Fatalf("Lookup = %d, Iter = %d", gid, iterGID)
+	}
+}
+
+func TestRuneRangesMissingGlyphs(t *testing.T) {
+	tests := []struct {
+		name string
+		cmap Cmap
+		want [][2]rune
+	}{
+		{"format4 indexed", cmap4{{start: 'A', end: 'D', indexes: []tables.GlyphID{1, 0, 2, 3}, delta: 0xFFFF}}, [][2]rune{{'C', 'D'}}},
+		{"format4 arithmetic", cmap4{{start: 'A', end: 'C', delta: 65536 - 'B'}}, [][2]rune{{'A', 'A'}, {'C', 'C'}}},
+		{"format4 sentinel", cmap4{{start: 0xFFFF, end: 0xFFFF, delta: 1}}, nil},
+		{"format6", newCmap6(tables.CmapSubtable6{FirstCode: 'A', GlyphIdArray: []tables.GlyphID{0, 1, 2, 0, 3, 0}}), [][2]rune{{'B', 'C'}, {'E', 'E'}}},
+		{"format10", newCmap10(tables.CmapSubtable10{StartCharCode: 0x10000, GlyphIdArray: []tables.GlyphID{0, 1, 0}}), [][2]rune{{0x10001, 0x10001}}},
+		{"format12", cmap12{{StartCharCode: 'A', EndCharCode: 'C', StartGlyphID: 0}, {StartCharCode: 'D', EndCharCode: 'E', StartGlyphID: 4}}, [][2]rune{{'B', 'E'}}},
+		{"format12 wrap", cmap12{{StartCharCode: 'A', EndCharCode: 'C', StartGlyphID: 0xFFFFFFFF}}, [][2]rune{{'A', 'A'}, {'C', 'C'}}},
+		{"format13", cmap13{{StartCharCode: 'A', EndCharCode: 'C', StartGlyphID: 0}, {StartCharCode: 'D', EndCharCode: 'E', StartGlyphID: 4}}, [][2]rune{{'D', 'E'}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ranger := tt.cmap.(CmapRuneRanger)
+			got := ranger.RuneRanges(nil)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("ranges: got %v, want %v", got, tt.want)
+			}
+			// Reuse a nonempty destination and check that RuneRanges drops its stale contents.
+			reused := ranger.RuneRanges([][2]rune{{0, 0}, {1, 1}})
+			if len(reused) != len(got) {
+				t.Fatalf("reused ranges: %v", reused)
+			}
+			iter := tt.cmap.Iter()
+			for iter.Next() {
+				r, gid := iter.Char()
+				lookup, ok := tt.cmap.Lookup(r)
+				if lookup != gid || ok != (gid != 0) {
+					t.Fatalf("%U: iterator %d, lookup (%d, %v)", r, gid, lookup, ok)
+				}
+			}
+			assertRuneRangesEqual(t, tt.cmap)
+		})
+	}
 }

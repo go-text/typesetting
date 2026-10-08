@@ -53,9 +53,32 @@ type gvar struct {
 	sharedTupleActiveIdx []int              // with length tupleCount
 }
 
-func newGvar(table tables.Gvar, glyf tables.Glyf) (gvar, error) {
+// checkTupleAxisCount returns an error if the tuple is present and its
+// number of values differs from the number of axes in fvar.
+func checkTupleAxisCount(t tables.Tuple, axisCount int) error {
+	if t.Values != nil && len(t.Values) != axisCount {
+		return fmt.Errorf("gvar: invalid number of axis (%d != %d)", len(t.Values), axisCount)
+	}
+	return nil
+}
+
+func newGvar(table tables.Gvar, glyf tables.Glyf, axisCount int) (gvar, error) {
 	if len(table.GlyphVariationDatas) != len(glyf) {
 		return gvar{}, fmt.Errorf("invalid 'gvar' table: mismatch in glyphs count")
+	}
+	for _, ts := range table.SharedTuples.SharedTuples {
+		if err := checkTupleAxisCount(ts, axisCount); err != nil {
+			return gvar{}, err
+		}
+	}
+	for _, vs := range table.GlyphVariationDatas {
+		for _, h := range vs.TupleVariationHeaders {
+			for _, t := range [3]tables.Tuple{h.PeakTuple, h.IntermediateTuples[0], h.IntermediateTuples[1]} {
+				if err := checkTupleAxisCount(t, axisCount); err != nil {
+					return gvar{}, err
+				}
+			}
+		}
 	}
 
 	out := gvar{
@@ -76,7 +99,7 @@ func newGvar(table tables.Gvar, glyf tables.Glyf) (gvar, error) {
 		err := parseGlyphVariationSerializedData(vs.SerializedData,
 			vs.HasSharedPointNumbers(), pointsNumberCountAll, false, tvs)
 		if err != nil {
-			return out, err
+			return gvar{}, err
 		}
 		out.variations[i] = tvs
 	}
@@ -156,7 +179,7 @@ func (t tupleVariation) calculateScalar(coords []VarCoord, sharedTuples [][]VarC
 					scalar *= float32(end-v) / float32(end-peak)
 				}
 			}
-		} else if v == 0 || v < minC(0, peak) || v > maxC(0, peak) {
+		} else if v == 0 || v < min(0, peak) || v > max(0, peak) {
 			return 0.
 		} else {
 			scalar *= float32(v) / float32(peak)
@@ -173,7 +196,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		err                error
 	)
 	if hasSharedPoints {
-		sharedPointNumbers, data, err = parsePointNumbers(data)
+		sharedPointNumbers, data, err = parsePointNumbers(data, pointNumbersCountAll)
 		if err != nil {
 			return err
 		}
@@ -189,7 +212,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		// default to shared points
 		privatePointNumbers := sharedPointNumbers
 		if h.HasPrivatePointNumbers() {
-			privatePointNumbers, data, err = parsePointNumbers(data)
+			privatePointNumbers, data, err = parsePointNumbers(data, pointNumbersCountAll)
 			if err != nil {
 				return err
 			}
@@ -216,8 +239,9 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 	return nil
 }
 
-// the returned slice is nil if all glyph points are used
-func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
+// the returned slice is nil if all glyph points are used.
+// Otherwise parsePointNumbers rejects any point number >= pointCount.
+func parsePointNumbers(data []byte, pointCount int) ([]uint16, []byte, error) {
 	count, data, err := getPackedPointCount(data)
 	if err != nil {
 		return nil, nil, err
@@ -256,6 +280,12 @@ func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
 				lastPoint = actualValue
 			}
 			data = data[1+runLength:]
+		}
+	}
+
+	for _, pt := range points {
+		if int(pt) >= pointCount {
+			return nil, nil, fmt.Errorf("invalid glyph variation point number %d (expected < %d)", pt, pointCount)
 		}
 	}
 
@@ -342,12 +372,20 @@ func (gvar gvar) applyDeltasToPoints(glyph gID, coords []VarCoord, points []cont
 		return
 	}
 
-	// save original points for inferred delta calculation
-	origPoints := append([]contourPoint(nil), points...)
+	varData := gvar.variations[glyph]
+
+	// keep a copy of the original points for the inferred deltas.
+	// Only tuples that reference a subset of the points need it.
+	var origPoints []contourPoint
+	for _, tuple := range varData {
+		if tuple.pointNumbers != nil {
+			origPoints = append([]contourPoint(nil), points...)
+			break
+		}
+	}
 	// flag is used to indicate referenced point
 	deltas := make([]contourPoint, len(points))
 
-	varData := gvar.variations[glyph]
 	for _, tuple := range varData {
 		scalar := tuple.calculateScalar(coords, gvar.sharedTuples, gvar.sharedTupleActiveIdx)
 		if scalar == 0 {
@@ -458,12 +496,12 @@ func inferDelta(targetVal, prevVal, nextVal, prevDelta, nextDelta float32) float
 			return prevDelta
 		}
 		return 0
-	} else if targetVal <= minF(prevVal, nextVal) {
+	} else if targetVal <= min(prevVal, nextVal) {
 		if prevVal < nextVal {
 			return prevDelta
 		}
 		return nextDelta
-	} else if targetVal >= maxF(prevVal, nextVal) {
+	} else if targetVal >= max(prevVal, nextVal) {
 		if prevVal > nextVal {
 			return prevDelta
 		}

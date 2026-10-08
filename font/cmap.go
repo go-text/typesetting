@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sort"
+	"unicode"
 
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
@@ -205,7 +206,7 @@ type cmap0 map[rune]uint8
 func newCmap0(cm tables.CmapSubtable0) cmap0 {
 	out := make(cmap0)
 	for b, gid := range cm.GlyphIdArray {
-		if b == 0 {
+		if gid == 0 {
 			continue
 		}
 		out[tables.DecodeMacintoshByte(byte(b))] = gid
@@ -266,12 +267,12 @@ func newCmap4(cm tables.CmapSubtable4) (cmap4, error) {
 		}
 		idRangeOffset := int(cm.IdRangeOffsets[i])
 
-		// some fonts use 0xFFFF for idRangeOff for the last segment
-		if entry.start != 0xFFFF && idRangeOffset != 0 {
+		// some fonts use 0xFFFF for idRangeOffset for the last segment
+		if idRangeOffset != 0 && idRangeOffset != 0xFFFF {
 			// we resolve the indexes
 			entry.indexes = make([]tables.GlyphID, entry.end-entry.start+1)
 			indexStart := idRangeOffset/2 + i - segCount
-			if len(cm.GlyphIDArray) < 2*(indexStart+len(entry.indexes)) {
+			if indexStart < 0 || len(cm.GlyphIDArray) < 2*(indexStart+len(entry.indexes)) {
 				return nil, errors.New("invalid cmap subtable format 4 glyphs array length")
 			}
 			for j := range entry.indexes {
@@ -310,7 +311,7 @@ func (it *cmap4Iter) Char() (r rune, gy GID) {
 		r = rune(it.pos2) + rune(entry.start)
 		gy = GID(entry.indexes[it.pos2])
 		if gy != 0 {
-			gy += GID(entry.delta)
+			gy = GID(uint16(gy) + entry.delta)
 		}
 		if it.pos2 == len(entry.indexes)-1 {
 			// we have read the last glyph in this part
@@ -340,13 +341,15 @@ func (s cmap4) Lookup(r rune) (GID, bool) {
 		} else if entry.end < c {
 			i = h + 1
 		} else if entry.indexes == nil {
-			return GID(c + entry.delta), true
+			glyph := GID(c + entry.delta)
+			return glyph, glyph != 0
 		} else {
 			glyph := entry.indexes[c-entry.start]
 			if glyph == 0 {
 				return 0, false
 			}
-			return GID(uint16(glyph) + entry.delta), true
+			gid := GID(uint16(glyph) + entry.delta)
+			return gid, gid != 0
 		}
 	}
 	return 0, false
@@ -364,6 +367,9 @@ func newCmap6(cm tables.CmapSubtable6) cmap6or10 {
 }
 
 func newCmap10(cm tables.CmapSubtable10) cmap6or10 {
+	if cm.StartCharCode > unicode.MaxRune { // no rune reaches this subtable, and rune(firstCode) would overflow
+		return cmap6or10{}
+	}
 	return cmap6or10{entries: cm.GlyphIdArray, firstCode: rune(cm.StartCharCode)}
 }
 
@@ -396,7 +402,8 @@ func (s cmap6or10) Lookup(r rune) (GID, bool) {
 	if c >= len(s.entries) {
 		return 0, false
 	}
-	return GID(s.entries[c]), true
+	gid := GID(s.entries[c])
+	return gid, gid != 0
 }
 
 // ---------------------------------- Format 12 ----------------------------------
@@ -441,7 +448,8 @@ func (s cmap12) Lookup(r rune) (GID, bool) {
 		} else if entry.EndCharCode < c {
 			i = h + 1
 		} else {
-			return GID(c - entry.StartCharCode + entry.StartGlyphID), true
+			gid := GID(c - entry.StartCharCode + entry.StartGlyphID)
+			return gid, gid != 0
 		}
 	}
 	return 0, false
@@ -491,7 +499,8 @@ func (s cmap13) Lookup(r rune) (GID, bool) {
 		} else if entry.EndCharCode < c {
 			i = h + 1
 		} else {
-			return GID(entry.StartGlyphID), true
+			gid := GID(entry.StartGlyphID)
+			return gid, gid != 0
 		}
 	}
 	return 0, false
@@ -599,7 +608,7 @@ func (t UnicodeVariations) GetGlyphVariant(r, selector rune) (GID, uint8) {
 }
 
 // Handle legacy font with remap
-// TODO: the Iter() and RuneRanges() method does not include the additional mapping
+// TODO: symbol, ASCII and MacRoman iterators do not reflect their remapping.
 
 type remaperSymbol struct {
 	Cmap
@@ -628,14 +637,18 @@ type remaperPUASimp struct {
 	Cmap
 }
 
+func (rs remaperPUASimp) Iter() CmapIter {
+	return &puaIter{base: rs.Cmap, iter: rs.Cmap.Iter(), remap: puaSimpLookup}
+}
+
 func (rs remaperPUASimp) Lookup(r rune) (GID, bool) {
 	// try without map first
 	if g, ok := rs.Cmap.Lookup(r); ok {
 		return g, true
 	}
 
-	if mapped := arabicPUASimpMap(r); mapped != 0 {
-		return rs.Lookup(mapped)
+	if mapped := puaSimpLookup(r); mapped != 0 {
+		return rs.Lookup(rune(mapped))
 	}
 
 	return 0, false
@@ -645,17 +658,64 @@ type remaperPUATrad struct {
 	Cmap
 }
 
+func (rs remaperPUATrad) Iter() CmapIter {
+	return &puaIter{base: rs.Cmap, iter: rs.Cmap.Iter(), remap: puaTradLookup}
+}
+
 func (rs remaperPUATrad) Lookup(r rune) (GID, bool) {
 	// try without map first
 	if g, ok := rs.Cmap.Lookup(r); ok {
 		return g, true
 	}
 
-	if mapped := arabicPUATradMap(r); mapped != 0 {
-		return rs.Lookup(mapped)
+	if mapped := puaTradLookup(r); mapped != 0 {
+		return rs.Lookup(rune(mapped))
 	}
 
 	return 0, false
+}
+
+// puaIter preserves the original entries, then adds supported Unicode aliases.
+type puaIter struct {
+	base  Cmap
+	iter  CmapIter
+	remap func(rune) uint16
+	next  rune
+	glyph GID
+}
+
+func (it *puaIter) Next() bool {
+	if it.iter != nil {
+		if it.iter.Next() {
+			return true
+		}
+		it.iter = nil
+	}
+	// Scan the BMP per legacy cmap. Precompute alias lists if this becomes hot.
+	// Both legacy Arabic mapping tables contain only BMP code points.
+	for ; it.next <= 0xFFFF; it.next++ {
+		mapped := it.remap(it.next)
+		if mapped == 0 {
+			continue
+		}
+		if _, ok := it.base.Lookup(it.next); ok { // direct entries take precedence
+			continue
+		}
+		if glyph, ok := it.base.Lookup(rune(mapped)); ok {
+			it.glyph = glyph
+			return true
+		}
+	}
+	return false
+}
+
+func (it *puaIter) Char() (rune, GID) {
+	if it.iter != nil {
+		return it.iter.Char()
+	}
+	r := it.next
+	it.next++
+	return r, it.glyph
 }
 
 type remaperAscii struct {
@@ -833,7 +893,8 @@ func unicodeToMacroman(u rune) rune {
 // CmapRuneRanger is implemented by cmaps whose coverage is defined in terms
 // of rune ranges
 type CmapRuneRanger interface {
-	// RuneRanges returns a list of (start, end) rune pairs, both included.
+	// RuneRanges returns sorted (start, end) rune pairs, both included,
+	// excluding code points mapped to missing glyph 0.
 	// `dst` is an optional buffer used to reduce allocations
 	RuneRanges(dst [][2]rune) [][2]rune
 }
@@ -845,47 +906,77 @@ var (
 	_ CmapRuneRanger = cmap13(nil)
 )
 
-func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
-	if cap(dst) < len(cm) {
-		dst = make([][2]rune, 0, len(cm))
+// appendRuneRange appends a nonempty range, joining adjacent ranges.
+func appendRuneRange(dst [][2]rune, start, end rune) [][2]rune {
+	if start > end {
+		return dst
 	}
+	if n := len(dst); n != 0 && dst[n-1][1]+1 >= start {
+		if end > dst[n-1][1] {
+			dst[n-1][1] = end
+		}
+		return dst
+	}
+	return append(dst, [2]rune{start, end})
+}
+
+// Explicit glyph arrays may contain holes, both before and after applying delta.
+func appendGlyphRanges(dst [][2]rune, first rune, glyphs []tables.GlyphID, delta uint16) [][2]rune {
+	start := first
+	for i, glyph := range glyphs {
+		if glyph == 0 || uint16(glyph)+delta == 0 {
+			r := first + rune(i)
+			dst = appendRuneRange(dst, start, r-1)
+			start = r + 1
+		}
+	}
+	return appendRuneRange(dst, start, first+rune(len(glyphs))-1)
+}
+
+func (cm cmap4) RuneRanges(dst [][2]rune) [][2]rune {
 	dst = dst[:0]
 	for _, e := range cm {
 		start, end := rune(e.start), rune(e.end)
-		if L := len(dst); L != 0 && dst[L-1][1] == start {
-			// grow the previous range
-			dst[L-1][1] = end
-		} else {
-			dst = append(dst, [2]rune{start, end})
+		if e.indexes != nil {
+			dst = appendGlyphRanges(dst, start, e.indexes, e.delta)
+			continue
 		}
+		// The arithmetic mapping has at most one missing glyph, including wraparound.
+		zero := rune(-e.delta)
+		if start <= zero && zero <= end {
+			dst = appendRuneRange(dst, start, zero-1)
+			start = zero + 1
+		}
+		dst = appendRuneRange(dst, start, end)
 	}
 	return dst
 }
 
-func (cm *cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
-	if cap(dst) < 1 {
-		dst = [][2]rune{{}}
-	}
-	dst = dst[:1]
-	dst[0] = [2]rune{cm.firstCode, cm.firstCode + rune(len(cm.entries)) - 1}
-	return dst
+func (cm cmap6or10) RuneRanges(dst [][2]rune) [][2]rune {
+	return appendGlyphRanges(dst[:0], cm.firstCode, cm.entries, 0)
 }
 
 func (cm cmap12) RuneRanges(dst [][2]rune) [][2]rune {
-	if cap(dst) < len(cm) {
-		dst = make([][2]rune, 0, len(cm))
-	}
 	dst = dst[:0]
 	for _, e := range cm {
 		start, end := rune(e.StartCharCode), rune(e.EndCharCode)
-		if L := len(dst); L != 0 && dst[L-1][1] == start {
-			// grow the previous range
-			dst[L-1][1] = end
-		} else {
-			dst = append(dst, [2]rune{start, end})
+		// Skip the one code point that maps to glyph zero, if it falls in this group.
+		if offset := -e.StartGlyphID; offset <= e.EndCharCode-e.StartCharCode {
+			zero := start + rune(offset)
+			dst = appendRuneRange(dst, start, zero-1)
+			start = zero + 1
 		}
+		dst = appendRuneRange(dst, start, end)
 	}
 	return dst
 }
 
-func (cm cmap13) RuneRanges(dst [][2]rune) [][2]rune { return cmap12(cm).RuneRanges(dst) }
+func (cm cmap13) RuneRanges(dst [][2]rune) [][2]rune {
+	dst = dst[:0]
+	for _, e := range cm {
+		if e.StartGlyphID != 0 {
+			dst = appendRuneRange(dst, rune(e.StartCharCode), rune(e.EndCharCode))
+		}
+	}
+	return dst
+}

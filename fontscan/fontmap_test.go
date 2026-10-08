@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -361,7 +363,7 @@ func newSampleFontmap() *FontMap {
 	fm := NewFontMap(log.New(io.Discard, "", 0))
 	fm.appendFootprints(linuxSampleFontSet...)
 	for _, fp := range linuxSampleFontSet {
-		fm.cache(fp, &font.Face{Font: new(font.Font)}) // we need a new pointer for each file
+		fm.cache(fp, font.NewFace(new(font.Font))) // we need a new pointer for each file
 	}
 	return fm
 }
@@ -461,4 +463,50 @@ func TestResolve_SciptKhmer(t *testing.T) {
 	tu.Assert(t, len(runs) == 1)
 	family, _ := fm.FontMetadata(runs[0].Face.Font)
 	tu.Assert(t, family == "khmeros")
+}
+
+func TestUseSystemFontsTwice(t *testing.T) {
+	fm := NewFontMap(nil)
+	fonts := []Footprint{{Family: "stub", Scripts: ScriptSet{language.Latin}}}
+	fm.addSystemFonts(fonts)
+	fm.addSystemFonts(fonts)
+	tu.Assert(t, len(fm.database) == 1)
+	tu.Assert(t, len(fm.scriptMap[language.Latin]) == 1)
+}
+
+func TestSetScriptUnchanged(t *testing.T) {
+	fm := NewFontMap(nil)
+	fm.SetScript(language.Latin)
+	fm.built = true
+	fm.SetScript(language.Latin)
+	tu.Assert(t, fm.built)
+	fm.SetScript(language.Arabic)
+	tu.Assert(t, !fm.built)
+}
+
+func resetSystemFonts() {
+	systemFonts, systemFontsErr, initSystemFontsOnce = nil, nil, sync.Once{}
+}
+
+func TestSystemFontsInitializationError(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("cache path inference requires HOME on these platforms")
+	}
+	// Other tests have already initialized the global index; start over
+	// with no cache directory available.
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	resetSystemFonts()
+	t.Cleanup(resetSystemFonts)
+
+	_, first := SystemFonts(nil, "")
+	if first == nil {
+		t.Fatal("expected cache path error")
+	}
+	if _, err := SystemFonts(nil, ""); err != first {
+		t.Fatalf("second initialization: got %v, want %v", err, first)
+	}
+	if err := NewFontMap(nil).UseSystemFonts(""); err != first {
+		t.Fatalf("font map initialization: got %v, want %v", err, first)
+	}
 }

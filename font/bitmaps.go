@@ -24,7 +24,7 @@ func (sb sbix) chooseStrike(xPpem, yPpem uint16) *tables.Strike {
 		return nil
 	}
 
-	request := maxu16(xPpem, yPpem)
+	request := max(xPpem, yPpem)
 	if request == 0 {
 		request = math.MaxUint16 // choose largest strike
 	}
@@ -133,16 +133,16 @@ func (bt bitmap) chooseStrike(xPpem, yPpem uint16) *bitmapStrike {
 	if len(bt) == 0 {
 		return nil
 	}
-	request := maxu16(xPpem, yPpem)
+	request := max(xPpem, yPpem)
 	if request == 0 {
 		request = math.MaxUint16 // choose largest strike
 	}
 	var (
 		bestIndex = 0
-		bestPpem  = maxu16(bt[0].ppemX, bt[0].ppemY)
+		bestPpem  = max(bt[0].ppemX, bt[0].ppemY)
 	)
 	for i, s := range bt {
-		ppem := maxu16(s.ppemX, s.ppemY)
+		ppem := max(s.ppemX, s.ppemY)
 		if request <= ppem && ppem < bestPpem || request > bestPpem && ppem > bestPpem {
 			bestIndex = i
 			bestPpem = ppem
@@ -224,6 +224,9 @@ func newBitmapSubtable(header tables.BitmapSubtable, dataTable []byte) (bitmapSu
 	if L, E := len(dataTable), int(header.ImageDataOffset); L < E {
 		return bitmapSubtable{}, errors.New("invalid bitmap table (EOF)")
 	}
+	if header.LastGlyph < header.FirstGlyph {
+		return bitmapSubtable{}, errors.New("invalid bitmap subtable glyph range")
+	}
 	imageData := dataTable[header.ImageDataOffset:]
 
 	var err error
@@ -266,7 +269,11 @@ func (idx indexSubTable1And3) imageFor(gid gID, first, last gID) *bitmapImage {
 	if gid < first || gid > last {
 		return nil
 	}
-	return &idx.glyphs[gid-first]
+	glyph := &idx.glyphs[gid-first]
+	if glyph.image == nil { // equal offsets mean the glyph has no bitmap
+		return nil
+	}
+	return glyph
 }
 
 // imageData starts at the image (table[imageDataOffset:])
@@ -300,7 +307,7 @@ func parseIndexSubTable3(header tables.BitmapSubtable, index tables.IndexData3, 
 		var err error
 		out.glyphs[i], err = parseBitmapDataMetrics(imageData, tables.Offset32(index.SbitOffsets[i]), tables.Offset32(index.SbitOffsets[i+1]), header.ImageFormat)
 		if err != nil {
-			return out, fmt.Errorf("invalid bitmap index format 1: %s", err)
+			return out, fmt.Errorf("invalid bitmap index format 3: %s", err)
 		}
 	}
 	return out, nil
@@ -362,6 +369,9 @@ func (idx indexSubTable4) imageFor(gid gID, first, last gID) *bitmapImage {
 
 // imageData starts at the image (table[imageDataOffset:])
 func parseIndexSubTable4(header tables.BitmapSubtable, index tables.IndexData4, imageData []byte) (indexSubTable4, error) {
+	if len(index.GlyphArray) == 0 {
+		return indexSubTable4{}, errors.New("invalid bitmap index format 4: empty glyph array")
+	}
 	out := indexSubTable4{
 		format: header.ImageFormat,
 		glyphs: make([]indexedBitmapGlyph, len(index.GlyphArray)-1),
@@ -415,7 +425,7 @@ func parseIndexSubTable5(header tables.BitmapSubtable, index tables.IndexData5, 
 
 	for i := range out.glyphs {
 		var err error
-		out.glyphs[i], err = parseBitmapDataStandalone(imageData, index.ImageSize*uint32(i), (index.ImageSize+1)*uint32(i), header.ImageFormat)
+		out.glyphs[i], err = parseBitmapDataStandalone(imageData, index.ImageSize*uint32(i), index.ImageSize*uint32(i+1), header.ImageFormat)
 		if err != nil {
 			return out, fmt.Errorf("invalid bitmap index format 5: %s", err)
 		}
@@ -429,10 +439,10 @@ func parseBitmapDataMetrics(imageData []byte, start, end tables.Offset32, imageF
 	}
 	imageData = imageData[start:end]
 	switch imageFormat {
-	case 1, 6, 7, 8, 9:
+	case 6, 7, 8, 9:
 		return bitmapImage{}, fmt.Errorf("valid but currently not implemented bitmap image format: %d", imageFormat)
-	case 2:
-		data, _, err := tables.ParseBitmapData2(imageData)
+	case 1, 2:
+		data, _, err := tables.ParseBitmapData1Or2(imageData)
 		return bitmapImage{metrics: data.SmallGlyphMetrics, image: data.Image}, err
 	case 17:
 		data, _, err := tables.ParseBitmapData17(imageData)
@@ -462,13 +472,6 @@ func parseBitmapDataStandalone(imageData []byte, start, end uint32, format uint1
 	default:
 		return nil, fmt.Errorf("unsupported bitmap image format: %d", format)
 	}
-}
-
-func maxu16(a, b uint16) uint16 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func mulDiv(a, b, c uint16) uint16 {

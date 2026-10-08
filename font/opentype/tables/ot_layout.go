@@ -365,19 +365,35 @@ func (mp *MarkBasePos) Sanitize() error {
 	if err := mp.BaseArray.Anchors().sanitizeOffsets(); err != nil {
 		return err
 	}
+	if err := mp.MarkArray.sanitizeClasses(mp.markClassCount); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (mp *MarkLigPos) Sanitize() error {
 	if exp, got := mp.MarkCoverage.Len(), len(mp.MarkArray.MarkAnchors); exp != got {
-		return fmt.Errorf("GPOS: invalid MarkBasePos marks count (%d != %d)", exp, got)
+		return fmt.Errorf("GPOS: invalid MarkLigPos marks count (%d != %d)", exp, got)
 	}
 	if exp, got := mp.LigatureCoverage.Len(), len(mp.LigatureArray.LigatureAttachs); exp != got {
-		return fmt.Errorf("GPOS: invalid MarkBasePos marks count (%d != %d)", exp, got)
+		return fmt.Errorf("GPOS: invalid MarkLigPos ligatures count (%d != %d)", exp, got)
+	}
+	if err := mp.MarkArray.sanitizeClasses(mp.MarkClassCount); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (mp *MarkMarkPos) Sanitize() error {
+	if exp, got := mp.Mark1Coverage.Len(), len(mp.Mark1Array.MarkRecords); exp != got {
+		return fmt.Errorf("GPOS: invalid MarkMarkPos marks count (%d != %d)", exp, got)
+	}
+	if exp, got := mp.Mark2Coverage.Len(), len(mp.Mark2Array.mark2Records); exp != got {
+		return fmt.Errorf("GPOS: invalid MarkMarkPos base marks count (%d != %d)", exp, got)
+	}
+	return mp.Mark1Array.sanitizeClasses(mp.MarkClassCount)
 }
 
 func (cs *ContextualPos) Sanitize(lookupCount uint16) error {
@@ -492,9 +508,12 @@ func parseValueRecord(format ValueFormat, data []byte, offset int) (out ValueRec
 		return out, offset, nil
 	}
 	// start by parsing the list of values
-	values, err := ParseUint16s(data[offset:], size)
-	if err != nil {
-		return out, 0, fmt.Errorf("invalid value record: %s", err)
+	if L := len(data); L < offset+2*size {
+		return out, 0, fmt.Errorf("invalid value record: EOF: expected length: %d, got %d", offset+2*size, L)
+	}
+	var values [16]uint16 // at most one field per format bit
+	for i := 0; i < size; i++ {
+		values[i] = binary.BigEndian.Uint16(data[offset+2*i:])
 	}
 	// follow the order
 	cursor := 0
@@ -548,7 +567,6 @@ func parseValueRecord(format ValueFormat, data []byte, offset int) (out ValueRec
 				return out, 0, err
 			}
 		}
-		cursor++ // useless actually
 	}
 	return out, offset + 2*size, err
 }
@@ -558,10 +576,19 @@ type pairValueRecords struct {
 	fmt1, fmt2 ValueFormat
 }
 
+func (ps pairValueRecords) offset(index int) int {
+	recLen := 1 + ps.fmt1.size() + ps.fmt2.size()
+	return 2 + 2*index*recLen
+}
+
+// panic if index is out of range
+func (ps pairValueRecords) secondGlyph(index int) GlyphID {
+	return GlyphID(binary.BigEndian.Uint16(ps.data[ps.offset(index):]))
+}
+
 // panic if index is out of range
 func (ps pairValueRecords) get(index int) (out PairValueRecord, err error) {
-	recLen := 1 + ps.fmt1.size() + ps.fmt2.size()
-	offset := 2 + 2*index*recLen
+	offset := ps.offset(index)
 
 	out.SecondGlyph = GlyphID(binary.BigEndian.Uint16(ps.data[offset:]))
 	v1, newOffset, err := parseValueRecord(ps.fmt1, ps.data, offset+2)
@@ -728,19 +755,37 @@ func (am AnchorMatrix) sanitizeOffsets() error {
 	return nil
 }
 
-func (am AnchorMatrix) Anchor(index, class int) Anchor {
-	if len(am.records) < index {
+// AnchorBytes returns the raw Anchor table at [index, class], or nil if
+// there is none. Callers parse it with [ParseAnchor] or one of the
+// ParseAnchorFormatN functions without allocating.
+func (am AnchorMatrix) AnchorBytes(index, class int) []byte {
+	if index < 0 || index >= len(am.records) {
 		return nil
 	}
 	offsets := am.records[index].offsets
-	if len(offsets) < class {
+	if class < 0 || class >= len(offsets) {
 		return nil
 	}
 	offset := offsets[class]
-	if offset == 0 {
+	if offset == 0 || int(offset) >= len(am.data) {
 		return nil
 	}
-	anchor, _, _ := ParseAnchor(am.data[offset:]) // offset is sanitized
+	return am.data[offset:]
+}
+
+func (am AnchorMatrix) Anchor(index, class int) Anchor {
+	if index < 0 || len(am.records) <= index {
+		return nil
+	}
+	offsets := am.records[index].offsets
+	if class < 0 || len(offsets) <= class {
+		return nil
+	}
+	offset := offsets[class]
+	if offset == 0 || int(offset) > len(am.data) {
+		return nil
+	}
+	anchor, _, _ := ParseAnchor(am.data[offset:])
 	return anchor
 }
 
@@ -759,6 +804,16 @@ func (ma *MarkArray) parseMarkAnchors(src []byte) error {
 		ma.MarkAnchors[i], _, err = ParseAnchor(src[rec.markAnchorOffset:])
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// sanitizeClasses checks that all mark classes are lower than [classCount]
+func (ma MarkArray) sanitizeClasses(classCount uint16) error {
+	for _, rec := range ma.MarkRecords {
+		if rec.MarkClass >= classCount {
+			return fmt.Errorf("GPOS: invalid mark class %d (>= %d)", rec.MarkClass, classCount)
 		}
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 
+	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/segmenter"
 	"golang.org/x/image/math/fixed"
@@ -427,6 +428,9 @@ type WrapConfig struct {
 	// Direction describes the text layout of the overall paragraph, rather than
 	// individual runs of text. This is used to compute the correct visual order of
 	// bidirectional text runs.
+	//
+	// When using runs obtained by [Segmenter.Split], this should match the [Input.Direction]
+	// provided to the segmenter.
 	Direction di.Direction
 	// TruncateAfterLines is the number of lines of text to allow before truncating
 	// the text. A value of zero means no limit.
@@ -897,43 +901,64 @@ type WrappedLine struct {
 	TrimmedTrailingWhitespace fixed.Int26_6
 }
 
-// swapVisualOrder inverts the visual index of runs in [subline], by swapping pairs of visual indices across the midpoint
-// of the slice.
-func swapVisualOrder(subline Line) {
-	L := len(subline)
-	for i := range subline[0 : L/2] {
-		j := (L - i) - 1
-		subline[i].VisualIndex, subline[j].VisualIndex = subline[j].VisualIndex, subline[i].VisualIndex
+// reverseVisualOrder reflects the visual indices of line[start:end].
+// Reversals at higher levels only permute within a sequence, so the runs
+// in the range hold the visual positions start..end-1 in some order and a
+// reflection reverses them whatever that order is. Swapping the indices
+// of line[i] and line[end-1-i] instead is wrong once an inner level has
+// moved them.
+func reverseVisualOrder(line Line, start, end int) {
+	for i := start; i < end; i++ {
+		line[i].VisualIndex = int32(start+end-1) - line[i].VisualIndex
 	}
 }
 
-// computeBidiOrdering resolves the [VisualIndex] of each run.
-func computeBidiOrdering(dir di.Direction, finalLine Line) {
-	bidiStart := -1
-	for idx, run := range finalLine {
-		basePosition := idx
-		if dir.Progression() == di.TowardTopLeft {
-			basePosition = len(finalLine) - 1 - idx
+// computeBidiOrdering resolves the [VisualIndex] of each run,
+// applying rule L2 of the Unicode BIDI algorithm, using the level field
+// of each run
+func computeBidiOrdering(finalLine Line) {
+	// initial the order in logical order
+	for i := range finalLine {
+		finalLine[i].VisualIndex = int32(i)
+	}
+
+	// find highest and lowest odd level
+	highest, lowestOdd := bidi.Level(0), bidi.Level(math.MaxInt8)
+	for _, run := range finalLine {
+		if run.Level > highest {
+			highest = run.Level
 		}
-		finalLine[idx].VisualIndex = int32(basePosition)
-		if run.Direction == dir {
-			if bidiStart != -1 {
-				swapVisualOrder(finalLine[bidiStart:idx])
-				bidiStart = -1
-			}
-		} else if bidiStart == -1 {
-			bidiStart = idx
+		if run.Level%2 != 0 && run.Level < lowestOdd {
+			lowestOdd = run.Level
 		}
 	}
-	if bidiStart != -1 {
-		swapVisualOrder(finalLine[bidiStart:])
+	// From the highest level found in the text to the lowest odd level on each line,
+	// including intermediate levels not actually present in the text,
+	// reverse any contiguous sequence of characters that are at that level or higher.
+	for level := highest; level >= lowestOdd; level-- {
+		// find contiguous runs
+		contiguousStart := -1
+		for i, run := range finalLine {
+			if run.Level >= level {
+				if contiguousStart == -1 { // start the sequence
+					contiguousStart = i
+				} // else : add to contiguous
+			} else if contiguousStart != -1 { // we are just past the sequence
+				reverseVisualOrder(finalLine, contiguousStart, i)
+				contiguousStart = -1
+			}
+		}
+		// handle the sequence if required
+		if contiguousStart != -1 {
+			reverseVisualOrder(finalLine, contiguousStart, len(finalLine))
+		}
 	}
 }
 
 func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, bool) {
 	var trimmed fixed.Int26_6
 	if len(finalLine) > 0 {
-		computeBidiOrdering(l.config.Direction, finalLine)
+		computeBidiOrdering(finalLine)
 		if !l.config.DisableTrailingWhitespaceTrim {
 			// Here we find the last visual run in the line.
 			goalIdx := len(finalLine) - 1
@@ -997,7 +1022,7 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			truncator.Runes.Offset = l.lineStartRune
 			finalLine = append(finalLine, truncator)
 			// We've just modified the line, we need to recompute the bidi ordering.
-			computeBidiOrdering(l.config.Direction, finalLine)
+			computeBidiOrdering(finalLine)
 		}
 	}
 

@@ -62,7 +62,10 @@ func newCoveragesFromCmap(cmap font.Cmap, buffer [][2]rune) (RuneSet, ScriptSet,
 	)
 	iter := cmap.Iter()
 	for iter.Next() {
-		r, _ := iter.Char()
+		r, gid := iter.Char()
+		if gid == 0 { // .notdef does not cover this character
+			continue
+		}
 		rs.Add(r)
 		ss.insert(language.LookupScript(r))
 	}

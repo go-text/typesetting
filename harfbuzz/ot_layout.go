@@ -66,9 +66,10 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 
 func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 	buffer := c.buffer
-	info := buffer.Info
 	ret := false
 	for {
+		// nested lookups may reallocate buffer.Info, so read it again on every pass
+		info := buffer.Info
 		j := buffer.idx
 		for j < len(info) &&
 			!(accel.digest.mayHave(gID(info[j].Glyph)) &&
@@ -362,54 +363,6 @@ func layoutSubstituteStart(font *Font, buffer *Buffer) {
 		buffer.Info[i].ligProps = 0
 		buffer.Info[i].syllable = 0
 	}
-}
-
-func otLayoutDeleteGlyphsInplace(buffer *Buffer, filter func(*GlyphInfo) bool) {
-	// Merge clusters and delete filtered glyphs.
-	var (
-		j    int
-		info = buffer.Info
-		pos  = buffer.Pos
-	)
-	for i := range info {
-		if filter(&info[i]) {
-			/* Merge clusters.
-			* Same logic as buffer.delete_glyph(), but for in-place removal. */
-
-			cluster := info[i].Cluster
-			if i+1 < len(buffer.Info) && cluster == info[i+1].Cluster {
-				/* Cluster survives; do nothing. */
-				continue
-			}
-
-			if j != 0 {
-				/* Merge cluster backward. */
-				if cluster < info[j-1].Cluster {
-					mask := info[i].Mask
-					oldCluster := info[j-1].Cluster
-					for k := j; k != 0 && info[k-1].Cluster == oldCluster; k-- {
-						info[k-1].setCluster(cluster, mask)
-					}
-				}
-				continue
-			}
-
-			if i+1 < len(buffer.Info) {
-				/* Merge cluster forward. */
-				buffer.mergeClusters(i, i+2)
-			}
-
-			continue
-		}
-
-		if j != i {
-			info[j] = info[i]
-			pos[j] = pos[i]
-		}
-		j++
-	}
-	buffer.Info = buffer.Info[:j]
-	buffer.Pos = buffer.Pos[:j]
 }
 
 // Called before positioning lookups are performed, to ensure that glyph

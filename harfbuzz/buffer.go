@@ -173,10 +173,7 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	}
 
 	// add post-context
-	s := itemOffset + itemLength + contextLength
-	if s > len(text) {
-		s = len(text)
-	}
+	s := min(itemOffset+itemLength+contextLength, len(text))
 	b.context[1] = text[itemOffset+itemLength : s]
 }
 
@@ -423,13 +420,6 @@ func (b *Buffer) setMasks(value, mask GlyphMask, clusterStart, clusterEnd int) {
 	value &= mask
 
 	b.maxOps -= len(b.Info)
-
-	if clusterStart == 0 && clusterEnd == -1 {
-		for i, info := range b.Info {
-			b.Info[i].Mask = (info.Mask & notMask) | value
-		}
-		return
-	}
 
 	for i, info := range b.Info {
 		if clusterStart <= info.Cluster && info.Cluster < clusterEnd {

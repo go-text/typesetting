@@ -136,6 +136,10 @@ type FontID struct {
 //
 // All its methods are read-only and a [*Font] object is thus safe for concurrent use.
 type Font struct {
+	// Flavor represents the kind of font, as indicated by the first four bytes of the file.
+	// It is one of [ot.TrueType], [ot.TrueTypeApple], [ot.PostScript1], [ot.OpenType]
+	Flavor Tag
+
 	// Cmap is the 'cmap' table
 	Cmap    Cmap
 	cmapVar UnicodeVariations
@@ -197,6 +201,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 		out Font
 		err error
 	)
+	out.Flavor = ld.Type
 
 	// 'cmap' handling depend on os2
 	raw, _ := ld.RawTable(ot.MustNewTag("OS/2"))
@@ -244,14 +249,20 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	out.fvar = newFvar(fvar)
 
 	raw, _ = ld.RawTable(ot.MustNewTag("avar"))
-	out.avar, _, _ = tables.ParseAvar(raw)
+	avar, _, err := tables.ParseAvar(raw)
+	if err == nil && len(avar.AxisSegmentMaps) == len(out.fvar) {
+		out.avar = avar
+	}
 
 	out.upem = out.head.Upem()
 
 	raw, _ = ld.RawTable(ot.MustNewTag("glyf"))
 	locaRaw, _ := ld.RawTable(ot.MustNewTag("loca"))
 	loca, err := tables.ParseLoca(locaRaw, out.nGlyphs, out.head.IndexToLocFormat == 1)
-	if err == nil { // ParseGlyf panics if len(loca) == 0
+	// ParseGlyf requires the final loca offset, even for zero glyphs.
+	// NewFont drops an invalid glyf instead of failing. Only cmap, head and maxp
+	// are required, and the font stays usable for cmap and metrics queries.
+	if err == nil {
 		out.glyf, _ = tables.ParseGlyf(raw, loca)
 	}
 
@@ -275,12 +286,13 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 	raw, _ = ld.RawTable(ot.MustNewTag("COLR"))
 	if colr, err := tables.ParseCOLR(raw); err == nil {
 		out.COLR = &colr
-		// color table without CPAL is broken
+		// COLR without a valid CPAL is unusable, so drop both and keep loading.
+		// Only cmap, head and maxp are required, and the font keeps its regular
+		// outlines.
 		raw, _ = ld.RawTable(ot.MustNewTag("CPAL"))
 		cpal, _, _ := tables.ParseCPAL(raw)
-		out.CPAL, err = newCPAL(cpal)
-		if err != nil {
-			return nil, err
+		if out.CPAL, err = newCPAL(cpal); err != nil {
+			out.COLR, out.CPAL = nil, nil
 		}
 	}
 
@@ -300,7 +312,7 @@ func NewFont(ld *ot.Loader) (*Font, error) {
 
 		raw, _ = ld.RawTable(ot.MustNewTag("gvar"))
 		gvar, _, _ := tables.ParseGvar(raw)
-		out.gvar, _ = newGvar(gvar, out.glyf)
+		out.gvar, _ = newGvar(gvar, out.glyf, axisCount)
 
 		raw, _ = ld.RawTable(ot.MustNewTag("HVAR"))
 		hvar, _, err := tables.ParseHVAR(raw)
@@ -609,14 +621,17 @@ func loadGDEF(ld *ot.Loader, axisCount int, gsub, gpos []byte) (tables.GDEF, err
 
 // Face is a font with user-provided settings.
 // Contrary to the [*Font] objects, Faces are NOT safe for concurrent use.
-// A Face caches glyph extents and rune to glyph mapping, and should be reused when possible.
+// A Face caches glyph extents, advances and rune to glyph mapping, and should be reused when possible.
 //
 // Also note that an empty [Face] is invalid : the [NewFace] constructor is required to properly init caches.
 type Face struct {
 	*Font
 
-	extentsCache extentsCache
-	cmapCache    cache21_19_8
+	extentsCache          extentsCache
+	hAdvanceCache         advanceCache // advances of variable fonts without HVAR, allocated on first use
+	vAdvanceCache         advanceCache // advances of variable fonts without VVAR, allocated on first use
+	cmapCache             cache21_19_8 // supported runes, mapping to GID
+	cmapNotSupportedCache cache21_0_13 // not supported runes
 
 	coords       []tables.Coord
 	xPpem, yPpem uint16
@@ -626,6 +641,7 @@ type Face struct {
 func NewFace(font *Font) *Face {
 	out := &Face{Font: font, extentsCache: make(extentsCache, font.nGlyphs)}
 	out.cmapCache.clear()
+	out.cmapNotSupportedCache.clear()
 	return out
 }
 
@@ -634,12 +650,17 @@ func NewFace(font *Font) *Face {
 // Note that it only looks into the cmap, without taking account substitutions
 // nor variation selectors.
 func (f *Face) NominalGlyph(ch rune) (GID, bool) {
+	if notSupported := f.cmapNotSupportedCache.get(uint32(ch)); notSupported {
+		return 0, false
+	}
 	if g, ok := f.cmapCache.get(uint32(ch)); ok {
 		return GID(g), ok
 	}
 	g, ok := f.Cmap.Lookup(ch)
 	if ok {
 		f.cmapCache.set(uint32(ch), uint32(g))
+	} else {
+		f.cmapNotSupportedCache.set(uint32(ch))
 	}
 	return g, ok
 }
@@ -662,6 +683,8 @@ func (f *Face) Coords() []tables.Coord { return f.coords }
 // Use [NormalizeVariations] to convert from design (user) space units.
 func (f *Face) SetCoords(coords []tables.Coord) {
 	f.coords = coords
-	// invalid the cache
+	// invalid the caches
 	f.extentsCache.reset()
+	f.hAdvanceCache.reset()
+	f.vAdvanceCache.reset()
 }

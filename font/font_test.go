@@ -4,6 +4,8 @@ package font
 
 import (
 	"bytes"
+	"encoding/binary"
+	"sort"
 	"testing"
 
 	hb "github.com/go-text/typesetting-utils/harfbuzz"
@@ -120,6 +122,7 @@ func TestLoadCFF2(t *testing.T) {
 
 	font, err := NewFont(ld)
 	tu.AssertNoErr(t, err)
+	tu.Assert(t, font.Flavor == ot.OpenType)
 
 	tu.Assert(t, font.cff2 != nil)
 	tu.Assert(t, font.cff2.VarStore.AxisCount() == 1)
@@ -140,6 +143,7 @@ func TestLoadColor(t *testing.T) {
 	ld := readFontFile(t, "color/NotoColorEmoji-Regular.ttf")
 	ft, err := NewFont(ld)
 	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.Flavor == ot.TrueType)
 	tu.Assert(t, ft.COLR != nil && ft.CPAL != nil)
 
 	ld = readFontFile(t, "color/CoralPixels-Regular.ttf")
@@ -178,4 +182,133 @@ func TestBitmapExtents(t *testing.T) {
 	face := NewFace(ft)
 	extents, ok := face.GlyphExtents(41)
 	tu.Assert(t, ok && extents.Width == 819.2 && extents.Height == -1433.6)
+}
+
+func BenchmarkCmap(b *testing.B) {
+	font := loadFont(b, "common/Roboto-BoldItalic.ttf")
+	face := NewFace(font)
+	latinText := []rune("Hi this is a test with some âccents : $£8")
+	chineseText := []rune("襄陽曲四首/魯中都東樓醉起作-李白 刊误")
+	mixedText := append(latinText, chineseText...)
+
+	b.ResetTimer()
+
+	b.Run("latin text", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, r := range latinText {
+				_, _ = face.NominalGlyph(r)
+			}
+		}
+	})
+	b.Run("chinese text", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, r := range chineseText {
+				_, _ = face.NominalGlyph(r)
+			}
+		}
+	})
+	b.Run("mixed text", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, r := range mixedText {
+				_, _ = face.NominalGlyph(r)
+			}
+		}
+	})
+}
+
+func TestNewFontIgnoresInvalidOptionalGlyf(t *testing.T) {
+	data, err := td.Files.ReadFile("common/mplus-1p-regular.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep loca intact but make glyf empty in the sfnt directory.
+	found := false
+	for i := 0; i < int(binary.BigEndian.Uint16(data[4:])); i++ {
+		entry := data[12+16*i:]
+		if string(entry[:4]) == "glyf" {
+			binary.BigEndian.PutUint32(entry[12:], 0)
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("fixture has no glyf table")
+	}
+	loader, err := ot.NewLoader(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	font, err := NewFont(loader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if font.glyf != nil {
+		t.Fatal("invalid optional glyf table was retained")
+	}
+}
+
+func TestUnsignedAdvanceMetrics(t *testing.T) {
+	// One long metric followed by an extra signed side bearing. Both glyphs
+	// share the unsigned advance width and vertical advance height.
+	metrics, _, err := tables.ParseHmtx([]byte{0x9c, 0x40, 0xff, 0xfe, 0xff, 0xfd}, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	face := NewFace(&Font{nGlyphs: 2, hmtx: metrics, vmtx: metrics})
+	for gid := GID(0); gid < 2; gid++ {
+		if got := face.HorizontalAdvance(gid); got != 40000 {
+			t.Errorf("glyph %d: horizontal advance %g, want 40000", gid, got)
+		}
+		if got := face.VerticalAdvance(gid); got != -40000 {
+			t.Errorf("glyph %d: vertical advance %g, want -40000", gid, got)
+		}
+		if got := metrics.SideBearing(gID(gid)); got != -2-int16(gid) {
+			t.Errorf("glyph %d: wrong signed side bearing %d", gid, got)
+		}
+	}
+}
+
+func TestPostNames20Sanitize(t *testing.T) {
+	p := postNames20{GlyphNameIndexes: []uint16{uint16(numBuiltInPostNames)}}
+	tu.Assert(t, p.sanitize() != nil)
+	p.Strings = []string{"a"}
+	tu.AssertNoErr(t, p.sanitize())
+	tu.Assert(t, p.glyphName(0) == "a")
+}
+
+func TestInvalidCPAL(t *testing.T) {
+	ld := readFontFile(t, "color/CoralPixels-Regular.ttf")
+	var tbs []ot.Table
+	for _, tag := range ld.Tables() {
+		content, _ := ld.RawTable(tag)
+		if tag == ot.MustNewTag("CPAL") {
+			content = nil
+		}
+		tbs = append(tbs, ot.Table{Tag: tag, Content: content})
+	}
+	sort.Slice(tbs, func(i, j int) bool { return tbs[i].Tag < tbs[j].Tag })
+	ld, err := ot.NewLoader(bytes.NewReader(ot.WriteOpentype(tbs, ot.TrueType)))
+	tu.AssertNoErr(t, err)
+	ft, err := NewFont(ld)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, ft.COLR == nil && ft.CPAL == nil)
+}
+
+func TestAvarAxisCount(t *testing.T) {
+	ld := readFontFile(t, "toys/CFF2-VF.otf")
+	var ts []ot.Table
+	for _, name := range []string{"cmap", "head", "maxp", "fvar"} {
+		ts = append(ts, ot.Table{Tag: ot.MustNewTag(name), Content: readTable(t, ld, name)})
+	}
+	// Two empty axis maps parse fine, but fvar has only one axis.
+	ts = append(ts, ot.Table{Tag: ot.MustNewTag("avar"), Content: []byte{0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0}})
+	sort.Slice(ts, func(i, j int) bool { return ts[i].Tag < ts[j].Tag })
+	face, err := ParseTTF(bytes.NewReader(ot.WriteOpentype(ts, ot.TrueType)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(face.avar.AxisSegmentMaps) != 0 {
+		t.Fatal("mismatched avar was retained")
+	}
+	face.SetVariations([]Variation{{Tag: 0x77676874, Value: 500}})
 }

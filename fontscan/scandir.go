@@ -9,7 +9,7 @@ import (
 )
 
 // recursively walk through the given directory, scanning font files and calling dst.consume
-// for each valid file found.
+// for each valid file found. visited is keyed by walk path, without resolving symbolic links.
 func (dst *footprintScanner) scanDirectory(logger Logger, dir string, visited map[string]bool) error {
 	walkFn := func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

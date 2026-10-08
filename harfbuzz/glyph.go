@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // Position stores a position, scaled according to the `Font`
@@ -232,11 +233,11 @@ func (info *GlyphInfo) isContinuation() bool {
 func (info *GlyphInfo) clearContinuation() { info.unicode &= ^upropsMaskContinuation }
 
 func (info *GlyphInfo) isUnicodeSpace() bool {
-	return info.unicode.generalCategory() == spaceSeparator
+	return info.unicode.generalCategory() == ucd.Zs
 }
 
 func (info *GlyphInfo) isUnicodeFormat() bool {
-	return info.unicode.generalCategory() == format
+	return info.unicode.generalCategory() == ucd.Cf
 }
 
 func (info *GlyphInfo) isZwnj() bool {
@@ -248,7 +249,7 @@ func (info *GlyphInfo) isZwj() bool {
 }
 
 func (info *GlyphInfo) isUnicodeMark() bool {
-	return (info.unicode & upropsMaskGenCat).generalCategory().isMark()
+	return (info.unicode & upropsMaskGenCat).generalCategory().IsMark()
 }
 
 func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
@@ -362,21 +363,21 @@ func (info *GlyphInfo) isAatDeleted() bool {
 }
 
 func (info *GlyphInfo) setAatDeleted() {
-	info.setGeneralCategory(format)
+	info.setGeneralCategory(ucd.Cf)
 	info.unicode |= upropsMaskCfAatDeleted
 	info.unicode |= upropsMaskHidden
 }
 
 func (info *GlyphInfo) isVariationSelector() bool {
-	return info.unicode.generalCategory() == format && (info.unicode&upropsMaskCfVs) != 0
+	return info.unicode.generalCategory() == ucd.Cf && (info.unicode&upropsMaskCfVs) != 0
 }
 
 func (info *GlyphInfo) setVariationSelector(customize bool) {
 	if customize {
-		info.setGeneralCategory(format)
+		info.setGeneralCategory(ucd.Cf)
 		info.unicode |= upropsMaskCfVs
 	} else {
 		// Reset to their original condition
-		info.setGeneralCategory(nonSpacingMark)
+		info.setGeneralCategory(ucd.Mn)
 	}
 }

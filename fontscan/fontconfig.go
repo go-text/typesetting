@@ -35,7 +35,7 @@ func fcVarsFromEnv() fcVars {
 		xdgDataHome:   getEnvWithDefault("XDG_DATA_HOME", filepath.Join(home, ".local", "share")),
 		xdgConfigHome: getEnvWithDefault("XDG_CONFIG_HOME", filepath.Join(home, ".config")),
 		configFile:    getEnvWithDefault("FONTCONFIG_FILE", "fonts.conf"),
-		paths:         filepath.SplitList(getEnvWithDefault("$FONTCONFIG_PATH", "/etc/fonts")),
+		paths:         filepath.SplitList(getEnvWithDefault("FONTCONFIG_PATH", "/etc/fonts")),
 		sysroot:       os.Getenv("FONTCONFIG_SYSROOT"),
 		userHome:      home,
 	}
@@ -55,8 +55,8 @@ func (f fcVars) resolvePath(logger Logger, path string) string {
 		}
 		return path
 	}
-	if strings.HasPrefix(path, "~") {
-		path = filepath.Join(f.userHome, strings.TrimPrefix(path, "~"))
+	if after, ok := strings.CutPrefix(path, "~"); ok {
+		path = filepath.Join(f.userHome, after)
 		if hasSysroot {
 			path = filepath.Join(f.sysroot, path)
 		}

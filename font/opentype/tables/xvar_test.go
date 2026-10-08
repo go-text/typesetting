@@ -3,6 +3,7 @@
 package tables
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -249,6 +250,94 @@ func TestParseSTAT(t *testing.T) {
 
 		for _, axis := range stat.designAxes {
 			tu.Assert(t, names.Name(axis.NameID) != "")
+		}
+	}
+}
+
+func TestItemVarStoreOutOfRange(t *testing.T) {
+	store := ItemVarStore{
+		format: 1,
+		VariationRegionList: VariationRegionList{axisCount: 1, VariationRegions: []VariationRegion{
+			{RegionAxes: []RegionAxisCoordinates{{StartCoord: -1, PeakCoord: 1, EndCoord: 1}}},
+		}},
+		ItemVariationDatas: []ItemVariationData{{RegionIndexes: []uint16{3}, DeltaSets: [][]int16{{10}}}},
+	}
+	// region index 3 is out of range
+	tu.Assert(t, store.GetDelta(VariationStoreIndex{}, []Coord{1}) == 0)
+	// more coordinates than region axes
+	store.ItemVariationDatas[0].RegionIndexes[0] = 0
+	tu.Assert(t, store.GetDelta(VariationStoreIndex{}, []Coord{1, 1}) == 10)
+}
+
+func TestFvarNamedInstanceStride(t *testing.T) {
+	for _, size := range []int{8, 10} {
+		src := make([]byte, 36+2*size)
+		put16 := func(off int, v uint16) { binary.BigEndian.PutUint16(src[off:], v) }
+		put32 := func(off int, v uint32) { binary.BigEndian.PutUint32(src[off:], v) }
+		put16(0, 1)
+		put16(4, 16)
+		put16(6, 2)
+		put16(8, 1)
+		put16(10, 20)
+		put16(12, 2)
+		put16(14, uint16(size))
+		copy(src[16:], "wght")
+		put32(20, 1<<16)
+		put32(24, 1<<16)
+		put32(28, 2<<16)
+		put16(34, 256)
+		for i := 0; i < 2; i++ {
+			start := 36 + i*size
+			put16(start, uint16(257+i))
+			put32(start+4, uint32(i+1)<<16)
+			if size == 10 {
+				put16(start+8, uint16(300+i))
+			}
+		}
+		got, _, err := ParseFvar(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, instance := range got.Instances {
+			name := uint16(0)
+			if size == 10 {
+				name = uint16(300 + i)
+			}
+			if instance.SubfamilyNameID != uint16(257+i) || instance.Coordinates[0] != float32(i+1) || instance.PostScriptNameID != name {
+				t.Fatalf("record size %d, instance %d: wrong record %+v", size, i, instance)
+			}
+		}
+		if _, _, err := ParseFvar(src[:len(src)-1]); err == nil {
+			t.Fatal("accepted truncated instances")
+		}
+		put16(14, 7)
+		if _, _, err := ParseFvar(src); err == nil {
+			t.Fatal("accepted undersized instance records")
+		}
+	}
+}
+
+func TestFvarInstanceBounds(t *testing.T) {
+	src := make([]byte, 65535)
+	for _, test := range []struct {
+		name        string
+		count, size int
+	}{
+		{"header product overflows int32", 65535, 65535},
+		{"product overflows int", 2, int(^uint(0) >> 1)},
+		{"negative count", -1, 8},
+		{"negative size", 1, -1},
+		{"zero size", 1, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, _, err := ParseFvarRecords(src, 0, test.count, test.size); err == nil {
+				t.Fatal("accepted invalid instance dimensions")
+			}
+		})
+	}
+	for _, size := range []int{0, 8, 65535} {
+		if _, _, err := ParseFvarRecords(nil, 0, 0, size); err != nil {
+			t.Fatalf("empty instance list with size %d: %v", size, err)
 		}
 	}
 }

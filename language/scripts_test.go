@@ -36,10 +36,244 @@ func TestParseScript(t *testing.T) {
 }
 
 func TestLookupScript(t *testing.T) {
-	tu.Assert(t, LookupScript('a') == Latin)
-	tu.Assert(t, LookupScript('ل') == Arabic)
-	tu.Assert(t, LookupScript(0) == Common)
-	tu.Assert(t, LookupScript(0xFFFFFFF) == Unknown)
+	for _, test := range []struct {
+		r      rune
+		script Script
+	}{
+		{'a', Latin},
+		{'ل', Arabic},
+		{0, Common},
+		{0xFFFFFFF, Unknown},
+		// copied from harfbuzz
+		{0x002A, Common},
+		{0x0670, Inherited},
+		{0x060D, Arabic},
+		{0x0559, Armenian},
+		{0x09CD, Bengali},
+		{0x31B6, Bopomofo},
+		{0x13A2, Cherokee},
+		{0x2CFD, Coptic},
+		{0x0482, Cyrillic},
+		{0x10401, Deseret},
+		{0x094D, Devanagari},
+		{0x1258, Ethiopic},
+		{0x10FC, Georgian},
+		{0x10341, Gothic},
+		{0x0375, Greek},
+		{0x0A83, Gujarati},
+		{0x0A3C, Gurmukhi},
+		{0x3005, Han},
+		{0x1100, Hangul},
+		{0x05BF, Hebrew},
+		{0x309F, Hiragana},
+		{0x0CBC, Kannada},
+		{0x30FF, Katakana},
+		{0x17DD, Khmer},
+		{0x0EDD, Lao},
+		{0x0061, Latin},
+		{0x0D3D, Malayalam},
+		{0x1843, Mongolian},
+		{0x1031, Myanmar},
+		{0x169C, Ogham},
+		{0x10322, Old_Italic},
+		{0x0B3C, Oriya},
+		{0x16EF, Runic},
+		{0x0DBD, Sinhala},
+		{0x0711, Syriac},
+		{0x0B82, Tamil},
+		{0x0C03, Telugu},
+		{0x07B1, Thaana},
+		{0x0E31, Thai},
+		{0x0FD4, Tibetan},
+		// {0x1401, Canadian_Syllabics},
+		{0xA015, Yi},
+		{0x1700, Tagalog},
+		{0x1720, Hanunoo},
+		{0x1740, Buhid},
+		{0x1760, Tagbanwa},
+
+		/* Unicode-4.0 additions */
+		{0x2800, Braille},
+		{0x10808, Cypriot},
+		{0x1932, Limbu},
+		{0x10480, Osmanya},
+		{0x10450, Shavian},
+		{0x10000, Linear_B},
+		{0x1950, Tai_Le},
+		{0x1039F, Ugaritic},
+
+		/* Unicode-4.1 additions */
+		{0x1980, New_Tai_Lue},
+		{0x1A1F, Buginese},
+		{0x2C00, Glagolitic},
+		{0x2D6F, Tifinagh},
+		{0xA800, Syloti_Nagri},
+		{0x103D0, Old_Persian},
+		{0x10A3F, Kharoshthi},
+
+		/* Unicode-5.0 additions */
+		{0x0378, Unknown},
+		{0x1B04, Balinese},
+		{0x12000, Cuneiform},
+		{0x10900, Phoenician},
+		{0xA840, Phags_Pa},
+		{0x07C0, Nko},
+
+		/* Unicode-5.1 additions */
+		{0xA900, Kayah_Li},
+		{0x1C00, Lepcha},
+		{0xA930, Rejang},
+		{0x1B80, Sundanese},
+		{0xA880, Saurashtra},
+		{0xAA00, Cham},
+		{0x1C50, Ol_Chiki},
+		{0xA500, Vai},
+		{0x102A0, Carian},
+		{0x10280, Lycian},
+		{0x1093F, Lydian},
+
+		{0x111111, Unknown},
+
+		/* Unicode-5.2 additions */
+		{0x10B00, Avestan},
+		{0xA6A0, Bamum},
+		{0x1400, Canadian_Aboriginal},
+		{0x13000, Egyptian_Hieroglyphs},
+		{0x10840, Imperial_Aramaic},
+		{0x1CED, Inherited},
+		{0x10B60, Inscriptional_Pahlavi},
+		{0x10B40, Inscriptional_Parthian},
+		{0xA980, Javanese},
+		{0x11082, Kaithi},
+		{0xA4D0, Lisu},
+		{0xABE5, Meetei_Mayek},
+		{0x10A60, Old_South_Arabian},
+		{0x10C00, Old_Turkic},
+		{0x0800, Samaritan},
+		{0x1A20, Tai_Tham},
+		{0xAA80, Tai_Viet},
+
+		/* Unicode-6.0 additions */
+		{0x1BC0, Batak},
+		{0x11000, Brahmi},
+		{0x0840, Mandaic},
+
+		/* Unicode-6.1 additions */
+		{0x10980, Meroitic_Hieroglyphs},
+		{0x109A0, Meroitic_Cursive},
+		{0x110D0, Sora_Sompeng},
+		{0x11100, Chakma},
+		{0x11180, Sharada},
+		{0x11680, Takri},
+		{0x16F00, Miao},
+
+		/* Unicode-6.2 additions */
+		{0x20BA, Common},
+
+		/* Unicode-6.3 additions */
+		{0x2066, Common},
+
+		/* Unicode-7.0 additions */
+		{0x10350, Old_Permic},
+		{0x10500, Elbasan},
+		{0x10530, Caucasian_Albanian},
+		{0x10600, Linear_A},
+		{0x10860, Palmyrene},
+		{0x10880, Nabataean},
+		{0x10A80, Old_North_Arabian},
+		{0x10AC0, Manichaean},
+		{0x10B80, Psalter_Pahlavi},
+		{0x11150, Mahajani},
+		{0x11200, Khojki},
+		{0x112B0, Khudawadi},
+		{0x11300, Grantha},
+		{0x11480, Tirhuta},
+		{0x11580, Siddham},
+		{0x11600, Modi},
+		{0x118A0, Warang_Citi},
+		{0x11AC0, Pau_Cin_Hau},
+		{0x16A40, Mro},
+		{0x16AD0, Bassa_Vah},
+		{0x16B00, Pahawh_Hmong},
+		{0x1BC00, Duployan},
+		{0x1E800, Mende_Kikakui},
+
+		/* Unicode-8.0 additions */
+		{0x108E0, Hatran},
+		{0x10C80, Old_Hungarian},
+		{0x11280, Multani},
+		{0x11700, Ahom},
+		{0x14400, Anatolian_Hieroglyphs},
+		{0x1D800, SignWriting},
+
+		/* Unicode-9.0 additions */
+		{0x104B0, Osage},
+		{0x11400, Newa},
+		{0x11C00, Bhaiksuki},
+		{0x11C70, Marchen},
+		{0x17000, Tangut},
+		{0x1E900, Adlam},
+
+		/* Unicode-10.0 additions */
+		{0x11A00, Zanabazar_Square},
+		{0x11A50, Soyombo},
+		{0x11D00, Masaram_Gondi},
+		{0x1B170, Nushu},
+
+		/* Unicode-11.0 additions */
+		{0x10D00, Hanifi_Rohingya},
+		{0x10F00, Old_Sogdian},
+		{0x10F30, Sogdian},
+		{0x11800, Dogra},
+		{0x11D60, Gunjala_Gondi},
+		{0x11EE0, Makasar},
+		{0x16E40, Medefaidrin},
+
+		/* Unicode-12.0 additions */
+		{0x10FE0, Elymaic},
+		{0x119A0, Nandinagari},
+		{0x1E100, Nyiakeng_Puachue_Hmong},
+		{0x1E2C0, Wancho},
+
+		/* Unicode-12.1 additions */
+		{0x32FF, Common},
+
+		/* Unicode-13.0 additions */
+		{0x10E80, Yezidi},
+		{0x10FB0, Chorasmian},
+		{0x11900, Dives_Akuru},
+		{0x18B00, Khitan_Small_Script},
+
+		/* Unicode-14.0 additions */
+		{0x10570, Vithkuqi},
+		{0x10F70, Old_Uyghur},
+		{0x12F90, Cypro_Minoan},
+		{0x16A70, Tangsa},
+		{0x1E290, Toto},
+
+		/* Unicode-15.0 additions */
+		{0x11F00, Kawi},
+		{0x1E4D0, Nag_Mundari},
+
+		/* Unicode-16.0 additions */
+		{0x105C0, Todhri},
+		{0x10D40, Garay},
+		{0x11380, Tulu_Tigalari},
+		{0x11BC0, Sunuwar},
+		{0x16100, Gurung_Khema},
+		{0x16D40, Kirat_Rai},
+		{0x1E5D0, Ol_Onal},
+
+		/* Unicode-16.0 additions */
+		{0x10940, Sidetic},
+		{0x11DB0, Tolong_Siki},
+		{0x16EA0, Beria_Erfe},
+		{0x1E6C0, Tai_Yo},
+
+		{0x111111, Unknown},
+	} {
+		tu.Assert(t, LookupScript(test.r) == test.script)
+	}
 }
 
 func TestScript_String(t *testing.T) {

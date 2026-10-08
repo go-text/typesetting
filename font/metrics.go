@@ -204,15 +204,15 @@ func (f *Font) VariationGlyph(ch, varSelector rune) (GID, bool) {
 }
 
 // do not take into account variations
-func (f *Font) getBaseAdvance(gid gID, table tables.Hmtx, isVertical bool) int16 {
+func (f *Font) getBaseAdvance(gid gID, table tables.Hmtx, isVertical bool) uint16 {
 	/* If `table` is empty, it means we don't have the metrics table
 	 * for this direction: return default advance.  Otherwise, it means that the
 	 * glyph index is out of bound: return zero. */
 	if table.IsEmpty() {
 		if isVertical {
-			return int16(f.upem)
+			return f.upem
 		}
-		return int16(f.upem / 2)
+		return f.upem / 2
 	}
 
 	return table.Advance(gid)
@@ -226,11 +226,25 @@ func clamp(v float32) float32 {
 }
 
 func (f *Face) getGlyphAdvanceVar(gid gID, isVertical bool) float32 {
-	_, phantoms := f.getGlyfPoints(gid, false)
+	cache := &f.hAdvanceCache
 	if isVertical {
-		return clamp(phantoms[phantomTop].Y - phantoms[phantomBottom].Y)
+		cache = &f.vAdvanceCache
 	}
-	return clamp(phantoms[phantomRight].X - phantoms[phantomLeft].X)
+	if *cache == nil {
+		*cache = newAdvanceCache(f.nGlyphs)
+	}
+	if adv, ok := cache.get(gid); ok {
+		return adv
+	}
+	_, phantoms := f.getGlyfPoints(gid, false)
+	var adv float32
+	if isVertical {
+		adv = clamp(phantoms[phantomTop].Y - phantoms[phantomBottom].Y)
+	} else {
+		adv = clamp(phantoms[phantomRight].X - phantoms[phantomLeft].X)
+	}
+	cache.set(gid, adv)
+	return adv
 }
 
 func (f *Face) HorizontalAdvance(gid GID) float32 {
@@ -307,9 +321,6 @@ func (f *Face) GlyphVOrigin(glyph GID) (x, y float32) {
 }
 
 func (f *Face) getVOriginWithVar(gid gID) float32 {
-	if int(gid) >= f.nGlyphs {
-		return 0
-	}
 	_, phantoms := f.getGlyfPoints(gid, false)
 	return phantoms[phantomTop].Y
 }

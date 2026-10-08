@@ -3,8 +3,7 @@
 package shaping
 
 import (
-	"unicode"
-
+	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
@@ -12,7 +11,6 @@ import (
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 	"golang.org/x/image/math/fixed"
-	"golang.org/x/text/unicode/bidi"
 )
 
 type Input struct {
@@ -43,6 +41,9 @@ type Input struct {
 
 	// Language is an identifier for the language of the text.
 	Language language.Language
+
+	// Level is BIDI embedding level of this run.
+	Level bidi.Level
 }
 
 // FontFeature sets one font feature.
@@ -119,7 +120,7 @@ func SplitByFontGlyphs(input Input, availableFaces []*font.Face) []Input {
 // the return value of the [Fontmap.ResolveFace] call.
 // The 'Face' field of 'input' is ignored: only 'availableFaces' is used to select the face.
 func SplitByFace(input Input, availableFaces Fontmap) []Input {
-	return splitByFace(input, availableFaces, nil)
+	return splitByFace(input, availableFaces, nil, true)
 }
 
 // Segmenter holds a state used to split input
@@ -157,6 +158,7 @@ type delimEntry struct {
 //   - Script
 //   - Language
 //   - Face
+//   - Level
 //
 // [text.Direction] is used during bidi ordering, and should refer to the general
 // context [text] is used in (typically the user system preference for GUI apps.)
@@ -173,7 +175,8 @@ func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	seg.reset()
 	seg.splitByBidi(text) // fills output
 
-	seg.input, seg.output = seg.output, seg.input // output is empty
+	seg.input, seg.output = seg.output, seg.input
+	seg.output = seg.output[:0] // reset but keep underlyng storage
 	seg.splitByScript()
 
 	seg.enforceLanguages()
@@ -181,7 +184,7 @@ func (seg *Segmenter) Split(text Input, faces Fontmap) []Input {
 	// if needed, resolve text orientation for vertical text
 	if text.Direction.IsVertical() && !text.Direction.HasVerticalOrientation() {
 		seg.input, seg.output = seg.output, seg.input
-		seg.output = seg.output[:0]
+		seg.output = seg.output[:0] // reset but keep underlyng storage
 		seg.splitByVertOrientation()
 	}
 
@@ -205,46 +208,67 @@ func (seg *Segmenter) reset() {
 	seg.input = seg.input[:0]
 	seg.output = seg.output[:0]
 
-	// bidiParagraph is reset when using SetString
-
 	seg.delimStack = seg.delimStack[:0]
 }
 
+// we split vertical text like horizontal one
 func (seg *Segmenter) splitByBidi(text Input) {
-	// split vertical text like horizontal one
+	// do nothing for empty runs
 	if text.RunStart >= text.RunEnd {
 		seg.output = append(seg.output, text)
 		return
 	}
+
 	def := bidi.LeftToRight
 	if text.Direction.Progression() == di.TowardTopLeft {
 		def = bidi.RightToLeft
 	}
-	seg.bidiParagraph.SetString(string(text.Text[text.RunStart:text.RunEnd]), bidi.DefaultDirection(def))
-	out, err := seg.bidiParagraph.Order()
-	if err != nil || out.NumRuns() == 0 {
-		seg.output = append(seg.output, text)
-		return
+
+	// our BIDI implementation does not handle multiple paragraphs
+	currentStart := text.RunStart
+	for i := text.RunStart; i < text.RunEnd; i++ {
+		if ucd.IsBidiB(text.Text[i]) {
+			// we have a break : keep the separator on this
+			// paragraph and create a new run
+			newRun := text
+			newRun.RunStart, newRun.RunEnd = currentStart, i+1
+			currentStart = i + 1
+			seg.input = append(seg.input, newRun)
+		}
+	}
+	// flush the last run, if not empty
+	if currentStart < text.RunEnd {
+		newRun := text
+		newRun.RunStart = currentStart
+		seg.input = append(seg.input, newRun)
 	}
 
-	input := text // start a rune 0 of the run
-	for i := 0; i < out.NumRuns(); i++ {
-		currentInput := input
-		run := out.Run(i)
-		dir := run.Direction()
-		_, endRune := run.Pos()
-		endRune += text.RunStart // shift by the input run position
-		currentInput.RunEnd = endRune + 1
-
-		// override the direction
-		if dir == bidi.RightToLeft {
-			currentInput.Direction.SetProgression(di.TowardTopLeft)
-		} else {
-			currentInput.Direction.SetProgression(di.FromTopLeft)
+	// apply BIDI on each paragraph
+	for _, inputRun := range seg.input {
+		out := seg.bidiParagraph.Segment(inputRun.Text[inputRun.RunStart:inputRun.RunEnd], def)
+		if out.NumRuns() == 0 {
+			seg.output = append(seg.output, inputRun)
+			continue
 		}
 
-		seg.output = append(seg.output, currentInput)
-		input.RunStart = currentInput.RunEnd
+		input := inputRun // start at rune 0 of the run
+		for i := 0; i < out.NumRuns(); i++ {
+			currentInput := input
+			innerRun := out.Run(i)
+
+			currentInput.RunEnd = innerRun.End + inputRun.RunStart // shift by the input run position
+			currentInput.Level = innerRun.Level
+
+			// override the direction
+			if innerRun.IsLeftToRight() {
+				currentInput.Direction.SetProgression(di.FromTopLeft)
+			} else {
+				currentInput.Direction.SetProgression(di.TowardTopLeft)
+			}
+
+			seg.output = append(seg.output, currentInput)
+			input.RunStart = currentInput.RunEnd
+		}
 	}
 }
 
@@ -397,22 +421,40 @@ func (seg *Segmenter) splitByVertOrientation() {
 // assume [splitByScript] has been called
 func (seg *Segmenter) splitByFace(faces Fontmap) {
 	withScript, hasScriptSupport := faces.(FontmapScript)
-	for _, input := range seg.input {
+	lastRunWithoutFace := -1
+	for i, input := range seg.input {
 		if hasScriptSupport {
 			withScript.SetScript(input.Script)
 		}
-		seg.output = splitByFace(input, faces, seg.output)
+		isLast := i == len(seg.input)-1
+		L := len(seg.output)
+		seg.output = splitByFace(input, faces, seg.output, isLast)
+		if face := seg.output[L].Face; face != nil {
+			if lastRunWithoutFace != -1 {
+				// apply it back
+				for k := lastRunWithoutFace; k < L; k++ {
+					seg.output[k].Face = face
+				}
+				// reset the marker
+				lastRunWithoutFace = -1
+			}
+		} else {
+			// in this case, only one run has been added by splitByFace
+			if lastRunWithoutFace == -1 {
+				lastRunWithoutFace = L
+			}
+		}
 	}
 }
 
-func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
+func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast bool) []Input {
 	currentInput := input
 	for i := input.RunStart; i < input.RunEnd; i++ {
 		r := input.Text[i]
 		// We can safely ignore characters if we have a face or if there is more text,
 		// but we must force the choice of a face if we still don't have one and we reach
 		// the final rune. Otherwise strings like all-whitespace are never assigned a face.
-		if ignoreFaceChange(r) && (currentInput.Face != nil || i < input.RunEnd-1) {
+		if ignoreFaceChange(r) && (currentInput.Face != nil || !isLast || i < input.RunEnd-1) {
 			// add the rune to the current input
 			continue
 		}
@@ -472,11 +514,12 @@ func splitByFace(input Input, availableFaces Fontmap, buffer []Input) []Input {
 // https://bugzilla.gnome.org/show_bug.cgi?id=781123
 // for more details.
 func ignoreFaceChange(r rune) bool {
-	return unicode.Is(ucd.Cc, r) || // control
-		unicode.Is(ucd.Cs, r) || // surrogate
-		unicode.Is(ucd.Zl, r) || // line separator
-		unicode.Is(ucd.Zp, r) || // paragraph separator
-		(unicode.Is(ucd.Zs, r) && r != '\u1680') || // space separator != OGHAM SPACE MARK
+	g := ucd.LookupGeneralCategory(r)
+	return g == ucd.Cc || // control
+		g == ucd.Cs || // surrogate
+		g == ucd.Zl || // line separator
+		g == ucd.Zp || // paragraph separator
+		(g == ucd.Zs && r != '\u1680') || // space separator != OGHAM SPACE MARK
 		harfbuzz.IsDefaultIgnorable(r)
 }
 

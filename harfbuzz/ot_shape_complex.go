@@ -3,6 +3,7 @@ package harfbuzz
 import (
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 	"github.com/go-text/typesetting/language"
 )
 
@@ -183,11 +184,11 @@ func (complexShaperNil) collectFeatures(plan *otShapePlanner)  {}
 func (complexShaperNil) overrideFeatures(plan *otShapePlanner) {}
 func (complexShaperNil) dataCreate(plan *otShapePlan)          {}
 func (complexShaperNil) decompose(_ *otNormalizeContext, ab rune) (a, b rune, ok bool) {
-	return uni.decompose(ab)
+	return ucd.Decompose(ab)
 }
 
 func (complexShaperNil) compose(_ *otNormalizeContext, a, b rune) (ab rune, ok bool) {
-	return uni.compose(a, b)
+	return ucd.Compose(a, b)
 }
 func (complexShaperNil) preprocessText(*otShapePlan, *Buffer, *Font) {}
 func (complexShaperNil) postprocessGlyphs(*otShapePlan, *Buffer, *Font) {

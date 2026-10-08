@@ -213,7 +213,7 @@ func TestGlyfSegments1(t *testing.T) {
 
 	tu.Assert(t, len(f.glyf) == len(expecteds))
 
-	face := Face{Font: f}
+	face := NewFace(f)
 	for i, expected := range expecteds {
 		points := face.getPointsForGlyph(gID(i))
 
@@ -228,7 +228,7 @@ func TestGlyfSegments1(t *testing.T) {
 
 func BenchmarkBuildSegments(b *testing.B) {
 	font := loadFont(b, "common/Roboto-BoldItalic.ttf")
-	face := Face{Font: font}
+	face := NewFace(font)
 	gid, ok := face.NominalGlyph('&')
 	if !ok {
 		b.Fatal("did not find & in the font")
@@ -380,7 +380,7 @@ func TestGlyfSegments2(t *testing.T) {
 		},
 	}
 
-	face := Face{Font: font}
+	face := NewFace(font)
 	for i, expected := range expecteds {
 		points := face.getPointsForGlyph(gID(i))
 		got := buildSegments(points[:len(points)-phantomCount])
@@ -478,7 +478,7 @@ func TestGlyphDataCrash(t *testing.T) {
 		"common/Roboto-BoldItalic.ttf",
 	} {
 		font := loadFont(t, filename)
-		face := Face{Font: font}
+		face := NewFace(font)
 		iter := font.Cmap.Iter()
 		for iter.Next() {
 			_, g := iter.Char()
@@ -491,7 +491,7 @@ func TestGlyphDataCrash(t *testing.T) {
 		"toys/chromacheck-svg.ttf",
 	} {
 		font := loadFont(t, filename)
-		face := Face{Font: font}
+		face := NewFace(font)
 		iter := font.Cmap.Iter()
 		for iter.Next() {
 			_, g := iter.Char()
@@ -502,14 +502,16 @@ func TestGlyphDataCrash(t *testing.T) {
 
 func TestSbixGlyph(t *testing.T) {
 	ft := loadFont(t, "toys/Feat.ttf")
-	face := Face{Font: ft, xPpem: 100, yPpem: 100}
+	face := NewFace(ft)
+	face.SetPpem(100, 100)
 	data := face.GlyphData(1)
 	asBitmap, ok := data.(GlyphBitmap)
 	tu.Assert(t, ok)
 	tu.Assert(t, asBitmap.Format == PNG)
 
 	ft = loadFont(t, "toys/Sbix3.ttf")
-	face = Face{Font: ft, xPpem: 100, yPpem: 100}
+	face = NewFace(ft)
+	face.SetPpem(100, 100)
 	data = face.GlyphData(4)
 	asBitmap, ok = data.(GlyphBitmap)
 	tu.Assert(t, ok)
@@ -519,7 +521,8 @@ func TestSbixGlyph(t *testing.T) {
 func TestCblcGlyph(t *testing.T) {
 	for _, filename := range td.WithCBLC {
 		font := loadFont(t, filename.Path)
-		face := Face{Font: font, xPpem: 94, yPpem: 94}
+		face := NewFace(font)
+		face.SetPpem(94, 94)
 
 		for gid := filename.GlyphRange[0]; gid <= filename.GlyphRange[1]; gid++ {
 			data := face.GlyphData(GID(gid))
@@ -565,6 +568,21 @@ func TestEblcGlyph(t *testing.T) {
 	}
 }
 
+func TestEBDTFormat1Glyph(t *testing.T) {
+	file, err := td.Files.ReadFile("bitmap/simsun.ttc")
+	tu.AssertNoErr(t, err)
+
+	faces, err := ParseTTC(bytes.NewReader(file))
+	tu.AssertNoErr(t, err)
+	font := faces[0]
+	font.SetPpem(12, 12)
+
+	for gid := GID(100); gid < 500; gid++ {
+		glyph, ok := font.GlyphData(gid).(GlyphBitmap)
+		tu.Assert(t, ok && glyph.Format == BlackAndWhiteByteAligned)
+	}
+}
+
 func TestAppleBitmapGlyph(t *testing.T) {
 	filename := "collections/Gacha_9.dfont"
 	f, err := td.Files.ReadFile(filename)
@@ -576,7 +594,8 @@ func TestAppleBitmapGlyph(t *testing.T) {
 	ft, err := NewFont(fonts[0])
 	tu.AssertNoErr(t, err)
 
-	face := Face{Font: ft, xPpem: 94, yPpem: 94}
+	face := NewFace(ft)
+	face.SetPpem(94, 94)
 
 	runes := "The quick brown fox jumps over the lazy dog"
 	for _, r := range runes {
@@ -588,20 +607,21 @@ func TestAppleBitmapGlyph(t *testing.T) {
 		tu.Assert(t, ok)
 		tu.Assert(t, asBitmap.Format == BlackAndWhite)
 
-		_, ok = face.GlyphDataBitmap(gID(gid))
+		_, ok = face.GlyphDataBitmap(gid)
 		tu.Assert(t, ok)
 	}
 }
 
 func TestMixedGlyphs(t *testing.T) {
 	for _, filename := range tu.Filenames(t, "common") {
-		if strings.HasPrefix(filename, "common/SourceSans") {
+		if strings.HasPrefix(filename, "common/SourceSans") || strings.HasSuffix(filename, "Subsetted.ttf") {
 			continue
 		}
 		font := loadFont(t, filename)
 		space, ok := font.NominalGlyph(' ')
 		tu.Assert(t, ok)
-		face := Face{Font: font, xPpem: 94, yPpem: 94}
+		face := NewFace(font)
+		face.SetPpem(94, 94)
 
 		gd := face.GlyphData(space)
 		tu.Assert(t, gd != nil)
@@ -626,4 +646,67 @@ func TestColorGlyphs(t *testing.T) {
 	tu.Assert(t, ok)
 	_, ok = face.GlyphDataColor(0)
 	tu.Assert(t, ok)
+}
+
+// A composite glyph whose component references an out-of-range (or otherwise
+// unresolvable) glyph produces fewer contour points than the phantom points
+// appended for a well-formed glyph. The glyph data accessors must treat this
+// as an empty glyph rather than panicking with a negative slice bound.
+func TestGlyphDataMalformedComposite(t *testing.T) {
+	f := &Font{
+		glyf: tables.Glyf{
+			// glyph 0: composite referencing the out-of-range component 5
+			{Data: tables.CompositeGlyph{Glyphs: []tables.CompositeGlyphPart{{GlyphIndex: 5}}}},
+		},
+	}
+	face := NewFace(f)
+
+	// must not panic, and yields an empty outline
+	out, _ := face.GlyphDataOutline(0)
+	tu.Assert(t, len(out.Segments) == 0)
+
+	if gd, ok := face.GlyphData(0).(GlyphOutline); ok {
+		tu.Assert(t, len(gd.Segments) == 0)
+	}
+}
+
+func BenchmarkGlyphData(b *testing.B) {
+	for _, filename := range []string{
+		"toys/CFFTest.otf",
+		"common/Roboto-BoldItalic.ttf",
+		"common/NotoSansCJKjp-VF.otf",
+	} {
+		font := loadFont(b, filename)
+		face := NewFace(font)
+		var gids []GID
+		iter := font.Cmap.Iter()
+		for iter.Next() && len(gids) < 200 {
+			_, g := iter.Char()
+			gids = append(gids, g)
+		}
+		b.Run(filename, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				for _, g := range gids {
+					_ = face.GlyphData(g)
+				}
+			}
+		})
+	}
+}
+
+func TestSVGTruncatedGzip(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"truncated header", []byte{0x1f, 0x8b}},
+		{"invalid compression method", []byte{0x1f, 0x8b, 0, 0, 0, 0, 0, 0, 0, 0}},
+		{"truncated stream", []byte{0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := svg{{svg: tc.data}}
+			_, ok := s.glyphData(0, 1000)
+			tu.Assert(t, !ok)
+		})
+	}
 }

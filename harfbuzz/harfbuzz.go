@@ -259,13 +259,18 @@ func (p *parser) parseChar(c byte) bool {
 }
 
 func (p *parser) parseUint32() (uint32, bool) {
+	p.skipSpaces()
 	start := p.pos
 	// go to the next space
 	for p.pos < len(p.data) && isAlnum(p.data[p.pos]) {
 		p.pos++
 	}
-	out, err := strconv.Atoi(string(p.data[start:p.pos]))
-	return uint32(out), err == nil
+	out, err := strconv.ParseUint(string(p.data[start:p.pos]), 10, 32)
+	if err != nil {
+		p.pos = start
+		return 0, false
+	}
+	return uint32(out), true
 }
 
 func (p *parser) parseBool() (uint32, bool) {
@@ -298,7 +303,7 @@ func (p *parser) parseTag() (ot.Tag, error) {
 	}
 
 	start := p.pos
-	for p.pos < len(p.data) && (p.data[p.pos] != ' ' && p.data[p.pos] != '=' && p.data[p.pos] != '[' && p.data[p.pos] != quote) {
+	for p.pos < len(p.data) && (!isSpace(p.data[p.pos]) && p.data[p.pos] != '=' && p.data[p.pos] != '[' && p.data[p.pos] != quote) {
 		p.pos++
 	}
 
@@ -328,6 +333,7 @@ func (p *parser) parseTag() (ot.Tag, error) {
 
 func (p *parser) parseVariationValue() (float32, error) {
 	p.parseChar('=') // Optional.
+	p.skipSpaces()
 	start := p.pos
 	// go to the next space
 	for p.pos < len(p.data) && !isSpace(p.data[p.pos]) {
@@ -347,6 +353,9 @@ func (p *parser) parseOneVariation() (vari font.Variation, err error) {
 		return
 	}
 	p.skipSpaces()
+	if p.pos != len(p.data) {
+		err = errors.New("unexpected trailing variation data")
+	}
 	return
 }
 
@@ -360,14 +369,23 @@ func (p *parser) parseFeatureIndices() (start, end int, err error) {
 	}
 
 	startU, hasStart := p.parseUint32()
+	if uint64(startU) > uint64(maxInt) {
+		return 0, 0, errors.New("feature start index out of range")
+	}
 	start = int(startU)
 
 	if p.parseChar(':') || p.parseChar(';') {
 		if endU, ok := p.parseUint32(); ok {
+			if uint64(endU) > uint64(maxInt) {
+				return 0, 0, errors.New("feature end index out of range")
+			}
 			end = int(endU)
 		}
 	} else {
 		if hasStart {
+			if start == maxInt {
+				return 0, 0, errors.New("feature end index out of range")
+			}
 			end = start + 1
 		}
 	}
@@ -377,22 +395,6 @@ func (p *parser) parseFeatureIndices() (start, end int, err error) {
 	}
 
 	return start, end, nil
-}
-
-// return true if a value was specified
-func (p *parser) parseFeatureValuePostfix() (uint32, bool) {
-	/* CSS doesn't use equal-sign between tag and value.
-	 * If there was an equal-sign, then there *must* be a value.
-	 * A value without an equal-sign is ok, but not required. */
-	p.parseChar('=')
-
-	pos := p.pos
-	val, hadValue := p.parseUint32()
-	if !hadValue { // retry for a bool
-		p.pos = pos
-		val, hadValue = p.parseBool()
-	}
-	return val, hadValue
 }
 
 func (p *parser) parseFeatureValuePrefix() uint32 {
@@ -414,10 +416,23 @@ func (p *parser) parseOneFeature() (feature Feature, err error) {
 	if err != nil {
 		return feature, err
 	}
-	if val, ok := p.parseFeatureValuePostfix(); ok {
+	/* CSS doesn't use equal-sign between tag and value.
+	 * If there was an equal-sign, then there *must* be a value.
+	 * A value without an equal-sign is ok, but not required. */
+	if hasEquals := p.parseChar('='); hasEquals || p.pos < len(p.data) {
+		val, ok := p.parseUint32()
+		if !ok {
+			val, ok = p.parseBool()
+		}
+		if !ok {
+			return feature, errors.New("invalid feature value")
+		}
 		feature.Value = val
 	}
 	p.skipSpaces()
+	if p.pos != len(p.data) {
+		return feature, errors.New("unexpected trailing feature data")
+	}
 	return feature, nil
 }
 
@@ -460,48 +475,6 @@ func (p *parser) parseOneFeature() (feature Feature, err error) {
 func ParseFeature(feature string) (Feature, error) {
 	pr := parser{data: []byte(feature)}
 	return pr.parseOneFeature()
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func min8(a, b uint8) uint8 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func max32(a, b uint32) uint32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func minF(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxF(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func isAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }

@@ -9,8 +9,6 @@ import (
 	"github.com/go-text/typesetting/font/opentype/tables"
 )
 
-//go:generate ../../../../typesetting-utils/generators/binarygen/cmd/generator . _src.go
-
 // CFF2 represents a parsed 'CFF2' Opentype table.
 type CFF2 struct {
 	fdSelect fdSelect // maybe nil if there is only one font dict
@@ -78,6 +76,9 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		return nil, err
 	}
 
+	if len(fdIndex) == 0 {
+		return nil, errors.New("reading font dicts: empty FDArray")
+	}
 	out.fonts = make([]privateFonts, len(fdIndex))
 	// private dict reference
 	for i, font := range fdIndex {
@@ -86,8 +87,11 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading font dict: %s", err)
 		}
-		end := int(fd.privateDictOffset + fd.privateDictSize)
-		if L := len(src); L < end {
+		if fd.privateDictOffset < 0 || fd.privateDictSize < 0 {
+			return nil, fmt.Errorf("reading private dict: invalid offset %d or size %d", fd.privateDictOffset, fd.privateDictSize)
+		}
+		end := int64(fd.privateDictOffset) + int64(fd.privateDictSize)
+		if L := len(src); int64(L) < end {
 			return nil, fmt.Errorf("reading private dict: EOF: expected length: %d, got %d", end, L)
 		}
 		// parse private dict
@@ -100,7 +104,13 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 		out.fonts[i].defaultVSIndex = pd.vsindex
 		// if required, parse the local subroutines
 		if pd.subrsOffset != 0 {
-			out.fonts[i].localSubrs, err = parseIndex2(src, int(pd.subrsOffset))
+			// "The local subrs offset is relative to the beginning of the
+			// Private DICT data" (5176.CFF.pdf section 15, and CFF2 section
+			// 10), so it is measured from the Private DICT, not from the start
+			// of the table. The CFF1 parser does this correctly; see
+			// parsePrivateDict.
+			subrsOffset := int(fd.privateDictOffset) + int(pd.subrsOffset)
+			out.fonts[i].localSubrs, err = parseIndex2(src, subrsOffset)
 			if err != nil {
 				return nil, err
 			}
@@ -109,7 +119,7 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 
 	if len(fdIndex) > 1 {
 		// parse the fdSelect
-		if L := len(src); L < int(tp.fdSelect) {
+		if L := len(src); tp.fdSelect < 0 || L < int(tp.fdSelect) {
 			return nil, fmt.Errorf("reading fdSelect: EOF: expected length: %d, got %d", tp.fdSelect, L)
 		}
 		out.fdSelect, _, err = parseFdSelect(src[tp.fdSelect:], len(out.Charstrings))
@@ -127,15 +137,16 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 	// parse variation store
 	if tp.vstore != 0 {
 		// See https://learn.microsoft.com/en-us/typography/opentype/spec/cff2#variationstore-data-contents
-		if E, L := int(tp.vstore)+2, len(src); L < E {
+		if E, L := int64(tp.vstore)+2, len(src); tp.vstore < 0 || int64(L) < E {
 			return nil, fmt.Errorf("reading variation store: EOF: expected length: %d, got %d", E, L)
 		}
 		size := int(binary.BigEndian.Uint16(src[tp.vstore:]))
-		end := int(tp.vstore) + 2 + size
-		if L := len(src); L < end {
+		start := int64(tp.vstore) + 2
+		end := start + int64(size)
+		if L := len(src); int64(L) < end {
 			return nil, fmt.Errorf("reading variation store: EOF: expected length: %d, got %d", end, L)
 		}
-		vstore := src[tp.vstore+2 : end]
+		vstore := src[start:end]
 		out.VarStore, _, err = tables.ParseItemVarStore(vstore)
 		if err != nil {
 			return nil, err
@@ -145,12 +156,23 @@ func ParseCFF2(src []byte) (*CFF2, error) {
 }
 
 func parseIndex2(src []byte, offset int) ([][]byte, error) {
-	if L := len(src); L < offset+5 {
-		return nil, fmt.Errorf("reading INDEX: EOF: expected length: %d, got %d", offset+5, L)
+	if offset < 0 || offset > len(src) {
+		return nil, fmt.Errorf("reading INDEX: invalid offset %d", offset)
+	}
+	src = src[offset:]
+	if len(src) < 4 {
+		return nil, errors.New("reading INDEX: missing count")
+	}
+	// An empty INDEX has only the four-byte count and no offSize.
+	if binary.BigEndian.Uint32(src) == 0 {
+		return nil, nil
+	}
+	if len(src) < 5 {
+		return nil, errors.New("reading INDEX: missing offSize")
 	}
 	var is indexStart
-	is.mustParse(src[offset:])
-	out, _, err := parseIndexContent(src[offset+5:], is)
+	is.mustParse(src)
+	out, _, err := parseIndexContent(src[5:], is)
 	return out, err
 }
 

@@ -19,7 +19,7 @@ func TestParseCrashers(t *testing.T) {
 	for range [50]int{} {
 		L := rand.Intn(100)
 		input := make([]byte, L)
-		rand.Read(input)
+		rand.New(rand.NewSource(int64(L))).Read(input)
 
 		_, err = NewLoader(bytes.NewReader(input))
 		tu.Assert(t, err != nil)
@@ -76,5 +76,27 @@ func TestRawTable(t *testing.T) {
 
 		_, err = font.RawTable(MustNewTag("OS/2"))
 		tu.AssertC(t, err == nil, filename)
+	}
+}
+
+// shortReader returns at most one byte per Read call
+type shortReader struct{ *bytes.Reader }
+
+func (s shortReader) Read(p []byte) (int, error) {
+	if len(p) > 1 {
+		p = p[:1]
+	}
+	return s.Reader.Read(p)
+}
+
+func TestShortReads(t *testing.T) {
+	for _, file := range td.WithOTLayout[:1] {
+		content, err := td.Files.ReadFile(file)
+		tu.AssertNoErr(t, err)
+		short, err := NewLoader(shortReader{bytes.NewReader(content)})
+		tu.AssertNoErr(t, err)
+		full, err := NewLoader(bytes.NewReader(content))
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, len(short.tables) == len(full.tables))
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/font/opentype/tables"
+	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
 // Support functions for OpenType shaping related queries.
@@ -390,7 +391,7 @@ func (c *otContext) otRotateChars() {
 		rtlmMask := c.plan.rtlmMask
 
 		for i := range info {
-			codepoint := uni.mirroring(info[i].codepoint)
+			codepoint := ucd.LookupMirrorChar(info[i].codepoint)
 			if codepoint != info[i].codepoint && c.font.hasGlyph(codepoint) {
 				info[i].codepoint = codepoint
 			} else {
@@ -430,10 +431,10 @@ func (c *otContext) setupMasksFraction() {
 	for i := 0; i < count; i++ {
 		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
-			for start != 0 && info[start-1].unicode.generalCategory() == decimalNumber {
+			for start != 0 && info[start-1].unicode.generalCategory() == ucd.Nd {
 				start--
 			}
-			for end < count && info[end].unicode.generalCategory() == decimalNumber {
+			for end < count && info[end].unicode.generalCategory() == ucd.Nd {
 				end++
 			}
 
@@ -527,11 +528,8 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 
 	info := buffer.Info
 
-	var (
-		invisible = buffer.Invisible
-		ok        bool
-	)
-	if invisible == 0 {
+	invisible, ok := buffer.Invisible, buffer.Invisible != 0
+	if !ok {
 		invisible, ok = font.face.NominalGlyph(' ')
 	}
 	if buffer.Flags&RemoveDefaultIgnorables == 0 && ok {
@@ -542,7 +540,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 			}
 		}
 	} else {
-		otLayoutDeleteGlyphsInplace(buffer, (*GlyphInfo).isDefaultIgnorable)
+		buffer.deleteGlyphsInplace((*GlyphInfo).isDefaultIgnorable)
 	}
 }
 
@@ -559,7 +557,7 @@ func synthesizeGlyphClasses(buffer *Buffer) {
 		 * GDEF rely on this.  Another notable character that
 		 * this applies to is COMBINING GRAPHEME JOINER. */
 		class := tables.GPMark
-		if info[i].unicode.generalCategory() != nonSpacingMark || info[i].isDefaultIgnorable() {
+		if info[i].unicode.generalCategory() != ucd.Mn || info[i].isDefaultIgnorable() {
 			class = tables.GPBaseGlyph
 		}
 

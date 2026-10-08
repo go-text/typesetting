@@ -55,11 +55,17 @@ const maxCompositeNesting = 20 // protect against malicious fonts
 
 // use the `glyf` table to fetch the contour points,
 // applying variation if needed.
-// for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
+// for composite, recursively calls itself; allPoints includes phantom points and is
+// always at least of length phantomCount, even for a missing, too-deeply-nested or
+// otherwise malformed glyph (in which case an empty-but-valid outline is produced).
 func (f *Face) getPointsForGlyphRec(gid tables.GlyphID, currentDepth int, currentGlyphs glyphSet, allPoints *[]contourPoint /* OUT */) {
 	// adapted from harfbuzz/src/OT/glyf/Glyph.hh
 
 	if currentDepth > maxCompositeNesting || int(gid) >= len(f.glyf) {
+		// The glyph is missing or too deeply nested; still contribute the
+		// phantom points so the invariant documented above holds and callers
+		// never see a slice shorter than phantomCount.
+		*allPoints = append(*allPoints, make([]contourPoint, phantomCount)...)
 		return
 	}
 
@@ -104,11 +110,9 @@ func (f *Face) getPointsForGlyphRec(gid tables.GlyphID, currentDepth int, curren
 
 			f.getPointsForGlyphRec(item.GlyphIndex, currentDepth+1, currentGlyphs, &compPoints)
 
+			// getPointsForGlyphRec guarantees at least the phantom points, so a
+			// component always contributes a well-formed slice here.
 			LC := len(compPoints)
-			if LC < phantomCount { // in case of max depth reached
-				delete(currentGlyphs, item.GlyphIndex)
-				return
-			}
 
 			/* Copy phantom points from component if USE_MY_METRICS flag set */
 			if item.HasUseMyMetrics() {
@@ -191,10 +195,10 @@ func extentsFromPoints(allPoints []contourPoint) (ext GlyphExtents) {
 	minX, minY := truePoints[0].X, truePoints[0].Y
 	maxX, maxY := minX, minY
 	for _, p := range truePoints {
-		minX = minF(minX, p.X)
-		minY = minF(minY, p.Y)
-		maxX = maxF(maxX, p.X)
-		maxY = maxF(maxY, p.Y)
+		minX = min(minX, p.X)
+		minY = min(minY, p.Y)
+		maxX = max(maxX, p.X)
+		maxY = max(maxY, p.Y)
 	}
 	ext.XBearing = minX
 	ext.YBearing = maxY
@@ -218,48 +222,6 @@ func (f *Face) getGlyfPoints(gid tables.GlyphID, computeExtents bool) (ext Glyph
 	}
 
 	return ext, ph
-}
-
-func min16(a, b int16) int16 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max16(a, b int16) int16 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func minC(a, b VarCoord) VarCoord {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxC(a, b VarCoord) VarCoord {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func minF(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxF(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func transformPoints(c *tables.CompositeGlyphPart, points []contourPoint) {
@@ -294,9 +256,9 @@ func getGlyphExtents(g tables.Glyph, metrics tables.Hmtx, gid gID) GlyphExtents 
 	/* extents.XBearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
 	extents.XBearing = float32(metrics.SideBearing(gid))
 
-	extents.YBearing = float32(max16(g.YMin, g.YMax))
-	extents.Width = float32(max16(g.XMin, g.XMax) - min16(g.XMin, g.XMax))
-	extents.Height = float32(min16(g.YMin, g.YMax) - max16(g.YMin, g.YMax))
+	extents.YBearing = float32(max(g.YMin, g.YMax))
+	extents.Width = float32(max(g.XMin, g.XMax) - min(g.XMin, g.XMax))
+	extents.Height = float32(min(g.YMin, g.YMax) - max(g.YMin, g.YMax))
 	return extents
 }
 

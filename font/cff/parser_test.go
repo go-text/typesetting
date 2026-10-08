@@ -4,8 +4,10 @@ package cff
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"reflect"
+	"sync"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
@@ -154,4 +156,400 @@ func TestIssue122(t *testing.T) {
 	// computed, even if the user has not activated variations
 	segments, _, _ := out.LoadGlyph(38, nil)
 	tu.Assert(t, len(segments) == 12)
+}
+
+// TestCFF2LocalSubrs covers a CFF2 font whose Private DICT declares local
+// subroutines. The Subrs offset is relative to the Private DICT, not to the
+// start of the table, so resolving it from the wrong base reads an arbitrary
+// position: with this fixture that lands on a byte giving offSize 140 and the
+// table is rejected outright, and on other fonts it can present a count of
+// hundreds of millions, or an offSize of 0.
+//
+// Because NewFont discards the error from loadCff2, a font in that state loads
+// with no CFF2 outlines at all rather than failing, which is why this went
+// unnoticed: the only other CFF2 fixture, NotoSansCJKjp-VF.otf, declares no
+// local subroutines and so never reaches the code.
+func TestCFF2LocalSubrs(t *testing.T) {
+	b, err := td.Files.ReadFile("toys/CFF2-VF.otf")
+	tu.AssertNoErr(t, err)
+
+	ft, err := ot.NewLoader(bytes.NewReader(b))
+	tu.AssertNoErr(t, err)
+
+	table, err := ft.RawTable(ot.MustNewTag("CFF2"))
+	tu.AssertNoErr(t, err)
+
+	out, err := ParseCFF2(table)
+	tu.AssertNoErr(t, err)
+
+	// the fixture declares local subroutines; if it stops doing so this test
+	// no longer covers anything and should be pointed at another font
+	nSubrs := 0
+	for _, f := range out.fonts {
+		nSubrs += len(f.localSubrs)
+	}
+	tu.Assert(t, nSubrs != 0)
+
+	// every glyph must interpret, which is what actually exercises the subrs:
+	// a charstring calling callsubr with a wrongly located INDEX fails here
+	tu.Assert(t, len(out.Charstrings) != 0)
+	for i := range out.Charstrings {
+		_, _, err := out.LoadGlyph(uint16(i), nil)
+		tu.AssertNoErr(t, err)
+	}
+}
+
+// buildCFF2LocalSubrs assembles a minimal CFF2 table whose Private DICT
+// declares local subroutines.
+//
+// It is synthetic rather than a font file so the case can be pinned exactly:
+// the Subrs offset is placed so that resolving it from the start of the table,
+// rather than from the Private DICT, lands inside the Top DICT and yields a
+// byte that is not a legal offSize. Real fonts differ only in what the wrong
+// address happens to contain.
+func buildCFF2LocalSubrs() []byte {
+	be32 := func(v uint32) []byte { b := make([]byte, 4); binary.BigEndian.PutUint32(b, v); return b }
+	dictInt := func(v int32) []byte { return append([]byte{29}, be32(uint32(v))...) }
+
+	// a CFF2 INDEX: count uint32, offSize uint8, count+1 offsets, then data
+	index := func(items ...[]byte) []byte {
+		out := be32(uint32(len(items)))
+		if len(items) == 0 {
+			return out
+		}
+		out = append(out, 1) // offSize
+		off := byte(1)
+		offs := []byte{off}
+		for _, it := range items {
+			off += byte(len(it))
+			offs = append(offs, off)
+		}
+		out = append(out, offs...)
+		for _, it := range items {
+			out = append(out, it...)
+		}
+		return out
+	}
+
+	const headerSize = 5
+	const topDictLen = 6 + 7 // CharStrings, then FDArray
+	const privDictLen = 6    // Subrs
+	charStringsOff := headerSize + topDictLen
+	charStrings := index([]byte{0x0b}) // one glyph: return
+	fdArrayOff := charStringsOff + len(charStrings)
+
+	fontDict := func(privOff int) []byte {
+		fd := append(dictInt(privDictLen), dictInt(int32(privOff))...)
+		return append(fd, 18) // Private [size, offset]
+	}
+	// the Font DICT's length does not depend on the value, so the offsets
+	// stay put when it is filled in
+	privDictOff := fdArrayOff + len(index(fontDict(0)))
+	fdArray := index(fontDict(privDictOff))
+
+	// "The local subrs offset is relative to the beginning of the Private
+	// DICT data", so the INDEX sits immediately after it and the operand is
+	// the DICT's own length
+	privDict := append(dictInt(privDictLen), 19) // Subrs
+	localSubrs := index([]byte{0x0b, 0x0b}, []byte{0x0b, 0x0b, 0x0b})
+
+	out := []byte{2, 0, headerSize, 0, 0}
+	binary.BigEndian.PutUint16(out[3:], topDictLen)
+	top := append(dictInt(int32(charStringsOff)), 17)
+	top = append(top, dictInt(int32(fdArrayOff))...)
+	top = append(top, 12, 36)
+	out = append(out, top...)
+	out = append(out, charStrings...)
+	out = append(out, fdArray...)
+	out = append(out, privDict...)
+	return append(out, localSubrs...)
+}
+
+// TestCFF2LocalSubrsOffset pins that a Private DICT's Subrs operand is resolved
+// relative to the Private DICT and not to the start of the table.
+//
+// Reading it from the wrong base gives whatever happens to be at that address.
+// Here it is a byte inside the Top DICT that is not a legal offSize, so the
+// table is rejected; on the fonts that prompted this it was an offSize of 0 or
+// a count of tens of millions. Because NewFont discards the error from
+// loadCff2, the visible effect in all of those cases is a font that loads with
+// no CFF2 outlines at all.
+func TestCFF2LocalSubrsOffset(t *testing.T) {
+	out, err := ParseCFF2(buildCFF2LocalSubrs())
+	tu.AssertNoErr(t, err)
+
+	tu.Assert(t, len(out.fonts) == 1)
+	subrs := out.fonts[0].localSubrs
+	tu.Assert(t, len(subrs) == 2)
+	tu.Assert(t, len(subrs[0]) == 2 && len(subrs[1]) == 3)
+}
+
+// TestParseIndexContentBounds guards against a malformed INDEX header driving
+// a huge allocation. The CFF2 INDEX header parser does not validate offSize
+// (unlike CFF1), so a font can present offSize 0 — which zeroes the length
+// check — or a 32-bit count far larger than the data; parseIndexContent must
+// reject these instead of make([][]byte, count)-ing gigabytes.
+func TestParseIndexContentBounds(t *testing.T) {
+	// Minimal valid INDEX: count 1, offSize 1, offsets [1,2], one data byte.
+	valid := []byte{0x01, 0x02, 0xAA}
+	out, _, err := parseIndexContent(valid, indexStart{count: 1, offSize: 1})
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, len(out) == 1 && len(out[0]) == 1 && out[0][0] == 0xAA)
+
+	// offSize 0 must be rejected before the allocation.
+	_, _, err = parseIndexContent(valid, indexStart{count: 1 << 20, offSize: 0})
+	tu.Assert(t, err != nil)
+
+	// A count larger than the data can address must be rejected (also covers
+	// the count+1 uint32 wrap at 0xFFFFFFFF).
+	_, _, err = parseIndexContent(valid, indexStart{count: 0xFFFFFFFF, offSize: 1})
+	tu.Assert(t, err != nil)
+
+	// count exactly len(src)/offSize: the offset array still needs one more
+	// offset than the data holds, so this must be an error rather than a
+	// slice-out-of-range panic on src[offsetArraySize:].
+	_, _, err = parseIndexContent(valid, indexStart{count: 3, offSize: 1})
+	tu.Assert(t, err != nil)
+
+	// offSize > 4 is out of spec and must be rejected.
+	_, _, err = parseIndexContent(valid, indexStart{count: 1, offSize: 5})
+	tu.Assert(t, err != nil)
+}
+
+func TestParseEmptyIndexes(t *testing.T) {
+	// header, then empty Name, Top DICT, String and Global Subrs INDEXes
+	_, err := Parse([]byte{1, 0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0})
+	tu.Assert(t, err != nil)
+}
+
+// cff2Table assembles a CFF2 table with one glyph, the given extra Top DICT
+// operators and the given Font DICTs.
+func cff2Table(top []byte, fds ...[]byte) []byte {
+	index := func(items ...[]byte) []byte {
+		out := []byte{0, 0, 0, byte(len(items))}
+		if len(items) == 0 {
+			return out
+		}
+		out = append(out, 1)
+		off := byte(1)
+		offs := []byte{off}
+		for _, it := range items {
+			off += byte(len(it))
+			offs = append(offs, off)
+		}
+		out = append(out, offs...)
+		for _, it := range items {
+			out = append(out, it...)
+		}
+		return out
+	}
+	hdr := []byte{2, 0, 5, 0, 0}
+	// CharStrings and FDArray offsets are 2-byte operands, patched below
+	top = append([]byte{28, 0, 0, 17, 28, 0, 0, 12, 36}, top...)
+	binary.BigEndian.PutUint16(hdr[3:], uint16(len(top)))
+	gsubrs := index()
+	charstrings := index([]byte{14}) // endchar
+	csOff := len(hdr) + len(top) + len(gsubrs)
+	binary.BigEndian.PutUint16(top[1:], uint16(csOff))
+	binary.BigEndian.PutUint16(top[5:], uint16(csOff+len(charstrings)))
+	out := append(hdr, top...)
+	out = append(out, gsubrs...)
+	out = append(out, charstrings...)
+	return append(out, index(fds...)...)
+}
+
+func TestCFF2InvalidOffsets(t *testing.T) {
+	neg1 := []byte{28, 0xff, 0xff} // -1
+	privOK := []byte{139, 139, 18} // 0 0 Private
+	for _, table := range [][]byte{
+		cff2Table(nil, []byte{139 - 5, 139 + 1, 18}),                // -5 1 Private
+		cff2Table(nil, []byte{29, 0x7f, 0xff, 0xff, 0xff, 140, 18}), // MaxInt32 1 Private: int32 wrap
+		cff2Table(nil, []byte{139, 138, 18}),                        // 0 -1 Private
+		cff2Table([]byte{29, 0x7f, 0xff, 0xff, 0xff, 24}, privOK),   // vstore MaxInt32
+		cff2Table(append(neg1, 24), privOK),                         // vstore -1
+		cff2Table(append(neg1, 12, 37), privOK, privOK),             // FDSelect -1
+	} {
+		_, err := ParseCFF2(table)
+		tu.Assert(t, err != nil)
+	}
+	_, err := ParseCFF2(cff2Table(nil, privOK))
+	tu.AssertNoErr(t, err)
+}
+
+func TestCFF2EmptyFDArray(t *testing.T) {
+	// Include a trailing byte so the INDEX header parser reaches the count.
+	_, err := ParseCFF2(append(cff2Table(nil), 0))
+	if err == nil || err.Error() != "reading font dicts: empty FDArray" {
+		t.Fatalf("expected empty FDArray error, got %v", err)
+	}
+}
+
+func TestCFF2InvalidBlend(t *testing.T) {
+	met := cff2CharstringHandler{scalars: make([]float32, 2)}
+	var m psinterpreter.Machine
+	m.ArgStack.Vals[0], m.ArgStack.Top = -1, 1
+	tu.Assert(t, met.blend(&m) != nil)
+}
+
+func TestCFF2InvalidVSIndex(t *testing.T) {
+	for _, count := range []int{0, 1} {
+		for _, index := range []int32{-1, 1} {
+			font := CFF2{
+				Charstrings: [][]byte{nil},
+				fonts:       []privateFonts{{defaultVSIndex: index}},
+				VarStore:    tables.ItemVarStore{ItemVariationDatas: make([]tables.ItemVariationData, count)},
+			}
+			if _, _, err := font.LoadGlyph(0, nil); err == nil {
+				t.Fatalf("LoadGlyph accepted vsindex %d with %d variation data entries", index, count)
+			}
+		}
+	}
+}
+
+func TestHintmaskAtEnd(t *testing.T) {
+	var psi psinterpreter.Machine
+	// 10 20 hstem hintmask <1 mask byte>
+	err := psi.Run([]byte{149, 159, 1, 19, 0xff}, nil, nil, &type2CharstringHandler{})
+	tu.AssertNoErr(t, err)
+}
+
+func TestFdSelect4LargeIndex(t *testing.T) {
+	fds := fdSelect4{ranges: []range4{{first: 0, fd: 300}}, sentinel: 10}
+	fd, err := fds.fontDictIndex(3)
+	tu.AssertNoErr(t, err)
+	tu.Assert(t, fd == 300)
+}
+
+func TestParseIndex2EmptyAtEnd(t *testing.T) {
+	out, err := parseIndex2([]byte{0, 0, 0, 0}, 0)
+	if err != nil || len(out) != 0 {
+		t.Fatalf("empty INDEX: got %v, %v", out, err)
+	}
+	for _, offset := range []int{-1, 1, int(^uint(0) >> 1)} {
+		if _, err := parseIndex2([]byte{0, 0, 0, 0}, offset); err == nil {
+			t.Fatalf("accepted invalid INDEX offset %d", offset)
+		}
+	}
+}
+
+func TestCFF2ImplicitSubroutineReturn(t *testing.T) {
+	index := func(data []byte) []byte { return append([]byte{0, 0, 0, 1, 1, 1, byte(len(data) + 1)}, data...) }
+	// The subroutine adds (0,10). The caller then adds (10,0).
+	subrs := index([]byte{139, 149, 5})
+	charstrings := index([]byte{139, 139, 21, 32, 29, 149, 139, 5})
+	top := []byte{28, 0, 0, 17, 28, 0, 0, 12, 36}
+	binary.BigEndian.PutUint16(top[1:], uint16(5+len(top)+len(subrs)))
+	binary.BigEndian.PutUint16(top[5:], uint16(5+len(top)+len(subrs)+len(charstrings)))
+	src := append([]byte{2, 0, 5, 0, byte(len(top))}, top...)
+	src = append(src, subrs...)
+	src = append(src, charstrings...)
+	src = append(src, index([]byte{139, 139, 18})...)
+	font, err := ParseCFF2(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	segments, _, err := font.LoadGlyph(0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range segments {
+		if s.Op == ot.SegmentOpLineTo && s.Args[0] == (ot.SegmentPoint{X: 10, Y: 10}) {
+			return
+		}
+	}
+	t.Fatalf("caller instructions after subroutine were lost: got %v, missing line to (10,10)", segments)
+}
+
+func TestCFF2NestedImplicitReturns(t *testing.T) {
+	for _, callAtEnd := range []bool{false, true} {
+		// Subroutine 0 calls subroutine 1. Both end implicitly.
+		glyph := []byte{139, 139, 21, 32, 29}
+		if !callAtEnd {
+			glyph = append(glyph, 149, 139, 5)
+		}
+		font := CFF2{Charstrings: [][]byte{glyph}, fonts: []privateFonts{{}}, globalSubrs: [][]byte{{33, 29}, {139, 149, 5}}}
+		got, _, err := font.LoadGlyph(0, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 2
+		if !callAtEnd {
+			want = 3
+		}
+		if len(got) != want {
+			t.Fatalf("call at end %v: got %v, want %d segments", callAtEnd, got, want)
+		}
+		endpoint := ot.SegmentPoint{Y: 10}
+		if !callAtEnd {
+			endpoint.X = 10
+		}
+		if got[len(got)-1].Args[0] != endpoint {
+			t.Fatalf("call at end %v: wrong endpoint %v", callAtEnd, got)
+		}
+	}
+}
+
+func TestCFF1SubroutineRequiresReturn(t *testing.T) {
+	for _, returns := range []bool{false, true} {
+		subr := []byte{139, 149, 5}
+		if returns {
+			subr = append(subr, 11)
+		}
+		font := CFF{Charstrings: [][]byte{{139, 139, 21, 32, 29, 149, 139, 5}}, localSubrs: [][][]byte{nil}, globalSubrs: [][]byte{subr}}
+		got, _, err := font.LoadGlyph(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 2
+		if returns {
+			want = 3
+		}
+		if len(got) != want {
+			t.Fatalf("explicit return %v: got %d segments, want %d", returns, len(got), want)
+		}
+	}
+}
+
+func TestLoadGlyphConcurrent(t *testing.T) {
+	charstrings := [][]byte{
+		{139, 139, 21, 140, 141, 5}, // move to (0, 0), line to (1, 2)
+		{21},                        // missing rmoveto arguments
+		{149, 149, 21, 143, 144, 5}, // a different outline
+	}
+	cff := &CFF{Charstrings: charstrings, localSubrs: [][][]byte{nil}}
+	cff2 := &CFF2{Charstrings: charstrings, fonts: []privateFonts{{}}}
+	for _, load := range []func(tables.GlyphID) ([]ot.Segment, psinterpreter.PathBounds, error){
+		cff.LoadGlyph,
+		func(gid tables.GlyphID) ([]ot.Segment, psinterpreter.PathBounds, error) {
+			return cff2.LoadGlyph(gid, nil)
+		},
+	} {
+		want, wantBounds, err := load(0)
+		tu.AssertNoErr(t, err)
+		tu.Assert(t, len(want) != 0)
+		want = append([]ot.Segment(nil), want...)
+		var wg sync.WaitGroup
+		for i := 0; i < 8; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for repeat := 0; repeat < 20; repeat++ {
+					got, bounds, err := load(0)
+					if err != nil || bounds != wantBounds || !reflect.DeepEqual(got, want) {
+						t.Errorf("reused interpreter changed glyph: %v, %v, %v", got, bounds, err)
+					}
+					if _, _, err := load(1); err == nil {
+						t.Error("invalid glyph accepted")
+					}
+					if _, _, err := load(2); err != nil {
+						t.Error(err)
+					}
+					if !reflect.DeepEqual(got, want) {
+						t.Error("later glyph load overwrote returned outline")
+					}
+				}
+			}()
+		}
+		wg.Wait()
+	}
 }
