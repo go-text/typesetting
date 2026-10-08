@@ -233,7 +233,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 				} else {
 					end = start + 2
 				}
-				buffer.mergeOutClusters(start, end)
+				buffer.mergeOutGraphemeClusters(start, end)
 				continue
 			}
 		} else if ucd.HangulSBase <= u && u <= ucd.HangulSBase+ucd.HangulSCount-1 { // is combined S
@@ -298,7 +298,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 						info[i].complexAux = tjmo
 					}
 
-					buffer.mergeOutClusters(start, end)
+					buffer.mergeOutGraphemeClusters(start, end)
 					continue
 				} else if tindex == 0 && buffer.idx+1 < count && isT(buffer.cur(+1).codepoint) {
 					buffer.unsafeToBreak(buffer.idx, buffer.idx+2) /* Mark unsafe between LV and T. */

@@ -437,15 +437,8 @@ func (b *Buffer) formClusters() {
 	}
 
 	iter, count := b.graphemesIterator()
-
-	if b.ClusterLevel == MonotoneGraphemes {
-		for start, end := iter.next(); start < count; start, end = iter.next() {
-			b.mergeClusters(start, end)
-		}
-	} else {
-		for start, end := iter.next(); start < count; start, end = iter.next() {
-			b.unsafeToBreak(start, end)
-		}
+	for start, end := iter.next(); start < count; start, end = iter.next() {
+		b.mergeGraphemeClusters(start, end)
 	}
 }
 
