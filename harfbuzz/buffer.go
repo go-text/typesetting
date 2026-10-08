@@ -422,16 +422,8 @@ func (b *Buffer) setMasks(value, mask GlyphMask, clusterStart, clusterEnd int) {
 	}
 }
 
-func (b *Buffer) mergeClusters(start, end int) {
-	if end-start < 2 {
-		return
-	}
-
-	if b.ClusterLevel == Characters {
-		b.unsafeToBreak(start, end)
-		return
-	}
-
+// performs the merge without checks
+func (b *Buffer) mergeClustersImpl(start, end int) {
 	b.maxOps -= end - start
 
 	cluster := b.Info[start].Cluster
@@ -465,6 +457,28 @@ func (b *Buffer) mergeClusters(start, end int) {
 	for i := start; i < end; i++ {
 		b.Info[i].setCluster(cluster, 0)
 	}
+}
+
+func (b *Buffer) mergeClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isMonotone() {
+		b.unsafeToBreak(start, end)
+		return
+	}
+	b.mergeClustersImpl(start, end)
+}
+
+func (b *Buffer) mergeGraphemeClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isGraphemes() {
+		b.unsafeToBreak(start, end)
+		return
+	}
+	b.mergeClustersImpl(start, end)
 }
 
 // merge clusters for deleting current glyph, and skip it.
@@ -892,15 +906,7 @@ func (b *Buffer) sort(start, end int, compar func(a, b *GlyphInfo) int) {
 	}
 }
 
-func (b *Buffer) mergeOutClusters(start, end int) {
-	if b.ClusterLevel == Characters {
-		return
-	}
-
-	if end-start < 2 {
-		return
-	}
-
+func (b *Buffer) mergeOutClustersImpl(start, end int) {
 	cluster := b.outInfo[start].Cluster
 
 	for i := start + 1; i < end; i++ {
@@ -928,4 +934,24 @@ func (b *Buffer) mergeOutClusters(start, end int) {
 	for i := start; i < end; i++ {
 		b.outInfo[i].setCluster(cluster, 0)
 	}
+}
+
+func (b *Buffer) mergeOutClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isMonotone() {
+		return
+	}
+	b.mergeOutClustersImpl(start, end)
+}
+
+func (b *Buffer) mergeOutGraphemeClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isGraphemes() {
+		return
+	}
+	b.mergeOutClustersImpl(start, end)
 }

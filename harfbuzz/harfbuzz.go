@@ -199,6 +199,14 @@ func (cl ClusterLevel) String() string {
 	}
 }
 
+func (cl ClusterLevel) isMonotone() bool {
+	return (1<<cl)&(1<<MonotoneGraphemes|1<<MonotoneCharacters) != 0
+}
+
+func (cl ClusterLevel) isGraphemes() bool {
+	return cl == MonotoneGraphemes // we dont not support Graphemes
+}
+
 // Feature holds information about requested
 // feature application. The feature will be applied with the given value to all
 // glyphs which are in clusters between `start` (inclusive) and `end` (exclusive).
