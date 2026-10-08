@@ -577,7 +577,7 @@ func (c *otContext) substituteBeforePosition() {
 	}
 
 	if debugMode {
-		fmt.Println("BEFORE SUBSTITUTE:", c.buffer.Info)
+		fmt.Println("BEFORE SUBSTITUTE:", buffer.Info)
 	}
 
 	// otSubstitutePlan : glyph fields are now set up ...
@@ -586,18 +586,18 @@ func (c *otContext) substituteBeforePosition() {
 	layoutSubstituteStart(c.font, buffer)
 
 	if c.plan.fallbackGlyphClasses {
-		synthesizeGlyphClasses(c.buffer)
+		synthesizeGlyphClasses(buffer)
 	}
 
 	if c.plan.applyMorx {
-		c.plan.aatLayoutSubstitute(c.font, c.buffer, c.userFeatures)
+		c.plan.aatLayoutSubstitute(c.font, buffer, c.userFeatures)
 		/* The buffer digest is only used by the OT lookup-apply loop;
 		 * without GPOS ahead, nothing consumes it. */
 		if c.plan.applyGpos {
-			c.buffer.updateDigest()
+			buffer.updateDigest()
 		}
 	} else {
-		c.buffer.updateDigest()
+		buffer.updateDigest()
 		c.plan.substitute(c.font, buffer)
 	}
 
