@@ -242,8 +242,10 @@ func (fm fontSet) selectByFamiliesAndScript(crible familyCrible, script language
 			// match by family
 			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
 			footprintsBuffer.scores = append(footprintsBuffer.scores, score)
-		} else if footprint.Scripts.contains(script) {
-			// match by script: add with a score worse than any family match
+		} else if !footprint.isUserProvided && footprint.Scripts.contains(script) {
+			// match by script: add with a score worse than any family match.
+			// User provided fonts have their own pass with their own aspect
+			// filtering, so they only belong here when matched by family.
 			footprintsBuffer.footprints = append(footprintsBuffer.footprints, index)
 			footprintsBuffer.scores = append(footprintsBuffer.scores, scoreStrong{math.MaxInt, false})
 		}
