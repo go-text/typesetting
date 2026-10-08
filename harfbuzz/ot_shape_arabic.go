@@ -522,6 +522,16 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 				}
 			}
 
+			const stchMaxGlyphs = 256
+			maxCopies := 0
+			if nRepeating > 0 {
+				baseGlyphs := nFixed + nRepeating
+				if baseGlyphs < stchMaxGlyphs {
+					maxCopies = (stchMaxGlyphs - baseGlyphs) / nRepeating
+				}
+			}
+			nCopies = min(nCopies, maxCopies)
+
 			if step == MEASURE {
 				extraGlyphsNeeded += nCopies * nRepeating
 				if debugMode {
