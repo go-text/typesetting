@@ -784,7 +784,7 @@ func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc) (_ bo
 			}
 		}
 
-		totalComponentCount += buffer.Info[skippyIter.idx].getLigNumComps()
+		totalComponentCount += buffer.Info[skippyIter.idx].getLigNumCompsInLigation()
 	}
 
 	endPosition = skippyIter.idx + 1
@@ -878,7 +878,7 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 		}
 
 		lastLigID = buffer.cur(0).getLigID()
-		lastNumComponents = buffer.cur(0).getLigNumComps()
+		lastNumComponents = buffer.cur(0).getLigNumCompsInLigation()
 		componentsSoFar += lastNumComponents
 
 		/* Skip the base glyph */
