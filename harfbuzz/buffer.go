@@ -361,12 +361,6 @@ func (b *Buffer) nextGlyphs(n int) {
 // skipGlyph advances idx without copying to output
 func (b *Buffer) skipGlyph() { b.idx++ }
 
-func (b *Buffer) resetMasks(mask GlyphMask) {
-	for j := range b.Info {
-		b.Info[j].Mask = mask
-	}
-}
-
 // Adds glyph flags in mask to infos with clusters between start and end.
 // The start index will be from out-buffer if [fromOutBuffer] is true.
 // If [interior] is true, then the cluster having the minimum value is skipped.

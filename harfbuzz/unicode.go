@@ -346,10 +346,11 @@ func isRegionalIndicator(r rune) bool { return 0x1F1E6 <= r && r <= 0x1F1FF }
 // macro uses this bit.
 //
 // https://www.unicode.org/reports/tr29/#Regex_Definitions
-func (b *Buffer) setUnicodeProps() {
+func (b *Buffer) setUnicodeProps(globalMask GlyphMask) {
 	info := b.Info
 	for i := 0; i < len(info); i++ {
 		r := info[i].codepoint
+		info[i].Mask = globalMask
 		info[i].setUnicodeProps(b)
 
 		if r < 0x80 {
@@ -379,6 +380,7 @@ func (b *Buffer) setUnicodeProps() {
 			info[i].setContinuation(b)
 			if i+1 < len(b.Info) && ucd.IsExtendedPictographic(info[i+1].codepoint) {
 				i++
+				info[i].Mask = globalMask
 				info[i].setUnicodeProps(b)
 				info[i].setContinuation(b)
 			}
