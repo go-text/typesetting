@@ -463,10 +463,6 @@ func (c *otContext) setupMasksFraction() {
 	}
 }
 
-func (c *otContext) initializeMasks() {
-	c.buffer.resetMasks(c.plan.otMap.globalMask)
-}
-
 func (c *otContext) setupMasks() {
 	map_ := &c.plan.otMap
 	buffer := c.buffer
@@ -834,8 +830,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	// save the original direction, we use it later.
 	c.targetDirection = c.buffer.Props.Direction
 
-	c.initializeMasks()
-	c.buffer.setUnicodeProps()
+	c.buffer.setUnicodeProps(c.plan.otMap.globalMask)
 	c.buffer.insertDottedCircle(c.font)
 
 	c.buffer.formClusters()
