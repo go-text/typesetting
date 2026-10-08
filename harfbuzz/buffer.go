@@ -859,10 +859,12 @@ type syllableIterator struct {
 	start  int
 }
 
+const maxSyllableLength = 64
+
 func (c *syllableIterator) next() (start, end int) {
 	info := c.buffer.Info
-	count := len(c.buffer.Info)
 	start = c.start
+	count := start + min(len(info)-start, maxSyllableLength)
 	if start >= count {
 		return
 	}
