@@ -591,7 +591,11 @@ func (c *otContext) substituteBeforePosition() {
 
 	if c.plan.applyMorx {
 		c.plan.aatLayoutSubstitute(c.font, c.buffer, c.userFeatures)
-		c.buffer.updateDigest()
+		/* The buffer digest is only used by the OT lookup-apply loop;
+		 * without GPOS ahead, nothing consumes it. */
+		if c.plan.applyGpos {
+			c.buffer.updateDigest()
+		}
 	} else {
 		c.buffer.updateDigest()
 		c.plan.substitute(c.font, buffer)
