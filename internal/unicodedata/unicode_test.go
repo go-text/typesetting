@@ -433,7 +433,8 @@ var extendedPictoTests = []struct {
 	{0x1F17E, true},
 	{0x1F18E, true},
 	{0x1F191, true},
-	{0x1F1AE, true},
+	{0x1F1AE, false},
+	{0x1F1AF, true},
 	{0x1F201, true},
 	{0x1F203, true},
 	{0x1F21A, true},
@@ -654,11 +655,12 @@ var extendedPictoTests = []struct {
 	{0x1F6FA, true},
 	{0x1F6FB, true},
 	{0x1F6FD, true},
-	{0x1F7DA, true},
+	{0x1F7DA, false},
+	{0x1F7DC, true},
 	{0x1F7E0, true},
 	{0x1F7EC, true},
 	{0x1F7F0, true},
-	{0x1F7F1, true},
+	{0x1F7F1, false},
 	{0x1F80C, true},
 	{0x1F848, true},
 	{0x1F85A, true},
@@ -761,6 +763,8 @@ var extendedPictoTests = []struct {
 	{0x1FAF7, true},
 	{0x1FAF9, true},
 	{0x1FC00, true},
+	{0x1FFFD, true},
+	{0x1FFFE, false},
 }
 
 func TestIsExtendedPictographic(t *testing.T) {
@@ -933,11 +937,11 @@ var lineBreakTests = []struct {
 	{'\u205F', LB_BA},     // MEDIUM MATHEMATICAL SPACE
 	{'\u3000', LB_BA},     // IDEOGRAPHIC SPACE
 	{'\u0009', LB_BA},     //	TAB
-	{'\u00AD', LB_BA},     //	SOFT HYPHEN (SHY)
+	{'\u00AD', LB_HH},     //	SOFT HYPHEN (SHY)
 	{'\u058A', LB_HH},     //	ARMENIAN HYPHEN
 	{'\u2010', LB_HH},     //	HYPHEN
-	{'\u2012', LB_HH},     //	FIGURE DASH
-	{'\u2013', LB_HH},     //	EN DASH
+	{'\u2012', LB_BA},     //	FIGURE DASH
+	{'\u2013', LB_BA},     //	EN DASH
 	{'\u05BE', LB_HH},     //	HEBREW PUNCTUATION MAQAF
 	{'\u0F0B', LB_BA},     //	TIBETAN MARK INTERSYLLABIC TSHEG
 	{'\u1361', LB_BA},     //	ETHIOPIC WORDSPACE
@@ -1617,8 +1621,8 @@ var indicConjunctBreakTests = []struct {
 	{0x1adb, 0b100},
 	{0x1adc, 0b100},
 	{0x1add, 0b100},
-	{0x1ade, 0b0},
-	{0x1adf, 0b0},
+	{0x1ade, 0b100},
+	{0x1adf, 0b100},
 	{0x1ae0, 0b100},
 	{0x1ae1, 0b100},
 	{0x1ae2, 0b100},
@@ -1631,10 +1635,11 @@ var indicConjunctBreakTests = []struct {
 	{0x1ae9, 0b100},
 	{0x1aea, 0b100},
 	{0x1aeb, 0b100},
-	{0x1aec, 0b0},
-	{0x1aed, 0b0},
-	{0x1aee, 0b0},
-	{0x1aef, 0b0},
+	{0x1aec, 0b100},
+	{0x1aed, 0b100},
+	{0x1aee, 0b100},
+	{0x1aef, 0b100},
+	{0x1af0, 0b100},
 }
 
 func TestIndicConjunctBreak(t *testing.T) {
