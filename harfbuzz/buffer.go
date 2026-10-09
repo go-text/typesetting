@@ -361,12 +361,6 @@ func (b *Buffer) nextGlyphs(n int) {
 // skipGlyph advances idx without copying to output
 func (b *Buffer) skipGlyph() { b.idx++ }
 
-func (b *Buffer) resetMasks(mask GlyphMask) {
-	for j := range b.Info {
-		b.Info[j].Mask = mask
-	}
-}
-
 // Adds glyph flags in mask to infos with clusters between start and end.
 // The start index will be from out-buffer if [fromOutBuffer] is true.
 // If [interior] is true, then the cluster having the minimum value is skipped.
@@ -428,16 +422,8 @@ func (b *Buffer) setMasks(value, mask GlyphMask, clusterStart, clusterEnd int) {
 	}
 }
 
-func (b *Buffer) mergeClusters(start, end int) {
-	if end-start < 2 {
-		return
-	}
-
-	if b.ClusterLevel == Characters {
-		b.unsafeToBreak(start, end)
-		return
-	}
-
+// performs the merge without checks
+func (b *Buffer) mergeClustersImpl(start, end int) {
 	b.maxOps -= end - start
 
 	cluster := b.Info[start].Cluster
@@ -471,6 +457,28 @@ func (b *Buffer) mergeClusters(start, end int) {
 	for i := start; i < end; i++ {
 		b.Info[i].setCluster(cluster, 0)
 	}
+}
+
+func (b *Buffer) mergeClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isMonotone() {
+		b.unsafeToBreak(start, end)
+		return
+	}
+	b.mergeClustersImpl(start, end)
+}
+
+func (b *Buffer) mergeGraphemeClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isGraphemes() {
+		b.unsafeToBreak(start, end)
+		return
+	}
+	b.mergeClustersImpl(start, end)
 }
 
 // merge clusters for deleting current glyph, and skip it.
@@ -574,7 +582,7 @@ func (b *Buffer) unsafeToConcat(start, end int) {
 	if (b.Flags & ProduceUnsafeToConcat) == 0 {
 		return
 	}
-	b.setGlyphFlags(GlyphUnsafeToConcat, start, end, true, false)
+	b.setGlyphFlags(GlyphUnsafeToConcat, start, end, false, false)
 }
 
 func (b *Buffer) unsafeToBreakFromOutbuffer(start, end int) {
@@ -763,6 +771,12 @@ func (b *Buffer) moveTo(i int) {
 	outL := len(b.outInfo)
 	if outL < i {
 		count := i - outL
+
+		b.maxOps -= count
+		if b.maxOps < 0 {
+			return
+		}
+
 		b.outInfo = append(b.outInfo, b.Info[b.idx:count+b.idx]...)
 		b.idx += count
 	} else if outL > i {
@@ -777,6 +791,11 @@ func (b *Buffer) moveTo(i int) {
 		}
 
 		// assert(idx >= count)
+
+		b.maxOps -= count
+		if b.maxOps < 0 {
+			return
+		}
 
 		b.idx -= count
 		copy(b.Info[b.idx:], b.outInfo[outL-count:outL])
@@ -848,10 +867,12 @@ type syllableIterator struct {
 	start  int
 }
 
+const maxSyllableLength = 64
+
 func (c *syllableIterator) next() (start, end int) {
 	info := c.buffer.Info
-	count := len(c.buffer.Info)
 	start = c.start
+	count := start + min(len(info)-start, maxSyllableLength)
 	if start >= count {
 		return
 	}
@@ -885,15 +906,7 @@ func (b *Buffer) sort(start, end int, compar func(a, b *GlyphInfo) int) {
 	}
 }
 
-func (b *Buffer) mergeOutClusters(start, end int) {
-	if b.ClusterLevel == Characters {
-		return
-	}
-
-	if end-start < 2 {
-		return
-	}
-
+func (b *Buffer) mergeOutClustersImpl(start, end int) {
 	cluster := b.outInfo[start].Cluster
 
 	for i := start + 1; i < end; i++ {
@@ -921,4 +934,24 @@ func (b *Buffer) mergeOutClusters(start, end int) {
 	for i := start; i < end; i++ {
 		b.outInfo[i].setCluster(cluster, 0)
 	}
+}
+
+func (b *Buffer) mergeOutClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isMonotone() {
+		return
+	}
+	b.mergeOutClustersImpl(start, end)
+}
+
+func (b *Buffer) mergeOutGraphemeClusters(start, end int) {
+	if end-start < 2 {
+		return
+	}
+	if !b.ClusterLevel.isGraphemes() {
+		return
+	}
+	b.mergeOutClustersImpl(start, end)
 }

@@ -275,10 +275,10 @@ func (it *skippingIterator) match(info *GlyphInfo) matchRes {
 
 func (it *skippingIterator) next() (_ bool, unsafeTo int) {
 	stop := it.end - 1
+	info := it.c.buffer.Info
 	for it.idx < stop {
 		it.idx++
-		info := &it.c.buffer.Info[it.idx]
-		switch it.match(info) {
+		switch it.match(&info[it.idx]) {
 		case match:
 			if len(it.matchGlyphDataArray) != 0 {
 				it.matchGlyphDataStart++
@@ -295,16 +295,17 @@ func (it *skippingIterator) next() (_ bool, unsafeTo int) {
 
 func (it *skippingIterator) prev() (_ bool, unsafeFrom int) {
 	stop := 0
-	L := len(it.c.buffer.outInfo)
+	outInfo, infoL := it.c.buffer.outInfo, it.c.buffer.Info
+	L := len(outInfo)
 	for it.idx > stop {
 		it.idx--
 		var info *GlyphInfo
 		if it.idx < L {
-			info = &it.c.buffer.outInfo[it.idx]
+			info = &outInfo[it.idx]
 		} else {
 			// we are in "position mode" : outInfo is not used anymore
 			// in the C implementation, outInfo and info now are sharing the same storage
-			info = &it.c.buffer.Info[it.idx]
+			info = &infoL[it.idx]
 		}
 
 		switch it.match(info) {
@@ -783,7 +784,7 @@ func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc) (_ bo
 			}
 		}
 
-		totalComponentCount += buffer.Info[skippyIter.idx].getLigNumComps()
+		totalComponentCount += buffer.Info[skippyIter.idx].getLigNumCompsInLigation()
 	}
 
 	endPosition = skippyIter.idx + 1
@@ -877,7 +878,7 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 		}
 
 		lastLigID = buffer.cur(0).getLigID()
-		lastNumComponents = buffer.cur(0).getLigNumComps()
+		lastNumComponents = buffer.cur(0).getLigNumCompsInLigation()
 		componentsSoFar += lastNumComponents
 
 		/* Skip the base glyph */

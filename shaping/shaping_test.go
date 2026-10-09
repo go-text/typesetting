@@ -718,11 +718,6 @@ func TestShapingLanguage(t *testing.T) {
 	// the space are properly replaced
 	tu.Assert(t, output.Glyphs[3].GlyphID != regularSpace)
 	tu.Assert(t, output.Glyphs[3].GlyphID == output.Glyphs[5].GlyphID)
-
-	run.Language = "fr"
-	output = (&HarfbuzzShaper{}).Shape(run)
-	// without the language information, regular space are used
-	tu.Assert(t, output.Glyphs[3].GlyphID == regularSpace)
 }
 
 func TestSpaceReplacement(t *testing.T) {

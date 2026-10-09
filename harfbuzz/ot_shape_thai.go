@@ -330,12 +330,12 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 			t := buffer.outInfo[end-2]
 			copy(buffer.outInfo[start+1:], buffer.outInfo[start:end-2])
 			buffer.outInfo[start] = t
-		} else {
-			/* Since we decomposed, and NIKHAHIT is combining, merge clusters with the
-			* previous cluster. */
-			if start != 0 {
-				buffer.mergeOutClusters(start-1, end)
-			}
+		}
+
+		/* Since we decomposed, and NIKHAHIT is combining, merge clusters with the
+		* previous cluster. */
+		if start != 0 {
+			buffer.mergeOutGraphemeClusters(start-1, end)
 		}
 	}
 	buffer.swapBuffers()

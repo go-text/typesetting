@@ -513,15 +513,27 @@ func (c *aatApplyContext) outputGlyphs(glyphs []GID) bool {
 		c.bufferGlyphSet.addGlyphs(glyphs)
 	}
 	for _, glyph := range glyphs {
+		atEndOfText := c.buffer.idx == len(c.buffer.Info)
+		if atEndOfText {
+			c.buffer.outputGlyphIndex(glyph)
+		}
+		var info *GlyphInfo
+		if atEndOfText {
+			info = c.buffer.prev()
+		} else {
+			info = c.buffer.cur(0)
+		}
 		if glyph == deletedGlyph {
 			c.buffer.scratchFlags |= bsfAatHasDeleted
-			c.buffer.cur(0).setAatDeleted()
+			info.setAatDeleted()
 		} else {
 			if c.gdef.GlyphClassDef != nil {
-				c.buffer.cur(0).glyphProps = c.gdef.GlyphProps(gID(glyph))
+				info.glyphProps = c.gdef.GlyphProps(gID(glyph))
 			}
 		}
-		c.buffer.outputGlyphIndex(glyph)
+		if !atEndOfText {
+			c.buffer.outputGlyphIndex(glyph)
+		}
 	}
 	return true
 }
@@ -547,8 +559,12 @@ func (c *aatApplyContext) deleteGlyph() {
 	c.buffer.replaceGlyphIndex(deletedGlyph)
 }
 
-func (c *aatApplyContext) replace_glyph_inplace(i int, glyph gID) {
+func (c *aatApplyContext) replaceGlyphInplace(i int, glyph gID) {
 	c.buffer.Info[i].Glyph = GID(glyph)
+	if glyph == deletedGlyph {
+		c.buffer.scratchFlags |= bsfAatHasDeleted
+		c.buffer.Info[i].setAatDeleted()
+	}
 	if c.usingBufferGlyphSet {
 		c.bufferGlyphSet.addGlyph(GID(glyph))
 	}
@@ -658,8 +674,7 @@ func (s stateTableDriver) drive(c driverContext, ac *aatApplyContext) {
 				nextState == stateStartOfText &&
 				startStateSafeToBreakEot &&
 				isNotActionable &&
-				isNotEpsilonTransition &&
-				lastRange == -1
+				isNotEpsilonTransition
 
 			if isNullTransition {
 				oldKlass := class

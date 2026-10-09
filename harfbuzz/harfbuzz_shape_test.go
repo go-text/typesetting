@@ -46,10 +46,9 @@ func TestDebug(t *testing.T) {
 	// dir := "harfbuzz_reference/aots/"
 	// dir := "harfbuzz_reference/in-house/"
 	dir := "harfbuzz_reference/text-rendering-tests/"
-	testString := `./fonts/TestMORXThirtysix.ttf;;U+0041;*`
+	testString := `./fonts/TestAATMort.ttf;--font-size=1000 --ned --remove-default-ignorables;U+0041,U+0042,U+0043,U+0045,U+0046,U+0047,U+0058;[B|A@830,0|D@1660,0|one@2490,0|H@3340,0|X@4170,0|Y@5000,0]`
 	testD := newTestData(t, dir, testString)
-	out := runShapingTest(t, testD, true)
-	fmt.Println(out)
+	_ = runShapingTest(t, testD, true)
 }
 
 // Generates gidDDD if glyph has no name.

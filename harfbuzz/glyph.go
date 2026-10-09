@@ -303,6 +303,18 @@ func (info *GlyphInfo) getLigNumComps() uint8 {
 	return 1
 }
 
+func (info *GlyphInfo) getLigNumCompsInLigation() uint8 {
+	/* When a glyph is decomposed by a MultipleSubst and its pieces later become
+	 * components of a ligature, the pieces belong to the same ligature component
+	 * as the first piece, matching how MarkBasePos attaches marks only to the
+	 * first piece.  So the non-first pieces contribute no extra component.
+	 * https://github.com/harfbuzz/harfbuzz/issues/4969 */
+	if info.multiplied() && info.getLigComp() != 0 {
+		return 0
+	}
+	return info.getLigNumComps()
+}
+
 func (info *GlyphInfo) setLigPropsForMark(ligID, ligComp uint8) {
 	info.ligProps = (ligID << 5) | ligComp&0x0F
 }
