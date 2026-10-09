@@ -42,6 +42,9 @@ func collectTests(t testing.TB) []testData {
 		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-7.tests":  {},
 		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-8.tests":  {},
 		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-9.tests":  {},
+
+		// we do not support 'mort' tables
+		"harfbuzz_reference/text-rendering-tests/tests/MORT-1.tests": {},
 	}
 
 	var testFiles []string
@@ -141,6 +144,7 @@ func newTestInput(t testing.TB, options string) testInput {
 	var so shapeOpts
 	flags.StringVar(&so.features, "features", "", featuresUsage)
 
+	flags.Bool("single-par", false, "(ignored)")
 	flags.String("list-shapers", "", "(ignored)")
 	flags.StringVar(&so.shaper, "shaper", "", "Force a shaper")
 	flags.String("shapers", "", "(ignored)")
