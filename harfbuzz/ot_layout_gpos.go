@@ -751,7 +751,7 @@ func (c *otApplyContext) applyGPOSMarkToLigature(data tables.MarkLigPos, markInd
 			 * case the mark should attach to that ligature.
 			 * https://github.com/harfbuzz/harfbuzz/issues/4969
 			 * Reject others... */
-			accept := !buffer.Info[j-1].multiplied() || 0 == buffer.Info[j-1].getLigComp()
+			accept := !buffer.Info[j-1].multiplied() || buffer.Info[j-1].getLigComp() == 0
 			if _, covered := (data.LigatureCoverage).Index(gID(buffer.Info[j-1].Glyph)); !accept && !covered {
 				ma = skip
 			}
