@@ -275,9 +275,10 @@ func (f *Font) getGlyphVOriginWithFallback(glyph GID) (Position, Position) {
 	/* Slant is ignored as it does not affect glyph origin */
 	/* Embolden */
 	if f.xEmbolden != 0 {
+		// our face.GlyphVOrigin does not apply strength : add it here twice
 		strength := f.xStrength()
-		x_ += strength
-		y_ += strength
+		x_ += 3 * strength / 2
+		y_ += 2 * strength
 	}
 	return x_, y_
 }

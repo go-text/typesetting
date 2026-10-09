@@ -582,7 +582,7 @@ func (b *Buffer) unsafeToConcat(start, end int) {
 	if (b.Flags & ProduceUnsafeToConcat) == 0 {
 		return
 	}
-	b.setGlyphFlags(GlyphUnsafeToConcat, start, end, true, false)
+	b.setGlyphFlags(GlyphUnsafeToConcat, start, end, false, false)
 }
 
 func (b *Buffer) unsafeToBreakFromOutbuffer(start, end int) {
