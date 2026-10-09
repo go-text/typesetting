@@ -108,49 +108,34 @@ func (cr *cursor) updatePictoSequence() bool {
 type indicCBSequenceState uint8
 
 const (
-	noIndicCBSequence   indicCBSequenceState = iota // we are not in a sequence
-	inIndicCBSequence                               // we are in (Consonant) (Extend Linker)* pattern
-	seenIndicCBSequence                             // we have seen (Consonant) (Extend Linker)* (Linker) (Extend Linker)*
+	noIndicCBSequence indicCBSequenceState = iota // we are not in a sequence
+	inIndicCBSequence                             // we are in (Linker) (Extend Linker)* pattern
 )
 
 // update the `indicConjunctBreakSequence` state used for rule CB9c pattern :
-// (Consonant) (Extend Linker)* (Linker) (Extend Linker)* (Consonant)
+// (Linker) (Extend)* (Consonant)
 // and returns true if we matched one
 func (cr *cursor) updateIndicConjunctBreakSequence() bool {
 	cb := cr.indicConjunctBreak
 	switch cr.indicConjunctBreakSequence {
 	case noIndicCBSequence:
-		// we are not in a sequence yet, start it if we have a Consonant
-		if cb == ucd.ICBConsonant {
+		// we are not in a sequence yet, start it if we have a Linker
+		if cb == ucd.ICBLinker {
 			cr.indicConjunctBreakSequence = inIndicCBSequence
 		}
 		return false
 	case inIndicCBSequence:
-		if cb == ucd.ICBExtend {
+		if cb&(ucd.ICBExtend|ucd.ICBLinker) != 0 {
 			// continue the sequence
-		} else if cb == ucd.ICBLinker {
-			// we now have at least on Linker
-			cr.indicConjunctBreakSequence = seenIndicCBSequence
 		} else if cb == ucd.ICBConsonant {
-			// reset the sequence
+			// we matched the sequence : stop it
+			cr.indicConjunctBreakSequence = noIndicCBSequence
+			return true
 		} else {
 			// stop the sequence
 			cr.indicConjunctBreakSequence = noIndicCBSequence
 		}
 		return false
-	case seenIndicCBSequence:
-		if cb&(ucd.ICBExtend|ucd.ICBLinker) != 0 {
-			// continue the sequence
-			return false
-		} else if cb == ucd.ICBConsonant {
-			// start a new sequence
-			cr.indicConjunctBreakSequence = inIndicCBSequence
-			return true
-		} else {
-			// stop the sequence
-			cr.indicConjunctBreakSequence = noIndicCBSequence
-			return false
-		}
 	default:
 		panic("exhaustive switch")
 	}
