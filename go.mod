@@ -3,8 +3,6 @@ module github.com/go-text/typesetting
 go 1.22
 
 require (
-	github.com/go-text/typesetting-utils v0.0.0-20260922124329-7d4869a3934e
+	github.com/go-text/typesetting-utils v0.0.0-20261009215314-bb530f4842f3
 	golang.org/x/image v0.23.0
 )
-
-replace github.com/go-text/typesetting-utils => ../typesetting-utils
