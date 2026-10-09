@@ -517,9 +517,11 @@ func (c *aatApplyContext) outputGlyphs(glyphs []GID) bool {
 		if atEndOfText {
 			c.buffer.outputGlyphIndex(glyph)
 		}
-		info := c.buffer.cur(0)
+		var info *GlyphInfo
 		if atEndOfText {
 			info = c.buffer.prev()
+		} else {
+			info = c.buffer.cur(0)
 		}
 		if glyph == deletedGlyph {
 			c.buffer.scratchFlags |= bsfAatHasDeleted
