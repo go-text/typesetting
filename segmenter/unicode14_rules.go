@@ -61,9 +61,9 @@ func (cr *cursor) applyLineBoundaryRules() breakOpportunity {
 	}
 
 	// LB12 : GL ×
-	// LB12a : [^SP BA HY HH] × GL
+	// LB12a : [^SP HY HH] × GL
 	if br0 == ucd.LB_GL ||
-		br0&(ucd.LB_SP|ucd.LB_BA|ucd.LB_HY|ucd.LB_HH) == 0 && br1 == ucd.LB_GL {
+		br0&(ucd.LB_SP|ucd.LB_HY|ucd.LB_HH) == 0 && br1 == ucd.LB_GL {
 		return breakProhibited
 	}
 
