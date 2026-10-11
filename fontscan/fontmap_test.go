@@ -250,6 +250,56 @@ func Test_refreshSystemFontsIndex(t *testing.T) {
 	fmt.Printf("cache refresh in %s\n", time.Since(ti))
 }
 
+func Test_refreshSystemFontsIndexNoCache(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+
+	// run from an empty directory, to catch a file written with a relative path
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	tu.AssertNoErr(t, err)
+	tu.AssertNoErr(t, os.Chdir(dir))
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	index, err := refreshSystemFontsIndex(logger, "")
+	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(index.flatten()) != 0, "the index should not be empty")
+
+	entries, err := os.ReadDir(dir)
+	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(entries) == 0, "no file should be written")
+
+	// the fonts found are the ones a cached scan finds
+	cached, err := refreshSystemFontsIndex(logger, filepath.Join(t.TempDir(), "fonts.cache"))
+	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(index.flatten()) == len(cached.flatten()), "the scans should find the same fonts")
+}
+
+func TestUseSystemFontsNoCache(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("cache path inference requires HOME on these platforms")
+	}
+	// Other tests have already initialized the global index; start over
+	// with no cache directory available: nothing must need one.
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	resetSystemFonts()
+	t.Cleanup(resetSystemFonts)
+
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+	tu.AssertNoErr(t, fm.UseSystemFontsNoCache())
+	tu.AssertC(t, len(fm.database) != 0, "the font map should have the system fonts")
+	fm.SetQuery(Query{Families: []string{"sans-serif"}})
+	tu.AssertC(t, fm.ResolveFace('a') != nil, "a face should be found")
+
+	fonts, err := SystemFontsNoCache(nil)
+	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(fonts) == len(fm.database), "the system fonts should be loaded once")
+
+	// the index is the one of the process: a cache directory is not needed
+	// afterwards either
+	tu.AssertNoErr(t, NewFontMap(nil).UseSystemFonts(""))
+}
+
 func TestInitSystemFonts(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)
 	err := initSystemFonts(logger, t.TempDir())
