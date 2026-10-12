@@ -528,9 +528,9 @@ func (sm SegmentMaps) Map(value Coord) Coord {
 		}
 	}
 
-	if i == 0 {
+	if i == start {
 		// Value before all segments; Shift.
-		return value - l[0].FromCoordinate + l[0].ToCoordinate
+		return value - l[start].FromCoordinate + l[start].ToCoordinate
 	}
 	if i == end {
 		// Value after all segments; Shift.

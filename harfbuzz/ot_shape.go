@@ -463,10 +463,6 @@ func (c *otContext) setupMasksFraction() {
 	}
 }
 
-func (c *otContext) initializeMasks() {
-	c.buffer.resetMasks(c.plan.otMap.globalMask)
-}
-
 func (c *otContext) setupMasks() {
 	map_ := &c.plan.otMap
 	buffer := c.buffer
@@ -581,7 +577,7 @@ func (c *otContext) substituteBeforePosition() {
 	}
 
 	if debugMode {
-		fmt.Println("BEFORE SUBSTITUTE:", c.buffer.Info)
+		fmt.Println("BEFORE SUBSTITUTE:", buffer.Info)
 	}
 
 	// otSubstitutePlan : glyph fields are now set up ...
@@ -590,14 +586,18 @@ func (c *otContext) substituteBeforePosition() {
 	layoutSubstituteStart(c.font, buffer)
 
 	if c.plan.fallbackGlyphClasses {
-		synthesizeGlyphClasses(c.buffer)
+		synthesizeGlyphClasses(buffer)
 	}
 
 	if c.plan.applyMorx {
-		c.plan.aatLayoutSubstitute(c.font, c.buffer, c.userFeatures)
-		c.buffer.updateDigest()
+		c.plan.aatLayoutSubstitute(c.font, buffer, c.userFeatures)
+		/* The buffer digest is only used by the OT lookup-apply loop;
+		 * without GPOS ahead, nothing consumes it. */
+		if c.plan.applyGpos {
+			buffer.updateDigest()
+		}
 	} else {
-		c.buffer.updateDigest()
+		buffer.updateDigest()
 		c.plan.substitute(c.font, buffer)
 	}
 
@@ -834,8 +834,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	// save the original direction, we use it later.
 	c.targetDirection = c.buffer.Props.Direction
 
-	c.initializeMasks()
-	c.buffer.setUnicodeProps()
+	c.buffer.setUnicodeProps(c.plan.otMap.globalMask)
 	c.buffer.insertDottedCircle(c.font)
 
 	c.buffer.formClusters()

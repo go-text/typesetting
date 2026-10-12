@@ -30,8 +30,8 @@ func kern(driver fontP.SimpleKerns, crossStream bool, font *Font, buffer *Buffer
 		}
 
 		skippyIter.resetFast(idx)
-		if ok, _ := skippyIter.next(); !ok {
-			idx++
+		if ok, unsafeTo := skippyIter.next(); !ok {
+			idx = unsafeTo
 			continue
 		}
 

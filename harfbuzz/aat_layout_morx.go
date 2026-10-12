@@ -263,7 +263,7 @@ func (dc *driverContextContextual) transition(buffer *Buffer, driver stateTableD
 	}
 	if hasReplacement {
 		buffer.unsafeToBreak(dc.mark, min(buffer.idx+1, len(buffer.Info)))
-		dc.c.replace_glyph_inplace(dc.mark, replacement)
+		dc.c.replaceGlyphInplace(dc.mark, replacement)
 		dc.ret = true
 	}
 
@@ -275,7 +275,7 @@ func (dc *driverContextContextual) transition(buffer *Buffer, driver stateTableD
 	}
 
 	if hasReplacement {
-		dc.c.replace_glyph_inplace(idx, replacement)
+		dc.c.replaceGlyphInplace(idx, replacement)
 		dc.ret = true
 	}
 
@@ -597,7 +597,7 @@ func (c *aatApplyContext) applyNonContextualSubtable(data font.MorxNonContextual
 
 		replacement, hasReplacement := data.Class.Class(gID(info[i].Glyph))
 		if hasReplacement {
-			c.replace_glyph_inplace(i, replacement)
+			c.replaceGlyphInplace(i, replacement)
 			ret = true
 		}
 	}

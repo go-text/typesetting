@@ -242,7 +242,7 @@ func IsDefaultIgnorable(ch rune) bool {
 		case 0x17:
 			return 0x17B4 <= ch && ch <= 0x17B5
 		case 0x18:
-			return 0x180B <= ch && ch <= 0x180E
+			return 0x180B <= ch && ch <= 0x180F
 		case 0x20:
 			return 0x200B <= ch && ch <= 0x200F ||
 				0x202A <= ch && ch <= 0x202E ||
@@ -346,10 +346,11 @@ func isRegionalIndicator(r rune) bool { return 0x1F1E6 <= r && r <= 0x1F1FF }
 // macro uses this bit.
 //
 // https://www.unicode.org/reports/tr29/#Regex_Definitions
-func (b *Buffer) setUnicodeProps() {
+func (b *Buffer) setUnicodeProps(globalMask GlyphMask) {
 	info := b.Info
 	for i := 0; i < len(info); i++ {
 		r := info[i].codepoint
+		info[i].Mask = globalMask
 		info[i].setUnicodeProps(b)
 
 		if r < 0x80 {
@@ -379,6 +380,7 @@ func (b *Buffer) setUnicodeProps() {
 			info[i].setContinuation(b)
 			if i+1 < len(b.Info) && ucd.IsExtendedPictographic(info[i+1].codepoint) {
 				i++
+				info[i].Mask = globalMask
 				info[i].setUnicodeProps(b)
 				info[i].setContinuation(b)
 			}
@@ -435,15 +437,8 @@ func (b *Buffer) formClusters() {
 	}
 
 	iter, count := b.graphemesIterator()
-
-	if b.ClusterLevel == MonotoneGraphemes {
-		for start, end := iter.next(); start < count; start, end = iter.next() {
-			b.mergeClusters(start, end)
-		}
-	} else {
-		for start, end := iter.next(); start < count; start, end = iter.next() {
-			b.unsafeToBreak(start, end)
-		}
+	for start, end := iter.next(); start < count; start, end = iter.next() {
+		b.mergeGraphemeClusters(start, end)
 	}
 }
 
