@@ -66,6 +66,22 @@ func SystemFontsNoCache(logger Logger) ([]Footprint, error) {
 	return systemFonts.flatten(), nil
 }
 
+// SystemFontsIndexStored reports whether the index of the system fonts is on
+// disk, so that the next start of the program does not scan them all again.
+//
+// It is false until the system fonts are loaded, and stays false when they
+// are loaded by [FontMap.UseSystemFontsNoCache] or [SystemFontsNoCache], or
+// when [FontMap.UseSystemFonts] or [SystemFonts] could not write the index in
+// their cache directory, which is not an error for them.
+//
+// It is safe for concurrent use.
+func SystemFontsIndexStored() bool {
+	systemFontsLock.Lock()
+	defer systemFontsLock.Unlock()
+
+	return systemFontsStored
+}
+
 // FontMap provides a mechanism to select a [font.Face] from a font description.
 // It supports system and user-provided fonts, and implements the CSS font substitutions
 // rules.
@@ -144,7 +160,7 @@ func (fm *FontMap) SetRuneCacheSize(size int) {
 //
 // The cache only speeds up the scan: if it can not be written, for instance on
 // a read-only file system, the fonts are loaded nonetheless and the failure is
-// logged. An error is returned when no cache directory is given nor inferred,
+// logged. [SystemFontsIndexStored] reports it. An error is returned when no cache directory is given nor inferred,
 // or when no font is found. It is not retained: a later call tries again.
 //
 // Multiple font maps may call this method concurrently, without duplicating

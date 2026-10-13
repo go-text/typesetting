@@ -329,6 +329,7 @@ func TestUseSystemFontsUnwritableCache(t *testing.T) {
 	fm.SetQuery(Query{Families: []string{"sans-serif"}})
 	tu.AssertC(t, fm.ResolveFace('a') != nil, "a face should be found")
 	tu.AssertC(t, logger != 0, "the failure should be logged")
+	tu.AssertC(t, !SystemFontsIndexStored(), "the index should not be reported on disk")
 
 	// the same directory is not tried again
 	logged := logger
@@ -341,15 +342,19 @@ func TestUseSystemFontsUnwritableCache(t *testing.T) {
 	dir := t.TempDir()
 	tu.AssertNoErr(t, NewFontMap(&logger).UseSystemFonts(dir))
 	tu.AssertC(t, len(cacheFiles(t, dir)) == 1, "the index should be written")
+	tu.AssertC(t, SystemFontsIndexStored(), "the index should be reported on disk")
 }
 
 func TestUseSystemFontsAfterNoCache(t *testing.T) {
 	resetSystemFonts()
 	t.Cleanup(resetSystemFonts)
 
+	tu.AssertC(t, !SystemFontsIndexStored(), "no index should be reported before the fonts are loaded")
+
 	var logger countingLogger
 	fm := NewFontMap(&logger)
 	tu.AssertNoErr(t, fm.UseSystemFontsNoCache())
+	tu.AssertC(t, !SystemFontsIndexStored(), "the index should not be reported on disk")
 
 	// the index in memory is written, without a second scan
 	logged := logger
@@ -359,6 +364,7 @@ func TestUseSystemFontsAfterNoCache(t *testing.T) {
 	tu.AssertC(t, logger == logged, "the fonts should not be scanned again")
 	tu.AssertC(t, len(fm2.database) == len(fm.database), "the system fonts should be loaded once")
 	tu.AssertC(t, len(cacheFiles(t, dir)) == 1, "the index should be written")
+	tu.AssertC(t, SystemFontsIndexStored(), "the index should be reported on disk")
 
 	// and it is the one a later start reads
 	index, err := deserializeIndexFile(filepath.Join(dir, cacheFiles(t, dir)[0].Name()))
