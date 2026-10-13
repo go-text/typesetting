@@ -37,7 +37,7 @@ func SystemFonts(logger Logger, cacheDir string) ([]Footprint, error) {
 		logger = log.New(log.Writer(), "fontscan", log.Flags())
 	}
 
-	// safe for concurrent use; subsequent calls are no-ops
+	// safe for concurrent use; the fonts are loaded once
 	err := initSystemFonts(logger, cacheDir)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func SystemFontsNoCache(logger Logger) ([]Footprint, error) {
 		logger = log.New(log.Writer(), "fontscan", log.Flags())
 	}
 
-	// safe for concurrent use; subsequent calls are no-ops
+	// safe for concurrent use; the fonts are loaded once
 	err := initSystemFontsNoCache(logger)
 	if err != nil {
 		return nil, err
@@ -142,10 +142,15 @@ func (fm *FontMap) SetRuneCacheSize(size int) {
 // NOTE: On Android, callers *must* provide a writable path manually, as it cannot
 // be inferred without access to the Java runtime environment of the application.
 //
+// The cache only speeds up the scan: if it can not be written, for instance on
+// a read-only file system, the fonts are loaded nonetheless and the failure is
+// logged. An error is returned when no cache directory is given nor inferred,
+// or when no font is found. It is not retained: a later call tries again.
+//
 // Multiple font maps may call this method concurrently, without duplicating
 // the work of finding the system fonts.
 func (fm *FontMap) UseSystemFonts(cacheDir string) error {
-	// safe for concurrent use; subsequent calls are no-ops
+	// safe for concurrent use; the fonts are loaded once
 	err := initSystemFonts(fm.logger, cacheDir)
 	if err != nil {
 		return err
@@ -167,10 +172,11 @@ func (fm *FontMap) UseSystemFonts(cacheDir string) error {
 //
 // The system fonts are loaded once per process: after a call to
 // [FontMap.UseSystemFonts] or [SystemFonts], the fonts they found are used and
-// their index stays on disk; conversely, after this method, a later call to
-// [FontMap.UseSystemFonts] does not write an index.
+// their index stays on disk. Conversely, a call to [FontMap.UseSystemFonts]
+// after this method does not scan the fonts again, and writes their index in
+// its cache directory, to be used the next time the program starts.
 func (fm *FontMap) UseSystemFontsNoCache() error {
-	// safe for concurrent use; subsequent calls are no-ops
+	// safe for concurrent use; the fonts are loaded once
 	err := initSystemFontsNoCache(fm.logger)
 	if err != nil {
 		return err
@@ -210,12 +216,17 @@ func (fm *FontMap) appendFootprints(footprints ...Footprint) {
 }
 
 // systemFonts is a global index of the system fonts.
-// initSystemFontsOnce protects the initial assignment,
+// systemFontsLock protects the initial assignment,
 // and `systemFonts` use is then read-only
 var (
-	systemFonts         systemFontsIndex
-	systemFontsErr      error
-	initSystemFontsOnce sync.Once
+	systemFontsLock sync.Mutex
+	systemFonts     systemFontsIndex
+
+	// systemFontsStored is true when the index is on disk.
+	// Otherwise, systemFontsStoreTried is the last path where
+	// writing it failed, which is not tried again.
+	systemFontsStored     bool
+	systemFontsStoreTried string
 )
 
 func cacheDir(userProvided string) (string, error) {
@@ -229,39 +240,76 @@ func cacheDir(userProvided string) (string, error) {
 // initSystemFonts scan the system fonts and update `SystemFonts`.
 // If the returned error is nil, `SystemFonts` is guaranteed to contain
 // at least one valid font.Face.
-// It is protected by sync.Once, and is then safe to use by multiple goroutines.
+// It is protected by a mutex, and is then safe to use by multiple goroutines.
+//
+// The fonts are loaded once, but an error is not retained : the next call
+// tries again.
+//
+// The index on disk only speeds up the scan : failing to write it is logged
+// and is not an error. It is also written when the fonts have been loaded by
+// [initSystemFontsNoCache].
 func initSystemFonts(logger Logger, userCacheDir string) error {
-	initSystemFontsOnce.Do(func() {
-		const cacheFilePattern = "font_index_v%d.cache"
+	const cacheFilePattern = "font_index_v%d.cache"
 
-		// load an existing index
-		var dir string
-		dir, systemFontsErr = cacheDir(userCacheDir)
-		if systemFontsErr != nil {
-			return
+	systemFontsLock.Lock()
+	defer systemFontsLock.Unlock()
+
+	dir, err := cacheDir(userCacheDir)
+	if err != nil {
+		if systemFonts != nil { // the fonts are usable without the index on disk
+			return nil
 		}
+		return err
+	}
+	cachePath := filepath.Join(dir, fmt.Sprintf(cacheFilePattern, cacheFormatVersion))
 
-		cachePath := filepath.Join(dir, fmt.Sprintf(cacheFilePattern, cacheFormatVersion))
+	if systemFonts == nil {
+		systemFonts, err = refreshSystemFontsIndex(logger, cachePath)
+		if err != nil {
+			return err
+		}
+	}
 
-		systemFonts, systemFontsErr = refreshSystemFontsIndex(logger, cachePath)
-	})
+	storeSystemFontsIndex(logger, cachePath)
 
-	return systemFontsErr
+	return nil
+}
+
+// storeSystemFontsIndex writes the index in the cache file, if it is not
+// already on disk.
+// systemFontsLock must be held.
+func storeSystemFontsIndex(logger Logger, cachePath string) {
+	if systemFontsStored || systemFontsStoreTried == cachePath {
+		return
+	}
+
+	err := systemFonts.serializeToFile(cachePath)
+	if err != nil {
+		systemFontsStoreTried = cachePath
+		logger.Printf("system fonts index not written, the next start will scan the fonts again: %s", err)
+		return
+	}
+	systemFontsStored = true
 }
 
 // initSystemFontsNoCache is the same as initSystemFonts, but the index is
 // neither read from nor written to the disk.
 func initSystemFontsNoCache(logger Logger) error {
-	initSystemFontsOnce.Do(func() {
-		systemFonts, systemFontsErr = refreshSystemFontsIndex(logger, "")
-	})
+	systemFontsLock.Lock()
+	defer systemFontsLock.Unlock()
 
-	return systemFontsErr
+	if systemFonts != nil {
+		return nil
+	}
+
+	var err error
+	systemFonts, err = refreshSystemFontsIndex(logger, "")
+	return err
 }
 
 // refreshSystemFontsIndex scans the system fonts, reusing the index stored at
-// [cachePath] for the files that have not changed, and writes the result back.
-// If [cachePath] is empty, no file is read or written.
+// [cachePath] for the files that have not changed.
+// If [cachePath] is empty, no file is read.
 func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex, error) {
 	fontDirectories, err := DefaultFontDirectories(logger)
 	if err != nil {
@@ -290,16 +338,6 @@ func refreshSystemFontsIndex(logger Logger, cachePath string) (systemFontsIndex,
 	err = updatedIndex.assertValid()
 	if err != nil {
 		return nil, fmt.Errorf("loading system fonts: %s", err)
-	}
-
-	if cachePath == "" {
-		return updatedIndex, nil
-	}
-
-	// write back the index in the cache file
-	err = updatedIndex.serializeToFile(cachePath)
-	if err != nil {
-		return nil, fmt.Errorf("updating cache: %s", err)
 	}
 
 	return updatedIndex, nil

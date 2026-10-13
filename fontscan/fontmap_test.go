@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -240,12 +239,14 @@ func Test_refreshSystemFontsIndex(t *testing.T) {
 	cachePath := filepath.Join(dir, "fonts.cache")
 
 	logger := log.New(io.Discard, "", 0)
-	_, err := refreshSystemFontsIndex(logger, cachePath)
+	index, err := refreshSystemFontsIndex(logger, cachePath)
 	tu.AssertNoErr(t, err)
+	tu.AssertNoErr(t, index.serializeToFile(cachePath))
 
 	ti := time.Now()
-	_, err = refreshSystemFontsIndex(logger, cachePath)
+	cached, err := refreshSystemFontsIndex(logger, cachePath)
 	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(index.flatten()) == len(cached.flatten()), "the scans should find the same fonts")
 
 	fmt.Printf("cache refresh in %s\n", time.Since(ti))
 }
@@ -268,10 +269,6 @@ func Test_refreshSystemFontsIndexNoCache(t *testing.T) {
 	tu.AssertNoErr(t, err)
 	tu.AssertC(t, len(entries) == 0, "no file should be written")
 
-	// the fonts found are the ones a cached scan finds
-	cached, err := refreshSystemFontsIndex(logger, filepath.Join(t.TempDir(), "fonts.cache"))
-	tu.AssertNoErr(t, err)
-	tu.AssertC(t, len(index.flatten()) == len(cached.flatten()), "the scans should find the same fonts")
 }
 
 func TestUseSystemFontsNoCache(t *testing.T) {
@@ -298,6 +295,80 @@ func TestUseSystemFontsNoCache(t *testing.T) {
 	// the index is the one of the process: a cache directory is not needed
 	// afterwards either
 	tu.AssertNoErr(t, NewFontMap(nil).UseSystemFonts(""))
+}
+
+type countingLogger int
+
+func (cl *countingLogger) Printf(string, ...any) { *cl++ }
+
+// unwritableDir returns a directory which can not be created,
+// as on a read-only file system.
+func unwritableDir(t *testing.T) string {
+	file := filepath.Join(t.TempDir(), "file")
+	tu.AssertNoErr(t, os.WriteFile(file, nil, 0o600))
+	return filepath.Join(file, "cache")
+}
+
+func cacheFiles(t *testing.T, dir string) []os.DirEntry {
+	entries, err := os.ReadDir(dir)
+	tu.AssertNoErr(t, err)
+	return entries
+}
+
+func TestUseSystemFontsUnwritableCache(t *testing.T) {
+	resetSystemFonts()
+	t.Cleanup(resetSystemFonts)
+
+	cacheDir := unwritableDir(t)
+
+	// the fonts are loaded, without their index on disk
+	var logger countingLogger
+	fm := NewFontMap(&logger)
+	tu.AssertNoErr(t, fm.UseSystemFonts(cacheDir))
+	tu.AssertC(t, len(fm.database) != 0, "the font map should have the system fonts")
+	fm.SetQuery(Query{Families: []string{"sans-serif"}})
+	tu.AssertC(t, fm.ResolveFace('a') != nil, "a face should be found")
+	tu.AssertC(t, logger != 0, "the failure should be logged")
+
+	// the same directory is not tried again
+	logged := logger
+	fonts, err := SystemFonts(&logger, cacheDir)
+	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(fonts) == len(fm.database), "the system fonts should be loaded once")
+	tu.AssertC(t, logger == logged, "nothing should be scanned or written")
+
+	// a writable directory given later receives the index
+	dir := t.TempDir()
+	tu.AssertNoErr(t, NewFontMap(&logger).UseSystemFonts(dir))
+	tu.AssertC(t, len(cacheFiles(t, dir)) == 1, "the index should be written")
+}
+
+func TestUseSystemFontsAfterNoCache(t *testing.T) {
+	resetSystemFonts()
+	t.Cleanup(resetSystemFonts)
+
+	var logger countingLogger
+	fm := NewFontMap(&logger)
+	tu.AssertNoErr(t, fm.UseSystemFontsNoCache())
+
+	// the index in memory is written, without a second scan
+	logged := logger
+	dir := t.TempDir()
+	fm2 := NewFontMap(&logger)
+	tu.AssertNoErr(t, fm2.UseSystemFonts(dir))
+	tu.AssertC(t, logger == logged, "the fonts should not be scanned again")
+	tu.AssertC(t, len(fm2.database) == len(fm.database), "the system fonts should be loaded once")
+	tu.AssertC(t, len(cacheFiles(t, dir)) == 1, "the index should be written")
+
+	// and it is the one a later start reads
+	index, err := deserializeIndexFile(filepath.Join(dir, cacheFiles(t, dir)[0].Name()))
+	tu.AssertNoErr(t, err)
+	tu.AssertC(t, len(index.flatten()) == len(fm.database), "the index on disk should have the system fonts")
+
+	// once on disk, it is not written elsewhere
+	other := t.TempDir()
+	tu.AssertNoErr(t, NewFontMap(&logger).UseSystemFonts(other))
+	tu.AssertC(t, len(cacheFiles(t, other)) == 0, "the index should be written once")
 }
 
 func TestInitSystemFonts(t *testing.T) {
@@ -535,7 +606,9 @@ func TestSetScriptUnchanged(t *testing.T) {
 }
 
 func resetSystemFonts() {
-	systemFonts, systemFontsErr, initSystemFontsOnce = nil, nil, sync.Once{}
+	systemFontsLock.Lock()
+	defer systemFontsLock.Unlock()
+	systemFonts, systemFontsStored, systemFontsStoreTried = nil, false, ""
 }
 
 func TestSystemFontsInitializationError(t *testing.T) {
@@ -549,14 +622,13 @@ func TestSystemFontsInitializationError(t *testing.T) {
 	resetSystemFonts()
 	t.Cleanup(resetSystemFonts)
 
-	_, first := SystemFonts(nil, "")
-	if first == nil {
-		t.Fatal("expected cache path error")
-	}
-	if _, err := SystemFonts(nil, ""); err != first {
-		t.Fatalf("second initialization: got %v, want %v", err, first)
-	}
-	if err := NewFontMap(nil).UseSystemFonts(""); err != first {
-		t.Fatalf("font map initialization: got %v, want %v", err, first)
-	}
+	_, err := SystemFonts(nil, "")
+	tu.AssertC(t, err != nil, "expected cache path error")
+	fm := NewFontMap(nil)
+	tu.AssertC(t, fm.UseSystemFonts("") != nil, "expected cache path error")
+	tu.AssertC(t, len(fm.database) == 0, "no font should be added")
+
+	// the error is not retained: the fonts are loaded when a directory is given
+	tu.AssertNoErr(t, fm.UseSystemFonts(t.TempDir()))
+	tu.AssertC(t, len(fm.database) != 0, "the font map should have the system fonts")
 }
