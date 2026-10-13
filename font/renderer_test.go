@@ -519,15 +519,15 @@ func TestSbixGlyph(t *testing.T) {
 	tu.Assert(t, asBitmap.Format == PNG)
 }
 
-// A font built from NewLoadersFromBytes returns the same bitmaps, and its
+// A font built from a ResourceSlicer returns the same bitmaps, and its
 // 'sbix' glyph data is a view of the input instead of a copy.
-func TestSbixGlyphFromBytes(t *testing.T) {
+func TestSbixGlyphSliceResource(t *testing.T) {
 	for _, filename := range []string{"toys/Sbix1.ttf", "toys/Sbix2.ttf", "toys/Sbix3.ttf"} {
 		content, err := td.Files.ReadFile(filename)
 		tu.AssertNoErr(t, err)
-		lds, err := ot.NewLoadersFromBytes(content)
+		lds, err := ot.NewLoaders(ot.NewSliceResource(content))
 		tu.AssertNoErr(t, err)
-		fromBytes, err := NewFont(lds[0])
+		sliced, err := NewFont(lds[0])
 		tu.AssertNoErr(t, err)
 		copied := loadFont(t, filename)
 
@@ -536,7 +536,7 @@ func TestSbixGlyphFromBytes(t *testing.T) {
 		var bitmaps int
 		for gid := 0; gid < copied.nGlyphs; gid++ {
 			want, err := copied.sbix.glyphData(gID(gid), 100, 100)
-			got, err2 := fromBytes.sbix.glyphData(gID(gid), 100, 100)
+			got, err2 := sliced.sbix.glyphData(gID(gid), 100, 100)
 			tu.AssertC(t, (err == nil) == (err2 == nil), filename)
 			if err != nil {
 				continue

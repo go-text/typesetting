@@ -48,6 +48,60 @@ type Resource interface {
 	Seek(int64, int) (int64, error)
 }
 
+// ResourceSlicer is a [Resource] which can return a part of its content
+// without a copy.
+//
+// When the [Resource] given to [NewLoader] or [NewLoaders] is a ResourceSlicer,
+// [Loader.RawTable] and [Loader.RawTableTo] return each uncompressed table
+// as the slice returned by Slice, and do not copy it (compressed WOFF tables are
+// still decoded into a new buffer). The capacity of the returned table is
+// limited to its length.
+//
+// This saves the copy of each table, which matters for large tables kept alive
+// by a font.Font: the 'sbix' table of a color emoji font can be more than 100MB.
+//
+// The loaders, the fonts built from them, and the data these return (tables,
+// glyph bitmaps) then refer to the content of the resource directly.
+// As a consequence:
+//   - the whole content stays reachable while any of them is in use, even
+//     when only one face of a collection is used;
+//   - the content must not be modified, or unmapped, while any of them is in use;
+//   - the returned tables are read-only: never pass one as dst to
+//     [Loader.RawTableTo] on a loader whose resource is not a ResourceSlicer,
+//     which would write into the content.
+type ResourceSlicer interface {
+	Resource
+
+	// Slice returns the content in [start, end), without a copy.
+	// It returns an error if the range is not inside the content.
+	Slice(start, end int64) ([]byte, error)
+}
+
+// NewSliceResource returns a [ResourceSlicer] reading [data].
+// [data] can be a read-only memory mapping of a font file, so that
+// the operating system loads the tables in memory when they are used.
+//
+// See [ResourceSlicer] for how [data] is used.
+func NewSliceResource(data []byte) ResourceSlicer {
+	return sliceResource{Reader: bytes.NewReader(data), data: data}
+}
+
+// sliceResource implements [ResourceSlicer] for an in-memory slice.
+type sliceResource struct {
+	*bytes.Reader // implements [Resource]
+	data          []byte
+}
+
+func (sr sliceResource) Slice(start, end int64) ([]byte, error) {
+	// start == len(data) is rejected even for an empty range, as ReadAt
+	// (which returns io.EOF) does on the copying path, so that both paths
+	// accept the same tables
+	if start < 0 || end < start || end > int64(len(sr.data)) || start >= int64(len(sr.data)) {
+		return nil, fmt.Errorf("invalid range [%d, %d) for content of size %d", start, end, len(sr.data))
+	}
+	return sr.data[start:end], nil
+}
+
 // tableSection represents a table within the font file.
 type tableSection struct {
 	offset  uint32 // Offset into the file this table starts.
@@ -60,10 +114,6 @@ type tableSection struct {
 type Loader struct {
 	file   Resource             // source, needed to parse each table
 	tables map[Tag]tableSection // header only, contents is processed on demand
-
-	// data is the whole file when the loader was built by [NewLoadersFromBytes].
-	// Uncompressed tables are then returned as sub-slices of data, without a copy.
-	data []byte
 
 	// Type represents the kind of this font being loaded.
 	// It is one of TrueType, TrueTypeApple, PostScript1, OpenType
@@ -132,57 +182,31 @@ func NewLoaders(file Resource) ([]*Loader, error) {
 	return out, nil
 }
 
-// NewLoadersFromBytes is the same as [NewLoaders], but reads the font from
-// memory and does not copy the tables: [Loader.RawTable] and [Loader.RawTableTo]
-// return a view of [data] for each uncompressed table (compressed WOFF tables
-// are still decoded into a new buffer).
-//
-// This saves the copy of each table that [NewLoaders] makes, which matters
-// for large tables kept alive by a font.Font: the 'sbix' table of a color
-// emoji font can be more than 100MB. [data] can also be a read-only memory
-// mapping of the file, so that the operating system pages the tables in
-// when they are used.
-//
-// The returned loaders, the fonts built from them, and the data these return
-// (tables, glyph bitmaps) refer to [data] directly. As a consequence:
-//   - the whole of [data] stays reachable while any of them is in use, even
-//     when only one face of a collection is used;
-//   - [data] must not be modified, or unmapped, while any of them is in use;
-//   - the returned tables are read-only: never pass one as dst to
-//     [Loader.RawTableTo] on a loader built by [NewLoaders], which would
-//     write into [data].
-func NewLoadersFromBytes(data []byte) ([]*Loader, error) {
-	lds, err := NewLoaders(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	for _, ld := range lds {
-		ld.data = data
-	}
-	return lds, nil
-}
-
 // dst is an optional storage which may be provided to reduce allocations.
 func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
-	if pr.data != nil {
+	compressed := s.length != 0 && s.length < s.zLength
+	if sl, ok := pr.file.(ResourceSlicer); ok {
 		// [dst] may be a table returned by a previous call, which is then a
-		// view of [pr.data]: never write into it.
+		// view of the resource and may be read-only memory: never write into it.
 		dst = nil
-		if s.length == 0 || s.length >= s.zLength { // not compressed
-			end := uint64(s.offset) + uint64(s.length)
-			// offset == len(data) is rejected even for an empty table, as
-			// ReadAt does on the copying path
-			if end > uint64(len(pr.data)) || uint64(s.offset) >= uint64(len(pr.data)) {
-				return nil, fmt.Errorf("invalid table: offset %d and length %d exceed file size %d",
-					s.offset, s.length, len(pr.data))
+		if !compressed {
+			start := int64(s.offset)
+			end := start + int64(s.length)
+			table, err := sl.Slice(start, end)
+			if err != nil {
+				return nil, err
+			}
+			// compare as uint64: int(s.length) can overflow on 32-bit platforms
+			if uint64(len(table)) != uint64(s.length) {
+				return nil, fmt.Errorf("invalid table: Slice(%d, %d) returned %d bytes", start, end, len(table))
 			}
 			// limit the capacity so that appending to the table can not
 			// overwrite the next one
-			return pr.data[s.offset:end:end], nil
+			return table[:len(table):len(table)], nil
 		}
 	}
 
-	if s.length != 0 && s.length < s.zLength {
+	if compressed {
 		zbuf := io.NewSectionReader(pr.file, int64(s.offset), int64(s.length))
 		r, err := zlib.NewReader(zbuf)
 		if err != nil {
@@ -234,8 +258,8 @@ func (pr *Loader) RawTable(tag Tag) ([]byte, error) {
 
 // RawTableTo writes the binary content of the given table to [dst], returning it,
 // or an error if not found.
-// For a loader built by [NewLoadersFromBytes], [dst] is not used and an
-// uncompressed table is returned as a view of the input, without a copy.
+// If the [Resource] of the loader is a [ResourceSlicer], [dst] is not used and an
+// uncompressed table is returned as a view of the resource, without a copy.
 func (pr *Loader) RawTableTo(tag Tag, dst []byte) ([]byte, error) {
 	s, found := pr.tables[tag]
 	if !found {
