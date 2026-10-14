@@ -54,8 +54,7 @@ type Resource interface {
 // When the [Resource] given to [NewLoader] or [NewLoaders] is a ResourceSlicer,
 // [Loader.RawTable] and [Loader.RawTableTo] return each uncompressed table
 // as the slice returned by Slice, and do not copy it (compressed WOFF tables are
-// still decoded into a new buffer). The capacity of the returned table is
-// limited to its length.
+// still decoded into a new buffer).
 //
 // This saves the copy of each table, which matters for large tables kept alive
 // by a font.Font: the 'sbix' table of a color emoji font can be more than 100MB.
@@ -74,6 +73,10 @@ type ResourceSlicer interface {
 
 	// Slice returns the content in [start, end), without a copy.
 	// It returns an error if the range is not inside the content.
+	//
+	// The returned slice must have a length of exactly end - start, and its
+	// capacity must be limited to its length, so that appending to a table can
+	// not overwrite the content which follows it. The loader does not check it.
 	Slice(start, end int64) ([]byte, error)
 }
 
@@ -99,7 +102,8 @@ func (sr sliceResource) Slice(start, end int64) ([]byte, error) {
 	if start < 0 || end < start || end > int64(len(sr.data)) || start >= int64(len(sr.data)) {
 		return nil, fmt.Errorf("invalid range [%d, %d) for content of size %d", start, end, len(sr.data))
 	}
-	return sr.data[start:end], nil
+	// limit the capacity, as required by [ResourceSlicer.Slice]
+	return sr.data[start:end:end], nil
 }
 
 // tableSection represents a table within the font file.
@@ -192,17 +196,9 @@ func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
 		if !compressed {
 			start := int64(s.offset)
 			end := start + int64(s.length)
-			table, err := sl.Slice(start, end)
-			if err != nil {
-				return nil, err
-			}
-			// compare as uint64: int(s.length) can overflow on 32-bit platforms
-			if uint64(len(table)) != uint64(s.length) {
-				return nil, fmt.Errorf("invalid table: Slice(%d, %d) returned %d bytes", start, end, len(table))
-			}
-			// limit the capacity so that appending to the table can not
-			// overwrite the next one
-			return table[:len(table):len(table)], nil
+			// the length and capacity of the result are guaranteed by the
+			// contract of [ResourceSlicer.Slice]
+			return sl.Slice(start, end)
 		}
 	}
 

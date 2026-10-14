@@ -255,27 +255,20 @@ func TestSliceResourceSlice(t *testing.T) {
 	b, err := r.Slice(1, 3)
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, bytes.Equal(b, []byte{2, 3}))
+	// the capacity is limited, so that appending to b can not overwrite the content
+	tu.Assert(t, cap(b) == 2)
 }
 
-// badSlicer is a ResourceSlicer which returns a wrong length or an error.
+// badSlicer is a ResourceSlicer which returns an error.
 type badSlicer struct {
 	*bytes.Reader
-	err   error
-	short bool
+	err error
 }
 
-func (b badSlicer) Slice(start, end int64) ([]byte, error) {
-	if b.err != nil {
-		return nil, b.err
-	}
-	if b.short {
-		end--
-	}
-	return make([]byte, end-start), nil
-}
+func (b badSlicer) Slice(start, end int64) ([]byte, error) { return nil, b.err }
 
-// The error of Slice, and a slice of the wrong length, are returned as errors,
-// for a ResourceSlicer implemented outside of this package.
+// The error of Slice is returned, for a ResourceSlicer implemented outside of
+// this package.
 func TestResourceSlicerErrors(t *testing.T) {
 	data := []byte{1, 2, 3, 4}
 	s := tableSection{offset: 1, length: 2}
@@ -283,13 +276,4 @@ func TestResourceSlicerErrors(t *testing.T) {
 	ld := Loader{file: badSlicer{Reader: bytes.NewReader(data), err: errors.New("slice")}}
 	_, err := ld.findTableBuffer(s, nil)
 	tu.Assert(t, err != nil && err.Error() == "slice")
-
-	ld = Loader{file: badSlicer{Reader: bytes.NewReader(data), short: true}}
-	_, err = ld.findTableBuffer(s, nil)
-	tu.Assert(t, err != nil)
-
-	ld = Loader{file: badSlicer{Reader: bytes.NewReader(data)}}
-	b, err := ld.findTableBuffer(s, nil)
-	tu.AssertNoErr(t, err)
-	tu.Assert(t, len(b) == 2 && cap(b) == 2)
 }
