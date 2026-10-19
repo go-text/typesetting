@@ -108,14 +108,14 @@ func fontFiles(t *testing.T) []string {
 	return append(tu.Filenames(t, "common"), tu.Filenames(t, "collections")...)
 }
 
-func TestSliceResource(t *testing.T) {
+func TestSlicedResource(t *testing.T) {
 	for _, filename := range fontFiles(t) {
 		content, err := td.Files.ReadFile(filename)
 		tu.AssertNoErr(t, err)
 
 		want, err := NewLoaders(bytes.NewReader(content))
 		tu.AssertC(t, err == nil, filename)
-		got, err := NewLoaders(NewSliceResource(content))
+		got, err := NewLoaders(NewSlicedResource(content))
 		tu.AssertC(t, err == nil, filename)
 		tu.AssertC(t, len(got) == len(want), filename)
 
@@ -135,11 +135,11 @@ func TestSliceResource(t *testing.T) {
 	}
 }
 
-func TestSliceResourceAliasesInput(t *testing.T) {
+func TestSlicedResourceAliasesInput(t *testing.T) {
 	for _, filename := range fontFiles(t) {
 		content, err := td.Files.ReadFile(filename)
 		tu.AssertNoErr(t, err)
-		lds, err := NewLoaders(NewSliceResource(content))
+		lds, err := NewLoaders(NewSlicedResource(content))
 		tu.AssertNoErr(t, err)
 
 		for _, ld := range lds {
@@ -162,13 +162,13 @@ func TestSliceResourceAliasesInput(t *testing.T) {
 // A compressed WOFF table is decoded into a buffer. When dst is a view of the
 // input (a table returned before), the decoder must not write into it, even
 // when dst is large enough to hold the decoded table.
-func TestSliceResourceCompressedIgnoresDst(t *testing.T) {
+func TestSlicedResourceCompressedIgnoresDst(t *testing.T) {
 	var compressed int
 	for _, filename := range tu.Filenames(t, "common") {
 		content, err := td.Files.ReadFile(filename)
 		tu.AssertNoErr(t, err)
 		input := append([]byte(nil), content...)
-		lds, err := NewLoaders(NewSliceResource(input))
+		lds, err := NewLoaders(NewSlicedResource(input))
 		tu.AssertNoErr(t, err)
 
 		for _, ld := range lds {
@@ -190,7 +190,7 @@ func TestSliceResourceCompressedIgnoresDst(t *testing.T) {
 
 // A loader built from bytes must accept and reject the same tables as the
 // copying loader over the same (possibly truncated) bytes.
-func TestSliceResourceTruncated(t *testing.T) {
+func TestSlicedResourceTruncated(t *testing.T) {
 	var rejected int
 	for _, filename := range fontFiles(t) {
 		content, err := td.Files.ReadFile(filename)
@@ -198,7 +198,7 @@ func TestSliceResourceTruncated(t *testing.T) {
 		// keep the table directory, cut the table data
 		for _, size := range []int{len(content) / 2, len(content) - 1} {
 			input := content[:size]
-			got, err := NewLoaders(NewSliceResource(input))
+			got, err := NewLoaders(NewSlicedResource(input))
 			want, err2 := NewLoaders(bytes.NewReader(input))
 			tu.AssertC(t, (err == nil) == (err2 == nil), filename)
 			if err != nil {
@@ -223,10 +223,10 @@ func TestSliceResourceTruncated(t *testing.T) {
 
 // A zero-length table at the very end of the file is rejected, like the
 // copying loader does with a bytes.Reader (ReadAt at EOF returns io.EOF).
-func TestSliceResourceEmptyTableAtEOF(t *testing.T) {
+func TestSlicedResourceEmptyTableAtEOF(t *testing.T) {
 	data := []byte{1, 2, 3, 4}
 	copying := Loader{file: bytes.NewReader(data)}
-	sliced := Loader{file: NewSliceResource(data)}
+	sliced := Loader{file: NewSlicedResource(data)}
 	for _, s := range []tableSection{{offset: 4}, {offset: 5}, {offset: 3, length: 2}} {
 		_, err := copying.findTableBuffer(s, nil)
 		tu.Assert(t, err != nil)
@@ -241,13 +241,13 @@ func TestSliceResourceEmptyTableAtEOF(t *testing.T) {
 	}
 }
 
-func TestSliceResourceEmpty(t *testing.T) {
-	_, err := NewLoaders(NewSliceResource(nil))
+func TestSlicedResourceEmpty(t *testing.T) {
+	_, err := NewLoaders(NewSlicedResource(nil))
 	tu.Assert(t, err != nil)
 }
 
-func TestSliceResourceSlice(t *testing.T) {
-	r := NewSliceResource([]byte{1, 2, 3, 4})
+func TestSlicedResourceSlice(t *testing.T) {
+	r := NewSlicedResource([]byte{1, 2, 3, 4})
 	for _, rg := range [][2]int64{{-1, 2}, {2, 1}, {0, 5}, {4, 4}, {5, 6}} {
 		_, err := r.Slice(rg[0], rg[1])
 		tu.Assert(t, err != nil)

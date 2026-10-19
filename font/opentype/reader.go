@@ -80,22 +80,22 @@ type ResourceSlicer interface {
 	Slice(start, end int64) ([]byte, error)
 }
 
-// NewSliceResource returns a [ResourceSlicer] reading [data].
+// NewSlicedResource returns a [ResourceSlicer] reading [data].
 // [data] can be a read-only memory mapping of a font file, so that
 // the operating system loads the tables in memory when they are used.
 //
 // See [ResourceSlicer] for how [data] is used.
-func NewSliceResource(data []byte) ResourceSlicer {
-	return sliceResource{Reader: bytes.NewReader(data), data: data}
+func NewSlicedResource(data []byte) ResourceSlicer {
+	return slicedResource{Reader: bytes.NewReader(data), data: data}
 }
 
-// sliceResource implements [ResourceSlicer] for an in-memory slice.
-type sliceResource struct {
+// slicedResource implements [ResourceSlicer] for an in-memory slice.
+type slicedResource struct {
 	*bytes.Reader // implements [Resource]
 	data          []byte
 }
 
-func (sr sliceResource) Slice(start, end int64) ([]byte, error) {
+func (sr slicedResource) Slice(start, end int64) ([]byte, error) {
 	// start == len(data) is rejected even for an empty range, as ReadAt
 	// (which returns io.EOF) does on the copying path, so that both paths
 	// accept the same tables
