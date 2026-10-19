@@ -521,11 +521,11 @@ func TestSbixGlyph(t *testing.T) {
 
 // A font built from a ResourceSlicer returns the same bitmaps, and its
 // 'sbix' glyph data is a view of the input instead of a copy.
-func TestSbixGlyphSliceResource(t *testing.T) {
+func TestSbixGlyphSlicedResource(t *testing.T) {
 	for _, filename := range []string{"toys/Sbix1.ttf", "toys/Sbix2.ttf", "toys/Sbix3.ttf"} {
 		content, err := td.Files.ReadFile(filename)
 		tu.AssertNoErr(t, err)
-		lds, err := ot.NewLoaders(ot.NewSliceResource(content))
+		lds, err := ot.NewLoaders(ot.NewSlicedResource(content))
 		tu.AssertNoErr(t, err)
 		sliced, err := NewFont(lds[0])
 		tu.AssertNoErr(t, err)
