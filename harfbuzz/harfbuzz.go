@@ -21,7 +21,7 @@ import (
 	"github.com/go-text/typesetting/language"
 )
 
-// based on upstream commit 5a31dd02f0b32de12336f72db9297bfe94cf0da1 (v12.3.0)
+// based on upstream commit 873dbc1e32483cffa1f5d92cfcc4fcbf7104e0d3 (after v14.5.0)
 
 // debugMode is only used in test: if true, it prints detailed information
 // about shaping
@@ -197,6 +197,14 @@ func (cl ClusterLevel) String() string {
 	default:
 		return fmt.Sprintf("<unknown cluster level: %d>", cl)
 	}
+}
+
+func (cl ClusterLevel) isMonotone() bool {
+	return (1<<cl)&(1<<MonotoneGraphemes|1<<MonotoneCharacters) != 0
+}
+
+func (cl ClusterLevel) isGraphemes() bool {
+	return cl == MonotoneGraphemes // we dont not support Graphemes
 }
 
 // Feature holds information about requested

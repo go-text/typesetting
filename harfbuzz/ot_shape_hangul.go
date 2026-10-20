@@ -46,13 +46,22 @@ func (complexShaperHangul) collectFeatures(plan *otShapePlanner) {
 
 func (complexShaperHangul) overrideFeatures(plan *otShapePlanner) {
 	/* Uniscribe does not apply 'calt' for Hangul, and certain fonts
-	* (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
-	* in calt, which is not desirable. */
-	plan.otMap.disableFeature(ot.NewTag('c', 'a', 'l', 't'))
+	 * (Noto Sans CJK, Source Han Sans, etc) apply all of jamo lookups
+	 * in calt, which is not desirable.
+	 *
+	 * Rather than disabling 'calt' for the entire run, which also turns
+	 * it off for any other characters in the run, allocate a mask for it
+	 * and clear that mask on jamo only (in setup_masks_hangul).  That
+	 * keeps jamo out of reach of such lookups while letting the rest of
+	 * the run shape with 'calt' as usual.
+	 *
+	 * https://github.com/harfbuzz/harfbuzz/discussions/4853 */
+	plan.otMap.addFeature(ot.NewTag('c', 'a', 'l', 't'))
 }
 
 type hangulShapePlan struct {
 	maskArray [hangulFeatureCount]GlyphMask
+	caltMask  GlyphMask
 }
 
 func (cs *complexShaperHangul) dataCreate(plan *otShapePlan) {
@@ -61,6 +70,7 @@ func (cs *complexShaperHangul) dataCreate(plan *otShapePlan) {
 	for i := range hangulPlan.maskArray {
 		hangulPlan.maskArray[i] = plan.otMap.getMask1(hangulFeatures[i])
 	}
+	hangulPlan.caltMask = plan.otMap.getMask1(ot.NewTag('c', 'a', 'l', 't'))
 
 	cs.plan = hangulPlan
 }
@@ -233,7 +243,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 				} else {
 					end = start + 2
 				}
-				buffer.mergeOutClusters(start, end)
+				buffer.mergeOutGraphemeClusters(start, end)
 				continue
 			}
 		} else if ucd.HangulSBase <= u && u <= ucd.HangulSBase+ucd.HangulSCount-1 { // is combined S
@@ -298,7 +308,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 						info[i].complexAux = tjmo
 					}
 
-					buffer.mergeOutClusters(start, end)
+					buffer.mergeOutGraphemeClusters(start, end)
 					continue
 				} else if tindex == 0 && buffer.idx+1 < count && isT(buffer.cur(+1).codepoint) {
 					buffer.unsafeToBreak(buffer.idx, buffer.idx+2) /* Mark unsafe between LV and T. */
@@ -327,6 +337,12 @@ func (cs *complexShaperHangul) setupMasks(_ *otShapePlan, buffer *Buffer, _ *Fon
 	info := buffer.Info
 	for i := range info {
 		info[i].Mask |= hangulPlan.maskArray[info[i].complexAux]
+
+		/* Keep 'calt' away from jamo; see override_features_hangul(). */
+		u := info[i].codepoint
+		if isL(u) || isV(u) || isT(u) {
+			info[i].Mask &= ^hangulPlan.caltMask
+		}
 	}
 }
 
