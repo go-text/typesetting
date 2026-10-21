@@ -303,13 +303,13 @@ type breaker struct {
 	isUnusedGrapheme    bool
 }
 
-// newBreaker returns a breaker initialized to break the provided text.
-func newBreaker(seg *segmenter.Segmenter, text []rune) *breaker {
-	seg.Init(text)
+// newBreaker returns a breaker for the text seg has been initialized with.
+// It does not modify seg.
+func newBreaker(seg *segmenter.Segmenter) *breaker {
 	br := &breaker{
 		wordSegmenter:     seg.LineIterator(),
 		graphemeSegmenter: seg.GraphemeIterator(),
-		totalRunes:        len(text),
+		totalRunes:        seg.Len(),
 	}
 	return br
 }
@@ -742,7 +742,8 @@ type LineWrapper struct {
 	config WrapConfig
 	// truncating tracks whether the wrapper should be performing truncation.
 	truncating bool
-	// seg is an internal storage used to initiate the breaker iterator.
+	// seg is an internal storage used to initiate the breaker iterator,
+	// when the caller does not provide its own segmenter.
 	seg segmenter.Segmenter
 
 	// breaker provides line-breaking candidates.
@@ -766,9 +767,24 @@ type LineWrapper struct {
 // It must be called prior to invoking WrapNextLine. Prepare invalidates any
 // lines previously returned by this wrapper.
 func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunIterator) {
+	l.seg.Init(paragraph)
+	l.PrepareSegmented(config, &l.seg, runs)
+}
+
+// PrepareSegmented is the same as [LineWrapper.Prepare], but takes the paragraph
+// as a [segmenter.Segmenter] already initialized with it, instead of computing
+// its break opportunities again. A caller that wraps the same paragraph several
+// times, for instance to different widths, can initialize a segmenter once and
+// reuse it for every wrapping.
+//
+// The wrapper only reads seg, which must not be initialized again
+// while the lines of this paragraph are being wrapped, that is
+// until the next call to [LineWrapper.Prepare], [LineWrapper.PrepareSegmented]
+// or [LineWrapper.WrapParagraph].
+func (l *LineWrapper) PrepareSegmented(config WrapConfig, seg *segmenter.Segmenter, runs RunIterator) {
 	l.config = config
 	l.truncating = l.config.TruncateAfterLines > 0
-	l.breaker = newBreaker(&l.seg, paragraph)
+	l.breaker = newBreaker(seg)
 	l.glyphRuns = runs
 	l.lineStartRune = 0
 	l.more = true
@@ -805,7 +821,8 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 		// We can only skip wrapping if the text doesn't contain any forced line
 		// breaks that need to be evaluated by the real algorithm, so we need to
 		// quickly scan it for that.
-		l.breaker = newBreaker(&l.seg, paragraph)
+		l.seg.Init(paragraph)
+		l.breaker = newBreaker(&l.seg)
 		hasMandatoryBreak := false
 		for {
 			option, ok := l.breaker.nextWordBreak()
