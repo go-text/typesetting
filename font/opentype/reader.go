@@ -3,6 +3,7 @@
 package opentype
 
 import (
+	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"errors"
@@ -45,6 +46,64 @@ type Resource interface {
 	Read([]byte) (int, error)
 	ReadAt([]byte, int64) (int, error)
 	Seek(int64, int) (int64, error)
+}
+
+// ResourceSlicer is a [Resource] which can return a part of its content
+// without a copy.
+//
+// When the [Resource] given to [NewLoader] or [NewLoaders] is a ResourceSlicer,
+// [Loader.RawTable] and [Loader.RawTableTo] return each uncompressed table
+// as the slice returned by Slice, and do not copy it (compressed WOFF tables are
+// still decoded into a new buffer).
+//
+// This saves the copy of each table, which matters for large tables kept alive
+// by a font.Font: the 'sbix' table of a color emoji font can be more than 100MB.
+//
+// The loaders, the fonts built from them, and the data these return (tables,
+// glyph bitmaps) then refer to the content of the resource directly.
+// As a consequence:
+//   - the whole content stays reachable while any of them is in use, even
+//     when only one face of a collection is used;
+//   - the content must not be modified, or unmapped, while any of them is in use;
+//   - the returned tables are read-only: never pass one as dst to
+//     [Loader.RawTableTo] on a loader whose resource is not a ResourceSlicer,
+//     which would write into the content.
+type ResourceSlicer interface {
+	Resource
+
+	// Slice returns the content in [start, end), without a copy.
+	// It returns an error if the range is not inside the content.
+	//
+	// The returned slice must have a length of exactly end - start, and its
+	// capacity must be limited to its length, so that appending to a table can
+	// not overwrite the content which follows it. The loader does not check it.
+	Slice(start, end int64) ([]byte, error)
+}
+
+// NewSlicedResource returns a [ResourceSlicer] reading [data].
+// [data] can be a read-only memory mapping of a font file, so that
+// the operating system loads the tables in memory when they are used.
+//
+// See [ResourceSlicer] for how [data] is used.
+func NewSlicedResource(data []byte) ResourceSlicer {
+	return slicedResource{Reader: bytes.NewReader(data), data: data}
+}
+
+// slicedResource implements [ResourceSlicer] for an in-memory slice.
+type slicedResource struct {
+	*bytes.Reader // implements [Resource]
+	data          []byte
+}
+
+func (sr slicedResource) Slice(start, end int64) ([]byte, error) {
+	// start == len(data) is rejected even for an empty range, as ReadAt
+	// (which returns io.EOF) does on the copying path, so that both paths
+	// accept the same tables
+	if start < 0 || end < start || end > int64(len(sr.data)) || start >= int64(len(sr.data)) {
+		return nil, fmt.Errorf("invalid range [%d, %d) for content of size %d", start, end, len(sr.data))
+	}
+	// limit the capacity, as required by [ResourceSlicer.Slice]
+	return sr.data[start:end:end], nil
 }
 
 // tableSection represents a table within the font file.
@@ -129,7 +188,21 @@ func NewLoaders(file Resource) ([]*Loader, error) {
 
 // dst is an optional storage which may be provided to reduce allocations.
 func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
-	if s.length != 0 && s.length < s.zLength {
+	compressed := s.length != 0 && s.length < s.zLength
+	if sl, ok := pr.file.(ResourceSlicer); ok {
+		// [dst] may be a table returned by a previous call, which is then a
+		// view of the resource and may be read-only memory: never write into it.
+		dst = nil
+		if !compressed {
+			start := int64(s.offset)
+			end := start + int64(s.length)
+			// the length and capacity of the result are guaranteed by the
+			// contract of [ResourceSlicer.Slice]
+			return sl.Slice(start, end)
+		}
+	}
+
+	if compressed {
 		zbuf := io.NewSectionReader(pr.file, int64(s.offset), int64(s.length))
 		r, err := zlib.NewReader(zbuf)
 		if err != nil {
@@ -179,8 +252,10 @@ func (pr *Loader) RawTable(tag Tag) ([]byte, error) {
 	return pr.RawTableTo(tag, nil)
 }
 
-// RawTable writes the binary content of the given table to [dst], returning it,
+// RawTableTo writes the binary content of the given table to [dst], returning it,
 // or an error if not found.
+// If the [Resource] of the loader is a [ResourceSlicer], [dst] is not used and an
+// uncompressed table is returned as a view of the resource, without a copy.
 func (pr *Loader) RawTableTo(tag Tag, dst []byte) ([]byte, error) {
 	s, found := pr.tables[tag]
 	if !found {
