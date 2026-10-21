@@ -71,6 +71,11 @@ type FontMap struct {
 
 	// built holds whether the candidates are populated.
 	built bool
+	// candidatesCache holds the candidates built for the most recent queries
+	// and scripts, the most recently used last, so that switching back to one
+	// of them does not build its candidates again. It is cleared whenever the
+	// database changes.
+	candidatesCache []*candidatesEntry
 	// systemFontsAdded holds whether [UseSystemFonts] has already appended
 	// the system fonts to the database.
 	systemFontsAdded bool
@@ -146,14 +151,15 @@ func (fm *FontMap) addSystemFonts(footprints []Footprint) {
 
 	fm.appendFootprints(footprints...)
 
-	fm.built = false
-
 	fm.lru.Clear()
 }
 
 // appendFootprints adds the provided footprints to the database and maps their script
-// coverage.
+// coverage. As the database changes, the candidates are built again.
 func (fm *FontMap) appendFootprints(footprints ...Footprint) {
+	fm.built = false
+	fm.candidatesCache = fm.candidatesCache[:0]
+
 	startIdx := len(fm.database)
 	fm.database = append(fm.database, footprints...)
 	// Insert entries into scriptMap for each footprint's covered scripts.
@@ -297,8 +303,6 @@ func (fm *FontMap) AddFont(fontFile font.Resource, fileID, familyName string) er
 
 	fm.appendFootprints(addedFonts...)
 
-	fm.built = false
-
 	fm.lru.Clear()
 	return nil
 }
@@ -314,7 +318,6 @@ func (fm *FontMap) AddFace(face *font.Face, location Location, md font.Descripti
 
 	fm.appendFootprints(fp)
 
-	fm.built = false
 	fm.lru.Clear()
 }
 
@@ -382,11 +385,20 @@ func (fm *FontMap) FindSystemFonts(family string) []Location {
 
 // SetQuery set the families and aspect required, influencing subsequent
 // [ResolveFace] calls. See also [SetScript].
+//
+// The font map keeps the candidate fonts of a few recent queries, so that
+// alternating between them, as text mixing font families does, is cheap.
 func (fm *FontMap) SetQuery(query Query) {
 	if len(query.Families) == 0 {
 		query.Families = []string{""}
 	}
 	fm.query = query
+	// The candidates built for the current query are kept when it is unchanged.
+	// They are compared to the families of the built candidates, which are a
+	// copy, as the caller may have changed the families in place.
+	if fm.built && len(fm.candidatesCache) > 0 && fm.candidatesCache[len(fm.candidatesCache)-1].matches(query, fm.script) {
+		return
+	}
 	fm.built = false
 }
 
@@ -413,6 +425,63 @@ type candidates struct {
 	manual []int // manually inserted faces to be tried if the other candidates fail.
 }
 
+// candidatesCacheSize is the number of queries and scripts whose
+// candidates a [FontMap] keeps.
+const candidatesCacheSize = 8
+
+// candidatesEntry is the candidates built for a query and a script.
+type candidatesEntry struct {
+	families   []string // a copy of the query families
+	aspect     font.Aspect
+	script     language.Script
+	candidates candidates
+}
+
+// matches returns whether the entry is for the given query and script.
+func (ce *candidatesEntry) matches(query Query, script language.Script) bool {
+	if ce.aspect != query.Aspect || ce.script != script || len(ce.families) != len(query.Families) {
+		return false
+	}
+	for i, family := range ce.families {
+		if family != query.Families[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// cachedCandidates returns the cached entry for the current query and script,
+// marking it as the most recently used, or nil if there is none.
+func (fm *FontMap) cachedCandidates() *candidatesEntry {
+	for i, ce := range fm.candidatesCache {
+		if ce.matches(fm.query, fm.script) {
+			copy(fm.candidatesCache[i:], fm.candidatesCache[i+1:])
+			fm.candidatesCache[len(fm.candidatesCache)-1] = ce
+			return ce
+		}
+	}
+	return nil
+}
+
+// newCandidatesEntry adds an entry for the current query and script to the cache,
+// as the most recently used, replacing the least recently used one, whose buffers
+// are reused, when the cache is full.
+func (fm *FontMap) newCandidatesEntry() *candidatesEntry {
+	var ce *candidatesEntry
+	if len(fm.candidatesCache) < candidatesCacheSize {
+		ce = new(candidatesEntry)
+		fm.candidatesCache = append(fm.candidatesCache, ce)
+	} else {
+		ce = fm.candidatesCache[0]
+		copy(fm.candidatesCache, fm.candidatesCache[1:])
+		fm.candidatesCache[len(fm.candidatesCache)-1] = ce
+	}
+	ce.families = append(ce.families[:0], fm.query.Families...)
+	ce.aspect = fm.query.Aspect
+	ce.script = fm.script
+	return ce
+}
+
 // reset slices, setting the capacity of withoutFallback to nbFamilies
 func (cd *candidates) resetWithSize(nbFamilies int) {
 	if cap(cd.withoutFallback) < nbFamilies { // reallocate
@@ -428,7 +497,22 @@ func (fm *FontMap) buildCandidates() {
 	if fm.built {
 		return
 	}
-	fm.candidates.resetWithSize(len(fm.query.Families))
+
+	// The candidates of a recent query and script are reused.
+	if ce := fm.cachedCandidates(); ce != nil {
+		fm.candidates = ce.candidates
+		fm.built = true
+		return
+	}
+	ce := fm.newCandidatesEntry()
+	ce.candidates.build(fm)
+	fm.candidates = ce.candidates
+	fm.built = true
+}
+
+// build fills the candidates for the query and the script of the font map.
+func (cd *candidates) build(fm *FontMap) {
+	cd.resetWithSize(len(fm.query.Families))
 
 	// first pass for an exact match
 	{
@@ -443,7 +527,7 @@ func (fm *FontMap) buildCandidates() {
 
 			// with no system fallback, the CSS spec says
 			// that only one font among the candidates must be tried
-			fm.candidates.withoutFallback = append(fm.candidates.withoutFallback, candidates[0])
+			cd.withoutFallback = append(cd.withoutFallback, candidates[0])
 		}
 	}
 
@@ -455,23 +539,21 @@ func (fm *FontMap) buildCandidates() {
 		candidates = fm.database.retainsBestMatches(candidates, fm.query.Aspect)
 
 		// candidates is owned by fm.footprintsBuffer: copy its content
-		S := fm.candidates.withFallback
+		S := cd.withFallback
 		if L := len(candidates); cap(S) < L {
 			S = make([]int, L)
 		} else {
 			S = S[:L]
 		}
 		copy(S, candidates)
-		fm.candidates.withFallback = S
+		cd.withFallback = S
 	}
 
 	// third pass with user provided fonts
 	{
-		fm.candidates.manual = fm.database.filterUserProvided(fm.candidates.manual)
-		fm.candidates.manual = fm.database.retainsBestMatches(fm.candidates.manual, fm.query.Aspect)
+		cd.manual = fm.database.filterUserProvided(cd.manual)
+		cd.manual = fm.database.retainsBestMatches(cd.manual, fm.query.Aspect)
 	}
-
-	fm.built = true
 }
 
 // returns nil if not candidates supports the rune `r`

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -508,5 +510,165 @@ func TestSystemFontsInitializationError(t *testing.T) {
 	}
 	if err := NewFontMap(nil).UseSystemFonts(""); err != first {
 		t.Fatalf("font map initialization: got %v, want %v", err, first)
+	}
+}
+
+// equalCandidates returns whether the two candidates have the same indices.
+func equalCandidates(a, b candidates) bool {
+	return slices.Equal(a.withoutFallback, b.withoutFallback) &&
+		slices.Equal(a.withFallback, b.withFallback) && slices.Equal(a.manual, b.manual)
+}
+
+// TestCandidatesCache checks that the candidates and the faces resolved for
+// a sequence of queries and scripts, which switch back and forth between more
+// queries than the cache holds, are those of a fresh font map.
+func TestCandidatesCache(t *testing.T) {
+	queries := []Query{
+		{Families: []string{"sans-serif"}},
+		{Families: []string{"monospace"}},
+		{Families: []string{"serif"}, Aspect: font.Aspect{Weight: font.WeightBold}},
+		{Families: []string{"DejaVu Sans", "sans-serif"}},
+		{Families: []string{"FreeMono"}, Aspect: font.Aspect{Style: font.StyleItalic}},
+		{Families: []string{"Nimbus Sans", "serif"}},
+		{Families: []string{"Lohit Bengali"}},
+		{Families: []string{"Khmer OS"}},
+		{Families: []string{"cursive", "fantasy"}},
+		{Families: []string{"sans-serif"}, Aspect: font.Aspect{Weight: font.WeightBold}},
+		{},
+	}
+	scripts := []language.Script{language.Latin, language.Bengali, language.Khmer, language.Arabic}
+	runes := "aZ0ঔកسไ€"
+
+	fm := newSampleFontmap()
+	rng := rand.New(rand.NewSource(1))
+	for step := 0; step < 400; step++ {
+		// Mostly alternate between the first two queries, as prose with inline code does.
+		qi := step % 2
+		if rng.Intn(3) == 0 {
+			qi = rng.Intn(len(queries))
+		}
+		query := queries[qi]
+		script := language.Latin
+		if rng.Intn(4) == 0 {
+			script = scripts[rng.Intn(len(scripts))]
+		}
+
+		fresh := newSampleFontmap()
+		fresh.SetQuery(query)
+		fresh.SetScript(script)
+		fresh.buildCandidates()
+
+		fm.SetQuery(query)
+		fm.SetScript(script)
+		fm.buildCandidates()
+		if !equalCandidates(fm.candidates, fresh.candidates) {
+			t.Fatalf("step %d, query %v, script %s: got candidates %v, expected %v", step, query, script, fm.candidates, fresh.candidates)
+		}
+
+		// The faces are resolved from the candidates, not the rune cache.
+		fm.lru.Clear()
+		for _, r := range runes {
+			got, expected := fm.FontLocation(fm.ResolveFace(r).Font), fresh.FontLocation(fresh.ResolveFace(r).Font)
+			if got != expected {
+				t.Fatalf("step %d, query %v, script %s, rune %c: got %v, expected %v", step, query, script, r, got, expected)
+			}
+		}
+	}
+	tu.Assert(t, len(fm.candidatesCache) == candidatesCacheSize)
+}
+
+// TestCandidatesCacheFamiliesChanged checks that a query whose families slice
+// is changed in place between calls to SetQuery is not taken as unchanged.
+func TestCandidatesCacheFamiliesChanged(t *testing.T) {
+	fm := newSampleFontmap()
+	families := []string{"monospace"}
+	fm.SetQuery(Query{Families: families})
+	fm.buildCandidates()
+	families[0] = "serif"
+	fm.SetQuery(Query{Families: families})
+	fm.buildCandidates()
+
+	fresh := newSampleFontmap()
+	fresh.SetQuery(Query{Families: []string{"serif"}})
+	fresh.buildCandidates()
+	tu.Assert(t, equalCandidates(fm.candidates, fresh.candidates))
+}
+
+// TestCandidatesCacheAddFont checks that the cached candidates are built again
+// after fonts are added.
+func TestCandidatesCacheAddFont(t *testing.T) {
+	file, err := os.Open("../font/testdata/Roboto-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file.Close()
+	ld, err := ot.NewLoader(file)
+	tu.AssertNoErr(t, err)
+	ft, err := font.NewFont(ld)
+	tu.AssertNoErr(t, err)
+
+	amiri, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer amiri.Close()
+
+	for _, add := range []func(fm *FontMap){
+		func(fm *FontMap) {
+			md := ft.Describe()
+			md.Family = "My Family"
+			fm.AddFace(font.NewFace(ft), Location{File: "user:face"}, md)
+		},
+		func(fm *FontMap) {
+			tu.AssertNoErr(t, fm.AddFont(amiri, "user:face", "My Family"))
+		},
+		func(fm *FontMap) {
+			fm.addSystemFonts([]Footprint{{Family: font.NormalizeFamily("My Family"), Runes: newRuneSet('a'), Aspect: ft.Describe().Aspect, Scripts: ScriptSet{language.Latin}, Location: Location{File: "user:face"}}})
+		},
+	} {
+		fm := newSampleFontmap()
+		fm.systemFontsAdded = false
+		fm.SetScript(language.Latin)
+		// Both queries are cached before the font is added.
+		mine, mono := Query{Families: []string{"My Family"}}, Query{Families: []string{"monospace"}}
+		fm.SetQuery(mine)
+		tu.Assert(t, fm.FontLocation(fm.ResolveFace('a').Font).File != "user:face")
+		fm.SetQuery(mono)
+		fm.ResolveFace('a')
+
+		add(fm)
+		fm.cache(Footprint{Location: Location{File: "user:face"}}, font.NewFace(ft))
+		fm.SetQuery(mine)
+		tu.Assert(t, fm.FontLocation(fm.ResolveFace('a').Font).File == "user:face")
+		fm.SetQuery(mono)
+		fm.buildCandidates()
+		fresh := newSampleFontmap()
+		fresh.systemFontsAdded = false
+		add(fresh)
+		fresh.SetQuery(mono)
+		fresh.SetScript(language.Latin)
+		fresh.buildCandidates()
+		tu.Assert(t, equalCandidates(fm.candidates, fresh.candidates))
+	}
+}
+
+// BenchmarkResolveFaceAlternating resolves the faces of runes for queries
+// alternating between two families, as for text mixing prose and code.
+func BenchmarkResolveFaceAlternating(b *testing.B) {
+	logger := log.New(io.Discard, "", 0)
+	fm := NewFontMap(logger)
+	err := fm.UseSystemFonts(b.TempDir())
+	tu.AssertNoErr(b, err)
+	fm.SetScript(language.Latin)
+
+	queries := []Query{
+		{Families: []string{"sans-serif"}},
+		{Families: []string{"monospace"}},
+		{Families: []string{"sans-serif"}, Aspect: font.Aspect{Weight: font.WeightBold}},
+	}
+	// The rune cache is not used, as for runes resolved for the first time.
+	fm.SetRuneCacheSize(0)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, q := range queries {
+			fm.SetQuery(q)
+			fm.ResolveFace('a')
+		}
 	}
 }
