@@ -106,7 +106,9 @@ func FuzzBreakOptions(f *testing.F) {
 	f.Add(benchParagraphLatin)
 	f.Fuzz(func(t *testing.T, input string) {
 		runes := []rune(input)
-		breaker := newBreaker(&segmenter.Segmenter{}, runes)
+		var seg segmenter.Segmenter
+		seg.Init(runes)
+		breaker := newBreaker(&seg)
 		var wordOptions []breakOption
 		for b, ok := breaker.nextWordBreak(); ok; b, ok = breaker.nextWordBreak() {
 			prevRuneIndex := 0
