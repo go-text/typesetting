@@ -1596,7 +1596,9 @@ func checkOptions(t *testing.T, runes []rune, options []breakOption) bool {
 
 func TestRawBreakOptions(t *testing.T) {
 	if err := quick.Check(func(runes []rune) bool {
-		breaker := newBreaker(&segmenter.Segmenter{}, runes)
+		var seg segmenter.Segmenter
+		seg.Init(runes)
+		breaker := newBreaker(&seg)
 		var wordOptions []breakOption
 		for b, ok := breaker.nextWordRaw(); ok; b, ok = breaker.nextWordRaw() {
 			wordOptions = append(wordOptions, b)
@@ -3691,6 +3693,194 @@ func TestComputeBidiOrderingLevels(t *testing.T) {
 			if run.VisualIndex != tc.want[i] {
 				t.Errorf("levels %v: logical run %d has visual index %d, want %d", tc.levels, i, run.VisualIndex, tc.want[i])
 			}
+		}
+	}
+}
+
+// wrapAllLines wraps the prepared paragraph of l, alternating the given
+// widths line by line, and returns copies of the wrapped lines.
+func wrapAllLines(l *LineWrapper, widths []int) []WrappedLine {
+	var lines []WrappedLine
+	for i := 0; ; i++ {
+		line, done := l.WrapNextLine(widths[i%len(widths)])
+		cp := line
+		cp.Line = nil
+		for _, run := range line.Line {
+			cp.Line = append(cp.Line, run.copy())
+		}
+		lines = append(lines, cp)
+		if done {
+			return lines
+		}
+	}
+}
+
+// TestPrepareSegmented checks that wrapping with a segmenter initialized once
+// and reused for every wrapping gives the same lines as Prepare,
+// across widths, break policies, truncation and mandatory breaks.
+func TestPrepareSegmented(t *testing.T) {
+	latin := []rune(benchParagraphLatin)[:400]
+	withBreaks := append(append(append([]rune{}, latin[:90]...), []rune("\n\nshort\r\nline ")...), latin[90:]...)
+	texts := []struct {
+		name   string
+		text   []rune
+		dir    di.Direction
+		face   *font.Face
+		script language.Script
+	}{
+		{"latin", latin, di.DirectionLTR, benchEnFace, language.Latin},
+		{"breaks", withBreaks, di.DirectionLTR, benchEnFace, language.Latin},
+		{"arabic", []rune(benchParagraphArabic)[:400], di.DirectionRTL, benchArFace, language.Arabic},
+	}
+	var shaper HarfbuzzShaper
+	shape := func(text []rune) Output {
+		return shaper.Shape(Input{
+			Text: text, RunEnd: len(text), Direction: di.DirectionLTR,
+			Face: benchEnFace, Size: fixed.I(16), Script: language.Latin, Language: language.NewLanguage("EN"),
+		})
+	}
+	truncator := shape([]rune("…"))
+	configs := []WrapConfig{
+		{},
+		{BreakPolicy: Always},
+		{BreakPolicy: Never},
+		{DisableTrailingWhitespaceTrim: true},
+		{TruncateAfterLines: 1},
+		{TruncateAfterLines: 2, Truncator: truncator},
+		{TruncateAfterLines: 3, Truncator: truncator, TextContinues: true},
+		{TruncateAfterLines: 1, TextContinues: true, BreakPolicy: Never},
+	}
+
+	var segmented LineWrapper
+	for _, tc := range texts {
+		out := shaper.Shape(Input{
+			Text: tc.text, RunEnd: len(tc.text), Direction: tc.dir,
+			Face: tc.face, Size: fixed.I(16), Script: tc.script, Language: language.NewLanguage("EN"),
+		})
+		// The segmenter is initialized once for all the wrappings of the text.
+		var seg segmenter.Segmenter
+		seg.Init(tc.text)
+		for _, parts := range []int{1, 7} {
+			outs := cutRunInto(out, parts)
+			for ci, config := range configs {
+				config.Direction = tc.dir
+				for width := 0; width < 1500; width += 23 {
+					for _, widths := range [][]int{{width}, {width, width/2 + 40}} {
+						copied := make([]Output, len(outs))
+						for i := range outs {
+							copied[i] = outs[i].copy()
+						}
+						var fresh LineWrapper
+						fresh.Prepare(config, tc.text, NewSliceIterator(copied))
+						expected := wrapAllLines(&fresh, widths)
+
+						for i := range outs {
+							copied[i] = outs[i].copy()
+						}
+						segmented.PrepareSegmented(config, &seg, NewSliceIterator(copied))
+						got := wrapAllLines(&segmented, widths)
+						if !reflect.DeepEqual(expected, got) {
+							t.Fatalf("%s, %d parts, config %d, widths %v: PrepareSegmented lines differ from Prepare", tc.name, parts, ci, widths)
+						}
+					}
+				}
+			}
+		}
+		if seg.Len() != len(tc.text) {
+			t.Fatalf("segmenter modified by wrapping: %d runes, expected %d", seg.Len(), len(tc.text))
+		}
+	}
+}
+
+// TestWrapParagraphSegmentedInit checks that WrapParagraph, which now finds the
+// break opportunities once for its fast path check and its wrapping, gives the
+// same lines as Prepare and WrapNextLine.
+func TestWrapParagraphSegmentedInit(t *testing.T) {
+	text := append([]rune(benchParagraphLatin)[:300], []rune("\nend")...)
+	var shaper HarfbuzzShaper
+	out := shaper.Shape(Input{
+		Text: text, RunEnd: len(text), Direction: di.DirectionLTR,
+		Face: benchEnFace, Size: fixed.I(16), Script: language.Latin, Language: language.NewLanguage("EN"),
+	})
+	for _, parts := range []int{1, 5} {
+		outs := cutRunInto(out, parts)
+		for _, config := range []WrapConfig{{}, {TruncateAfterLines: 2}, {TruncateAfterLines: 1, TextContinues: true}} {
+			for width := 0; width < 3000; width += 37 {
+				copied := make([]Output, len(outs))
+				for i := range outs {
+					copied[i] = outs[i].copy()
+				}
+				var l LineWrapper
+				lines, truncated := l.WrapParagraph(config, width, text, NewSliceIterator(copied))
+				var got []Line
+				for _, line := range lines {
+					var cp Line
+					for _, run := range line {
+						cp = append(cp, run.copy())
+					}
+					got = append(got, cp)
+				}
+
+				for i := range outs {
+					copied[i] = outs[i].copy()
+				}
+				var fresh LineWrapper
+				fresh.Prepare(config, text, NewSliceIterator(copied))
+				var expected []Line
+				expectedTruncated := 0
+				for _, line := range wrapAllLines(&fresh, []int{width}) {
+					if line.Line != nil {
+						expected = append(expected, line.Line)
+					}
+					expectedTruncated = line.Truncated
+				}
+				if !reflect.DeepEqual(expected, got) || truncated != expectedTruncated {
+					t.Fatalf("%d parts, config %+v, width %d: WrapParagraph lines differ from Prepare", parts, config, width)
+				}
+			}
+		}
+	}
+}
+
+// BenchmarkWrappingWidths wraps a paragraph to several widths, as a layout
+// does when its size changes, computing the break opportunities for each
+// wrapping (Prepare), or once for all of them (PrepareSegmented).
+func BenchmarkWrappingWidths(b *testing.B) {
+	widths := []int{150, 300, 600}
+	for _, langInfo := range benchLangs {
+		for _, runes := range []int{100, 1000} {
+			text := langInfo.text[:runes]
+			var shaper HarfbuzzShaper
+			out := shaper.Shape(Input{
+				Text: text, RunEnd: runes, Direction: langInfo.dir, Face: langInfo.face,
+				Size: fixed.I(16), Script: langInfo.script, Language: langInfo.lang,
+			})
+			outs := cutRunInto(out, 10)
+			wrap := func(l *LineWrapper, width int) {
+				for done := false; !done; {
+					_, done = l.WrapNextLine(width)
+				}
+			}
+			b.Run(fmt.Sprintf("%drunes-%s/prepare", runes, langInfo.name), func(b *testing.B) {
+				var l LineWrapper
+				for i := 0; i < b.N; i++ {
+					for _, width := range widths {
+						l.Prepare(WrapConfig{}, text, NewSliceIterator(outs))
+						wrap(&l, width)
+					}
+				}
+			})
+			b.Run(fmt.Sprintf("%drunes-%s/segmented", runes, langInfo.name), func(b *testing.B) {
+				var l LineWrapper
+				var seg segmenter.Segmenter
+				seg.Init(text)
+				for i := 0; i < b.N; i++ {
+					for _, width := range widths {
+						l.PrepareSegmented(WrapConfig{}, &seg, NewSliceIterator(outs))
+						wrap(&l, width)
+					}
+				}
+			})
 		}
 	}
 }

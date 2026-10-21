@@ -377,3 +377,49 @@ func TestNumericSequenceAfterClosingPunctuation(t *testing.T) {
 		tu.Assert(t, reflect.DeepEqual(got, []int{len([]rune(text))})) // no breaks
 	}
 }
+
+// TestIteratorsReuse checks that iterators created again and again from one
+// initialized Segmenter, one after another, interleaved or from several
+// goroutines, all give the same segments.
+func TestIteratorsReuse(t *testing.T) {
+	text := []rune("The quick (\"brown\") fox can't jump 32.3 feet, right?\r\nUne phrase en français.\n🇫🇷👍🏽 漢字かな交じり文 עברית")
+	var seg Segmenter
+	seg.Init(text)
+
+	segments := func() (lines []Line, graphemes []Grapheme, words []Word) {
+		li, gi, wi := seg.LineIterator(), seg.GraphemeIterator(), seg.WordIterator()
+		for more := true; more; {
+			more = false
+			if li.Next() {
+				lines, more = append(lines, li.Line()), true
+			}
+			if gi.Next() {
+				graphemes, more = append(graphemes, gi.Grapheme()), true
+			}
+			if wi.Next() {
+				words, more = append(words, wi.Word()), true
+			}
+		}
+		return lines, graphemes, words
+	}
+	lines, graphemes, words := segments()
+	tu.Assert(t, len(lines) > 1 && len(graphemes) > len(lines) && len(words) > 1)
+
+	done := make(chan bool)
+	for g := 0; g < 4; g++ {
+		go func() {
+			ok := true
+			for i := 0; i < 10; i++ {
+				l, gr, w := segments()
+				ok = ok && reflect.DeepEqual(l, lines) && reflect.DeepEqual(gr, graphemes) && reflect.DeepEqual(w, words)
+			}
+			done <- ok
+		}()
+	}
+	for g := 0; g < 4; g++ {
+		if !<-done {
+			t.Error("iterators of one Segmenter gave different segments")
+		}
+	}
+	tu.Assert(t, seg.Len() == len(text))
+}
