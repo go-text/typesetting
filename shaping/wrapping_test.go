@@ -3792,6 +3792,56 @@ func TestPrepareSegmented(t *testing.T) {
 	}
 }
 
+// TestWrapParagraphSegmentedInit checks that WrapParagraph, which now finds the
+// break opportunities once for its fast path check and its wrapping, gives the
+// same lines as Prepare and WrapNextLine.
+func TestWrapParagraphSegmentedInit(t *testing.T) {
+	text := append([]rune(benchParagraphLatin)[:300], []rune("\nend")...)
+	var shaper HarfbuzzShaper
+	out := shaper.Shape(Input{
+		Text: text, RunEnd: len(text), Direction: di.DirectionLTR,
+		Face: benchEnFace, Size: fixed.I(16), Script: language.Latin, Language: language.NewLanguage("EN"),
+	})
+	for _, parts := range []int{1, 5} {
+		outs := cutRunInto(out, parts)
+		for _, config := range []WrapConfig{{}, {TruncateAfterLines: 2}, {TruncateAfterLines: 1, TextContinues: true}} {
+			for width := 0; width < 3000; width += 37 {
+				copied := make([]Output, len(outs))
+				for i := range outs {
+					copied[i] = outs[i].copy()
+				}
+				var l LineWrapper
+				lines, truncated := l.WrapParagraph(config, width, text, NewSliceIterator(copied))
+				var got []Line
+				for _, line := range lines {
+					var cp Line
+					for _, run := range line {
+						cp = append(cp, run.copy())
+					}
+					got = append(got, cp)
+				}
+
+				for i := range outs {
+					copied[i] = outs[i].copy()
+				}
+				var fresh LineWrapper
+				fresh.Prepare(config, text, NewSliceIterator(copied))
+				var expected []Line
+				expectedTruncated := 0
+				for _, line := range wrapAllLines(&fresh, []int{width}) {
+					if line.Line != nil {
+						expected = append(expected, line.Line)
+					}
+					expectedTruncated = line.Truncated
+				}
+				if !reflect.DeepEqual(expected, got) || truncated != expectedTruncated {
+					t.Fatalf("%d parts, config %+v, width %d: WrapParagraph lines differ from Prepare", parts, config, width)
+				}
+			}
+		}
+	}
+}
+
 // BenchmarkWrappingWidths wraps a paragraph to several widths, as a layout
 // does when its size changes, computing the break opportunities for each
 // wrapping (Prepare), or once for all of them (PrepareSegmented).
