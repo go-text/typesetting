@@ -22,7 +22,7 @@ type cacheEntry struct {
 
 // Logger is a type that can log warnings.
 type Logger interface {
-	Printf(format string, args ...interface{})
+	Printf(format string, args ...any)
 }
 
 // The family substitution algorithm is copied from fontconfig

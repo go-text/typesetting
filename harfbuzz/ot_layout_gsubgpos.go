@@ -870,7 +870,7 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 					thisComp = lastNumComponents
 				}
 				newLigComp := componentsSoFar - lastNumComponents +
-					min8(thisComp, lastNumComponents)
+					min(thisComp, lastNumComponents)
 				buffer.cur(0).setLigPropsForMark(ligID, newLigComp)
 			}
 			buffer.nextGlyph()
@@ -897,7 +897,7 @@ func (c *otApplyContext) ligateInput(count, matchEnd int, ligGlyph gID, totalCom
 			}
 
 			newLigComp := componentsSoFar - lastNumComponents +
-				min8(thisComp, lastNumComponents)
+				min(thisComp, lastNumComponents)
 			buffer.Info[i].setLigPropsForMark(ligID, newLigComp)
 		}
 	}

@@ -155,13 +155,6 @@ func (p *Paragraph) buildRuns() Runs {
 	return Runs{levels: p.resultLevels, runEnds: p.runsEnd}
 }
 
-func max(a, b Level) Level {
-	if a < b {
-		return b
-	}
-	return a
-}
-
 // A Direction indicates the overall flow of text.
 type Direction uint8
 

@@ -169,7 +169,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 				if mb.featureInfos[j].flags&ffGLOBAL != 0 {
 					mb.featureInfos[j].flags ^= ffGLOBAL
 				}
-				mb.featureInfos[j].maxValue = max32(mb.featureInfos[j].maxValue, feat.maxValue)
+				mb.featureInfos[j].maxValue = max(mb.featureInfos[j].maxValue, feat.maxValue)
 				// inherit default_value from j
 			}
 			mb.featureInfos[j].flags |= (feat.flags & ffHasFallback)

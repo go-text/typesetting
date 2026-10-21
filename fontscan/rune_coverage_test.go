@@ -312,8 +312,7 @@ func TestScriptSet(t *testing.T) {
 				for i := 0; i < 10; i++ {
 					scripts = append(scripts, testScripts[:]...)
 				}
-				rand.Seed(0)
-				rand.Shuffle(len(scripts), func(i, j int) {
+				rand.New(rand.NewSource(0)).Shuffle(len(scripts), func(i, j int) {
 					scripts[i], scripts[j] = scripts[j], scripts[i]
 				})
 				return scripts
@@ -572,13 +571,6 @@ func BenchmarkScriptSet_contains(b *testing.B) {
 			}
 		}
 	})
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 var testScripts = [...]language.Script{
