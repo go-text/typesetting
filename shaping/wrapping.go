@@ -844,9 +844,12 @@ func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, 
 			}
 		}
 		runs.Restore()
+		// The break opportunities found above are used again for wrapping.
+		l.PrepareSegmented(config, &l.seg, runs)
+	} else {
+		l.Prepare(config, paragraph, runs)
 	}
 
-	l.Prepare(config, paragraph, runs)
 	var (
 		line WrappedLine
 		done bool
