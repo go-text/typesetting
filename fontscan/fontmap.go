@@ -72,10 +72,14 @@ type FontMap struct {
 	// built holds whether the candidates are populated.
 	built bool
 	// candidatesCache holds the candidates built for the most recent queries
-	// and scripts, the most recently used last, so that switching back to one
-	// of them does not build its candidates again. It is cleared whenever the
-	// database changes.
-	candidatesCache []*candidatesEntry
+	// and scripts, so that switching back to one of them does not build its
+	// candidates again. It is cleared whenever the database changes.
+	candidatesCache [candidatesCacheSize]candidatesEntry
+	// candidatesUses counts the uses of the cached candidates, to find the
+	// least recently used entry.
+	candidatesUses uint64
+	// candidatesCurrent is the index of the cache entry of the built candidates.
+	candidatesCurrent int
 	// systemFontsAdded holds whether [UseSystemFonts] has already appended
 	// the system fonts to the database.
 	systemFontsAdded bool
@@ -158,7 +162,9 @@ func (fm *FontMap) addSystemFonts(footprints []Footprint) {
 // coverage. As the database changes, the candidates are built again.
 func (fm *FontMap) appendFootprints(footprints ...Footprint) {
 	fm.built = false
-	fm.candidatesCache = fm.candidatesCache[:0]
+	for i := range fm.candidatesCache {
+		fm.candidatesCache[i].used = 0
+	}
 
 	startIdx := len(fm.database)
 	fm.database = append(fm.database, footprints...)
@@ -396,7 +402,7 @@ func (fm *FontMap) SetQuery(query Query) {
 	// The candidates built for the current query are kept when it is unchanged.
 	// They are compared to the families of the built candidates, which are a
 	// copy, as the caller may have changed the families in place.
-	if fm.built && len(fm.candidatesCache) > 0 && fm.candidatesCache[len(fm.candidatesCache)-1].matches(query, fm.script) {
+	if fm.built && fm.candidatesCache[fm.candidatesCurrent].matches(query, fm.script) {
 		return
 	}
 	fm.built = false
@@ -435,11 +441,12 @@ type candidatesEntry struct {
 	aspect     font.Aspect
 	script     language.Script
 	candidates candidates
+	used       uint64 // the use count when the entry was last used, or 0 for an empty entry
 }
 
 // matches returns whether the entry is for the given query and script.
 func (ce *candidatesEntry) matches(query Query, script language.Script) bool {
-	if ce.aspect != query.Aspect || ce.script != script || len(ce.families) != len(query.Families) {
+	if ce.used == 0 || ce.aspect != query.Aspect || ce.script != script || len(ce.families) != len(query.Families) {
 		return false
 	}
 	for i, family := range ce.families {
@@ -450,36 +457,27 @@ func (ce *candidatesEntry) matches(query Query, script language.Script) bool {
 	return true
 }
 
-// cachedCandidates returns the cached entry for the current query and script,
-// marking it as the most recently used, or nil if there is none.
-func (fm *FontMap) cachedCandidates() *candidatesEntry {
-	for i, ce := range fm.candidatesCache {
+// cachedCandidates returns the index of the cache entry for the current query
+// and script. When there is none, it builds the candidates in the least
+// recently used entry, reusing its buffers.
+func (fm *FontMap) cachedCandidates() int {
+	lru := 0
+	for i := range fm.candidatesCache {
+		ce := &fm.candidatesCache[i]
 		if ce.matches(fm.query, fm.script) {
-			copy(fm.candidatesCache[i:], fm.candidatesCache[i+1:])
-			fm.candidatesCache[len(fm.candidatesCache)-1] = ce
-			return ce
+			return i
+		}
+		if ce.used < fm.candidatesCache[lru].used {
+			lru = i
 		}
 	}
-	return nil
-}
 
-// newCandidatesEntry adds an entry for the current query and script to the cache,
-// as the most recently used, replacing the least recently used one, whose buffers
-// are reused, when the cache is full.
-func (fm *FontMap) newCandidatesEntry() *candidatesEntry {
-	var ce *candidatesEntry
-	if len(fm.candidatesCache) < candidatesCacheSize {
-		ce = new(candidatesEntry)
-		fm.candidatesCache = append(fm.candidatesCache, ce)
-	} else {
-		ce = fm.candidatesCache[0]
-		copy(fm.candidatesCache, fm.candidatesCache[1:])
-		fm.candidatesCache[len(fm.candidatesCache)-1] = ce
-	}
+	ce := &fm.candidatesCache[lru]
 	ce.families = append(ce.families[:0], fm.query.Families...)
 	ce.aspect = fm.query.Aspect
 	ce.script = fm.script
-	return ce
+	ce.candidates.build(fm)
+	return lru
 }
 
 // reset slices, setting the capacity of withoutFallback to nbFamilies
@@ -499,14 +497,11 @@ func (fm *FontMap) buildCandidates() {
 	}
 
 	// The candidates of a recent query and script are reused.
-	if ce := fm.cachedCandidates(); ce != nil {
-		fm.candidates = ce.candidates
-		fm.built = true
-		return
-	}
-	ce := fm.newCandidatesEntry()
-	ce.candidates.build(fm)
-	fm.candidates = ce.candidates
+	i := fm.cachedCandidates()
+	fm.candidatesUses++
+	fm.candidatesCache[i].used = fm.candidatesUses
+	fm.candidates = fm.candidatesCache[i].candidates
+	fm.candidatesCurrent = i
 	fm.built = true
 }
 

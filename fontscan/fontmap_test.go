@@ -574,7 +574,9 @@ func TestCandidatesCache(t *testing.T) {
 			}
 		}
 	}
-	tu.Assert(t, len(fm.candidatesCache) == candidatesCacheSize)
+	for _, ce := range fm.candidatesCache {
+		tu.Assert(t, ce.used != 0)
+	}
 }
 
 // TestCandidatesCacheFamiliesChanged checks that a query whose families slice
