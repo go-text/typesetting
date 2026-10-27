@@ -218,6 +218,13 @@ func computeBreakAttributes(text []rune, attributes []breakAttr) {
 //	for iter.Next() {
 //	  ... // do something with iter.Line()
 //	}
+//
+// The break attributes are computed once, by [Segmenter.Init] (or
+// [Segmenter.InitWithString] and [Segmenter.InitWithBytes]). Iterators only read
+// them and never modify the Segmenter, so any number of iterators may be created
+// from one initialized Segmenter, one after another or at the same time. An
+// iterator and the text slices it returns are valid until the Segmenter is
+// initialized again.
 type Segmenter struct {
 	text []rune
 	// with length len(text) + 1 :
@@ -298,6 +305,10 @@ func (seg *Segmenter) InitWithBytes(paragraph []byte) (err error) {
 	seg.initAttributes()
 	return nil
 }
+
+// Len returns the number of runes of the paragraph
+// the segmenter was last initialized with.
+func (seg *Segmenter) Len() int { return len(seg.text) }
 
 func (seg *Segmenter) initAttributes() {
 	seg.attributes = append(seg.attributes[:0], make([]breakAttr, len(seg.text)+1)...)
