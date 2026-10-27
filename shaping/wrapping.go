@@ -894,6 +894,7 @@ func (l *LineWrapper) resetTrailingBidiWhitespace(line Line) Line {
 			split[i] = prefix
 			copy(split[i+2:], line[i+1:])
 			line = split
+			// split[i+1] is left empty here, the line[i] = run below fills it in.
 			i++
 		}
 		if run.Direction.Progression() != l.config.Direction.Progression() {
