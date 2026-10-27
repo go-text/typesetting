@@ -2,6 +2,7 @@ package shaping
 
 import (
 	"math"
+	"slices"
 
 	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
@@ -898,10 +899,8 @@ func (l *LineWrapper) resetTrailingBidiWhitespace(line Line) Line {
 			i++
 		}
 		if run.Direction.Progression() != l.config.Direction.Progression() {
-			run.Glyphs = append([]Glyph(nil), run.Glyphs...)
-			for a, b := 0, len(run.Glyphs)-1; a < b; a, b = a+1, b-1 {
-				run.Glyphs[a], run.Glyphs[b] = run.Glyphs[b], run.Glyphs[a]
-			}
+			run.Glyphs = slices.Clone(run.Glyphs)
+			slices.Reverse(run.Glyphs)
 			run.Direction.SetProgression(l.config.Direction.Progression())
 		}
 		run.Level = base
