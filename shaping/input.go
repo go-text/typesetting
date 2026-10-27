@@ -448,6 +448,10 @@ func (seg *Segmenter) splitByFace(faces Fontmap) {
 }
 
 func splitByFace(input Input, availableFaces Fontmap, buffer []Input, isLast bool) []Input {
+	// The loop below treats a non-nil Face as already resolved. A face left over
+	// from the caller (e.g. a reused Input) would otherwise be kept for leading
+	// whitespace, or for the whole run when the text is only whitespace,
+	// without consulting availableFaces.
 	input.Face = nil
 	currentInput := input
 	for i := input.RunStart; i < input.RunEnd; i++ {
