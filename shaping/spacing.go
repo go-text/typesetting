@@ -1,6 +1,7 @@
 package shaping
 
 import (
+	"github.com/go-text/typesetting/di"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -14,6 +15,9 @@ import (
 // See also https://www.w3.org/TR/css-text-3/#word-separator
 func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) {
 	isVertical := run.Direction.IsVertical()
+	if isVertical {
+		additionalSpacing = -additionalSpacing
+	}
 	for i, g := range run.Glyphs {
 		// find the corresponding runes :
 		// to simplify, we assume a simple one to one rune/glyph mapping
@@ -57,35 +61,57 @@ func (run *Output) AddWordSpacing(text []rune, additionalSpacing fixed.Int26_6) 
 // See also https://www.w3.org/TR/css-text-3/#letter-spacing-property
 func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun, isEndRun bool) {
 	isVertical := run.Direction.IsVertical()
+	if isVertical {
+		additionalSpacing = -additionalSpacing
+	}
+	// glyphs are in visual order, so with a TowardTopLeft progression the
+	// visually leading glyph is the logical end of the run.
+	reversed := run.Direction.Progression() == di.TowardTopLeft
+	// run boundaries which must stay bare, seen from the visual side
+	bareLeading, bareTrailing := isStartRun, isEndRun
+	if reversed {
+		bareLeading, bareTrailing = isEndRun, isStartRun
+	}
 
 	halfSpacing := additionalSpacing / 2
 	for startGIdx := 0; startGIdx < len(run.Glyphs); {
 		startGlyph := run.Glyphs[startGIdx]
 		endGIdx := startGIdx + startGlyph.GlyphCount - 1
+		isFirstCluster := startGIdx == 0
+		isLastCluster := startGIdx+startGlyph.GlyphCount >= len(run.Glyphs)
 
-		// start : apply spacing at boundary only if the run is not the first
-		if startGIdx > 0 || !isStartRun {
-			run.Glyphs[startGIdx].Advance += halfSpacing
+		// visually leading side. Shift the glyph content and enlarge the advance.
+		if !isFirstCluster || !bareLeading {
+			g := &run.Glyphs[startGIdx]
+			g.Advance += halfSpacing
 			if isVertical {
-				run.Glyphs[startGIdx].YAdvance += halfSpacing
-				run.Glyphs[startGIdx].YOffset += halfSpacing
+				g.YAdvance += halfSpacing
+				g.YOffset += halfSpacing
 			} else {
-				run.Glyphs[startGIdx].XAdvance += halfSpacing
-				run.Glyphs[startGIdx].XOffset += halfSpacing
+				g.XAdvance += halfSpacing
+				g.XOffset += halfSpacing
 			}
-			run.Glyphs[startGIdx].startLetterSpacing += halfSpacing
+			if reversed {
+				g.endLetterSpacing += halfSpacing
+			} else {
+				g.startLetterSpacing += halfSpacing
+			}
 		}
 
-		// end : apply spacing at boundary only if the run is not the last
-		isLastCluster := startGIdx+startGlyph.GlyphCount >= len(run.Glyphs)
-		if !isLastCluster || !isEndRun {
-			run.Glyphs[endGIdx].Advance += halfSpacing
+		// visually trailing side. Only the advance grows.
+		if !isLastCluster || !bareTrailing {
+			g := &run.Glyphs[endGIdx]
+			g.Advance += halfSpacing
 			if isVertical {
-				run.Glyphs[endGIdx].YAdvance += halfSpacing
+				g.YAdvance += halfSpacing
 			} else {
-				run.Glyphs[endGIdx].XAdvance += halfSpacing
+				g.XAdvance += halfSpacing
 			}
-			run.Glyphs[endGIdx].endLetterSpacing += halfSpacing
+			if reversed {
+				g.startLetterSpacing += halfSpacing
+			} else {
+				g.endLetterSpacing += halfSpacing
+			}
 		}
 
 		// go to next cluster
@@ -95,20 +121,36 @@ func (run *Output) AddLetterSpacing(additionalSpacing fixed.Int26_6, isStartRun,
 	run.RecomputeAdvance()
 }
 
-// does not run RecomputeAdvance
+// trimStartLetterSpacing removes the letter spacing added before the logical
+// first glyph. It does not run RecomputeAdvance.
 func (run *Output) trimStartLetterSpacing() {
 	if len(run.Glyphs) == 0 {
 		return
 	}
-	firstG := &run.Glyphs[0]
-	halfSpacing := firstG.startLetterSpacing
+	reversed := run.Direction.Progression() == di.TowardTopLeft
+	first := 0
+	if reversed {
+		first = len(run.Glyphs) - 1
+	}
+	halfSpacing := run.Glyphs[first].startLetterSpacing
+	if halfSpacing == 0 {
+		return
+	}
+	// Do not mutate the caller's glyphs, so that the runs may be wrapped again.
+	run.Glyphs = append([]Glyph(nil), run.Glyphs...)
+	firstG := &run.Glyphs[first]
 	firstG.Advance -= halfSpacing
 	if run.Direction.IsVertical() {
 		firstG.YAdvance -= halfSpacing
-		firstG.YOffset -= halfSpacing
 	} else {
 		firstG.XAdvance -= halfSpacing
-		firstG.XOffset -= halfSpacing
+	}
+	if !reversed { // the spacing was applied as an offset on the leading side
+		if run.Direction.IsVertical() {
+			firstG.YOffset -= halfSpacing
+		} else {
+			firstG.XOffset -= halfSpacing
+		}
 	}
 	firstG.startLetterSpacing = 0
 }
