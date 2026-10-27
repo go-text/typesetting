@@ -223,7 +223,7 @@ func computeBreakAttributes(text []rune, attributes []breakAttr) {
 // [Segmenter.InitWithString] and [Segmenter.InitWithBytes]). Iterators only read
 // them and never modify the Segmenter, so any number of iterators may be created
 // from one initialized Segmenter, one after another or at the same time. An
-// iterator, and the text slices it returns, are valid until the Segmenter is
+// iterator and the text slices it returns are valid until the Segmenter is
 // initialized again.
 type Segmenter struct {
 	text []rune
