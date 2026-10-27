@@ -3842,18 +3842,12 @@ func TestSegmentShapeWrapNestedBidi(t *testing.T) {
 		runs = append(runs, out)
 	}
 	lines, _ := (&LineWrapper{}).WrapParagraph(WrapConfig{}, 1000, text, NewSliceIterator(runs))
-	var before, digits, after int32 = -1, -1, -1
-	for _, run := range lines[0] {
-		switch {
-		case run.Runes.Offset <= 4 && run.Runes.Offset+run.Runes.Count > 4:
-			before = run.VisualIndex
-		case run.Runes.Offset <= 8 && run.Runes.Offset+run.Runes.Count > 8:
-			digits = run.VisualIndex
-		case run.Runes.Offset <= 12 && run.Runes.Offset+run.Runes.Count > 12:
-			after = run.VisualIndex
-		}
-	}
-	if before < 0 || digits < 0 || after < 0 || !(after < digits && digits < before) {
+	// runs are in logical order: "abc ", "אבג ", "123", " דהו ", "xyz"
+	tu.Assert(t, len(lines[0]) == 5)
+	before := lines[0][1].VisualIndex
+	digits := lines[0][2].VisualIndex
+	after := lines[0][3].VisualIndex
+	if !(after < digits && digits < before) {
 		t.Fatalf("nested RTL text should order second Hebrew run, digits, first Hebrew run; got %d, %d, %d", after, digits, before)
 	}
 }
