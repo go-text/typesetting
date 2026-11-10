@@ -245,6 +245,39 @@ func TestWordSegmenter(t *testing.T) {
 	}
 }
 
+// LB9 ignores combining marks in both the preceding context and lookahead.
+// These longer sequences supplement the pairs in LineBreakTest.txt.
+func TestLineBreakCombiningMarks(t *testing.T) {
+	for _, test := range []struct {
+		input string
+		want  []string
+	}{
+		// LB10 gives unattached marks the properties of 'A', including narrow width.
+		{"\u302a\u0308“漢", []string{"\u302a\u0308“漢"}},
+		{" \u302a\u0308“漢", []string{" ", "\u302a\u0308“漢"}},
+		{"漢”̈漢", []string{"漢”̈", "漢"}},
+		{"漢̈“漢", []string{"漢̈", "“漢"}},
+		{"漢“̈漢", []string{"漢", "“̈漢"}},
+		{"漢“̈̈漢", []string{"漢", "“̈̈漢"}},
+		{"漢“\u200d漢", []string{"漢", "“\u200d漢"}},
+		{"漢“\u0e31漢", []string{"漢", "“\u0e31漢"}},
+		{"漢“̈", []string{"漢“̈"}},
+		{"漢“̈A", []string{"漢“̈A"}},
+		{"$(̈1", []string{"$(̈1"}},
+		{" .̈5", []string{" ", ".̈5"}},
+	} {
+		var seg Segmenter
+		seg.Init([]rune(test.input))
+		var got []string
+		for iter := seg.LineIterator(); iter.Next(); {
+			got = append(got, string(iter.Line().Text))
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("input %q: got lines %q, want %q", test.input, got, test.want)
+		}
+	}
+}
+
 func TestBytePositions(t *testing.T) {
 	tests := []string{
 		"",
