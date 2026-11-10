@@ -152,6 +152,69 @@ func TestResolveFallbackManual(t *testing.T) {
 	tu.Assert(t, face != nil && fm.FontLocation(face.Font).File == "user:Amiri")
 }
 
+// A system font whose coverage claims the rune must not beat a font the
+// user added, even when the user font does not list the current script.
+// macOS ships LastResort, whose cmap maps every rune.
+func TestResolveUserFontBeforeSystemFallback(t *testing.T) {
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+
+	var aspect font.Aspect
+	aspect.SetDefaults()
+	fm.appendFootprints(Footprint{
+		Family:   "lastresort",
+		Location: Location{File: "../font/testdata/Amiri-Regular.ttf"},
+		Runes:    newRuneSet('c'),
+		Scripts:  ScriptSet{language.Arabic, language.Latin},
+		Aspect:   aspect,
+	})
+
+	file, err := os.Open("../font/testdata/Roboto-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file.Close()
+	tu.AssertNoErr(t, fm.AddFont(file, "user:Roboto", ""))
+
+	fm.SetQuery(Query{Families: []string{"XXX"}})
+	fm.SetScript(language.Arabic) // Roboto has no Arabic
+	face := fm.ResolveFace('c')
+	tu.Assert(t, fm.FontLocation(face.Font).File == "user:Roboto")
+}
+
+// A user font with a different aspect must not push a system font of a
+// substituted family out of the candidates. The lastresort entry stands
+// in for the other Latin system fonts that the final script scan would
+// otherwise pick up.
+func TestResolveUserFontKeepsSystemFallback(t *testing.T) {
+	fm := NewFontMap(log.New(io.Discard, "", 0))
+
+	var regular font.Aspect
+	regular.SetDefaults()
+	fm.appendFootprints(Footprint{
+		Family:   "lastresort",
+		Location: Location{File: "../font/testdata/Amiri-Regular.ttf"},
+		Runes:    newRuneSet('a'),
+		Scripts:  ScriptSet{language.Latin},
+		Aspect:   regular,
+	}, Footprint{
+		Family:   "arial",
+		Location: Location{File: "../font/testdata/Roboto-Regular.ttf"},
+		Runes:    newRuneSet('a'),
+		Scripts:  ScriptSet{language.Latin},
+		Aspect:   regular,
+	})
+
+	file, err := os.Open("../font/testdata/Amiri-Regular.ttf")
+	tu.AssertNoErr(t, err)
+	defer file.Close()
+	tu.AssertNoErr(t, fm.AddFont(file, "user:Amiri", ""))
+	fm.database[len(fm.database)-1].Aspect.Weight = font.WeightBold
+	fm.database[len(fm.database)-1].Runes = newRuneSet('b')
+
+	fm.SetQuery(Query{Families: []string{"Helvetica"}, Aspect: font.Aspect{Weight: font.WeightBold}})
+	fm.SetScript(language.Latin)
+	face := fm.ResolveFace('a')
+	tu.Assert(t, fm.FontLocation(face.Font).File == "../font/testdata/Roboto-Regular.ttf")
+}
+
 func TestResolveLang(t *testing.T) {
 	logger := log.New(os.Stdout, "", 0)
 	fm := NewFontMap(logger)

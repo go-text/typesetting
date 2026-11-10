@@ -112,6 +112,17 @@ func TestFontSet_selectByFamilyWithSubs(t *testing.T) {
 			language.Arabic,
 			[]int{2, 0, 1},
 		},
+		// user provided fonts only match by family
+		{
+			fontSet{
+				{Family: "tinos", Scripts: ScriptSet{language.Arabic}, isUserProvided: true},
+				{Family: "emoji", Scripts: ScriptSet{language.Arabic}, isUserProvided: true},
+				{Family: "lastresort", Scripts: ScriptSet{language.Arabic}},
+			},
+			"Times",
+			language.Arabic,
+			[]int{0, 2},
+		},
 	}
 	for _, tt := range tests {
 		got := tt.fontset.selectByFamilyWithSubs([]string{tt.family}, tt.script, make(familyCrible), &scoredFootprints{})
