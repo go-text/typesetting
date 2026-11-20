@@ -566,6 +566,7 @@ func BenchmarkPathological(b *testing.B) {
 	}{
 		{"brackets", "()"},
 		{"digits", "1"},
+		{"terminators", "#"},
 		{"unmatchedIsolates", "\u2066"},
 		{"unmatchedFSI", "\u2068"},
 	} {
