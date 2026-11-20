@@ -453,28 +453,30 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 	}
 
 	// Rule W5.
-	for i, t := range s.types {
-		if t == ucd.BD_ET {
-			// locate end of sequence
-			runStart := i
-			runEnd := s.findRunLimit(runStart, ucd.BD_ET)
-
-			// check values at ends of sequence
-			t := s.sos
-			if runStart > 0 {
-				t = s.types[runStart-1]
-			}
-			if t != ucd.BD_EN {
-				t = s.eos
-				if runEnd < len(s.types) {
-					t = s.types[runEnd]
-				}
-			}
-			if t == ucd.BD_EN {
-				setTypes(s.types[runStart:runEnd], ucd.BD_EN)
-			}
-			// continue at end of sequence
+	for i := 0; i < len(s.types); i++ {
+		if s.types[i] != ucd.BD_ET {
+			continue
 		}
+		// locate end of sequence
+		runStart := i
+		runEnd := s.findRunLimit(runStart, ucd.BD_ET)
+
+		// check values at ends of sequence
+		t := s.sos
+		if runStart > 0 {
+			t = s.types[runStart-1]
+		}
+		if t != ucd.BD_EN {
+			t = s.eos
+			if runEnd < len(s.types) {
+				t = s.types[runEnd]
+			}
+		}
+		if t == ucd.BD_EN {
+			setTypes(s.types[runStart:runEnd], ucd.BD_EN)
+		}
+		// continue at end of sequence
+		i = runEnd - 1
 	}
 
 	// Rule W6.
