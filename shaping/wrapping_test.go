@@ -3883,3 +3883,30 @@ func BenchmarkWrappingWidths(b *testing.B) {
 		}
 	}
 }
+
+func TestTrailingSpaceRTL(t *testing.T) {
+	text := []rune("نص حكيم له")
+	glyphs := []Glyph{
+		{Advance: fixed.I(5), ClusterIndex: 9, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(2), ClusterIndex: 8, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(3), ClusterIndex: 7, RuneCount: 1, GlyphCount: 1}, // space
+		{Advance: fixed.I(2), ClusterIndex: 6, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(4), ClusterIndex: 5, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(7), ClusterIndex: 4, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(7), ClusterIndex: 3, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(3), ClusterIndex: 2, RuneCount: 1, GlyphCount: 1}, // space
+		{Advance: fixed.I(14), ClusterIndex: 1, RuneCount: 1, GlyphCount: 1},
+		{Advance: fixed.I(2), ClusterIndex: 0, RuneCount: 1, GlyphCount: 1},
+	}
+	output := Output{Glyphs: glyphs, Direction: di.DirectionRTL, Runes: Range{0, len(text)}, Level: 1}
+	output.RecalculateAll()
+
+	var wr LineWrapper
+	wr.Prepare(WrapConfig{
+		Direction:   di.DirectionLTR, // overall direction of the text
+		BreakPolicy: Never,           // mimic the default pango behavior
+	}, text, NewSliceIterator([]Output{output}))
+	line, _ := wr.WrapNextLineF(fixed.I(41))
+	// the two words with the "last" space have advance 42, 39 without the space
+	tu.Assert(t, line.NextLine == 8)
+}
