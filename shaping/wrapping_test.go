@@ -4106,6 +4106,18 @@ func BenchmarkWrappingWidths(b *testing.B) {
 				Size: fixed.I(16), Script: langInfo.script, Language: langInfo.lang,
 			})
 			outs := cutRunInto(out, 10)
+			// Wrapping modifies the runs, so each wrapping gets a copy. Both
+			// benchmarks pay the same cost for it.
+			copied := make([]Output, len(outs))
+			fresh := func() RunIterator {
+				for i := range outs {
+					copied[i].Glyphs = append(copied[i].Glyphs[:0], outs[i].Glyphs...)
+					glyphs := copied[i].Glyphs
+					copied[i] = outs[i]
+					copied[i].Glyphs = glyphs
+				}
+				return NewSliceIterator(copied)
+			}
 			wrap := func(l *LineWrapper, width int) {
 				for done := false; !done; {
 					_, done = l.WrapNextLine(width)
@@ -4115,7 +4127,7 @@ func BenchmarkWrappingWidths(b *testing.B) {
 				var l LineWrapper
 				for i := 0; i < b.N; i++ {
 					for _, width := range widths {
-						l.Prepare(WrapConfig{}, text, NewSliceIterator(outs))
+						l.Prepare(WrapConfig{}, text, fresh())
 						wrap(&l, width)
 					}
 				}
@@ -4126,7 +4138,7 @@ func BenchmarkWrappingWidths(b *testing.B) {
 				seg.Init(text)
 				for i := 0; i < b.N; i++ {
 					for _, width := range widths {
-						l.PrepareSegmented(WrapConfig{}, &seg, NewSliceIterator(outs))
+						l.PrepareSegmented(WrapConfig{}, &seg, fresh())
 						wrap(&l, width)
 					}
 				}
