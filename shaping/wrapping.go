@@ -938,9 +938,6 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 				finalVisualGlyph := &finalVisualRun.Glyphs[gIdx]
 				isSpace := finalVisualRun.isWhitespace(*finalVisualGlyph, l.text)
 				if isSpace && finalVisualGlyph.Advance != 0 {
-					// do not mutate the caller's glyphs, so that the runs may be wrapped again
-					finalVisualRun.Glyphs = append([]Glyph(nil), finalVisualRun.Glyphs...)
-					finalVisualGlyph = &finalVisualRun.Glyphs[gIdx]
 					trimmed = finalVisualGlyph.Advance
 					finalVisualGlyph.XAdvance = 0
 					finalVisualGlyph.YAdvance = 0

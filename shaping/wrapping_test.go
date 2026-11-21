@@ -3679,32 +3679,19 @@ func TestComputeBidiOrderingLevels(t *testing.T) {
 	}
 }
 
-// wrapping must not mutate the caller's glyphs, so that the same runs can be wrapped again
-func TestWrappingDoesNotMutateRuns(t *testing.T) {
-	text := []rune("aa bb cc")
-	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
-	runs := []Output{run}
-	AddSpacing(runs, text, 0, fixed.I(4))
-	before := append([]Glyph(nil), runs[0].Glyphs...)
-
-	var w LineWrapper
-	lines, _ := w.WrapParagraphF(WrapConfig{}, runs[0].Advance*3/4, text, NewSliceIterator(runs))
-	tu.Assert(t, len(lines) == 2)
-	tu.Assert(t, reflect.DeepEqual(before, runs[0].Glyphs))
-
-	lines, _ = w.WrapParagraphF(WrapConfig{}, runs[0].Advance, text, NewSliceIterator(runs))
-	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == runs[0].Advance)
-}
-
 // the single run fast path must post-process the line like the general path
 func TestWrapParagraphSingleRunTrimsTrailingSpace(t *testing.T) {
 	text := []rune("The quick ")
-	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	// wrapping modifies the runs, so each wrap gets freshly shaped ones
+	shape := func() Output {
+		return (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
+	}
+	run := shape()
 
-	var w LineWrapper
-	lines, _ := w.WrapParagraph(WrapConfig{}, 10000, text, NewSliceIterator([]Output{run}))
-	w.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{run}))
-	line, _ := w.WrapNextLine(10000)
+	var w, w2 LineWrapper
+	lines, _ := w.WrapParagraph(WrapConfig{}, 10000, text, NewSliceIterator([]Output{shape()}))
+	w2.Prepare(WrapConfig{}, text, NewSliceIterator([]Output{shape()}))
+	line, _ := w2.WrapNextLine(10000)
 	tu.Assert(t, len(lines) == 1 && lines[0][0].Advance == line.Line[0].Advance)
 	tu.Assert(t, lines[0][0].Advance == run.Advance-line.TrimmedTrailingWhitespace)
 	tu.Assert(t, line.TrimmedTrailingWhitespace > 0)
@@ -3754,16 +3741,6 @@ func TestWrapShortRunsReserveTruncator(t *testing.T) {
 	}
 	if advance > run.Advance {
 		t.Fatalf("line with truncator exceeds width: %v > %v", advance, run.Advance)
-	}
-}
-
-func TestCutRunWithoutLetterSpacingDoesNotAllocate(t *testing.T) {
-	text := []rune("abcd")
-	run := (&HarfbuzzShaper{}).Shape(Input{Text: text, RunEnd: len(text), Face: benchEnFace, Size: fixed.I(16)})
-	mapping := mapRunesToClusterIndices(run.Direction, run.Runes, run.Glyphs, nil)
-	allocs := testing.AllocsPerRun(10, func() { cutRun(run, mapping, 0, 1, true) })
-	if allocs != 0 {
-		t.Fatalf("cutting an unspaced run allocated %v times", allocs)
 	}
 }
 
