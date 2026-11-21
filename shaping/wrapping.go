@@ -658,6 +658,9 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 // while the lines of this paragraph are being wrapped, that is
 // until the next call to [LineWrapper.Prepare], [LineWrapper.PrepareSegmented]
 // or [LineWrapper.WrapParagraph].
+//
+// Only the segmenter can be reused. Wrapping modifies the Glyphs of the runs,
+// so each wrapping needs freshly shaped or copied runs, see [*LineWrapper.WrapParagraph].
 func (l *LineWrapper) PrepareSegmented(config WrapConfig, seg *segmenter.Segmenter, runs RunIterator) {
 	l.text = seg.Text()
 	l.config = config
