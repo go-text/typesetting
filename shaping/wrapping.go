@@ -640,6 +640,8 @@ type LineWrapper struct {
 // Prepare initializes the LineWrapper for the given paragraph and shaped text.
 // It must be called prior to invoking WrapNextLine. Prepare invalidates any
 // lines previously returned by this wrapper.
+//
+// Wrapping modifies the Glyphs of the runs, see [*LineWrapper.WrapParagraph].
 func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunIterator) {
 	l.text = paragraph
 	l.config = config
@@ -658,6 +660,12 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 // that many lines. The truncated return value is the count of runes truncated from
 // the end of the text. The returned lines are only valid until the next call to
 // [*LineWrapper.WrapParagraph] or [*LineWrapper.Prepare].
+//
+// Wrapping modifies the Glyphs of the runs. It zeroes the advance of trailing
+// whitespace and removes the letter spacing at the start of each line, so
+// wrapping the same runs again gives wrong advances. To wrap the text again,
+// shape it again or copy each run's Glyphs. A copy of the []Output alone still
+// shares the Glyphs.
 //
 // See [(*LineWrapper).WrapNextLine] for a description of how [WrapConfig]'s truncation
 // features impact the wrapped text output. This method returns the quantity of runes
