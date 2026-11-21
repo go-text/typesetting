@@ -3,6 +3,8 @@
 package shaping
 
 import (
+	"unicode"
+
 	"github.com/go-text/typesetting/bidi"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
@@ -146,6 +148,7 @@ func (b Bounds) LineThickness() fixed.Int26_6 {
 
 // Output describes the dimensions and content of shaped text.
 type Output struct {
+	noExtents bool // the caller did not request glyph dimensions from the shaper
 	// Advance is the distance the Dot has advanced.
 	// It is typically positive for horizontal text, negative for vertical.
 	Advance fixed.Int26_6
@@ -211,13 +214,14 @@ func (o *Output) RecomputeAdvance() {
 // if a white space character ends the run.
 // Any end letter spacing (on the last glyph) is also removed
 // The paragraphDir is the text direction of the overall paragraph containing o.
-// If the paragraphDir is different then o's Direction, this method has no effect
-// because the trailing space in this run will always be internal to the paragraph.
+// For runs opposing the paragraph direction, it removes only the resolved
+// bidi whitespace that UAX #9 L1 moves to the line end.
 //
 // TODO: should we take into account multiple spaces ?
-func (o *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
+func (o *Output) advanceSpaceAware(paragraphDir di.Direction, text []rune) fixed.Int26_6 {
 	L := len(o.Glyphs)
-	if L == 0 || paragraphDir != o.Direction {
+	sameProgression := paragraphDir.Progression() == o.Direction.Progression()
+	if L == 0 || paragraphDir.Axis() != o.Direction.Axis() || (!sameProgression && o.Level == 0) {
 		return o.Advance
 	}
 
@@ -228,16 +232,45 @@ func (o *Output) advanceSpaceAware(paragraphDir di.Direction) fixed.Int26_6 {
 	} else {
 		lastG = o.Glyphs[0]
 	}
-	if o.Direction.IsVertical() {
-		if lastG.Height == 0 {
-			return o.Advance - lastG.Advance
+	if o.isWhitespace(lastG, text) {
+		if !sameProgression {
+			// L1 cannot split a cluster or reset non-L1 spaces such as NBSP.
+			start := lastG.TextIndex()
+			for _, r := range text[start : start+lastG.RunesCount()] {
+				if !isBidiWhitespace(r) {
+					return o.Advance
+				}
+			}
 		}
-	} else { // horizontal
-		if lastG.Width == 0 {
-			return o.Advance - lastG.Advance
-		}
+		return o.Advance - lastG.Advance
+	}
+	if !sameProgression {
+		return o.Advance
 	}
 	return o.Advance - lastG.endLetterSpacing
+}
+
+// isWhitespace reports whether g is a space. With extents, a non zero width or
+// height rules a glyph out. Without them, the source text decides, so a glyph
+// with omitted extents is not mistaken for a space.
+func (o *Output) isWhitespace(g Glyph, text []rune) bool {
+	if !o.noExtents && ((!o.Direction.IsVertical() && g.Width != 0) || (o.Direction.IsVertical() && g.Height != 0)) {
+		return false
+	}
+	// A missing glyph renders .notdef, not an empty space.
+	if o.noExtents && g.GlyphID == 0 {
+		return false
+	}
+	start, count := g.TextIndex(), g.RunesCount()
+	if start < 0 || count <= 0 || start > len(text)-count {
+		return false
+	}
+	for _, r := range text[start : start+count] {
+		if !unicode.IsSpace(r) || r == '\u1680' { // Ogham space mark is visible
+			return false
+		}
+	}
+	return true
 }
 
 // RecalculateAll updates the all other fields of the Output
