@@ -703,6 +703,17 @@ func (w *wrapBuffer) candidateAdvance() fixed.Int26_6 {
 	return w.altAdvance
 }
 
+// runsShareDirection reports whether every run in runs has the provided
+// direction. An empty slice trivially matches.
+func runsShareDirection(runs []Output, dir di.Direction) bool {
+	for _, run := range runs {
+		if run.Direction != dir {
+			return false
+		}
+	}
+	return true
+}
+
 // markCandidateBest marks that the current line wrapping candidate is the best
 // known line wrapping candidate with the given suffixes. Providing suffixes does
 // not modify the current candidate, but does ensure that the "best" candidate ends
@@ -980,9 +991,17 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 	if len(finalLine) > 0 {
 		computeBidiOrdering(finalLine)
 		if !l.config.DisableTrailingWhitespaceTrim {
+			// Normally the paragraph direction determines which end of the
+			// line is its visual end. If every run on the line shares a
+			// direction, though, that direction determines it instead (just
+			// as it does when measuring the line in processBreakOption).
+			endDir := l.config.Direction
+			if runsShareDirection(finalLine[1:], finalLine[0].Direction) {
+				endDir = finalLine[0].Direction
+			}
 			// Here we find the last visual run in the line.
 			goalIdx := len(finalLine) - 1
-			if l.config.Direction.Progression() == di.TowardTopLeft {
+			if endDir.Progression() == di.TowardTopLeft {
 				goalIdx = 0
 			}
 			for logicalIdx, run := range finalLine {
@@ -997,7 +1016,7 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 			// zeroes its advance if it is whitespace.
 			if L := len(finalVisualRun.Glyphs); L > 0 {
 				var finalVisualGlyph *Glyph
-				if l.config.Direction.Progression() == di.FromTopLeft {
+				if endDir.Progression() == di.FromTopLeft {
 					finalVisualGlyph = &finalVisualRun.Glyphs[L-1]
 				} else {
 					finalVisualGlyph = &finalVisualRun.Glyphs[0]
@@ -1271,7 +1290,17 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 	}
 	isFirstInLine := l.scratch.candidateLen() == 0
 	candidateRun := cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
-	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()
+	// A run progressing opposite to the paragraph normally has its trailing
+	// whitespace in the middle of the line, so that space cannot be ignored.
+	// If every run on the candidate line shares a direction, though, that
+	// direction determines the visual end of the line and the space really is
+	// trailing. Mixed-direction lines keep the conservative paragraph-based
+	// behavior.
+	endDir := l.config.Direction
+	if runsShareDirection(l.scratch.alt, candidateRun.Direction) {
+		endDir = candidateRun.Direction
+	}
+	candidateLineWidth := candidateRun.advanceSpaceAware(endDir) + l.scratch.candidateAdvance()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {
