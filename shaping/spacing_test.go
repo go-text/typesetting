@@ -150,8 +150,8 @@ func TestTrailingSpaces(t *testing.T) {
 			tu.Assert(t, len(gotLine) == len(expLine))
 			for j, run := range expLine {
 				gotRun := gotLine[j]
-				tu.Assert(t, gotRun.Glyphs[0].XAdvance == run[0])
-				tu.Assert(t, gotRun.Glyphs[len(gotRun.Glyphs)-1].XAdvance == run[1])
+				tu.Assert(t, gotRun.Glyphs[0].Advance == run[0])
+				tu.Assert(t, gotRun.Glyphs[len(gotRun.Glyphs)-1].Advance == run[1])
 			}
 		}
 	}
