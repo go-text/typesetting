@@ -118,6 +118,7 @@ type tableSection struct {
 type Loader struct {
 	file   Resource             // source, needed to parse each table
 	tables map[Tag]tableSection // header only, contents is processed on demand
+	size   int64                // size of the resource, used to check table bounds
 
 	// Type represents the kind of this font being loaded.
 	// It is one of TrueType, TrueTypeApple, PostScript1, OpenType
@@ -189,6 +190,13 @@ func NewLoaders(file Resource) ([]*Loader, error) {
 // dst is an optional storage which may be provided to reduce allocations.
 func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
 	compressed := s.length != 0 && s.length < s.zLength
+
+	// the table directory is not trusted: check that the declared range is
+	// inside the resource before using its length to size a buffer
+	if s.length != 0 && int64(s.offset)+int64(s.length) > pr.size {
+		return nil, errors.New("unsupported table offset or length")
+	}
+
 	if sl, ok := pr.file.(ResourceSlicer); ok {
 		// [dst] may be a table returned by a previous call, which is then a
 		// view of the resource and may be read-only memory: never write into it.
@@ -210,21 +218,32 @@ func (pr *Loader) findTableBuffer(s tableSection, dst []byte) ([]byte, error) {
 		}
 		defer r.Close()
 
-		if cap(dst) < int(s.zLength) {
-			dst = make([]byte, s.zLength)
+		if n := int(s.zLength); n > 0 && cap(dst) >= n {
+			dst = dst[0:n]
+			if _, err := io.ReadFull(r, dst); err != nil {
+				return nil, err
+			}
+			return dst, nil
 		}
-		dst = dst[0:s.zLength]
-		if _, err := io.ReadFull(r, dst); err != nil {
+		// the uncompressed length is also untrusted: decode into a buffer
+		// growing with the actual data, so that a bogus length cannot allocate
+		// a huge buffer before any byte is decoded
+		out, err := io.ReadAll(io.LimitReader(r, int64(s.zLength)))
+		if err != nil {
 			return nil, err
 		}
-	} else {
-		if cap(dst) < int(s.length) {
-			dst = make([]byte, s.length)
+		if int64(len(out)) != int64(s.zLength) {
+			return nil, io.ErrUnexpectedEOF
 		}
-		dst = dst[0:s.length]
-		if _, err := pr.file.ReadAt(dst, int64(s.offset)); err != nil {
-			return nil, err
-		}
+		return out, nil
+	}
+
+	if cap(dst) < int(s.length) {
+		dst = make([]byte, s.length)
+	}
+	dst = dst[0:s.length]
+	if _, err := pr.file.ReadAt(dst, int64(s.offset)); err != nil {
+		return nil, err
 	}
 	return dst, nil
 }
@@ -266,6 +285,12 @@ func (pr *Loader) RawTableTo(tag Tag, dst []byte) ([]byte, error) {
 }
 
 func parseOneFont(file Resource, offset uint32, relativeOffset bool) (parser *Loader, err error) {
+	// keep the resource size, to reject out of bounds tables
+	size, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, fmt.Errorf("invalid resource size: %s", err)
+	}
+
 	_, err = file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset: %s", err)
@@ -293,6 +318,7 @@ func parseOneFont(file Resource, offset uint32, relativeOffset bool) (parser *Lo
 		return nil, err
 	}
 
+	parser.size = size
 	return parser, nil
 }
 
