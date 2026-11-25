@@ -602,6 +602,7 @@ func (w *wrapBuffer) finalizeBest() []Output {
 // LineWrapper holds reusable state for a line wrapping operation. Reusing
 // LineWrappers for multiple paragraphs should improve performance.
 type LineWrapper struct {
+	text []rune // source text for whitespace classification
 	// config holds the current line wrapping settings.
 	config WrapConfig
 	// truncating tracks whether the wrapper should be performing truncation.
@@ -646,6 +647,7 @@ func (l *LineWrapper) Prepare(config WrapConfig, paragraph []rune, runs RunItera
 // until the next call to [LineWrapper.Prepare], [LineWrapper.PrepareSegmented]
 // or [LineWrapper.WrapParagraph].
 func (l *LineWrapper) PrepareSegmented(config WrapConfig, seg *segmenter.Segmenter, runs RunIterator) {
+	l.text = seg.Text()
 	l.config = config
 	l.truncating = l.config.TruncateAfterLines > 0
 	l.breaker = newBreaker(seg)
@@ -678,6 +680,7 @@ func (l *LineWrapper) WrapParagraph(config WrapConfig, maxWidth int, paragraph [
 
 // WrapParagraphF is the same as [WrapParagraph], but accepts a non integer [maxWidth].
 func (l *LineWrapper) WrapParagraphF(config WrapConfig, maxWidth fixed.Int26_6, paragraph []rune, runs RunIterator) (_ []Line, truncated int) {
+	l.text = paragraph
 	l.scratch.reset()
 	// Check whether we can skip line wrapping altogether for the simple single-run-that-fits case.
 	if !(config.TextContinues && config.TruncateAfterLines == 1) {
@@ -871,16 +874,13 @@ func (l *LineWrapper) postProcessLine(finalLine Line, done bool) (WrappedLine, b
 					finalVisualGlyph = &finalVisualRun.Glyphs[0]
 				}
 
-				if finalVisualRun.Direction.IsVertical() {
-					if finalVisualGlyph.Height == 0 {
+				if finalVisualRun.isWhitespace(*finalVisualGlyph, l.text) {
+					if finalVisualRun.Direction.IsVertical() {
 						finalVisualGlyph.YAdvance = 0
-						finalVisualGlyph.Advance = 0
-					}
-				} else { // horizontal
-					if finalVisualGlyph.Width == 0 {
+					} else {
 						finalVisualGlyph.XAdvance = 0
-						finalVisualGlyph.Advance = 0
 					}
+					finalVisualGlyph.Advance = 0
 				}
 				beforeTrim := finalVisualRun.Advance
 				finalVisualRun.RecomputeAdvance()
@@ -1161,7 +1161,7 @@ func (l *LineWrapper) processBreakOption(option breakOption, config lineConfig) 
 		isFirstInLine := l.scratch.candidateLen() == 0
 		candidateRun = cutRun(run, l.mapper.mapping, l.lineStartRune, option.breakAtRune, isFirstInLine)
 	}
-	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction) + l.scratch.candidateAdvance()
+	candidateLineWidth := candidateRun.advanceSpaceAware(l.config.Direction, l.text) + l.scratch.candidateAdvance()
 	if candidateLineWidth > config.maxWidth {
 		// The run doesn't fit on the line.
 		if !l.scratch.hasBest() {

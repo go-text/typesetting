@@ -3746,6 +3746,30 @@ func TestWrapShortRunsReserveTruncator(t *testing.T) {
 	}
 }
 
+func TestWrappingWithoutExtents(t *testing.T) {
+	face := loadOpentypeFont(t, "../font/testdata/UbuntuMono-R.ttf")
+	for _, text := range []string{"abcdef", "ab cd ", "ab\ncd", "ab\u00a0cd"} {
+		input := Input{Text: []rune(text), RunEnd: len([]rune(text)), Face: face, Size: fixed.I(16), Script: language.Latin}
+		var shaper HarfbuzzShaper
+		full, lean := shaper.Shape(input), shaper.ShapeNoExtents(input)
+		for _, trim := range []bool{true, false} {
+			config := WrapConfig{BreakPolicy: Always, DisableTrailingWhitespaceTrim: !trim}
+			want, _ := (&LineWrapper{}).WrapParagraph(config, 16, input.Text, NewSliceIterator([]Output{full}))
+			got, _ := (&LineWrapper{}).WrapParagraph(config, 16, input.Text, NewSliceIterator([]Output{lean}))
+			if len(got) != len(want) {
+				t.Fatalf("%q: got %d lines, want %d", text, len(got), len(want))
+			}
+			for i := range want {
+				for j := range want[i] {
+					if got[i][j].Runes != want[i][j].Runes || got[i][j].Advance != want[i][j].Advance {
+						t.Fatalf("%q: inconsistent line %d advances or coverage", text, i)
+					}
+				}
+			}
+		}
+	}
+}
+
 // wrapAllLines wraps the prepared paragraph of l, alternating the given
 // widths line by line, and returns copies of the wrapped lines.
 func wrapAllLines(l *LineWrapper, widths []int) []WrappedLine {
