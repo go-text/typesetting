@@ -26,6 +26,9 @@ type HarfbuzzShaper struct {
 // It is safe to adjust the size after using the shaper, though shrinking
 // it may result in many evictions on the next shaping.
 func (h *HarfbuzzShaper) SetFontCacheSize(size int) {
+	if size < 0 {
+		size = 0
+	}
 	h.fonts.maxSizeOffset = size - defaultFontCacheSize
 }
 
@@ -90,13 +93,14 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 	t.buf.Props.Script = input.Script
 
 	// reuse font when possible
-	font, ok := t.fonts.Get(input.Face.Font)
+	font, ok := t.fonts.Get(input.Face)
 	if !ok { // create a new font and cache it
 		font = harfbuzz.NewFont(input.Face)
-		t.fonts.Put(input.Face.Font, font)
+		t.fonts.Put(input.Face, font)
 	}
-	// adjust the user provided fields
-	font.XScale = int32(input.Size.Ceil()) << scaleShift
+	// adjust the user provided fields. Size is in 26.6 units, the same
+	// scaleShift the shaping results below are divided by.
+	font.XScale = int32(input.Size)
 	font.YScale = font.XScale
 
 	if L := len(input.FontFeatures); cap(t.features) < L {
@@ -149,16 +153,17 @@ func (t *HarfbuzzShaper) shape(input Input, skipExtents bool) Output {
 		glyphs[i].XBearing = fixed.I(int(extents.XBearing)) >> scaleShift
 		glyphs[i].YBearing = fixed.I(int(extents.YBearing)) >> scaleShift
 	}
-	countClusters(glyphs, input.RunEnd, input.Direction.Progression())
+	countClusters(glyphs, end, input.Direction.Progression())
 	out := Output{
+		noExtents: skipExtents,
 		Glyphs:    glyphs,
 		Direction: input.Direction,
 		Face:      input.Face,
 		Size:      input.Size,
 		Level:     input.Level,
 	}
-	out.Runes.Offset = input.RunStart
-	out.Runes.Count = input.RunEnd - input.RunStart
+	out.Runes.Offset = start
+	out.Runes.Count = end - start
 
 	if isSideways {
 		// set the Direction to the correct value.

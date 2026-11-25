@@ -310,6 +310,10 @@ func (seg *Segmenter) InitWithBytes(paragraph []byte) (err error) {
 // the segmenter was last initialized with.
 func (seg *Segmenter) Len() int { return len(seg.text) }
 
+// Text returns the paragraph the segmenter was last initialized with.
+// It is valid until the segmenter is initialized again, and must not be modified.
+func (seg *Segmenter) Text() []rune { return seg.text }
+
 func (seg *Segmenter) initAttributes() {
 	seg.attributes = append(seg.attributes[:0], make([]breakAttr, len(seg.text)+1)...)
 	computeBreakAttributes(seg.text, seg.attributes)
