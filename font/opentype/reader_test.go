@@ -4,8 +4,11 @@ package opentype
 
 import (
 	"bytes"
+	"compress/zlib"
+	"encoding/binary"
 	"errors"
 	"math/rand"
+	"runtime"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
@@ -77,6 +80,73 @@ func TestRawTable(t *testing.T) {
 
 		_, err = font.RawTable(MustNewTag("OS/2"))
 		tu.AssertC(t, err == nil, filename)
+	}
+}
+
+// A table directory may declare lengths unrelated to the resource content:
+// no buffer should be allocated from such a length before any data is read.
+func TestRawTableOutOfBounds(t *testing.T) {
+	const (
+		testTag = "test"
+		// a length no 64 bytes file can hold
+		bogusLength = 1 << 28
+	)
+
+	// otfFile returns a font whose single table is declared with the given
+	// offset and length, and no table data.
+	otfFile := func(offset, length uint32) []byte {
+		buf := make([]byte, otfHeaderSize+otfEntrySize)
+		binary.BigEndian.PutUint32(buf[0:], uint32(TrueType))
+		binary.BigEndian.PutUint16(buf[4:], 1) // numTables
+		copy(buf[otfHeaderSize:], testTag)
+		binary.BigEndian.PutUint32(buf[otfHeaderSize+8:], offset)
+		binary.BigEndian.PutUint32(buf[otfHeaderSize+12:], length)
+		return buf
+	}
+
+	// woffFile returns a WOFF font whose single table is zdata, declared as
+	// decompressing to origLength bytes.
+	woffFile := func(zdata []byte, origLength uint32) []byte {
+		const tableDataOffset = woffHeaderSize + woffEntrySize
+		buf := make([]byte, tableDataOffset+len(zdata))
+		copy(buf[0:], signatureWOFF.String())
+		binary.BigEndian.PutUint32(buf[4:], uint32(TrueType)) // flavor
+		binary.BigEndian.PutUint32(buf[8:], uint32(len(buf)))
+		binary.BigEndian.PutUint16(buf[12:], 1) // numTables
+		copy(buf[woffHeaderSize:], testTag)
+		binary.BigEndian.PutUint32(buf[woffHeaderSize+4:], tableDataOffset)
+		binary.BigEndian.PutUint32(buf[woffHeaderSize+8:], uint32(len(zdata)))
+		binary.BigEndian.PutUint32(buf[woffHeaderSize+12:], origLength)
+		copy(buf[tableDataOffset:], zdata)
+		return buf
+	}
+
+	var zdata bytes.Buffer
+	zw := zlib.NewWriter(&zdata)
+	_, err := zw.Write([]byte("tiny"))
+	tu.AssertNoErr(t, err)
+	tu.AssertNoErr(t, zw.Close())
+
+	for _, test := range []struct {
+		name string
+		file []byte
+	}{
+		{"uncompressed table outside the resource", otfFile(64, bogusLength)},
+		{"uncompressed table after the resource", otfFile(bogusLength, bogusLength)},
+		{"compressed table with a bogus uncompressed length", woffFile(zdata.Bytes(), bogusLength)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			font, err := NewLoader(bytes.NewReader(test.file))
+			tu.AssertNoErr(t, err)
+
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			_, err = font.RawTable(MustNewTag(testTag))
+			runtime.ReadMemStats(&after)
+
+			tu.Assert(t, err != nil)
+			tu.Assert(t, after.TotalAlloc-before.TotalAlloc < 1<<20)
+		})
 	}
 }
 
@@ -225,8 +295,8 @@ func TestSlicedResourceTruncated(t *testing.T) {
 // copying loader does with a bytes.Reader (ReadAt at EOF returns io.EOF).
 func TestSlicedResourceEmptyTableAtEOF(t *testing.T) {
 	data := []byte{1, 2, 3, 4}
-	copying := Loader{file: bytes.NewReader(data)}
-	sliced := Loader{file: NewSlicedResource(data)}
+	copying := Loader{file: bytes.NewReader(data), size: int64(len(data))}
+	sliced := Loader{file: NewSlicedResource(data), size: int64(len(data))}
 	for _, s := range []tableSection{{offset: 4}, {offset: 5}, {offset: 3, length: 2}} {
 		_, err := copying.findTableBuffer(s, nil)
 		tu.Assert(t, err != nil)
@@ -273,7 +343,7 @@ func TestResourceSlicerErrors(t *testing.T) {
 	data := []byte{1, 2, 3, 4}
 	s := tableSection{offset: 1, length: 2}
 
-	ld := Loader{file: badSlicer{Reader: bytes.NewReader(data), err: errors.New("slice")}}
+	ld := Loader{file: badSlicer{Reader: bytes.NewReader(data), err: errors.New("slice")}, size: int64(len(data))}
 	_, err := ld.findTableBuffer(s, nil)
 	tu.Assert(t, err != nil && err.Error() == "slice")
 }
