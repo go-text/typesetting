@@ -39,9 +39,14 @@ type Paragraph struct {
 	runForCharacter []int
 
 	// scratch buffers reused across calls
-	isolateInitiators []int        // open isolate initiators in determineMatchingIsolates
-	bracketOpeners    []int        // open brackets in locateBrackets, at most maxPairingDepth
-	bracketPairs      bracketPairs // pairs found by locateBrackets
+	isolateInitiators []int         // open isolate initiators in determineMatchingIsolates
+	bracketOpeners    []int         // open brackets in locateBrackets, at most maxPairingDepth
+	bracketPairs      []bracketPair // pairs found by locateBrackets
+	levelRunIndexes   []int         // character indexes in level runs, excluding characters removed by X9
+	levelRunOffsets   []int         // run boundaries in levelRunIndexes, starting with zero
+	sequenceIndexes   []int         // character indexes in the current isolating run sequence
+	sequenceTypes     []ucd.BidiClass
+	sequenceLevels    []Level // paragraph levels after implicit resolution
 
 	// exclusive indice of output runs: the run is at text[previousEnd:end]
 	runsEnd []int

@@ -1,7 +1,8 @@
 package bidi
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
@@ -47,13 +48,6 @@ type bracketPair struct {
 	opener int
 	closer int
 }
-
-// bracketPairs is a slice of bracketPairs with a sort.Interface implementation.
-type bracketPairs []bracketPair
-
-func (b bracketPairs) Len() int           { return len(b) }
-func (b bracketPairs) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-func (b bracketPairs) Less(i, j int) bool { return b[i].opener < b[j].opener }
 
 // resolvePairedBrackets runs the paired bracket part of the UBA algorithm.
 //
@@ -108,7 +102,7 @@ type bracketPairer struct {
 
 	// bracket pair positions, sorted by location of opening bracket
 	// once locateBrackets returns
-	pairPositions bracketPairs
+	pairPositions []bracketPair
 
 	codesIsolatedRun []ucd.BidiClass // directional bidi codes for an isolated run
 	indexes          []int           // array of index values into the original string
@@ -168,7 +162,7 @@ scan:
 		}
 	}
 	// pairs were recorded in closer order. N0 wants opener order.
-	sort.Sort(p.pairPositions)
+	slices.SortFunc(p.pairPositions, func(a, b bracketPair) int { return cmp.Compare(a.opener, b.opener) })
 }
 
 // Bracket pairs within an isolating run sequence are processed as units so

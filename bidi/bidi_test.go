@@ -348,8 +348,9 @@ func TestBidiCharacters(t *testing.T) {
 	datas, err := parseBidiCharacterTests()
 	tu.AssertNoErr(t, err)
 
+	var p Paragraph
 	for _, test := range datas {
-		levels := (&Paragraph{}).Segment(test.codePoints, test.parDir).levels
+		levels := p.Segment(test.codePoints, test.parDir).levels
 
 		/* Compare */
 		for i, level := range levels {
@@ -529,6 +530,31 @@ func BenchmarkSingleDirection(b *testing.B) {
 		_ = paragraph.Segment(fullLTR, LeftToRight)
 		// _ = paragraph.Segment(fullRTL, Neutral)
 		// _ = paragraph.Segment(fullRTL, RightToLeft)
+	}
+}
+
+func BenchmarkSegment(b *testing.B) {
+	for _, tc := range []struct {
+		name string
+		text string
+		dir  Direction
+	}{
+		{"Latin", "The preview opens after 3 seconds.", LeftToRight},
+		{"Chinese", "你好，世界！今天有 3 项任务。", LeftToRight},
+		{"Arabic", "تفتح نافذة المعاينة بعد ثلاث ثوان.", RightToLeft},
+		{"Mixed", "Status (الحالة): 42 files جاهزة", LeftToRight},
+		{"NestedIsolates", "The title is \u2067אבג \u2066C++\u2069 דהו\u2069 in Hebrew.", LeftToRight},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			text := []rune(tc.text)
+			var p Paragraph
+			p.Segment(text, tc.dir) // Measure a reused paragraph.
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				p.Segment(text, tc.dir)
+			}
+		})
 	}
 }
 

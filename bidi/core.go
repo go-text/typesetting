@@ -1,6 +1,8 @@
 package bidi
 
 import (
+	"slices"
+
 	ucd "github.com/go-text/typesetting/internal/unicodedata"
 )
 
@@ -83,27 +85,7 @@ func (p *Paragraph) run() {
 	// practical purposes.
 
 	// Rule X10.
-	// Run remainder of algorithm one isolating run sequence at a time
-	for _, seq := range p.determineIsolatingRunSequences() {
-		// 3) resolving weak types
-		// Rules W1-W7.
-		seq.resolveWeakTypes()
-
-		// 4a) resolving paired brackets
-		// Rule N0
-		resolvePairedBrackets(seq)
-
-		// 4b) resolving neutral types
-		// Rules N1-N3.
-		seq.resolveNeutralTypes()
-
-		// 5) resolving implicit embedding levels
-		// Rules I1, I2.
-		seq.resolveImplicitLevels()
-
-		// Apply the computed levels and types
-		seq.applyLevelsAndTypes()
-	}
+	p.resolveIsolatingRunSequences()
 
 	// Assign appropriate levels to 'hide' LREs, RLEs, LROs, RLOs, PDFs, and
 	// BNs. This is for convenience, so the resulting level array will have
@@ -332,19 +314,19 @@ type isolatingRunSequence struct {
 
 	indexes []int // indexes to the original string
 
-	types          []ucd.BidiClass // type of each character using the index
-	resolvedLevels []Level         // resolved levels after application of rules
-	level          Level
-	sos, eos       ucd.BidiClass
+	types    []ucd.BidiClass // type of each character using the index
+	level    Level
+	sos, eos ucd.BidiClass
 }
 
 func (i *isolatingRunSequence) Len() int { return len(i.indexes) }
 
 // Rule X10, second bullet: Determine the start-of-sequence (sos) and end-of-sequence (eos) types,
 // either L or R, for each isolating run sequence.
-func (p *Paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
+func (p *Paragraph) isolatingRunSequence(indexes []int) isolatingRunSequence {
 	length := len(indexes)
-	types := make([]ucd.BidiClass, length)
+	types := slices.Grow(p.sequenceTypes[:0], length)[:length]
+	p.sequenceTypes = types
 	for i, x := range indexes {
 		types[i] = p.resultTypes[x]
 	}
@@ -374,7 +356,7 @@ func (p *Paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 		}
 	}
 	level := p.resultLevels[indexes[0]]
-	return &isolatingRunSequence{
+	return isolatingRunSequence{
 		p:       p,
 		indexes: indexes,
 		types:   types,
@@ -566,42 +548,24 @@ func setTypes(types []ucd.BidiClass, newType ucd.BidiClass) {
 	}
 }
 
-// 7) resolving implicit embedding levels Rules I1, I2.
-func (s *isolatingRunSequence) resolveImplicitLevels() {
-	// on entry, only these types can be in resultTypes: L, R, EN, AN
-
-	s.resolvedLevels = make([]Level, len(s.types))
-	setLevels(s.resolvedLevels, s.level)
-
-	if (s.level & 1) == 0 { // even level
-		for i, t := range s.types {
-			// Rule I1.
-			if t == ucd.BD_L {
-				// no change
-			} else if t == ucd.BD_R {
-				s.resolvedLevels[i] += 1
-			} else { // t == AN || t == EN
-				s.resolvedLevels[i] += 2
-			}
-		}
-	} else { // odd level
-		for i, t := range s.types {
-			// Rule I2.
-			if t == ucd.BD_R {
-				// no change
-			} else { // t == L || t == AN || t == EN
-				s.resolvedLevels[i] += 1
-			}
-		}
-	}
-}
-
-// Applies the levels and types resolved in rules W1-I2 to the
-// resultLevels array.
-func (s *isolatingRunSequence) applyLevelsAndTypes() {
+// Apply the resolved types and the implicit levels from rules I1 and I2.
+func (s *isolatingRunSequence) resolveImplicitLevels(levels []Level) {
 	for i, x := range s.indexes {
-		s.p.resultTypes[x] = s.types[i]
-		s.p.resultLevels[x] = s.resolvedLevels[i]
+		t := s.types[i] // L, R, EN, or AN
+		level := s.level
+		if s.level&1 == 0 { // I1
+			switch t {
+			case ucd.BD_L:
+			case ucd.BD_R:
+				level++
+			default:
+				level += 2
+			}
+		} else if t != ucd.BD_R { // I2
+			level++
+		}
+		s.p.resultTypes[x] = t
+		levels[x] = level
 	}
 }
 
@@ -619,74 +583,76 @@ func (s *isolatingRunSequence) findRunLimit(index int, validSet ucd.BidiClass) i
 	return len(s.types)
 }
 
-// determineLevelRuns returns an array of level runs. Each level run is
-// described as an array of indexes into the input string.
-//
-// Determines the level runs. Rule X9 will be applied in determining the
-// runs, in the way that makes sure the characters that are supposed to be
-// removed are not included in the runs.
-func (p *Paragraph) determineLevelRuns() [][]int {
-	run := []int{}
-	allRuns := [][]int{}
+// determineLevelRuns collects the character indexes of all level runs,
+// skipping characters removed by rule X9.
+func (p *Paragraph) determineLevelRuns() {
+	indexes := p.levelRunIndexes[:0]
+	offsets := append(p.levelRunOffsets[:0], 0)
 	currentLevel := implicitLevel
 
-	for i := range p.initialTypes {
-		if !isRemovedByX9(p.initialTypes[i]) {
-			if p.resultLevels[i] != currentLevel {
-				// we just encountered a new run; wrap up last run
-				if currentLevel >= 0 { // only wrap it up if there was a run
-					allRuns = append(allRuns, run)
-					run = nil
-				}
-				// Start new run
-				currentLevel = p.resultLevels[i]
-			}
-			run = append(run, i)
+	for i, class := range p.initialTypes {
+		if isRemovedByX9(class) {
+			continue
 		}
+		if level := p.resultLevels[i]; level != currentLevel {
+			if len(indexes) != 0 {
+				offsets = append(offsets, len(indexes))
+			}
+			currentLevel = level
+		}
+		p.runForCharacter[i] = len(offsets) - 1
+		indexes = append(indexes, i)
 	}
-	// Wrap up the final run, if any
-	if len(run) > 0 {
-		allRuns = append(allRuns, run)
+	if len(indexes) != 0 {
+		offsets = append(offsets, len(indexes))
 	}
-	return allRuns
+	p.levelRunIndexes, p.levelRunOffsets = indexes, offsets
 }
 
-// Definition BD13. Determine isolating run sequences.
-func (p *Paragraph) determineIsolatingRunSequences() []*isolatingRunSequence {
-	levelRuns := p.determineLevelRuns()
+func (p *Paragraph) levelRun(i int) []int {
+	return p.levelRunIndexes[p.levelRunOffsets[i]:p.levelRunOffsets[i+1]]
+}
 
-	// Compute the run that each character belongs to
-	for i, run := range levelRuns {
-		for _, index := range run {
-			p.runForCharacter[index] = i
-		}
-	}
-
-	sequences := []*isolatingRunSequence{}
-
-	var currentRunSequence []int
-
-	for _, run := range levelRuns {
+// Apply rule X10 to each isolating run sequence (BD13).
+func (p *Paragraph) resolveIsolatingRunSequences() {
+	p.determineLevelRuns()
+	sequence := p.sequenceIndexes[:0]
+	// Keep the explicit levels available for sos and eos until every sequence
+	// has been resolved. The sequences are disjoint, so types can be written back.
+	levels := append(p.sequenceLevels[:0], p.resultLevels...)
+	for i := 0; i+1 < len(p.levelRunOffsets); i++ {
+		run := p.levelRun(i)
 		first := run[0]
-		if p.initialTypes[first] != ucd.BD_PDI || p.matchingIsolateInitiator[first] == -1 {
-			currentRunSequence = nil
-			// int run = i;
-			for {
-				// Copy this level run into currentRunSequence
-				currentRunSequence = append(currentRunSequence, run...)
-
-				last := currentRunSequence[len(currentRunSequence)-1]
-				lastT := p.initialTypes[last]
-				if lastT&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) != 0 && p.matchingPDI[last] != p.len() {
-					run = levelRuns[p.runForCharacter[p.matchingPDI[last]]]
-				} else {
-					break
-				}
-			}
-			sequences = append(sequences, p.isolatingRunSequence(currentRunSequence))
+		if p.initialTypes[first] == ucd.BD_PDI && p.matchingIsolateInitiator[first] != -1 {
+			continue
 		}
+
+		// A single-run sequence can use the run indexes directly.
+		indexes := run
+		for {
+			last := run[len(run)-1]
+			lastType := p.initialTypes[last]
+			if lastType&(ucd.BD_LRI|ucd.BD_RLI|ucd.BD_FSI) == 0 || p.matchingPDI[last] == p.len() {
+				break
+			}
+			if len(sequence) == 0 {
+				sequence = append(sequence, run...)
+			}
+			run = p.levelRun(p.runForCharacter[p.matchingPDI[last]])
+			sequence = append(sequence, run...)
+			indexes = sequence
+		}
+
+		seq := p.isolatingRunSequence(indexes)
+		seq.resolveWeakTypes()            // W1-W7
+		resolvePairedBrackets(&seq)       // N0
+		seq.resolveNeutralTypes()         // N1-N3
+		seq.resolveImplicitLevels(levels) // I1-I2
+		sequence = sequence[:0]
 	}
-	return sequences
+	p.sequenceIndexes = sequence
+	p.sequenceLevels = levels
+	copy(p.resultLevels, levels)
 }
 
 // Assign level information to characters removed by rule X9. This is for
