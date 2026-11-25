@@ -34,6 +34,7 @@ type AATFeature struct {
 	DisableFlags   uint32 // Complement of flags for the settings that this feature and setting disable.
 }
 
+// binarygen: argument=valuesCount int
 type MorxChainSubtable struct {
 	length uint32 // Total subtable length, including this header.
 
@@ -44,15 +45,33 @@ type MorxChainSubtable struct {
 
 	SubFeatureFlags uint32 // The 32-bit mask identifying which subtable this is (the subtable being executed if the AND of this value and the processed defaultFlags is nonzero)
 
-	Data MorxSubtable `unionField:"version"`
+	Data MorxSubtable `isOpaque:""`
 }
 
-// check and return the subtable length
-func (mc *MorxChainSubtable) parseEnd(src []byte, _ int) (int, error) {
-	if L := len(src); L < int(mc.length) {
-		return 0, fmt.Errorf("EOF: expected length: %d, got %d", mc.length, L)
+func (mc *MorxChainSubtable) parseData(src []byte, valuesCount int) (int, error) {
+	const headerSize = 12
+	if mc.length < headerSize || uint64(mc.length) > uint64(len(src)) {
+		return 0, fmt.Errorf("invalid subtable length %d (have %d bytes)", mc.length, len(src))
 	}
-	return int(mc.length), nil
+
+	// Some arrays, such as the ligature list, are read to the end of the subtable.
+	data := src[headerSize:mc.length:mc.length]
+	var err error
+	switch mc.version {
+	case MorxSubtableVersionContextual:
+		mc.Data, _, err = ParseMorxSubtableContextual(data, valuesCount)
+	case MorxSubtableVersionInsertion:
+		mc.Data, _, err = ParseMorxSubtableInsertion(data, valuesCount)
+	case MorxSubtableVersionLigature:
+		mc.Data, _, err = ParseMorxSubtableLigature(data, valuesCount)
+	case MorxSubtableVersionNonContextual:
+		mc.Data, _, err = ParseMorxSubtableNonContextual(data, valuesCount)
+	case MorxSubtableVersionRearrangement:
+		mc.Data, _, err = ParseMorxSubtableRearrangement(data, valuesCount)
+	default:
+		err = fmt.Errorf("unsupported MorxSubtableVersion %d", mc.version)
+	}
+	return int(mc.length), err
 }
 
 // MorxSubtableVersion indicates the kind of 'morx' subtable.
@@ -187,8 +206,8 @@ func (lig *MorxSubtableLigature) parseComponents(src []byte, _ int) error {
 	if lig.componentOffset > lig.ligatureOffset {
 		return errors.New("unsupported non sorted offsets")
 	}
-	if L := len(src); L < int(lig.componentOffset) {
-		return fmt.Errorf("EOF: expected length: %d, got %d", lig.componentOffset, L)
+	if L := len(src); uint64(L) < uint64(lig.ligatureOffset) {
+		return fmt.Errorf("EOF: expected length: %d, got %d", lig.ligatureOffset, L)
 	}
 	src = src[lig.componentOffset:]
 	componentCount := (lig.ligatureOffset - lig.componentOffset) / 2

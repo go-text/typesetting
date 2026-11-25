@@ -145,9 +145,9 @@ func TestMorxLigature(t *testing.T) {
 		"0002 0000 " + //  0: Version=2, Reserved=0
 			"0000 0001 " + //  4: MorphChainCount=1
 			"0000 0001 " + //  8: DefaultFlags=1
-			"0000 00DA " + // 12: StructLength=218 (+8=226)
+			"0000 01A4 " + // 12: StructLength=420 (+8=428)
 			"0000 0000 " + // 16: MorphFeatureCount=0
-			"0000 0001 " + // 20: MorphSubtableCount=1
+			"0000 0002 " + // 20: MorphSubtableCount=2
 			"0000 00CA " + // 24: Subtable[0].StructLength=202 (+24=226)
 			"80 " + // 28: Subtable[0].CoverageFlags=0x80
 			"00 00 " + // 29: Subtable[0].Reserved=0
@@ -206,14 +206,16 @@ func TestMorxLigature(t *testing.T) {
 			"03EC 03ED " + // 218: LigList[4]=1004, LigList[3]=1005
 			"03EE 03EF ") // 222: LigList[5]=1006, LigList[6]=1007
 
-	tu.Assert(t, len(morxLigatureData) == 226)
+	// Repeat the subtable so the first ligature list is followed by more data.
+	morxLigatureData = append(morxLigatureData, morxLigatureData[24:]...)
+	tu.Assert(t, len(morxLigatureData) == 428)
 	out, _, err := ParseMorx(morxLigatureData, 1515)
 	tu.AssertNoErr(t, err)
 	tu.Assert(t, len(out.Chains) == 1)
 
 	chain := out.Chains[0]
 	tu.Assert(t, chain.Flags == 1)
-	tu.Assert(t, len(chain.Subtables) == 1)
+	tu.Assert(t, len(chain.Subtables) == 2)
 	subtable := chain.Subtables[0]
 
 	const vertical uint8 = 0x80
@@ -260,7 +262,9 @@ func TestMorxLigature(t *testing.T) {
 	}
 	tu.Assert(t, reflect.DeepEqual(lig.LigActions, expLigActions))
 	tu.Assert(t, reflect.DeepEqual(lig.Components, expComponents))
-	tu.Assert(t, reflect.DeepEqual(lig.Ligatures, expLigatures))
+	if !reflect.DeepEqual(lig.Ligatures, expLigatures) {
+		t.Errorf("first ligature list: got %v, want %v", lig.Ligatures, expLigatures)
+	}
 }
 
 func TestMorxInsertion(t *testing.T) {
