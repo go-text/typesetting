@@ -107,35 +107,13 @@ func ParseMorxChainSubtable(src []byte, valuesCount int) (MorxChainSubtable, int
 	n += 12
 
 	{
-		var (
-			read int
-			err  error
-		)
-		switch item.version {
-		case MorxSubtableVersionContextual:
-			item.Data, read, err = ParseMorxSubtableContextual(src[12:], valuesCount)
-		case MorxSubtableVersionInsertion:
-			item.Data, read, err = ParseMorxSubtableInsertion(src[12:], valuesCount)
-		case MorxSubtableVersionLigature:
-			item.Data, read, err = ParseMorxSubtableLigature(src[12:], valuesCount)
-		case MorxSubtableVersionNonContextual:
-			item.Data, read, err = ParseMorxSubtableNonContextual(src[12:], valuesCount)
-		case MorxSubtableVersionRearrangement:
-			item.Data, read, err = ParseMorxSubtableRearrangement(src[12:], valuesCount)
-		default:
-			err = fmt.Errorf("unsupported MorxSubtableVersion %d", item.version)
-		}
+
+		read, err := item.parseData(src[:], valuesCount)
 		if err != nil {
 			return item, 0, fmt.Errorf("reading MorxChainSubtable: %s", err)
 		}
-		n += read
+		n = read
 	}
-	var err error
-	n, err = item.parseEnd(src, valuesCount)
-	if err != nil {
-		return item, 0, fmt.Errorf("reading MorxChainSubtable: %s", err)
-	}
-
 	return item, n, nil
 }
 
