@@ -3,11 +3,13 @@
 package tables
 
 import (
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	td "github.com/go-text/typesetting-utils/opentype"
+	ot "github.com/go-text/typesetting/font/opentype"
 	tu "github.com/go-text/typesetting/testutils"
 )
 
@@ -113,6 +115,39 @@ func TestParseMorx(t *testing.T) {
 			tu.Assert(t, len(chain.Subtables) == int(chain.nSubtable))
 			tu.Assert(t, chain.Flags == 1)
 		}
+	}
+}
+
+func TestMorxAppleColorEmoji(t *testing.T) {
+	path := os.Getenv("GO_TEXT_TEST_APPLE_COLOR_EMOJI")
+	if path == "" {
+		t.Skip("set GO_TEXT_TEST_APPLE_COLOR_EMOJI to the path of macOS 27.0.1's Apple Color Emoji.ttc")
+	}
+
+	file, err := os.Open(path)
+	tu.AssertNoErr(t, err)
+	defer file.Close()
+	faces, err := ot.NewLoaders(file)
+	tu.AssertNoErr(t, err)
+	if len(faces) == 0 {
+		t.Fatal("the font collection has no faces")
+	}
+	face := faces[0]
+	morx, _, err := ParseMorx(readTable(t, face, "morx"), numGlyphs(t, face))
+	tu.AssertNoErr(t, err)
+
+	var counts []int
+	for _, chain := range morx.Chains {
+		for _, subtable := range chain.Subtables {
+			if lig, ok := subtable.Data.(MorxSubtableLigature); ok {
+				counts = append(counts, len(lig.Ligatures))
+			}
+		}
+	}
+	// Counts from the declared subtable lengths and ligature offsets in face 0.
+	want := []int{12, 12, 259, 259, 3, 3, 35, 75, 30, 885, 203, 675, 85}
+	if !reflect.DeepEqual(counts, want) {
+		t.Fatalf("face 0 ligature glyph counts: got %v, want %v (Apple Color Emoji from macOS 27.0.1)", counts, want)
 	}
 }
 
